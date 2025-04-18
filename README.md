@@ -18,7 +18,8 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 ## Initial Scope of the BDF
 
 - The initial scope is intended to facilitate use and comparison of cycler time-series data.  
-  _Note: BattInfo was previously developed to describe battery metadata naming conventions and to outline definitions of metrics that can be computed from time-series data._
+- The BDF provides a fixed table schema for time-series battery data, which is supplemented with a machine-readable application ontology for integration with the Semantic Web.  
+- The BDF application ontology is defined as an extension of the BattINFO domain ontology, which provides interoperability within the broader field of battery data. 
 - An immediate next step will be launching a parallel format for storing metadata for the BDF.
 - Future development will focus on formats for other types of lab data such as impedance data.
 
@@ -27,28 +28,41 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 1. **Each file contains time-series data for one and only one cell.**  
    - Multiple files can be provided for the same cell.
 
-2. **Required measurement types**:
-   - `"test_time_millisecond"` (int): Number of milliseconds since the start of the test.
-   - `"current_ampere"` (float): Instantaneous current, recorded in amperes.
-   - `"voltage_volt"` (float): Instantaneous voltage, recorded in volts.
-   - `"cycle_dimensionless"` (int): Used to track evolution of performance metrics over the course of aging.
+2. **Required quantities**  
 
-3. **Recommended additional measurement**:
-   - `"date_time_millisecond"`: Encodes actual date and time when the measurement was made using Unix time in milliseconds.
-   - Necessary to support data stitching across multiple files for the same dataset identifier and connect cycler data to other physical events in lab environments.
+| Preferred Label       | Machine-readable name   | Description                                                                 | IRI                                                                 |
+|-----------------------|--------------------------|-----------------------------------------------------------------------------|----------------------------------------------------------------------|
+| Test Time / ms        | `test_time_millisecond`  | Elapsed time since the start of the test, recorded in millisecond.         | https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_millisecond |
+| Current / A           | `current_ampere`         | Instantaneous current applied to or from the test object, in ampere.       | https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere |
+| Voltage / V           | `voltage_volt`           | Instantaneous voltage measured across the test object, in volt.            | https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt |
 
-4. **Optional measurement types**:
-   - `"ambient_temperature_celsius"` (float)
-   - `"ambient_pressure_pascal"` (float)
-   - `"surface_temperature_celsius"` (float)
-   - `"surface_pressure_pascal"` (float)
-   - `"dcir_ohm"` (float)
-   - `"step_dimensionless"` (int)
-   - _Note: The string after the final underscore denotes the unit associated with the variable name. The `pint` library is recommended for unit selection._
+### Recommended quantities  
+
+| Preferred Label              | Machine-readable name         | Description                                                                                         | IRI                                                                 |
+|------------------------------|-------------------------------|-----------------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
+| Unix Time / ms               | `unix_time_millisecond`       | Timestamp of the measurement in Unix time (millisecond since Jan 1, 1970 UTC). Used to align data. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#unix_time_millisecond |
+| Cycle Count / 1              | `cycle_count`                 | Sequential index of the current cycle in the test program, increasing monotonically throughout the dataset. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#cycle_count |
+| Step Count / 1               | `step_count`                  | Sequential index of the current step in the test program, increasing monotonically throughout the dataset. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_count |
+| Temperature / °C             | `temperature_celsius`         | Measured temperature of the test object (e.g., surface or internal), in degree Celsius.             | https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_celsius |
+
+### Optional quantities 
+
+| Preferred Label                    | Machine-readable name             | Description                                                                 | IRI                                                                 |
+|------------------------------------|-----------------------------------|-----------------------------------------------------------------------------|----------------------------------------------------------------------|
+| Step Index / 1                     | `step_index`                      | Index identifying the type of step being executed, as defined in the test program. May repeat across the dataset. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index |
+| Charging Capacity / Ah             | `charge_capacity_ampere_hour`     | Accumulated capacity during a charging phase, in ampere hour.              | https://w3id.org/battery-data-alliance/ontology/battery-data-format#charge_capacity_ampere_hour |
+| Discharging Capacity / Ah          | `discharge_capacity_ampere_hour`  | Accumulated capacity during a discharging phase, in ampere hour.           | https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharge_capacity_ampere_hour |
+| Charging Energy / Wh               | `charge_energy_watt_hour`         | Accumulated energy during a charging phase, in watt hour.                  | https://w3id.org/battery-data-alliance/ontology/battery-data-format#charge_energy_watt_hour |
+| Discharging Energy / Wh            | `discharge_energy_watt_hour`      | Accumulated energy during a discharging phase, in watt hour.               | https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharge_energy_watt_hour |
+| Internal Resistance / Ohm          | `internal_resistance_ohm`         | Internal resistance of the test object, measured in ohm.                   | https://w3id.org/battery-data-alliance/ontology/battery-data-format#internal_resistance_ohm |
+| Ambient Temperature / °C           | `ambient_temperature_celsius`     | Temperature of the surrounding environment, in degree Celsius.             | https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius |
+| Ambient Pressure / Pa              | `ambient_pressure_pascal`         | Atmospheric pressure in the test environment, in pascal.                   | https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_pressure_pascal |
+| Applied Pressure / Pa              | `applied_pressure_pascal`         | Mechanical pressure applied directly to the test object, in pascal.        | https://w3id.org/battery-data-alliance/ontology/battery-data-format#applied_pressure_pascal |
+
 
 5. **Data structure**:
-   - The first row contains a header row indicating the measurement name and units.
-   - The units of required measurement types are fixed.
+   - The first row contains a header row with the preferred label of the quantity in the corresponding column.
+   - The units of the quantities are fixed.
    - All rows must match the initial header in column count, ensuring consistent formatting.
 
 6. **File naming conventions**:
@@ -63,10 +77,11 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
    - Additional metadata (e.g., cell model, serial number, unique identifier) should be stored within a parallel metadata file.
 
 7. **File extension**:
-   - Files can be saved with `.bdf` or `.csv`.
-   - It is assumed that `.bdf` files adhere to the BDF conventions, and future validator functions may be created to enforce this.
+   - Files using text-based serialization can be saved with the `.bdf` extension.  
+   - If another extension is necessary, it can be supplemented with a `.bdf` prefix (e.g. `example.bdf.parquet`)  
    - Stream compressors like `gzip` can be used to save space, resulting in `.bdf.gz` files.
+   - It is assumed that `.bdf` files adhere to the BDF conventions, and future validator functions may be created to enforce this.
 
-## Conclusion
+## Summary
 
 The **Battery Data Format (.bdf)** is a step toward unifying and accelerating battery research and development. By adopting this open-source standard, we can foster collaboration, enhance model interoperability, and unlock the full potential of data-driven battery innovation.
