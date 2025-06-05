@@ -30,34 +30,42 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 
 2. **Required quantities**  
 
-| Preferred Label       | Machine-readable name   | Description                                                                 | IRI                                                                 |
-|-----------------------|--------------------------|-----------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Test Time / ms        | `test_time_millisecond`  | Elapsed time since the start of the test, recorded in millisecond.         | https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_millisecond |
-| Current / A           | `current_ampere`         | Instantaneous current applied to or from the test object, in ampere.       | https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere |
-| Voltage / V           | `voltage_volt`           | Instantaneous voltage measured across the test object, in volt.            | https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt |
+| Preferred Label       | Machine-readable name   | Description                                                                 |
+|-----------------------|--------------------------|-----------------------------------------------------------------------------|
+| Test Time / s         | `test_time_second`       | Elapsed time since the start of the test, recorded in seconds              |
+| Voltage / V           | `voltage_volt`           | Instantaneous voltage measured across the test object                      |
+| Current / A           | `current_ampere`         | Instantaneous current applied to or from the test object                   |
 
-### Recommended quantities  
+3. **Recommended quantities**
 
-| Preferred Label              | Machine-readable name         | Description                                                                                         | IRI                                                                 |
-|------------------------------|-------------------------------|-----------------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Unix Time / ms               | `unix_time_millisecond`       | Timestamp of the measurement in Unix time (millisecond since Jan 1, 1970 UTC). Used to align data. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#unix_time_millisecond |
-| Cycle Count / 1              | `cycle_count`                 | Sequential index of the current cycle in the test program, increasing monotonically throughout the dataset. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#cycle_count |
-| Step Count / 1               | `step_count`                  | Sequential index of the current step in the test program, increasing monotonically throughout the dataset. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_count |
-| Temperature / °C             | `temperature_celsius`         | Measured temperature of the test object (e.g., surface or internal), in degree Celsius.             | https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_celsius |
+| Preferred Label       | Machine-readable name       | Description                                                                 |
+|------------------------|------------------------------|-----------------------------------------------------------------------------|
+| Unix Time / s          | `unix_time_second`           | Timestamp in Unix time format (seconds since 1970-01-01 UTC)               |
+| Cycle Count / 1        | `cycle_count`                | Monotonically increasing index of test cycles                              |
+| Step Count / 1         | `step_count`                 | Monotonically increasing index of steps within the program                 |
+| Temperature / degC     | `temperature_celsius`        | Measured temperature (e.g., surface or internal)                           |
 
-### Optional quantities 
+4. **Optional quantities**
 
-| Preferred Label                    | Machine-readable name             | Description                                                                 | IRI                                                                 |
-|------------------------------------|-----------------------------------|-----------------------------------------------------------------------------|----------------------------------------------------------------------|
-| Step Index / 1                     | `step_index`                      | Index identifying the type of step being executed, as defined in the test program. May repeat across the dataset. | https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index |
-| Charging Capacity / Ah             | `charge_capacity_ampere_hour`     | Accumulated capacity during a charging phase, in ampere hour.              | https://w3id.org/battery-data-alliance/ontology/battery-data-format#charge_capacity_ampere_hour |
-| Discharging Capacity / Ah          | `discharge_capacity_ampere_hour`  | Accumulated capacity during a discharging phase, in ampere hour.           | https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharge_capacity_ampere_hour |
-| Charging Energy / Wh               | `charge_energy_watt_hour`         | Accumulated energy during a charging phase, in watt hour.                  | https://w3id.org/battery-data-alliance/ontology/battery-data-format#charge_energy_watt_hour |
-| Discharging Energy / Wh            | `discharge_energy_watt_hour`      | Accumulated energy during a discharging phase, in watt hour.               | https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharge_energy_watt_hour |
-| Internal Resistance / Ohm          | `internal_resistance_ohm`         | Internal resistance of the test object, measured in ohm.                   | https://w3id.org/battery-data-alliance/ontology/battery-data-format#internal_resistance_ohm |
-| Ambient Temperature / °C           | `ambient_temperature_celsius`     | Temperature of the surrounding environment, in degree Celsius.             | https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius |
-| Ambient Pressure / Pa              | `ambient_pressure_pascal`         | Atmospheric pressure in the test environment, in pascal.                   | https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_pressure_pascal |
-| Applied Pressure / Pa              | `applied_pressure_pascal`         | Mechanical pressure applied directly to the test object, in pascal.        | https://w3id.org/battery-data-alliance/ontology/battery-data-format#applied_pressure_pascal |
+| Preferred Label                    | Machine-readable name              |
+|------------------------------------|------------------------------------|
+| Step Index / 1                     | `step_index`                       |
+| Charging Capacity / Ah             | `charging_capacity_ah`             |
+| Discharging Capacity / Ah          | `discharging_capacity_ah`          |
+| Step Capacity / Ah                 | `step_capacity_ah`                 |
+| Net Capacity / Ah                  | `net_capacity_ah`                  |
+| Cumulative Capacity / Ah           | `cumulative_capacity_ah`           |
+| Charging Energy / Wh               | `charging_energy_wh`               |
+| Discharging Energy / Wh            | `discharging_energy_wh`            |
+| Step Energy / Wh                   | `step_energy_wh`                   |
+| Net Energy / Wh                    | `net_energy_wh`                    |
+| Cumulative Energy / Wh             | `cumulative_energy_wh`             |
+| Power / W                          | `power_watt`                       |
+| Ambient Temperature / degC         | `ambient_temperature_celsius`      |
+| Ambient Pressure / Pa              | `ambient_pressure_pa`              |
+| Applied Pressure / Pa              | `applied_pressure_pa`              |
+| Internal Resistance / Ohm          | `internal_resistance_ohm`          |
+| Surface Temperature T1–T5 / degC   | `temperature_t{1-5}_celsius`       |
 
 
 5. **Data structure**:
