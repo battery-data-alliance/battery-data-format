@@ -4,7 +4,7 @@
 
 It is well known that organizing, cleaning, and preparing battery data for analytics takes significant time and effort, creating a high barrier to leveraging advances in battery modeling for battery development cycles.
 
-A 2024 Forrester study surveyed 165 decision-makers in the automotive industry responsible for EV battery testing, validation, and development in the US and Europe. Among the respondents, 57% cited deciphering complex relationships in vast, multiparameter datasets as a significant barrier to battery validation, and 61% estimated months to years of time savings from AI-powered cell characterization testing that leverages standardized data sets.
+[A 2024 Forrester study](https://25090789.fs1.hubspotusercontent-eu1.net/hubfs/25090789/FORRESTER%20DRAFT_PLACEHOLDER.pdf) surveyed 165 decision-makers in the automotive industry responsible for EV battery testing, validation, and development in the US and Europe. Among the respondents, 57% cited deciphering complex relationships in vast, multiparameter datasets as a significant barrier to battery validation, and 61% estimated months to years of time savings from AI-powered cell characterization testing that leverages standardized data sets.
 
 ## Goal of launching the BDF
 
@@ -30,42 +30,47 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 
 2. **Required quantities**  
 
-| Preferred Label       | Machine-readable name   | Description                                                                 |
-|-----------------------|--------------------------|-----------------------------------------------------------------------------|
-| Test Time / s         | `test_time_second`       | Elapsed time since the start of the test, recorded in seconds              |
-| Voltage / V           | `voltage_volt`           | Instantaneous voltage measured across the test object                      |
-| Current / A           | `current_ampere`         | Instantaneous current applied to or from the test object                   |
+| Preferred Label       | Machine-readable name   | IRI                                                                                         | Description                                                                 |
+|-----------------------|--------------------------|----------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Test Time / s         | `test_time_second`       | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second](https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second)      | Elapsed time since the start of the test, recorded in seconds              |
+| Voltage / V           | `voltage_volt`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt](https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt)          | Instantaneous voltage measured across the test object                      |
+| Current / A           | `current_ampere`         | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere](https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere)        | Instantaneous current applied to or from the test object                   |
+
 
 3. **Recommended quantities**
 
-| Preferred Label       | Machine-readable name       | Description                                                                 |
-|------------------------|------------------------------|-----------------------------------------------------------------------------|
-| Unix Time / s          | `unix_time_second`           | Timestamp in Unix time format (seconds since 1970-01-01 UTC)               |
-| Cycle Count / 1        | `cycle_count`                | Monotonically increasing index of test cycles                              |
-| Step Count / 1         | `step_count`                 | Monotonically increasing index of steps within the program                 |
-| Temperature / degC     | `temperature_celsius`        | Measured temperature (e.g., surface or internal)                           |
+| Preferred Label       | Machine-readable name       | IRI                                                                                               | Description                                                                 |
+|------------------------|------------------------------|----------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Unix Time / s          | `unix_time_second`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#unix_time_second](https://w3id.org/battery-data-alliance/ontology/battery-data-format#unix_time_second)            | Timestamp in Unix time format (seconds since 1970-01-01 UTC)               |
+| Cycle Count / 1        | `cycle_count`                | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#cycle_count](https://w3id.org/battery-data-alliance/ontology/battery-data-format#cycle_count)                 | Monotonically increasing index of test cycles                              |
+| Step Count / 1         | `step_count`                 | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_count](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_count)                  | Monotonically increasing index of steps within the program                 |
+| Ambient Temperature / degC         | `ambient_temperature_celsius`      | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius)     | Temperature of the surrounding environment during testing                  |
+
 
 4. **Optional quantities**
 
-| Preferred Label                    | Machine-readable name              |
-|------------------------------------|------------------------------------|
-| Step Index / 1                     | `step_index`                       |
-| Charging Capacity / Ah             | `charging_capacity_ah`             |
-| Discharging Capacity / Ah          | `discharging_capacity_ah`          |
-| Step Capacity / Ah                 | `step_capacity_ah`                 |
-| Net Capacity / Ah                  | `net_capacity_ah`                  |
-| Cumulative Capacity / Ah           | `cumulative_capacity_ah`           |
-| Charging Energy / Wh               | `charging_energy_wh`               |
-| Discharging Energy / Wh            | `discharging_energy_wh`            |
-| Step Energy / Wh                   | `step_energy_wh`                   |
-| Net Energy / Wh                    | `net_energy_wh`                    |
-| Cumulative Energy / Wh             | `cumulative_energy_wh`             |
-| Power / W                          | `power_watt`                       |
-| Ambient Temperature / degC         | `ambient_temperature_celsius`      |
-| Ambient Pressure / Pa              | `ambient_pressure_pa`              |
-| Applied Pressure / Pa              | `applied_pressure_pa`              |
-| Internal Resistance / Ohm          | `internal_resistance_ohm`          |
-| Surface Temperature T1–T5 / degC   | `temperature_t{1-5}_celsius`       |
+| Preferred Label                    | Machine-readable name              | IRI                                                                                                   | Description                                                                 |
+|------------------------------------|------------------------------------|--------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Step Index / 1                     | `step_index`                       | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index)                      | Index indicating the position of the data point within a step              |
+| Charging Capacity / Ah             | `charging_capacity_ah`             | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_capacity_ah)            | Capacity accumulated during charging within a given interval       |
+| Discharging Capacity / Ah          | `discharging_capacity_ah`          | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_capacity_ah)         | Capacity delivered during discharging within a given interval      |
+| Step Capacity / Ah                 | `step_capacity_ah`                 | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_capacity_ah)                | Net capacity change over a given step                                  |
+| Net Capacity / Ah                  | `net_capacity_ah`                  | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_capacity_ah)                 | Charging capacity minus discharging capacity within a given interval        |
+| Cumulative Capacity / Ah           | `cumulative_capacity_ah`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_capacity_ah)          | Total capacity accumulated over a given interval           |
+| Charging Energy / Wh               | `charging_energy_wh`               | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_energy_wh)              | Energy input during charging, computed as ∫V·I·dt over a charging interval |
+| Discharging Energy / Wh            | `discharging_energy_wh`            | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_energy_wh)           | Energy output during discharging, computed as ∫V·I·dt over a discharging interval |
+| Step Energy / Wh                   | `step_energy_wh`                   | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_energy_wh)                  | Net energy change during the current step                                  |
+| Net Energy / Wh                    | `net_energy_wh`                    | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_energy_wh)                   | Charging energy minus discharging energy over a given interval                                   |
+| Cumulative Energy / Wh             | `cumulative_energy_wh`             | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_energy_wh)            | Total energy accumulated over a given interval             |
+| Power / W                          | `power_watt`                       | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#power_watt](https://w3id.org/battery-data-alliance/ontology/battery-data-format#power_watt)                      | Instantaneous power calculated as the product of voltage and current                                    |
+| Internal Resistance / Ohm          | `internal_resistance_ohm`          | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#internal_resistance_ohm](https://w3id.org/battery-data-alliance/ontology/battery-data-format#internal_resistance_ohm)         | Internal resistance of the test object                            |
+| Ambient Pressure / Pa              | `ambient_pressure_pa`              | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_pressure_pa](https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_pressure_pa)             | Ambient air pressure recorded during testing                               |
+| Applied Pressure / Pa              | `applied_pressure_pa`              | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#applied_pressure_pa](https://w3id.org/battery-data-alliance/ontology/battery-data-format#applied_pressure_pa)             | External pressure applied to the test object                               |
+| Surface Temperature T1 / degC      | `temperature_t1_celsius`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t1_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t1_celsius)           | Temperature at external sensor location T1 on the test object              |
+| Surface Temperature T2 / degC      | `temperature_t2_celsius`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t2_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t2_celsius)           | Temperature at external sensor location T2 on the test object              |
+| Surface Temperature T3 / degC      | `temperature_t3_celsius`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t3_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t3_celsius)           | Temperature at external sensor location T3 on the test object              |
+| Surface Temperature T4 / degC      | `temperature_t4_celsius`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t4_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t4_celsius)           | Temperature at external sensor location T4 on the test object              |
+| Surface Temperature T5 / degC      | `temperature_t5_celsius`           | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t5_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t5_celsius)           | Temperature at external sensor location T5 on the test object              |
 
 
 5. **Data structure**:
