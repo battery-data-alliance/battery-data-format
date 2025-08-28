@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bdf"
+version = "0.1.0"
+description = "Battery Data Format: load, convert, visualize, and publish"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Battery Data Alliance" }]
+dependencies = [
+  "pandas>=2.0",
+  "pyarrow>=15.0",
+  "typer>=0.12",
+  "rich>=13.7",
+  "matplotlib>=3.8",
+  "pydantic>=2.6",
+  "requests>=2.31"
+]
+
+[project.urls]
+Homepage = "https://github.com/battery-data-alliance/battery-data-format"
+Issues   = "https://github.com/battery-data-alliance/battery-data-format/issues"
+
+[project.scripts]
+bdf = "bdf.cli:app"
