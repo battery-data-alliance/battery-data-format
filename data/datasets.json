@@ -1,0 +1,43 @@
+{
+    "biologic": {
+        "na-ion": {
+            "cccv": {
+                "outlier": {
+                    "name": "BioLogic CCCV of Na-ion cell with Voltage and Current Outlier",
+                    "url": "https://zenodo.org/records/16994938/files/SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.mpt",
+                    "plugin": "biologic-mpt",         
+                    "format": "mpt",                  
+                    "is_bdf": false,                  
+                    "license": "CC-BY-4.0",
+                    "notes": "Intentional outliers for validator demo"
+                }
+            },
+            "gitt": {
+                "none": {
+                    "name": "BioLogic GITT of Na-ion cell",
+                    "url": "https://zenodo.org/records/16994938/files/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt",
+                    "plugin": "biologic-mpt",         
+                    "format": "mpt",                  
+                    "is_bdf": false,                  
+                    "license": "CC-BY-4.0",
+                    "notes": "Intentional outliers for validator demo"
+                }
+            }
+        }
+    },
+    "neware": {
+        "li-ion": {
+            "rate": {
+                "non-monotonic-time": {
+                    "name": "Neware Rate Test of Li-ion Cell with Non-montonic Time Bug",
+                    "url": "https://zenodo.org/records/16994938/files/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv",
+                    "plugin": "neware-csv",         
+                    "format": "csv",                  
+                    "is_bdf": false,                  
+                    "license": "CC-BY-4.0",
+                    "notes": "Intentional non-monotonic time for validator demo"
+                }
+            }
+        }
+    }
+}

@@ -30,3 +30,10 @@ bdf = "bdf.cli:app"
 [project.entry-points."bdf.cyclers"]
 biologic-mpt = "bdf.cyclers.biologic_mpt:BioLogicMPT"
 neware-csv   = "bdf.cyclers.neware_csv:NewareCSV"
+
+[tool.setuptools.package-data]
+bdf = ["resources/**/*.json"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bdf"]
+include = ["src/bdf/resources/**/*.json"]

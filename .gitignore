@@ -10,4 +10,5 @@ dist/
 build/
 *.parquet
 
-data/
+out/
+examples/out/
