@@ -26,3 +26,7 @@ Issues   = "https://github.com/battery-data-alliance/battery-data-format/issues"
 
 [project.scripts]
 bdf = "bdf.cli:app"
+
+[project.entry-points."bdf.cyclers"]
+biologic-mpt = "bdf.cyclers.biologic_mpt:BioLogicMPT"
+neware-csv   = "bdf.cyclers.neware_csv:NewareCSV"

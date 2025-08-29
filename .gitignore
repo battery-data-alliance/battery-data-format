@@ -1,0 +1,12 @@
+.venv
+
+__pycache__/
+*.pyc
+*.pyo
+*.DS_Store
+*.ipynb_checkpoints
+dist/
+build/
+*.parquet
+
+data/
