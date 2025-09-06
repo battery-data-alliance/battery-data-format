@@ -110,9 +110,9 @@ else:
 
 # ---- optional: re-export common plotting helpers for convenience ----
 try:
-    from .visualize import line_plot, plot_voltage_current
+    from .visualize import plot, plot_voltage_current
 except Exception:
     # plotting is entirely optional; no warning needed
     pass
 else:
-    __all__.extend(["line_plot", "plot_voltage_current"])
+    __all__.extend(["plot", "plot_voltage_current"])

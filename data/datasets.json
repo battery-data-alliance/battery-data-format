@@ -1,58 +1,49 @@
 {
-    "biologic": {
-        "na-ion": {
-            "cccv": {
-                "outlier": {
-                    "name": "BioLogic CCCV of Na-ion cell with Voltage and Current Outlier",
-                    "url": "https://zenodo.org/records/17035637/files/SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.mpt",
-                    "plugin": "biologic-mpt",         
-                    "format": "mpt",                  
-                    "is_bdf": false,                  
-                    "license": "CC-BY-4.0",
-                    "notes": "Intentional outliers for validator demo"
-                }
-            },
-            "gitt": {
-                "none": {
-                    "name": "BioLogic GITT of Na-ion cell",
-                    "url": "https://zenodo.org/records/17035637/files/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt",
-                    "plugin": "biologic-mpt",         
-                    "format": "mpt",                  
-                    "is_bdf": false,                  
-                    "license": "CC-BY-4.0",
-                    "notes": "Intentional outliers for validator demo"
-                }
-            }
-        }
+  "schema_version": "0.2",
+  "datasets": [
+    {
+      "id": "biologic-na-cccv-outlier",
+      "name": "BioLogic CCCV of Na-ion (with outliers)",
+      "vendor": "biologic",
+      "format": "mpt",
+      "plugin": "biologic-mpt",
+      "url": "https://zenodo.org/records/17035637/files/SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.mpt",
+      "tags": ["na-ion", "cccv", "outlier"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
     },
-    "neware": {
-        "li-ion": {
-            "rate": {
-                "non-monotonic-time": {
-                    "name": "Neware Rate Test of Li-ion Cell with Non-montonic Time Bug",
-                    "url": "https://zenodo.org/records/17035637/files/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv",
-                    "plugin": "neware-csv",         
-                    "format": "csv",                  
-                    "is_bdf": false,                  
-                    "license": "CC-BY-4.0",
-                    "notes": "Intentional non-monotonic time for validator demo"
-                }
-            }
-        }
+    {
+      "id": "neware-li-rate-nonmonotonic",
+      "name": "NEWARE Li-ion Rate (non-monotonic time)",
+      "vendor": "neware",
+      "format": "csv",
+      "plugin": "neware-csv",
+      "url": "https://zenodo.org/records/17035637/files/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv",
+      "tags": ["li-ion", "rate", "time-bug"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
     },
-    "landt": {
-        "li-graphite": {
-            "cycling": {
-                "none": {
-                    "name": "Landt Li-Graphite Half-Cell Cycle",
-                    "url": "https://zenodo.org/records/17035637/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv",
-                    "plugin": "landt-csv",         
-                    "format": "csv",                  
-                    "is_bdf": false,                  
-                    "license": "CC-BY-4.0",
-                    "notes": ""
-                }
-            }
-        }
+    {
+      "id": "landt-csv-li-graphite-cycling",
+      "name": "Landt Li-Graphite Half-Cell Cycling",
+      "vendor": "landt",
+      "format": "csv",
+      "plugin": "landt-csv",
+      "url": "https://zenodo.org/records/17035637/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv",
+      "tags": ["li-graphite", "cycling"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
+    },
+    {
+      "id": "landt-txt-li-graphite-cycling",
+      "name": "Landt Li-Graphite Half-Cell Cycling",
+      "vendor": "landt",
+      "format": "txt",
+      "plugin": "landt-txt",
+      "url": "https://zenodo.org/records/17035637/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.txt",
+      "tags": ["li-graphite", "cycling"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
     }
+  ]
 }

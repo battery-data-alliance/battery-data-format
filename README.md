@@ -98,3 +98,13 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 ## Summary
 
 The **Battery Data Format (.bdf)** is a step toward unifying and accelerating battery research and development. By adopting this open-source standard, we can foster collaboration, enhance model interoperability, and unlock the full potential of data-driven battery innovation.
+
+## FAQ
+
+### Which label should I use for my column headings?
+
+### What is the difference between the preferred label and the machine-readable name?
+
+### Why do we use a slash / between the quantity and the unit?
+
+### How can I check if my file is a valid instance of BDF?
