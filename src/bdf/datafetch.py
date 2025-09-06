@@ -1,7 +1,8 @@
+# src/bdf/datafetch.py
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Optional, Tuple, Dict, Any, List, Iterable, Union
 import os, json, hashlib, tempfile
 
 import requests
@@ -58,7 +59,7 @@ def fetch_url(
     return dest
 
 # -------------------------------
-# Registry loading (YOUR structure)
+# Registry loading (FLAT structure)
 # -------------------------------
 
 def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path:
@@ -69,12 +70,12 @@ def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path
         p = p.parent
     return Path.cwd().resolve()
 
-def load_registry(path: Optional[str | Path] = None) -> Dict[str, Any]:
+def load_registry(path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
     """
     Load datasets registry shaped as:
-      vendor -> chemistry -> test_type -> variant -> { entry }
-    Default location: <repo-root>/data/datasets.json
-    Alternate: set env BDF_DATASETS=... or pass a path explicitly.
+      { "schema_version": "0.2", "datasets": [ { id, name, vendor, format, plugin, url, tags, ... } ] }
+    Default: <repo-root>/data/datasets.json
+    Or set env BDF_DATASETS=/path/to/datasets.json
     """
     # explicit path wins
     if path:
@@ -99,63 +100,163 @@ def load_registry(path: Optional[str | Path] = None) -> Dict[str, Any]:
 
     raise FileNotFoundError("datasets.json not found. Provide path or set BDF_DATASETS.")
 
+# -------------------------------
+# Model & helpers
+# -------------------------------
+
 @dataclass
 class DatasetEntry:
-    name: str
-    url: str
-    plugin: Optional[str]
-    format: Optional[str]
+    # Essentials (flat registry)
+    id: Optional[str] = None
+    name: str = ""
+    vendor: Optional[str] = None
+    format: Optional[str] = None
+    plugin: Optional[str] = None
+    url: str = ""
+    tags: List[str] = field(default_factory=list)
+
+    # Nice-to-haves
     is_bdf: bool = False
     license: Optional[str] = None
     sha256: Optional[str] = None
     filename: Optional[str] = None
+    encoding: Optional[str] = None
+    alt_urls: List[str] = field(default_factory=list)
     notes: Optional[str] = None
 
-def _get_ci(d: Dict[str, Any], key: str) -> Any:
-    """Case-insensitive dict access."""
-    key_l = key.lower()
-    for k, v in d.items():
-        if k.lower() == key_l:
-            return v
-    raise KeyError(f"Key not found (case-insensitive): {key}")
+def _ci_eq(a: Optional[str], b: Optional[str]) -> bool:
+    return (a or "").lower() == (b or "").lower()
+
+def _set_ci(elems: Iterable[str]) -> set:
+    return {str(x).lower() for x in elems}
+
+def _iter_dataset_dicts(reg: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
+    """Yield each dataset dict from the registry."""
+    if isinstance(reg, dict) and "datasets" in reg and isinstance(reg["datasets"], list):
+        for d in reg["datasets"]:
+            if isinstance(d, dict):
+                yield d
+    else:
+        # Graceful fail: if someone passes just a list
+        if isinstance(reg, list):
+            for d in reg:
+                if isinstance(d, dict):
+                    yield d
+
+def _coerce_entry(d: Dict[str, Any]) -> DatasetEntry:
+    return DatasetEntry(
+        id=d.get("id"),
+        name=d.get("name") or "",
+        vendor=d.get("vendor"),
+        format=d.get("format"),
+        plugin=d.get("plugin"),
+        url=d.get("url") or "",
+        tags=list(d.get("tags") or []),
+        is_bdf=bool(d.get("is_bdf", False)),
+        license=d.get("license"),
+        sha256=d.get("sha256"),
+        filename=d.get("filename"),
+        encoding=d.get("encoding"),
+        alt_urls=list(d.get("alt_urls") or []),
+        notes=d.get("notes"),
+    )
 
 def list_registry_entries(reg: Dict[str, Any]) -> List[Tuple[str, str, str, str, str]]:
     """
     Flatten into rows:
-      (vendor, chemistry, test_type, variant, name)
+      (id, vendor, format, 'tag1 tag2 ...', name)
     """
     rows: List[Tuple[str, str, str, str, str]] = []
-    for vendor, d1 in reg.items():
-        for chemistry, d2 in d1.items():
-            for test_type, d3 in d2.items():
-                for variant, entry in d3.items():
-                    nm = entry.get("name") or ""
-                    rows.append((vendor, chemistry, test_type, variant, nm))
+    for d in _iter_dataset_dicts(reg):
+        eid = str(d.get("id") or "")
+        vendor = str(d.get("vendor") or "")
+        fmt = str(d.get("format") or "")
+        tags = " ".join(d.get("tags") or [])
+        nm = str(d.get("name") or "")
+        rows.append((eid, vendor, fmt, tags, nm))
     return rows
+
+def find_datasets(
+    reg: Dict[str, Any],
+    *,
+    id: Optional[str] = None,
+    name: Optional[str] = None,
+    vendor: Optional[str] = None,
+    format: Optional[str] = None,
+    plugin: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+) -> List[DatasetEntry]:
+    """
+    Filter datasets by simple fields. Tags must all be present if provided.
+    Case-insensitive for strings.
+    """
+    tags_lc = _set_ci(tags or [])
+    out: List[DatasetEntry] = []
+    for d in _iter_dataset_dicts(reg):
+        if id and not _ci_eq(d.get("id"), id):
+            continue
+        if name and not _ci_eq(d.get("name"), name):
+            continue
+        if vendor and not _ci_eq(d.get("vendor"), vendor):
+            continue
+        if format and not _ci_eq(d.get("format"), format):
+            continue
+        if plugin and not _ci_eq(d.get("plugin"), plugin):
+            continue
+        if tags_lc:
+            if not tags_lc.issubset(_set_ci(d.get("tags") or [])):
+                continue
+        out.append(_coerce_entry(d))
+    return out
 
 def get_entry(
     reg: Dict[str, Any],
-    vendor: str,
-    chemistry: str,
-    test_type: str,
-    variant: str,
+    *args: str,
+    id: Optional[str] = None,
+    name: Optional[str] = None,
+    vendor: Optional[str] = None,
+    format: Optional[str] = None,
+    plugin: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
 ) -> DatasetEntry:
     """
-    Access a single entry at vendor/chemistry/test_type/variant (all case-insensitive).
-    Your JSON stores a single object (not a list) at the leaf.
+    Flexible access:
+
+    - get_entry(reg, "some-id")                    -> by id or name (case-insensitive)
+    - get_entry(reg, vendor="landt", format="csv", tags=["li-graphite","cycling"])
+    - Back-compat (maps remaining args to tags):
+        get_entry(reg, "landt", "li-graphite", "cycling", "none")
+
+    Returns the first matching entry; raises ValueError if none or ambiguous (2+ matches).
     """
-    e = _get_ci(_get_ci(_get_ci(_get_ci(reg, vendor), chemistry), test_type), variant)
-    return DatasetEntry(
-        name=e.get("name") or "",
-        url=e["url"],
-        plugin=e.get("plugin"),
-        format=e.get("format"),
-        is_bdf=bool(e.get("is_bdf", False)),
-        license=e.get("license"),
-        sha256=e.get("sha256"),
-        filename=e.get("filename"),
-        notes=e.get("notes"),
-    )
+    # Back-compat path: (vendor, tag1, tag2, tag3)
+    if len(args) == 4:
+        vendor = args[0]
+        tags = [args[1], args[2], args[3]]
+    elif len(args) == 1 and not (id or name or vendor or format or plugin or tags):
+        # Single positional: treat as ID first, then fallback to name
+        key = args[0]
+        matches = find_datasets(reg, id=key)
+        if not matches:
+            matches = find_datasets(reg, name=key)
+        if not matches:
+            raise ValueError(f"No dataset matched id or name: {key!r}")
+        if len(matches) > 1:
+            raise ValueError(f"Ambiguous match for {key!r}; refine your filters.")
+        return matches[0]
+    elif len(args) != 0:
+        raise TypeError("get_entry expects either 0, 1, or 4 positional arguments.")
+
+    matches = find_datasets(reg, id=id, name=name, vendor=vendor, format=format, plugin=plugin, tags=tags)
+    if not matches:
+        raise ValueError(f"No dataset matched filters: "
+                         f"id={id!r}, name={name!r}, vendor={vendor!r}, format={format!r}, "
+                         f"plugin={plugin!r}, tags={list(tags or [])!r}")
+    if len(matches) > 1:
+        # deterministic but nudge the user to refine
+        raise ValueError(f"Multiple datasets matched; please refine filters. "
+                         f"First few ids: {[m.id for m in matches[:5]]}")
+    return matches[0]
 
 # -------------------------------
 # High-level loader

@@ -1,14 +1,16 @@
 # src/bdf/cyclers/base.py
-from dataclasses import dataclass
+from __future__ import annotations
+from dataclasses import dataclass, field
 from pathlib import Path
 import pandas as pd
+from typing import Any, Dict
 
 @dataclass
 class SniffResult:
     id: str
     confidence: float
     reason: str
-    meta: dict
+    meta: Dict[str, Any] = field(default_factory=dict)  # <-- add a default
 
 class CyclerPlugin:
     id = "abstract"
