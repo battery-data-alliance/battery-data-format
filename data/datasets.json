@@ -13,6 +13,17 @@
       "license": "CC-BY-4.0"
     },
     {
+      "id": "biologic-na-gitt",
+      "name": "BioLogic GITT of Na-ion",
+      "vendor": "biologic",
+      "format": "mpt",
+      "plugin": "biologic-mpt",
+      "url": "https://zenodo.org/records/17079898/files/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt",
+      "tags": ["na-ion", "cccv", "outlier"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
+    },
+    {
       "id": "neware-li-rate-nonmonotonic",
       "name": "NEWARE Li-ion Rate (non-monotonic time)",
       "vendor": "neware",
