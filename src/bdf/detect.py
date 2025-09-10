@@ -15,7 +15,7 @@ def _iter_plugins() -> Iterable[Type[CyclerPlugin] | CyclerPlugin]:
 def _instantiate(cls_or_inst: Type[CyclerPlugin] | CyclerPlugin) -> CyclerPlugin:
     return cls_or_inst() if isinstance(cls_or_inst, type) else cls_or_inst
 
-def _read_head_text(p: Path, n: int = 2000) -> str:
+def _read_head_text(p: Path, n: int = 4096) -> str:
     encodings = ("utf-8-sig", "utf-8", "cp1252", "utf-16", "utf-16-le", "utf-16-be")
     for enc in encodings:
         try:
@@ -25,6 +25,29 @@ def _read_head_text(p: Path, n: int = 2000) -> str:
             continue
     return ""
 
+def _is_basytec_head(head: str) -> bool:
+    # Clear banner often present in Basytec text exports
+    if "resultfile from basytec battery test system" in head:
+        return True
+    # Typical Basytec column tokens
+    if "u[v]" in head and "i[a]" in head and ("time[h]" in head or "time[s]" in head):
+        return True
+    return False
+
+def _is_landt_txt_head(head: str) -> bool:
+    # Tokens commonly found in Landt TXT exports
+    tokens_any = ("rec#", "test(sec)", "dpt-time", "volts", "amps")
+    return any(tok in head for tok in tokens_any)
+
+def _is_landt_csv_head(head: str) -> bool:
+    # Landt modern snake_case CSV headers
+    return all(t in head for t in ("channel_index", "test_time_s", "voltage_v"))
+
+def _is_neware_csv_head(head: str) -> bool:
+    # NEWARE-like columns
+    tokens_any = ("total time(s)", "current(a)", "record time(")
+    return any(t in head for t in tokens_any)
+
 def _heuristic_by_extension(p: Path) -> Optional[SniffResult]:
     ext = p.suffix.lower()
     head = _read_head_text(p)
@@ -33,14 +56,19 @@ def _heuristic_by_extension(p: Path) -> Optional[SniffResult]:
         return SniffResult("biologic-mpt", 0.7, "Fallback by extension: .mpt")
 
     if ext == ".txt":
-        if any(tok in head for tok in ("rec#", "test(sec)", "dpt-time", "volts", "amps")):
+        # Check Basytec FIRST to avoid misclassifying as Landt
+        if _is_basytec_head(head):
+            return SniffResult("basytec-txt", 0.95, "TXT with Basytec banner/columns")
+        # Then Landt TXT
+        if _is_landt_txt_head(head):
             return SniffResult("landt-txt", 0.75, "TXT with Landt-like tokens; fallback")
+        # Generic TXT fallback (lowest confidence)
         return SniffResult("landt-txt", 0.6, "Fallback by extension: .txt")
 
     if ext == ".csv":
-        if all(t in head for t in ("channel_index", "test_time_s", "voltage_v")):
+        if _is_landt_csv_head(head):
             return SniffResult("landt-csv", 0.9, "CSV with Landt snake_case header")
-        if any(t in head for t in ("total time(s)", "current(a)", "record time(")):
+        if _is_neware_csv_head(head):
             return SniffResult("neware-csv", 0.8, "CSV with NEWARE-like columns")
         return SniffResult("neware-csv", 0.6, "Fallback by extension: .csv")
 
@@ -90,7 +118,7 @@ def load_plugin(path: Path | str, as_: Optional[str] = None) -> CyclerPlugin:
         id_to_class[pl.id] = type(pl)
 
     if as_:
-        pid = canonicalize_id(as_)  # resolve aliases (e.g., "landt" -> "landt-txt" per your registry)
+        pid = canonicalize_id(as_)  # e.g., "landt" -> "landt-txt"
         cls = id_to_class.get(pid)
         if not cls:
             known = ", ".join(sorted(id_to_class))

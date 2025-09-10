@@ -4,7 +4,6 @@ from typing import List, Type, Dict
 
 from .base import CyclerPlugin, SniffResult
 
-# Import plugins defensively so one failure doesn't break them all
 _PLUGINS: List[Type[CyclerPlugin]] = []
 
 try:
@@ -31,23 +30,35 @@ try:
 except Exception:
     pass
 
+# NEW: Basytec TXT
+try:
+    from .basytec_txt import BasytecTxt
+    _PLUGINS.append(BasytecTxt)
+except Exception:
+    pass
+
 PLUGIN_CLASSES: List[Type[CyclerPlugin]] = _PLUGINS
 
 ALIASES: Dict[str, str] = {
     "biologic": "biologic-mpt",
     "bio-logic": "biologic-mpt",
     "biologic-mpt": "biologic-mpt",
+
     "neware": "neware-csv",
     "neware-csv": "neware-csv",
-    "landt": "landt-txt",    # default TXT for bare "landt"
+
+    "landt": "landt-txt",
     "landt-txt": "landt-txt",
     "landt-csv": "landt-csv",
+
+    "basytec": "basytec-txt",
+    "basytec-txt": "basytec-txt",
 }
 
 def get_builtin_plugins() -> List[Type[CyclerPlugin]]:
     return PLUGIN_CLASSES
 
 def canonicalize_id(pid: str) -> str:
-    return ALIASES.get(pid, pid)
+    return ALIASES.get((pid or "").lower(), pid)
 
 __all__ = ["CyclerPlugin", "SniffResult", "get_builtin_plugins", "canonicalize_id"]
