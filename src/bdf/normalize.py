@@ -13,51 +13,46 @@ OPTIONAL = ["Ambient Temperature / degC", "Step Time / s"]
 # ---------------------------
 SYNONYMS = {
     "Test Time / s": [
-        # Bio-Logic (seconds)
+        # Bio-Logic / NEWARE / Landt
         "time/s", "time / s", "test time / s", "time [s]", "total time (s)", "totaltime(s)", "t (s)",
-        # NEWARE numeric seconds (prefer 'total time(s)' when both exist)
-        "total time(s)", "total time (s)",
-        # NEWARE hms strings that represent cumulative time
-        "relative time(h:mm:ss.ms)", "relative time(h:mm:ss)", "record time(h:mm:ss)",
-        "relative time(h:min:s.ms)", "record time(h:min:s.ms)",
-        # Chinese (common)
-        "时间(s)",
-        # Landt TXT
-        "test(sec)", "test (sec)", "test(s)",
-        # Landt CSV
-        "test_time_s",
+        "total time(s)", "relative time(h:mm:ss.ms)", "relative time(h:mm:ss)", "record time(h:mm:ss)",
+        "relative time(h:min:s.ms)", "record time(h:min:s.ms)", "时间(s)",
+        # Landt TXT + CSV
+        "test(sec)", "test (sec)", "test(s)", "test_time_s",
+        # Basytec (hours; convert → seconds)
+        "time[h]",
     ],
     "Step Time / s": [
-        # NEWARE step time (resets each step)
+        # NEWARE / Landt
         "time(s)", "time (s)", "step time(s)", "step time (s)", "work time(s)", "work time(h:min:s.ms)",
-        "time(h:min:s.ms)",  # often step-relative in some exports
-        # Landt TXT
-        "step(sec)", "step (sec)",
-        # Landt CSV
-        "step_time_s",
+        "time(h:min:s.ms)", "step(sec)", "step (sec)", "step_time_s",
+        # Basytec (hours; convert → seconds)
+        "t-set[h]",
     ],
     "Voltage / V": [
-        "voltage / v", "ewe/v", "ecell/v", "voltage(v)", "cell voltage (v)", "电压(v)",
-        # Landt TXT
-        "volts",
-        # Landt CSV
+        "voltage / v", "ewe/v", "ecell/v", "voltage(v)", "cell voltage (v)", "电压(v)", "volts",
         "voltage_v",
+        # Basytec
+        "u[v]",
     ],
     "Current / A": [
         "current / a", "i/a", "current(a)", "amps", "i (a)",
         "i/ma", "current (ma)", "current/ma", "i,ma", "i_ma",
         "电流(a)", "电流(ma)",
-        # Landt CSV
         "current_a",
+        # Basytec
+        "i[a]",
     ],
     "Ambient Temperature / degC": [
         "ambient temperature / degc", "temperature/°c", "temperature / degc",
         "temp (°c)", "temperature(°c)", "env temp(°c)", "温度(°c)",
-        # Landt CSV (multiple probes)
+        # Landt CSV probes
         "temperature_c", "temperature_1_c", "temperature_2_c", "temperature_3_c",
+        # Basytec (mojibake/variants)
+        "t1[°c]", "t1[c]", "t1[�c]",
     ],
 
-    # ------- Optional but handy (emit only if listed in OPTIONAL) -------
+    # ------- Optional extras (kept here for future use) -------
     "Capacity / Ah": [
         "amp-hr", "amp hour", "capacity (ah)", "capacity/ah", "charge capacity (ah)", "discharge capacity (ah)",
         "q,ah", "q (ah)", "q_ah",
@@ -65,38 +60,26 @@ SYNONYMS = {
     "Energy / Wh": [
         "watt-hr", "watt hour", "energy (wh)", "energy/wh", "e,wh", "e (wh)", "e_wh",
     ],
-
-    # Landt CSV explicit charge/discharge channels
     "Charge Capacity / Ah": ["charge_capacity_ah"],
     "Discharge Capacity / Ah": ["discharge_capacity_ah"],
     "Charge Energy / Wh": ["charge_energy_wh"],
     "Discharge Energy / Wh": ["discharge_energy_wh"],
 
     # Indices
-    "Cycle Index": [
-        "cyc#", "cycle", "cycle #", "cycle index", "cyc no.", "cyc no", "cyc",
-        # Landt CSV
-        "cycle_index",
-    ],
-    "Step Index": [
-        "step", "step #", "step index", "step no.", "step no",
-        # Landt CSV
-        "step_index",
-    ],
-    # (Optional) Channel index (Landt CSV)
+    "Cycle Index": ["cyc#", "cycle", "cycle #", "cycle index", "cyc no.", "cyc no", "cyc", "cycle_index"],
+    "Step Index": ["step", "step #", "step index", "step no.", "step no", "step_index"],
     "Channel Index": ["channel_index"],
 
-    # Timestamp
-    # Landt TXT header: 'dpt-time'; Landt CSV: 'date_time_iso_string'
+    # Timestamps
     "Date Time": [
         "dpt-time", "date time", "datetime", "date-time", "time stamp", "timestamp", "date/time",
         "date_time_iso_string",
     ],
 
-    # (Optional) Step name (Landt CSV)
+    # Landt CSV step labels
     "Step Name": ["step_name"],
 
-    # (Optional) Pressure (Landt CSV)
+    # Landt CSV pressure
     "Pressure / psi": ["pressure_psi"],
 }
 
@@ -104,8 +87,15 @@ SYNONYMS = {
 # Matching helpers
 # ---------------------------
 
+def _norm(s: str) -> str:
+    """Normalize a header cell for matching."""
+    s = str(s)
+    s = s.lower().strip().lstrip("~").replace("\ufeff", "")
+    s = re.sub(r"\s+", " ", s)
+    return s
+
 def _normkey(s: str) -> str:
-    """Lowercase and strip all non-alphanumerics so 'Test Time / s' ~ 'test_time_s' ~ 'Test(Sec)'."""
+    """Lowercase + strip non-alphanumerics so 'Test Time / s' ~ 'test_time_s' ~ 'Test(Sec)'."""
     return re.sub(r"[^a-z0-9]+", "", str(s).strip().lower())
 
 def _find_col(df: pd.DataFrame, candidates_lc: list[str]) -> tuple[str | None, str | None]:
@@ -114,12 +104,12 @@ def _find_col(df: pd.DataFrame, candidates_lc: list[str]) -> tuple[str | None, s
     First try exact normalized equality, then normalized substring fallback.
     """
     lut = {_normkey(c): c for c in df.columns}  # normalized -> original
-    # Exact normalized match
+    # exact normalized match
     for cand in candidates_lc:
         nk = _normkey(cand)
         if nk in lut:
             return lut[nk], cand
-    # Substring fallback
+    # substring fallback
     for cand in candidates_lc:
         nk = _normkey(cand)
         for key_norm, orig in lut.items():
@@ -132,7 +122,7 @@ def _find_col(df: pd.DataFrame, candidates_lc: list[str]) -> tuple[str | None, s
 # ---------------------------
 
 def _to_seconds_from_hms(series: pd.Series) -> pd.Series:
-    # normalize decimal comma to dot for fractional seconds like "00:01:02,5"
+    # normalize decimal comma to dot (e.g., "00:01:02,5")
     s = series.astype(str).str.strip().str.replace(",", ".", regex=False)
     td = pd.to_timedelta(s, errors="coerce")
     return td.dt.total_seconds()
@@ -144,16 +134,22 @@ def _to_seconds_from_datetime(series: pd.Series) -> pd.Series:
         return (dt - t0).dt.total_seconds()
     return pd.Series([pd.NA] * len(series), index=series.index, dtype="float")
 
-def _derive_test_time_seconds(df: pd.DataFrame) -> pd.Series | None:
+def _derive_test_time_seconds(df: pd.DataFrame, plugin_id: str | None = None) -> pd.Series | None:
     """
     Prefer explicit cumulative seconds if available, else try h:m:s strings,
     else derive from absolute timestamps.
-    Order matters: NEWARE 'total time(s)' first; then Landt CSV 'test_time_s';
-    then other numeric seconds; then hms-like; then timestamps.
+    Special-case Basytec: strongly prefer Time[h] (hours) → seconds.
     """
-    # 1) Strong preference: explicit total test time (NEWARE)
+    # --- Basytec priority: Time[h] (hours) -> seconds ---
+    if plugin_id and "basytec" in plugin_id.lower():
+        col, _ = _find_col(df, ["time[h]"])
+        if col is not None:
+            s = pd.to_numeric(df[col], errors="coerce")
+            if s.notna().any():
+                return s * 3600.0
+
+    # 1) NEWARE explicit cumulative seconds
     ordered = [
-        # NEWARE explicit cumulative seconds
         "total time(s)", "total time (s)",
         # Landt CSV explicit seconds
         "test_time_s",
@@ -188,8 +184,19 @@ def _derive_test_time_seconds(df: pd.DataFrame) -> pd.Series | None:
 
     return None
 
-def _derive_step_time_seconds(df: pd.DataFrame) -> pd.Series | None:
-    """Map vendor step time to 'Step Time / s'; accept numeric seconds or hms strings."""
+def _derive_step_time_seconds(df: pd.DataFrame, plugin_id: str | None = None) -> pd.Series | None:
+    """
+    Map vendor step time to 'Step Time / s'.
+    Special-case Basytec: t-Set[h] (hours) → seconds.
+    """
+    # --- Basytec priority: t-Set[h] (hours) -> seconds ---
+    if plugin_id and "basytec" in plugin_id.lower():
+        col, _ = _find_col(df, ["t-set[h]"])
+        if col is not None:
+            s = pd.to_numeric(df[col], errors="coerce")
+            if s.notna().any():
+                return s * 3600.0
+
     candidates = SYNONYMS["Step Time / s"]
     col, _ = _find_col(df, [c.lower() for c in candidates])
     if col is None:
@@ -206,11 +213,15 @@ def _derive_step_time_seconds(df: pd.DataFrame) -> pd.Series | None:
 # ---------------------------
 
 def to_bdf(df_vendor: pd.DataFrame, *, plugin_id: str | None = None) -> pd.DataFrame:
-    """Map vendor columns to BDF canonical names and convert units."""
+    """
+    Map vendor columns to BDF canonical names and convert units.
+    - Handles Bio-Logic, NEWARE, Landt (CSV/TXT), and Basytec headers.
+    - For Basytec, prefers Time[h] → seconds (and t-Set[h] for step-time).
+    """
     df = df_vendor.copy()
     produced: dict[str, pd.Series] = {}
 
-    # --- Optional fast-path nudges for Landt CSV (defensive) ---
+    # --- Optional fast path for Landt CSV (exact snake_case names) ---
     if plugin_id == "landt-csv":
         vmap = {c.lower(): c for c in df.columns}
         for src, canon in [
@@ -221,8 +232,7 @@ def to_bdf(df_vendor: pd.DataFrame, *, plugin_id: str | None = None) -> pd.DataF
         ]:
             if src in vmap and canon not in produced:
                 series = df[vmap[src]]
-                if canon.endswith("/ s"):
-                    # times: numeric or hms
+                if canon.endswith("/ s"):  # time columns
                     if pd.api.types.is_numeric_dtype(series):
                         produced[canon] = pd.to_numeric(series, errors="coerce")
                     elif series.astype(str).str.contains(":").any():
@@ -235,29 +245,29 @@ def to_bdf(df_vendor: pd.DataFrame, *, plugin_id: str | None = None) -> pd.DataF
     # --- Voltage / Current / Temperature via synonyms ---
     for canon in ("Voltage / V", "Current / A", "Ambient Temperature / degC"):
         syns = SYNONYMS.get(canon, [])
-        orig, matched_key = _find_col(df, [s.lower() for s in syns + [canon]])
+        orig, matched_key = _find_col(df, [s.lower() for s in syns] + [canon])
         if orig is None:
             continue
         series = pd.to_numeric(df[orig], errors="coerce")
-        # Unit normalization for current (mA → A)
+        # Normalize current units if header indicates mA
         if canon == "Current / A":
             src_lc = (matched_key or orig).lower()
-            if "ma" in src_lc:
+            if "ma" in src_lc:  # headers like "i/ma" or "current (ma)"
                 series = series * 1e-3
         produced[canon] = series
 
     # --- Test Time / s (cumulative) ---
     if "Test Time / s" not in produced:
-        tsec = _derive_test_time_seconds(df)
+        tsec = _derive_test_time_seconds(df, plugin_id=plugin_id)
         if tsec is not None:
             produced["Test Time / s"] = tsec
 
     # --- Step Time / s (resets per step) ---
-    step_t = _derive_step_time_seconds(df)
+    step_t = _derive_step_time_seconds(df, plugin_id=plugin_id)
     if step_t is not None:
         produced["Step Time / s"] = step_t
 
-    # --- Build output (only required + declared optional) ---
+    # --- Build output (required + declared optional only) ---
     out_cols = [c for c in REQUIRED if c in produced] + [c for c in OPTIONAL if c in produced]
     out = pd.DataFrame({c: produced[c] for c in out_cols})
 
