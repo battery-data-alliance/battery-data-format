@@ -130,52 +130,84 @@ def plot(
       - Thick, clean lines; dashed major/minor grid
       - Secondary axis via yydata
       - Unit conversion via xunit/yunit/yyunit (e.g., 'h', 'mA', 'K', 'mAh')
+      - Primary axis data is always drawn on top of secondary axis data.
     """
     ys = _to_list(ydata)
     yys = _to_list(yydata)
     if not ys and not yys:
         raise ValueError("Provide at least one series in ydata or yydata.")
 
-    # Colors & line widths to match the reference
+    # Colors & line widths
     primary_color = "#1f77b4"   # blue
     secondary_color = "#4d4d4d" # dark grey
     lw_primary = 2.8
     lw_secondary = 3.2
 
+    # Layering controls (lines)
+    z_primary_line = 4.0
+    z_secondary_line = 2.0
+
     # X & label
     x_raw = _ensure_numeric(df, xdata)
     x_from = _infer_unit_from_colname(xdata)
-    x_conv, x_eff_unit = _convert_series(x_raw, x_from, xunit)
+    x_conv, _ = _convert_series(x_raw, x_from, xunit)
     x_label = f"{xdata}" if not xunit else f"{xdata.split('/')[0].strip()} / {_norm_unit(xunit)}"
 
+    # Create axes
     fig, ax = plt.subplots()
 
-    # Primary Y
-    y_units_map = _unit_for_each(ys, yunit)
-    y_labels = []
-    for i, y in enumerate(ys):
-        y_raw = _ensure_numeric(df, y)
-        y_from = _infer_unit_from_colname(y)
-        y_conv, y_eff = _convert_series(y_raw, y_from, y_units_map.get(y))
-        label = y if y_eff is None or y_from == y_eff else f"{y.split('/')[0].strip()} / {y_eff}"
-        color = primary_color if i == 0 else None
-        ax.plot(x_conv, y_conv, label=label, color=color, linewidth=lw_primary, solid_capstyle="round")
-        y_labels.append(label)
-
-    # Secondary Y
+    # Create secondary axis if needed and put it BEHIND primary axes
     ax2 = None
     if yys:
         ax2 = ax.twinx()
+        ax2.set_zorder(2)              # behind the primary axes
+        ax2.patch.set_alpha(0.0)       # transparent so it won't cover primary lines
+
+    # Ensure primary axes is ON TOP and also transparent (so it won't cover twin)
+    ax.set_zorder(3)
+    ax.patch.set_alpha(0.0)
+
+    # --- Plot SECONDARY (right) first with lower zorder ---
+    if ax2 and yys:
         yy_units_map = _unit_for_each(yys, yyunit)
         yy_labels = []
         for j, y in enumerate(yys):
             y_raw = _ensure_numeric(df, y)
             y_from = _infer_unit_from_colname(y)
             y_conv, y_eff = _convert_series(y_raw, y_from, yy_units_map.get(y))
-            label = y if y_eff is None or y_from == y_eff else f"{y.split('/')[0].strip()} / {y_eff}"
+            label = y if (y_eff is None or y_from == y_eff) else f"{y.split('/')[0].strip()} / {y_eff}"
             color = secondary_color if j == 0 else None
-            ax2.plot(x_conv, y_conv, label=label, color=color, linewidth=lw_secondary, linestyle="-", solid_capstyle="round")
+            ax2.plot(
+                x_conv, y_conv,
+                label=label,
+                color=color,
+                linewidth=lw_secondary,
+                linestyle="-",
+                solid_capstyle="round",
+                zorder=z_secondary_line,
+            )
             yy_labels.append(label)
+    else:
+        yy_labels = []
+
+    # --- Plot PRIMARY (left) after with higher zorder ---
+    y_units_map = _unit_for_each(ys, yunit)
+    y_labels = []
+    for i, y in enumerate(ys):
+        y_raw = _ensure_numeric(df, y)
+        y_from = _infer_unit_from_colname(y)
+        y_conv, y_eff = _convert_series(y_raw, y_from, y_units_map.get(y))
+        label = y if (y_eff is None or y_from == y_eff) else f"{y.split('/')[0].strip()} / {y_eff}"
+        color = primary_color if i == 0 else None
+        ax.plot(
+            x_conv, y_conv,
+            label=label,
+            color=color,
+            linewidth=lw_primary,
+            solid_capstyle="round",
+            zorder=z_primary_line,
+        )
+        y_labels.append(label)
 
     # Labels
     ax.set_xlabel(x_label, fontsize=18)
@@ -187,9 +219,9 @@ def plot(
         else:
             ax.set_ylabel(left_label, fontsize=18)
 
-
     if ax2 and yys:
-        right_label = yys[0] if len(yys) == 1 else " / ".join(yys)
+        right_label = yy_labels[0] if len(yy_labels) == 1 else " / ".join(yy_labels)
+        # If a single shared yyunit was provided, reflect it in label
         if isinstance(yyunit, str):
             right_label = f"{right_label.split('/')[0].strip()} / {_norm_unit(yyunit)}"
         ax2.set_ylabel(right_label, fontsize=18, color=secondary_color)

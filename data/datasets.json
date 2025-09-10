@@ -7,7 +7,7 @@
       "vendor": "biologic",
       "format": "mpt",
       "plugin": "biologic-mpt",
-      "url": "https://zenodo.org/records/17035637/files/SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.mpt",
+      "url": "https://zenodo.org/records/17079898/files/SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.mpt",
       "tags": ["na-ion", "cccv", "outlier"],
       "is_bdf": false,
       "license": "CC-BY-4.0"
@@ -18,7 +18,7 @@
       "vendor": "neware",
       "format": "csv",
       "plugin": "neware-csv",
-      "url": "https://zenodo.org/records/17035637/files/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv",
+      "url": "https://zenodo.org/records/17079898/files/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv",
       "tags": ["li-ion", "rate", "time-bug"],
       "is_bdf": false,
       "license": "CC-BY-4.0"
@@ -29,7 +29,7 @@
       "vendor": "landt",
       "format": "csv",
       "plugin": "landt-csv",
-      "url": "https://zenodo.org/records/17035637/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv",
+      "url": "https://zenodo.org/records/17079898/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv",
       "tags": ["li-graphite", "cycling"],
       "is_bdf": false,
       "license": "CC-BY-4.0"
@@ -40,7 +40,51 @@
       "vendor": "landt",
       "format": "txt",
       "plugin": "landt-txt",
-      "url": "https://zenodo.org/records/17035637/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.txt",
+      "url": "https://zenodo.org/records/17079898/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.txt",
+      "tags": ["li-graphite", "cycling"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
+    },
+    {
+      "id": "basytec-txt-li-graphite-gitt",
+      "name": "Basytec Li-Graphite Half-Cell GITT",
+      "vendor": "basytec",
+      "format": "txt",
+      "plugin": "basytec-txt",
+      "url": "https://zenodo.org/records/17079898/files/DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.txt",
+      "tags": ["li-graphite", "cycling"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
+    },
+    {
+      "id": "basytec-txt-li-graphite-pocv",
+      "name": "Basytec Li-Graphite Half-Cell POCV",
+      "vendor": "basytec",
+      "format": "txt",
+      "plugin": "basytec-txt",
+      "url": "https://zenodo.org/records/17079898/files/DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.txt",
+      "tags": ["li-graphite", "cycling"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
+    },
+    {
+      "id": "basytec-txt-li-lnmo-gitt",
+      "name": "Basytec Li-Graphite Half-Cell GITT",
+      "vendor": "basytec",
+      "format": "txt",
+      "plugin": "basytec-txt",
+      "url": "https://zenodo.org/records/17079898/files/DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.txt",
+      "tags": ["li-graphite", "cycling"],
+      "is_bdf": false,
+      "license": "CC-BY-4.0"
+    },
+    {
+      "id": "basytec-txt-li-lnmo-pocv",
+      "name": "Basytec Li-LNMO Half-Cell POCV",
+      "vendor": "basytec",
+      "format": "txt",
+      "plugin": "basytec-txt",
+      "url": "https://zenodo.org/records/17079898/files/DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.txt",
       "tags": ["li-graphite", "cycling"],
       "is_bdf": false,
       "license": "CC-BY-4.0"
