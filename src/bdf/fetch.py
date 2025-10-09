@@ -1,9 +1,9 @@
-# src/bdf/datafetch.py
+# src/bdf/fetch.py
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List, Iterable, Union
-import os, json, hashlib, tempfile
+import os, json, hashlib, tempfile, time
 
 import requests
 from platformdirs import user_cache_dir
@@ -19,28 +19,20 @@ def sha256_file(path: Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
-def fetch_url(
-    url: str,
-    *,
-    sha256: Optional[str] = None,
-    filename: Optional[str] = None,
-    cache_subdir: str = "bdf",
-    timeout: int = 120,
-) -> Path:
-    """
-    Download a file with caching and optional SHA256 verification.
-    Returns a cached Path.
-    """
-    cache_dir = Path(user_cache_dir(cache_subdir))
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    name = filename or Path(url.split("?")[0]).name
-    dest = cache_dir / name
+def _cache_dir(subdir: str = "bdf") -> Path:
+    p = Path(user_cache_dir(subdir))
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
-    # Use cache if present and verified
-    if dest.exists() and (not sha256 or sha256_file(dest).lower() == sha256.lower()):
-        return dest
+def _safe_cache_name(url: str, filename: Optional[str]) -> str:
+    """
+    Ensure uniqueness across different URLs that share the same basename.
+    """
+    base = (filename or Path(url.split("?", 1)[0]).name) or "file"
+    h = hashlib.sha256(url.encode("utf-8")).hexdigest()[:12]
+    return f"{h}__{base}"
 
-    # Download to temp and atomically move
+def _download(url: str, dest: Path, timeout: int = 120) -> None:
     with requests.get(url, stream=True, timeout=timeout) as r:
         r.raise_for_status()
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -48,18 +40,64 @@ def fetch_url(
                 if chunk:
                     tmp.write(chunk)
             tmp_path = Path(tmp.name)
-
-    if sha256:
-        got = sha256_file(tmp_path)
-        if got.lower() != sha256.lower():
-            tmp_path.unlink(missing_ok=True)
-            raise ValueError(f"SHA256 mismatch: got {got}, want {sha256}")
-
     tmp_path.replace(dest)
-    return dest
+
+def fetch_url(
+    url: str,
+    *,
+    sha256: Optional[str] = None,
+    filename: Optional[str] = None,
+    cache_subdir: str = "bdf",
+    timeout: int = 120,
+    alt_urls: Optional[List[str]] = None,
+    retries: int = 1,
+) -> Path:
+    """
+    Download a file with caching and optional SHA256 verification.
+    Returns a cached Path.
+
+    - Uses a content-addressed cache name: "<sha12(url)>__<basename>"
+    - Tries alt_urls[] if the primary download fails.
+    - 'retries' = extra attempts on transient network errors (per URL).
+    """
+    cache_dir = _cache_dir(cache_subdir)
+    name = _safe_cache_name(url, filename)
+    dest = cache_dir / name
+
+    # Use cache if present and verified
+    if dest.exists():
+        if not sha256 or sha256_file(dest).lower() == sha256.lower():
+            return dest
+        # bad hash → drop cache and redownload
+        dest.unlink(missing_ok=True)
+
+    candidates = [url] + list(alt_urls or [])
+    last_err: Optional[Exception] = None
+
+    for u in candidates:
+        # try with simple linear retries
+        for attempt in range(retries + 1):
+            try:
+                _download(u, dest, timeout=timeout)
+                if sha256:
+                    got = sha256_file(dest)
+                    if got.lower() != sha256.lower():
+                        dest.unlink(missing_ok=True)
+                        raise ValueError(f"SHA256 mismatch for {u}: got {got}, want {sha256}")
+                return dest
+            except Exception as e:
+                last_err = e
+                # small backoff on transient failures
+                time.sleep(0.8 * (attempt + 1))
+        # try next alt URL
+
+    # Exhausted all attempts/URLs
+    if last_err:
+        raise last_err
+    raise RuntimeError("Download failed for unknown reasons.")
 
 # -------------------------------
-# Registry loading (FLAT structure)
+# Registry loading (accepts either {"datasets":[...]} or {"entries":[...]})
 # -------------------------------
 
 def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path:
@@ -72,10 +110,15 @@ def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path
 
 def load_registry(path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
     """
-    Load datasets registry shaped as:
-      { "schema_version": "0.2", "datasets": [ { id, name, vendor, format, plugin, url, tags, ... } ] }
-    Default: <repo-root>/data/datasets.json
-    Or set env BDF_DATASETS=/path/to/datasets.json
+    Load datasets registry.
+
+    Accepted shapes:
+      { "schema_version": "0.2", "datasets": [ { ... } ] }
+      { "schema_version": "0.3", "entries":  [ { ... } ] }
+    Default lookup order:
+      1) explicit 'path'
+      2) env BDF_DATASETS
+      3) <repo-root>/data/datasets.json
     """
     # explicit path wins
     if path:
@@ -106,7 +149,7 @@ def load_registry(path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
 
 @dataclass
 class DatasetEntry:
-    # Essentials (flat registry)
+    # Essentials
     id: Optional[str] = None
     name: str = ""
     vendor: Optional[str] = None
@@ -132,16 +175,18 @@ def _set_ci(elems: Iterable[str]) -> set:
 
 def _iter_dataset_dicts(reg: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
     """Yield each dataset dict from the registry."""
-    if isinstance(reg, dict) and "datasets" in reg and isinstance(reg["datasets"], list):
-        for d in reg["datasets"]:
+    if isinstance(reg, dict):
+        if isinstance(reg.get("datasets"), list):
+            yield from (d for d in reg["datasets"] if isinstance(d, dict))
+            return
+        if isinstance(reg.get("entries"), list):
+            yield from (d for d in reg["entries"] if isinstance(d, dict))
+            return
+    # Graceful fail: if someone passes just a list
+    if isinstance(reg, list):
+        for d in reg:
             if isinstance(d, dict):
                 yield d
-    else:
-        # Graceful fail: if someone passes just a list
-        if isinstance(reg, list):
-            for d in reg:
-                if isinstance(d, dict):
-                    yield d
 
 def _coerce_entry(d: Dict[str, Any]) -> DatasetEntry:
     return DatasetEntry(
@@ -203,9 +248,8 @@ def find_datasets(
             continue
         if plugin and not _ci_eq(d.get("plugin"), plugin):
             continue
-        if tags_lc:
-            if not tags_lc.issubset(_set_ci(d.get("tags") or [])):
-                continue
+        if tags_lc and not tags_lc.issubset(_set_ci(d.get("tags") or [])):
+            continue
         out.append(_coerce_entry(d))
     return out
 
@@ -221,64 +265,51 @@ def get_entry(
 ) -> DatasetEntry:
     """
     Flexible access:
-
     - get_entry(reg, "some-id")                    -> by id or name (case-insensitive)
     - get_entry(reg, vendor="landt", format="csv", tags=["li-graphite","cycling"])
-    - Back-compat (maps remaining args to tags):
-        get_entry(reg, "landt", "li-graphite", "cycling", "none")
-
-    Returns the first matching entry; raises ValueError if none or ambiguous (2+ matches).
     """
-    # Back-compat path: (vendor, tag1, tag2, tag3)
-    if len(args) == 4:
-        vendor = args[0]
-        tags = [args[1], args[2], args[3]]
-    elif len(args) == 1 and not (id or name or vendor or format or plugin or tags):
-        # Single positional: treat as ID first, then fallback to name
+    if len(args) == 1 and not (id or name or vendor or format or plugin or tags):
         key = args[0]
-        matches = find_datasets(reg, id=key)
-        if not matches:
-            matches = find_datasets(reg, name=key)
+        matches = find_datasets(reg, id=key) or find_datasets(reg, name=key)
         if not matches:
             raise ValueError(f"No dataset matched id or name: {key!r}")
         if len(matches) > 1:
             raise ValueError(f"Ambiguous match for {key!r}; refine your filters.")
         return matches[0]
     elif len(args) != 0:
-        raise TypeError("get_entry expects either 0, 1, or 4 positional arguments.")
+        raise TypeError("get_entry expects either 0 or 1 positional arguments.")
 
     matches = find_datasets(reg, id=id, name=name, vendor=vendor, format=format, plugin=plugin, tags=tags)
     if not matches:
-        raise ValueError(f"No dataset matched filters: "
-                         f"id={id!r}, name={name!r}, vendor={vendor!r}, format={format!r}, "
-                         f"plugin={plugin!r}, tags={list(tags or [])!r}")
+        raise ValueError(f"No dataset matched filters.")
     if len(matches) > 1:
-        # deterministic but nudge the user to refine
         raise ValueError(f"Multiple datasets matched; please refine filters. "
                          f"First few ids: {[m.id for m in matches[:5]]}")
     return matches[0]
 
 # -------------------------------
-# High-level loader
+# High-level loader (NEW API)
 # -------------------------------
 
 def load_bdf_from_entry(entry: DatasetEntry):
     """
     Fetch the file (cached), then:
       - if entry.is_bdf: load via bdf.io.load
-      - else: auto-detect → parse → normalize (honoring entry.plugin if provided)
+      - else: call bdf.read(path, plugin=entry.plugin)
     Returns (local_path, df_bdf).
     """
-    path = fetch_url(entry.url, sha256=entry.sha256, filename=entry.filename)
+    from . import read as read_bdf  # new API
+    path = fetch_url(
+        entry.url,
+        sha256=entry.sha256,
+        filename=entry.filename,
+        alt_urls=entry.alt_urls or None,
+    )
 
     if entry.is_bdf:
-        from .io import load as load_bdf  # lazy import avoids cycles
+        from .io import load as load_bdf  # lazy import to avoid cycles
         df = load_bdf(path)
     else:
-        from .detect import load_plugin
-        from .normalize import to_bdf
-        plugin = load_plugin(path, as_=entry.plugin)
-        df_vendor = plugin.parse(path)
-        df = to_bdf(df_vendor, plugin_id=plugin.id)
+        df = read_bdf(path, plugin=entry.plugin, validate=True)
 
     return path, df

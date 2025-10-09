@@ -1,3 +1,4 @@
+# src/bdf/repair.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ except Exception:
 TIME_COL = "Test Time / s"
 DEFAULT_OUTLIER_COLS = ("Voltage / V", "Current / A")
 
+__all__ = ["fix_time", "clean_bdf", "CleanReport"]
 
 # -----------------------------
 # Reporting
@@ -305,7 +307,66 @@ def _interp_inplace(y: pd.Series, x: Optional[pd.Series]) -> pd.Series:
 
 
 # -----------------------------
-# Public API
+# Public API — simple time repair
+# -----------------------------
+def fix_time(
+    df: pd.DataFrame,
+    *,
+    method: str = "auto",               # 'auto'|'segment'|'sort'|'drop'|'recompute'
+    time_col: str = TIME_COL,
+    date_col: str = "Date Time ISO",
+    eps: float | str = "auto",
+    inplace: bool = False,
+) -> pd.DataFrame:
+    """
+    Repair non-monotonic test time.
+
+    'auto'      : if Date Time ISO exists & usable → recompute from timestamps;
+                  else 'segment' (interpolate decreasing blocks between neighbors).
+    'segment'   : preserve order; interpolate within each decreasing block.
+    'sort'      : stable sort by time ascending; drop exact duplicate timestamps.
+    'drop'      : drop rows where time decreases by more than 'eps'.
+    'recompute' : force recompute from Date Time ISO; raises if no valid timestamps.
+    """
+    g = df if inplace else df.copy()
+    if time_col not in g.columns:
+        return g
+
+    if method in ("auto", "recompute"):
+        if date_col in g.columns:
+            t = pd.to_datetime(g[date_col], errors="coerce")
+            if t.notna().any():
+                t0 = t[t.notna()].iloc[0]
+                g[time_col] = (t - t0).dt.total_seconds()
+                return g
+        if method == "recompute":
+            raise ValueError(f"Cannot recompute from '{date_col}': no valid timestamps.")
+
+    if method in ("auto", "segment"):
+        g[time_col], _ = _fix_time_between_neighbors(g[time_col], eps=eps)
+        return g
+
+    if method == "sort":
+        g.sort_values(by=[time_col], kind="mergesort", inplace=True)
+        g.drop_duplicates(subset=[time_col], keep="first", inplace=True)
+        g.reset_index(drop=True, inplace=True)
+        return g
+
+    if method == "drop":
+        s = pd.to_numeric(g[time_col], errors="coerce")
+        d = s.diff().fillna(0.0)
+        if eps == "auto":
+            eps = _compute_eps_from_diffs(d.to_numpy())
+        keep = d >= -float(eps)
+        keep.iloc[0] = True
+        g = g.loc[keep].reset_index(drop=True)
+        return g
+
+    raise ValueError(f"Unknown method: {method!r}")
+
+
+# -----------------------------
+# Public API — full cleaner
 # -----------------------------
 def clean_bdf(
     df: pd.DataFrame,
