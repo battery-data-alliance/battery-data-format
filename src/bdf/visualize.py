@@ -1,9 +1,10 @@
 # src/bdf/visualize.py
 from __future__ import annotations
-from typing import Iterable, Optional, Union, Dict, Tuple
-import re
+from typing import Iterable, Optional, Union, Dict, Tuple, Mapping
 import pandas as pd
 import matplotlib.pyplot as plt
+
+from bdf.units import resolve_unit, convert  # ← streamlined: use the units package
 
 X_DEFAULT = "Test Time / s"
 Y_DEFAULT = "Voltage / V"
@@ -13,68 +14,8 @@ Y_DEFAULT = "Voltage / V"
 def _ensure_numeric(df: pd.DataFrame, col: str) -> pd.Series:
     if col not in df.columns:
         raise KeyError(f"Column not found: {col}")
-    s = pd.to_numeric(df[col], errors="coerce")
-    if s.isna().all():
-        raise ValueError(f"Column {col!r} is not numeric.")
-    return s
-
-_UNIT_PAT = re.compile(r"/\s*([A-Za-zµμ]+)\s*$")
-
-def _infer_unit_from_colname(col: str) -> Optional[str]:
-    m = _UNIT_PAT.search(col)
-    if not m:
-        return None
-    u = m.group(1)
-    if u in {"°C", "celsius"}:
-        return "degC"
-    if u in {"uA", "µA", "μA"}:
-        return "uA"
-    return u
-
-def _norm_unit(u: Optional[str]) -> Optional[str]:
-    if u is None:
-        return None
-    u = u.strip()
-    aliases = {
-        "sec": "s", "secs": "s", "second": "s", "seconds": "s",
-        "minute": "min", "minutes": "min",
-        "hour": "h", "hrs": "h",
-        "mv": "mV", "v": "V",
-        "ma": "mA", "a": "A", "ua": "uA", "µa": "uA", "μa": "uA",
-        "degc": "degC", "k": "K",
-        "wh": "Wh", "mwh": "mWh",
-        "ah": "Ah", "mah": "mAh",
-    }
-    return aliases.get(u.lower(), u)
-
-def _convert_series(s: pd.Series, from_unit: Optional[str], to_unit: Optional[str]) -> Tuple[pd.Series, Optional[str]]:
-    from_unit = _norm_unit(from_unit)
-    to_unit = _norm_unit(to_unit)
-    if not to_unit or not from_unit or from_unit == to_unit:
-        return s, from_unit or to_unit
-
-    lin_scales = {
-        ("s", "min"): (1/60.0, 0.0), ("s", "h"): (1/3600.0, 0.0),
-        ("min", "s"): (60.0, 0.0), ("h", "s"): (3600.0, 0.0),
-        ("min", "h"): (1/60.0, 0.0), ("h", "min"): (60.0, 0.0),
-        ("V", "mV"): (1000.0, 0.0), ("mV", "V"): (1/1000.0, 0.0),
-        ("A", "mA"): (1000.0, 0.0), ("mA", "A"): (1/1000.0, 0.0),
-        ("A", "uA"): (1e6, 0.0), ("uA", "A"): (1e-6, 0.0),
-        ("mA", "uA"): (1000.0, 0.0), ("uA", "mA"): (1/1000.0, 0.0),
-        ("Ah", "mAh"): (1000.0, 0.0), ("mAh", "Ah"): (1/1000.0, 0.0),
-        ("Wh", "mWh"): (1000.0, 0.0), ("mWh", "Wh"): (1/1000.0, 0.0),
-    }
-    if (from_unit, to_unit) == ("degC", "K"):
-        return s.astype(float) + 273.15, "K"
-    if (from_unit, to_unit) == ("K", "degC"):
-        return s.astype(float) - 273.15, "degC"
-
-    key = (from_unit, to_unit)
-    if key in lin_scales:
-        a, b = lin_scales[key]
-        return s.astype(float) * a + b, to_unit
-
-    return s, from_unit
+    # Let convert() handle dtype; here just ensure the column exists.
+    return df[col]
 
 def _to_list(val: Union[str, Iterable[str], None]) -> list[str]:
     if val is None:
@@ -85,6 +26,31 @@ def _unit_for_each(cols: list[str], unit: Optional[Union[str, Dict[str, str]]]) 
     if unit is None or isinstance(unit, str):
         return {c: unit for c in cols}
     return {c: unit.get(c) for c in cols}
+
+def _left_of_label(label: str) -> str:
+    # Works with canonical "Name / UNIT" labels and arbitrary strings.
+    return label.split("/", 1)[0].strip()
+
+def _effective_unit_for_series(s: pd.Series) -> Optional[str]:
+    try:
+        return resolve_unit(s, as_string=True)
+    except Exception:
+        return None
+
+def _convert_for_plot(s: pd.Series, target_unit: Optional[str]) -> Tuple[pd.Series, Optional[str], Optional[str]]:
+    """
+    Convert series to target_unit if provided.
+    Returns (converted_series, from_unit, to_unit_effective).
+    """
+    from_u = _effective_unit_for_series(s)
+    if target_unit:
+        try:
+            out = convert(s, target_unit, from_unit=None, strict=False)
+            return out.astype(float), from_u, target_unit
+        except Exception:
+            # Fallback: no conversion; keep as-is
+            pass
+    return pd.to_numeric(s, errors="coerce"), from_u, from_u
 
 def _apply_bdf_style(ax, ax2=None, *, title=None, primary_color="#1f77b4", secondary_color="#4d4d4d"):
     # Title
@@ -129,7 +95,7 @@ def plot(
     Publication-style BDF plot:
       - Thick, clean lines; dashed major/minor grid
       - Secondary axis via yydata
-      - Unit conversion via xunit/yunit/yyunit (e.g., 'h', 'mA', 'K', 'mAh')
+      - Unit conversion via xunit/yunit/yyunit (Pint via bdf.units.convert)
       - Primary axis data is always drawn on top of secondary axis data.
     """
     ys = _to_list(ydata)
@@ -147,35 +113,38 @@ def plot(
     z_primary_line = 4.0
     z_secondary_line = 2.0
 
-    # X & label
+    # ----- X data -----
     x_raw = _ensure_numeric(df, xdata)
-    x_from = _infer_unit_from_colname(xdata)
-    x_conv, _ = _convert_series(x_raw, x_from, xunit)
-    x_label = f"{xdata}" if not xunit else f"{xdata.split('/')[0].strip()} / {_norm_unit(xunit)}"
+    x_conv, x_from, x_to = _convert_for_plot(x_raw, xunit)
+    # prefer shown unit as the target if provided, else resolved source
+    x_unit_label = x_to or x_from
+    x_left = _left_of_label(xdata)
+    x_label = f"{x_left}" if not x_unit_label else f"{x_left} / {x_unit_label}"
 
     # Create axes
     fig, ax = plt.subplots()
 
-    # Create secondary axis if needed and put it BEHIND primary axes
+    # Secondary axis (behind)
     ax2 = None
     if yys:
         ax2 = ax.twinx()
-        ax2.set_zorder(2)              # behind the primary axes
-        ax2.patch.set_alpha(0.0)       # transparent so it won't cover primary lines
+        ax2.set_zorder(2)
+        ax2.patch.set_alpha(0.0)
 
-    # Ensure primary axes is ON TOP and also transparent (so it won't cover twin)
+    # Ensure primary axes is on top
     ax.set_zorder(3)
     ax.patch.set_alpha(0.0)
 
-    # --- Plot SECONDARY (right) first with lower zorder ---
+    # --- Plot SECONDARY (right) first ---
+    yy_labels: list[str] = []
     if ax2 and yys:
         yy_units_map = _unit_for_each(yys, yyunit)
-        yy_labels = []
         for j, y in enumerate(yys):
             y_raw = _ensure_numeric(df, y)
-            y_from = _infer_unit_from_colname(y)
-            y_conv, y_eff = _convert_series(y_raw, y_from, yy_units_map.get(y))
-            label = y if (y_eff is None or y_from == y_eff) else f"{y.split('/')[0].strip()} / {y_eff}"
+            y_conv, y_from, y_to = _convert_for_plot(y_raw, yy_units_map.get(y))
+            y_unit_label = y_to or y_from
+            y_left = _left_of_label(y)
+            label = y_left if not y_unit_label else f"{y_left} / {y_unit_label}"
             color = secondary_color if j == 0 else None
             ax2.plot(
                 x_conv, y_conv,
@@ -187,17 +156,16 @@ def plot(
                 zorder=z_secondary_line,
             )
             yy_labels.append(label)
-    else:
-        yy_labels = []
 
-    # --- Plot PRIMARY (left) after with higher zorder ---
+    # --- Plot PRIMARY (left) after ---
     y_units_map = _unit_for_each(ys, yunit)
-    y_labels = []
+    y_labels: list[str] = []
     for i, y in enumerate(ys):
         y_raw = _ensure_numeric(df, y)
-        y_from = _infer_unit_from_colname(y)
-        y_conv, y_eff = _convert_series(y_raw, y_from, y_units_map.get(y))
-        label = y if (y_eff is None or y_from == y_eff) else f"{y.split('/')[0].strip()} / {y_eff}"
+        y_conv, y_from, y_to = _convert_for_plot(y_raw, y_units_map.get(y))
+        y_unit_label = y_to or y_from
+        y_left = _left_of_label(y)
+        label = y_left if not y_unit_label else f"{y_left} / {y_unit_label}"
         color = primary_color if i == 0 else None
         ax.plot(
             x_conv, y_conv,
@@ -221,9 +189,10 @@ def plot(
 
     if ax2 and yys:
         right_label = yy_labels[0] if len(yy_labels) == 1 else " / ".join(yy_labels)
-        # If a single shared yyunit was provided, reflect it in label
+        # If a single shared yyunit was provided, reflect it in label explicitly
         if isinstance(yyunit, str):
-            right_label = f"{right_label.split('/')[0].strip()} / {_norm_unit(yyunit)}"
+            right_left = _left_of_label(right_label)
+            right_label = f"{right_left} / {yyunit}"
         ax2.set_ylabel(right_label, fontsize=18, color=secondary_color)
         ax2.tick_params(axis="y", colors=secondary_color)
 
@@ -239,12 +208,16 @@ def plot(
         leg.get_frame().set_edgecolor("#333333")
         leg.get_frame().set_linewidth(1.2)
 
-    fig.tight_layout()
+        fig.tight_layout()
     if save:
         fig.savefig(save, bbox_inches="tight", dpi=150)
+
     if show:
         plt.show()
+        return None
 
+    plt.close(fig)
     return fig
+
 
 __all__ = ["plot", "X_DEFAULT", "Y_DEFAULT"]

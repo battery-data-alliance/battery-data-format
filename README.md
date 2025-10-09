@@ -105,6 +105,6 @@ The **Battery Data Format (.bdf)** is a step toward unifying and accelerating ba
 
 ### What is the difference between the preferred label and the machine-readable name?
 
-### Why do we use a slash / between the quantity and the unit?
+### Why do we use a slash between the quantity and the unit?
 
 ### How can I check if my file is a valid instance of BDF?
