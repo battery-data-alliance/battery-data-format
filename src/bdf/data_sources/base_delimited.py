@@ -4,17 +4,37 @@ from pathlib import Path
 from typing import Iterable, Optional, Sequence, Dict, Tuple
 import pandas as pd
 from .base import CyclerPlugin, SniffResult
+import os
 
 class DelimitedTextPlugin(CyclerPlugin):
+    """
+    Generic delimited-text reader with robust header detection, optional INI-like
+    preambles, and light unit hints. Plugins should remain declarative by
+    overriding class attributes (no per-plugin methods unless absolutely needed).
+    """
+
+    # --- basic CSV/TXT settings ---
     default_encoding: str = "utf-8"
     max_header_scan_lines: int = 600
-    header_lines_field_regex: Optional[str] = None
-    header_token_patterns: Sequence[str] = ()
-    magic: Sequence[str] = ()
-    unit_column_patterns: Dict[str, Sequence[Tuple[str, str]]] = {}
-    header_prefix_to_strip: Optional[str] = None  # already added earlier
-    ragged_row_policy: Optional[str] = None       # NEW: None | "fold_last" | "skip"
+    header_lines_field_regex: Optional[str] = None   # e.g., r"^Header\s*Lines:\s*(\d+)"
+    header_token_patterns: Sequence[str] = ()        # regexes that indicate a header row
+    magic: Sequence[str] = ()                        # quick sniff magic strings in head
 
+    # --- normalization helpers ---
+    unit_column_patterns: Dict[str, Sequence[Tuple[str, str]]] = {}
+    header_prefix_to_strip: Optional[str] = None     # strip prefix from each header, if present
+
+    # --- robustness knobs ---
+    ragged_row_policy: Optional[str] = None          # None | "fold_last" | "skip"
+    strip_headers: bool = True                       # strip whitespace/BOM in headers
+
+    # --- INI-style preamble / sectioned files (e.g., Novonix with [Data]) ---
+    data_section_marker: Optional[str] = None        # regex; if present, start from the line after this marker
+    data_header_offset: int = 1                      # number of lines after marker where the header row appears
+
+    # -------------------------------------------------------------------------
+    # Public API
+    # -------------------------------------------------------------------------
     def sniff(self, path: Path, head: bytes) -> SniffResult:
         txt = self._safe_decode(head)
         score, reasons = 0.0, []
@@ -30,28 +50,52 @@ class DelimitedTextPlugin(CyclerPlugin):
 
     def parse(self, path: Path) -> pd.DataFrame:
         enc = self.default_encoding
-        header_idx, sep = self._find_header_and_sep(path, enc)
-        # Use robust reader when requested (e.g., Landt CSV)
+
+        used_marker = False
+        if getattr(self, "data_section_marker", None):
+            header_idx, sep = self._find_header_from_marker(path, enc, self.data_section_marker, getattr(self, "data_header_offset", 1))
+            used_marker = True
+        else:
+            header_idx, sep = self._find_header_and_sep(path, enc)
+
         if self.ragged_row_policy == "fold_last":
             df = self._read_csv_ragged(path, sep, header_idx, enc)
         else:
             df = self._read_csv(path, sep, header_idx, enc)
-            if not self._looks_ok(df) and header_idx > 0:
+            # Only attempt the "retry one line up" when we did NOT rely on a marker;
+            # with a marker, the off-by-one is our bug, not the file's.
+            if not used_marker and not self._looks_ok(df) and header_idx > 0:
+                if self._debug_on():
+                    print(f"[bdf][DelimitedTextPlugin] retry one line up: header_idx={header_idx-1}")
                 df = self._read_csv(path, sep, header_idx - 1, enc)
 
         if self.header_prefix_to_strip:
             pref = str(self.header_prefix_to_strip)
             df.columns = [str(c).lstrip(pref).strip() for c in df.columns]
 
+        if getattr(self, "strip_headers", False):
+            df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
+
         self._unit_hints = self._detect_units_from_headers(df.columns)
+
+        if self._debug_on():
+            print(f"[bdf][DelimitedTextPlugin] columns={list(df.columns)}")
+
         return df
 
-    # ---------------- internals ----------------
+    # -------------------------------------------------------------------------
+    # Internals
+    # -------------------------------------------------------------------------
+    def _debug_on(self) -> bool:
+        return os.environ.get("BDF_DEBUG", "").strip() not in ("", "0", "false", "False")
+
 
     def _safe_decode(self, b: bytes) -> str:
         for enc in ("utf-8", "latin-1", "cp1252"):
-            try: return b.decode(enc)
-            except: pass
+            try:
+                return b.decode(enc)
+            except Exception:
+                pass
         return b.decode("latin-1", "ignore")
 
     def _scan_prefix(self, path: Path, enc: str) -> list[str]:
@@ -59,36 +103,124 @@ class DelimitedTextPlugin(CyclerPlugin):
         with open(path, "r", encoding=enc, errors="replace") as f:
             for _ in range(self.max_header_scan_lines):
                 line = f.readline()
-                if not line: break
+                if not line:
+                    break
                 out.append(line.rstrip("\n"))
         return out
+
+    def _detect_sep_from_line(self, header_line: str) -> str:
+        if "\t" in header_line: return "\t"
+        if ";" in header_line:  return ";"
+        if "," in header_line:  return ","
+        return r"\s+"
+
+    def _find_header_from_marker(self, path: Path, enc: str, marker_regex: str, offset: int) -> tuple[int, str]:
+        """
+        Find a section marker (e.g., '^[Data]$') and return (header_idx, sep).
+        Robustness:
+        - Locate the marker line.
+        - Start scanning at marker_idx + max(offset,1) (default to 'next line').
+        - Skip blank lines and any bracketed section headers like [Something].
+        - First non-empty, non-bracketed line is treated as the header row.
+        - Infer delimiter from that header row (comma/semicolon/tab > whitespace).
+        """
+        pat = re.compile(marker_regex, re.IGNORECASE)
+
+        # Read a small prefix; the Novonix files aren't huge but we still stream
+        lines: list[str] = []
+        with open(path, "r", encoding=enc, errors="replace") as f:
+            lines = f.readlines()
+
+        marker_idx = None
+        for i, raw in enumerate(lines):
+            if pat.match(raw.strip()):
+                marker_idx = i
+                break
+
+        if marker_idx is None:
+            # Fallback to generic finder
+            return self._find_header_and_sep(path, enc)
+
+        # Start at next line (or custom offset), then skip blank or bracketed metadata
+        start = marker_idx + (offset if offset is not None else 1)
+        start = max(start, marker_idx + 1)  # Always at least line after the marker
+
+        header_idx = None
+        header_line = ""
+        for j in range(start, len(lines)):
+            s = lines[j].strip()
+            if not s:
+                continue
+            if s.startswith("[") and s.endswith("]"):
+                # e.g., stray [Header] lines; keep skipping
+                continue
+            header_idx = j
+            header_line = lines[j].rstrip("\r\n")
+            break
+
+        if header_idx is None:
+            # Fallback to generic finder if something odd happens
+            return self._find_header_and_sep(path, enc)
+
+        # Detect delimiter prioritizing real CSV separators
+        sep = self._detect_sep_from_line(header_line)
+
+        if self._debug_on():
+            print(f"[bdf][DelimitedTextPlugin] marker={marker_regex!r} header_idx={header_idx} sep={sep!r} header_line={header_line!r}")
+
+        return header_idx, sep
+
+    def _detect_sep_from_line(self, header_line: str) -> str:
+        """
+        Prefer comma/semicolon/tab if found; otherwise use whitespace.
+        """
+        if "," in header_line:
+            return ","
+        if ";" in header_line:
+            return ";"
+        if "\t" in header_line:
+            return "\t"
+        return r"\s+"
+
 
     def _find_header_and_sep(self, path: Path, enc: str) -> tuple[int, str]:
         prefix = self._scan_prefix(path, enc)
         header_idx: Optional[int] = None
+
+        # 1) If vendor provided "Header Lines: N" style field
         if self.header_lines_field_regex:
             rx = re.compile(self.header_lines_field_regex, re.I)
             for s in prefix:
                 m = rx.search(s)
                 if m:
-                    n = int(m.group(1)); header_idx = max(n - 1, 0); break
+                    n = int(m.group(1))
+                    header_idx = max(n - 1, 0)
+                    break
+
+        # 2) Heuristic match for header token patterns
         if header_idx is None and self.header_token_patterns:
             for i, s in enumerate(prefix):
                 if any(re.search(p, s, re.I) for p in self.header_token_patterns):
-                    header_idx = i; break
-        if header_idx is None: header_idx = 0
+                    header_idx = i
+                    break
+
+        # 3) Default to first line
+        if header_idx is None:
+            header_idx = 0
 
         header_line = prefix[header_idx] if header_idx < len(prefix) else ""
-        if "\t" in header_line: sep = "\t"
-        elif ";" in header_line: sep = ";"
-        elif "," in header_line: sep = ","
-        else: sep = r"\s+"
+        sep = self._detect_sep_from_line(header_line)
         return header_idx, sep
 
     def _read_csv(self, path: Path, sep: str, header_idx: int, enc: str) -> pd.DataFrame:
         df = pd.read_csv(
-            path, sep=sep, skiprows=header_idx, header=0,
-            encoding=enc, engine="python", dtype_backend="pyarrow",
+            path,
+            sep=sep,
+            skiprows=header_idx,
+            header=0,
+            encoding=enc,
+            engine="python",
+            dtype_backend="pyarrow",
         )
         df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
         return df
@@ -100,8 +232,10 @@ class DelimitedTextPlugin(CyclerPlugin):
             fields = header_line.split(sep)
         # clean
         f = [str(c).strip() for c in fields]
-        while f and f[0] == "": f.pop(0)
-        while f and f[-1] == "": f.pop()
+        while f and f[0] == "":
+            f.pop(0)
+        while f and f[-1] == "":
+            f.pop()
         return f
 
     def _split_ws_row(self, line: str, ncols: int) -> list[str]:
@@ -134,8 +268,10 @@ class DelimitedTextPlugin(CyclerPlugin):
         else:
             fields = re.split(r"\s+", s)
         # trim empties
-        while fields and fields[0] == "": fields.pop(0)
-        while fields and fields[-1] == "": fields.pop()
+        while fields and fields[0] == "":
+            fields.pop(0)
+        while fields and fields[-1] == "":
+            fields.pop()
         return [f.strip() for f in fields]
 
     def _read_csv_ragged(self, path: Path, sep: str, header_idx: int, enc: str) -> pd.DataFrame:
@@ -165,8 +301,10 @@ class DelimitedTextPlugin(CyclerPlugin):
             except Exception:
                 fields = header_line.split(sep)
             fields = [str(c).strip() for c in fields]
-            while fields and fields[0] == "": fields.pop(0)
-            while fields and fields[-1] == "": fields.pop()
+            while fields and fields[0] == "":
+                fields.pop(0)
+            while fields and fields[-1] == "":
+                fields.pop()
 
         ncols = len(fields)
         rows: list[list[str]] = []
@@ -202,7 +340,6 @@ class DelimitedTextPlugin(CyclerPlugin):
         df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
         return df
 
-
     def _looks_ok(self, df: pd.DataFrame) -> bool:
         l = [str(c).lower().strip() for c in df.columns]
         if any(k in l for k in ("time/s", "ewe/v", "ecell/v", "i/ma", "current / a")):
@@ -214,35 +351,50 @@ class DelimitedTextPlugin(CyclerPlugin):
         return False
 
     def _detect_units_from_headers(self, cols: Iterable[str]) -> dict[str, str]:
+        """
+        Lightweight hint system: if a plugin provides unit_column_patterns like
+          {
+            "Test Time / s": [(r"run time\s*\(h\)", "h")],
+            "Current / A":   [(r"current\s*\(mA\)", "mA")],
+          }
+        we record those to apply tiny fixups below (only for simple linear cases).
+        Prefer the full Pint-based conversions in the main normalizer path.
+        """
         hints: dict[str, str] = {}
         for canon_col, patterns in self.unit_column_patterns.items():
             for c in cols:
                 for pat, unit in patterns:
                     if re.search(pat, str(c), re.I):
-                        hints[canon_col] = unit; break
+                        hints[canon_col] = unit
+                        break
         return hints
 
     def fixup(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Tiny post-read unit fixups for a few simple linear cases where plugins
+        provided clear unit hints via unit_column_patterns. The main normalization
+        path should handle robust conversions; this is a light safety net.
+        """
         out = df
         hints = getattr(self, "_unit_hints", {})
 
         if "Current / A" in out.columns:
             u = (hints.get("Current / A") or "").lower()
             if u == "ma":
-                out["Current / A"] = out["Current / A"].astype("float64") / 1000.0
+                out["Current / A"] = pd.to_numeric(out["Current / A"], errors="coerce") / 1000.0
             elif u == "ua":
-                out["Current / A"] = out["Current / A"].astype("float64") / 1_000_000.0
+                out["Current / A"] = pd.to_numeric(out["Current / A"], errors="coerce") / 1_000_000.0
 
         if "Test Time / s" in out.columns:
             u = (hints.get("Test Time / s") or "").lower()
             if u == "h":
-                out["Test Time / s"] = out["Test Time / s"].astype("float64") * 3600.0
+                out["Test Time / s"] = pd.to_numeric(out["Test Time / s"], errors="coerce") * 3600.0
             elif u == "min":
-                out["Test Time / s"] = out["Test Time / s"].astype("float64") * 60.0
+                out["Test Time / s"] = pd.to_numeric(out["Test Time / s"], errors="coerce") * 60.0
 
         if "Voltage / V" in out.columns:
             u = (hints.get("Voltage / V") or "").lower()
             if u == "mv":
-                out["Voltage / V"] = out["Voltage / V"].astype("float64") / 1000.0
+                out["Voltage / V"] = pd.to_numeric(out["Voltage / V"], errors="coerce") / 1000.0
 
         return out

@@ -204,7 +204,12 @@ def normalize_columns(
     if strict:
         missing = [c for c in REQUIRED if c not in have]
         if missing:
-            raise ValueError(f"Missing required BDF columns after normalization: {missing}")
+            sample_cols = list(out.columns)[:25]
+            raise ValueError(
+                "Missing required BDF columns after normalization: "
+                f"{missing}. Seen columns: {sample_cols}"
+            )
+
 
     if not include_optional and not keep_unmapped:
         # only required, in the forced order
