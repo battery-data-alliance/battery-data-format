@@ -33,9 +33,11 @@ def _left_of_label(label: str) -> str:
 
 def _effective_unit_for_series(s: pd.Series) -> Optional[str]:
     try:
-        return resolve_unit(s, as_string=True)
+        # Resolve from the column name, which is canonical in BDF
+        return resolve_unit(str(s.name), as_string=True)
     except Exception:
         return None
+
 
 def _convert_for_plot(s: pd.Series, target_unit: Optional[str]) -> Tuple[pd.Series, Optional[str], Optional[str]]:
     """
@@ -45,12 +47,14 @@ def _convert_for_plot(s: pd.Series, target_unit: Optional[str]) -> Tuple[pd.Seri
     from_u = _effective_unit_for_series(s)
     if target_unit:
         try:
-            out = convert(s, target_unit, from_unit=None, strict=False)
-            return out.astype(float), from_u, target_unit
+            # Use the detected source unit explicitly
+            out = convert(s, to_unit=target_unit, from_unit=from_u, strict=False)
+            return pd.to_numeric(out, errors="coerce"), from_u, target_unit
         except Exception:
             # Fallback: no conversion; keep as-is
             pass
     return pd.to_numeric(s, errors="coerce"), from_u, from_u
+
 
 def _apply_bdf_style(ax, ax2=None, *, title=None, primary_color="#1f77b4", secondary_color="#4d4d4d"):
     # Title

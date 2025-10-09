@@ -64,7 +64,7 @@ def _resolve_source(
         return path, None
 
     # 3) dataset id from registry
-    from .registry import load_registry as _load_registry, get_entry as _get_entry  # lazy
+    from ._registry import load_registry as _load_registry, get_entry as _get_entry  # lazy
     reg = _load_registry(registry_path)
     entry = _get_entry(reg, s)  # raises if not found/ambiguous
     url = entry["url"]
@@ -148,7 +148,7 @@ def validate(
         # 1) try as BDF artifact
         df = None
         try:
-            from .io import load as _load_bdf  # lazy, supports CSV/Parquet/Feather/JSON
+            from ._io import load as _load_bdf  # lazy, supports CSV/Parquet/Feather/JSON
             df_bdf = _load_bdf(local_path)
             # sanity: if it already contains required columns, accept
             from .normalize import REQUIRED  # lazy
@@ -179,18 +179,18 @@ def plugins() -> list[str]:
 # ----- dataset helpers (lazy to avoid cycles) -----
 def datasets(registry_path: str | Path | None = None) -> list[str]:
     """Return dataset IDs from the registry."""
-    from .registry import load_registry as _load_registry, list_datasets as _list_datasets  # lazy
+    from ._registry import load_registry as _load_registry, list_datasets as _list_datasets  # lazy
     reg = _load_registry(registry_path)
     return _list_datasets(reg)
 
 
 def load_registry(path: str | Path | None = None):
-    from .registry import load_registry as _load_registry  # lazy
+    from ._registry import load_registry as _load_registry  # lazy
     return _load_registry(path)
 
 
 def get_entry(reg, entry_id: str):
-    from .registry import get_entry as _get_entry  # lazy
+    from ._registry import get_entry as _get_entry  # lazy
     return _get_entry(reg, entry_id)
 
 
@@ -198,7 +198,7 @@ def read_dataset(entry_id: str, registry_path: str | Path | None = None, validat
     """
     Fetch by dataset id and return (local_path, BDF DataFrame).
     """
-    from .registry import load_registry as _load_registry, get_entry as _get_entry
+    from ._registry import load_registry as _load_registry, get_entry as _get_entry
     from .fetch import fetch_url
     reg = _load_registry(registry_path)
     entry = _get_entry(reg, entry_id)

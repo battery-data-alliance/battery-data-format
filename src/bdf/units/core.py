@@ -250,65 +250,66 @@ def resolve_unit(value: Any, *, as_string: bool = False):
     raise KeyError(f"Could not resolve unit for: {value!r}")
 
 # ---------- Conversions (Pint-backed) ----------
-def convert(
-    x: Any,
-    to_unit: str,
-    *,
-    from_unit: Optional[str] = None,
-    strict: bool = False,
-):
-    """
-    Convert scalar/array/Series 'x' to 'to_unit'.
-    If from_unit is None and x is a Series or canonical label, infer via resolve_unit().
-    If Pint is missing: strict=False → passthrough; strict=True → error.
-    """
-    if not has_pint:
-        if strict:
-            raise RuntimeError("Unit conversion requires 'pint'.")
-        return x
+import numpy as np
+import pandas as pd
+from pint import UnitRegistry
 
-    # Optional pandas support without hard dependency
+ureg = UnitRegistry()
+Q_ = ureg.Quantity
+
+def convert(x, to_unit: str, from_unit: str | None = None, *, strict: bool = False):
+    """
+    Convert numbers/Series to `to_unit`. If `from_unit` is None, try to infer via resolve_unit().
+    Accepts pandas Series with numpy/pyarrow dtypes.
+    """
+    # ---- Normalize inputs ----
+    name = getattr(x, "name", None)
+    index = getattr(x, "index", None)
+    is_series = isinstance(x, pd.Series)
+
+    # Force a float array (handles pyarrow dtypes safely)
     try:
-        import pandas as pd  # type: ignore
-        _HAS_PD = True
+        if is_series:
+            # to_numpy() avoids object dtype and works with ArrowDtype
+            arr = x.to_numpy(dtype="float64")
+        else:
+            arr = np.asarray(x, dtype="float64")
     except Exception:
-        _HAS_PD = False
-        pd = None  # type: ignore
+        if strict:
+            raise
+        # best effort: coerce via pandas if available
+        if is_series:
+            arr = pd.to_numeric(x, errors="coerce").to_numpy(dtype="float64")
+        else:
+            arr = np.asarray(x, dtype="float64")
 
-    # Infer source unit if needed
+    # Infer from_unit if needed (use your existing resolver)
     if from_unit is None:
         try:
-            if _HAS_PD and isinstance(x, pd.Series):
-                from_unit = resolve_unit(x, as_string=True)  # use df.attrs or name
-            elif isinstance(x, str):
-                from_unit = resolve_unit(x, as_string=True)  # label-as-input
+            from bdf.units.core import resolve_unit  # or correct import path
+            # Prefer the column label if x is a Series; else we can't infer
+            if is_series and name:
+                from_unit = resolve_unit(str(name), as_string=True)
         except Exception:
             from_unit = None
 
-    if from_unit is None:
+    # If we still don't know the source unit or to_unit is falsy, bail early
+    if not to_unit or not from_unit:
+        return x if is_series else arr
+
+    # ---- Do the conversion with Pint ----
+    try:
+        y = Q_(arr, from_unit).to(to_unit).magnitude
+    except Exception:
         if strict:
-            raise ValueError("from_unit is None and could not be inferred.")
-        return x
+            raise
+        # fall back: return original
+        y = arr
 
-    # ---- KEY FIX: never pass a pandas object into Pint ----
-    is_series = False
-    if _HAS_PD and isinstance(x, pd.Series):
-        is_series = True
-        values = x.to_numpy()         # pint-friendly
-    else:
-        values = x
-
-    q = ureg.Quantity(values, from_unit)
-    y = q.to(to_unit)
-
+    # Restore pandas Series shape/metadata
     if is_series:
-        out = pd.Series(y.magnitude, index=x.index, name=x.name)
-        # preserve attrs if present; tag new unit for convenience
-        out.attrs = dict(getattr(x, "attrs", {}))
-        out.attrs["bdf:unit"] = to_unit
-        return out
-
-    return y.magnitude
+        return pd.Series(y, index=index, name=name)
+    return y
 
 def convert_series(series, from_unit: str, to_unit: str):
     """Shorthand for converting a pandas Series (no inference)."""
