@@ -9,6 +9,3 @@ __pycache__/
 dist/
 build/
 *.parquet
-
-out/
-examples/out/
