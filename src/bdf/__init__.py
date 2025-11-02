@@ -6,8 +6,12 @@ import pandas as pd
 # light imports that never cause cycles
 from .detect import detect as _detect, load_plugin, list_plugins as _list_plugins
 from .normalize import normalize_columns
-from .validate import validate_df  # prints report if asked; warns on non-monotonic time
+from .validate import validate_df, BDFValidationError  # prints report if asked; warns on non-monotonic time
 from .repair import fix_time, clean_bdf, CleanReport  # public cleaning helpers
+
+
+# ---- Make warnings notebook-friendly (hide local paths) ----
+import warnings
 
 __all__ = [
     # core I/O
@@ -28,6 +32,41 @@ try:
     __version__ = _pkg_version("bdf")
 except Exception:
     __version__ = "0.0.0-dev"
+
+
+# Keep a handle to the original in case you want to restore it later
+_default_formatwarning = warnings.formatwarning
+
+def _bdf_short_formatwarning(message, category, filename, lineno, line=None):
+    """
+    Render warnings without absolute paths. If the warning originates inside
+    the bdf package, just show 'bdf.<module>:<lineno>'; otherwise show a short
+    filename. Message text remains unchanged.
+    """
+    try:
+        p = Path(filename).resolve()
+        # Heuristic: if file path contains '/bdf/' (or '\bdf\') treat it as our package
+        fp = str(p).replace("\\", "/")
+        if "/bdf/" in fp or fp.endswith("/bdf/__init__.py"):
+            # Build a dotted module-ish label
+            try:
+                # relative to the package root
+                pkg_root = Path(__file__).resolve().parent
+                rel = p.relative_to(pkg_root)
+                mod = "bdf." + ".".join(rel.with_suffix("").parts)
+            except Exception:
+                mod = "bdf"
+            where = f"{mod}:{lineno}"
+        else:
+            # External warnings: keep only the basename to avoid leaking user paths
+            where = f"{p.name}:{lineno}"
+    except Exception:
+        where = "<unknown>"
+
+    return f"{category.__name__} [{where}]: {message}\n"
+
+# Install the formatter
+warnings.formatwarning = _bdf_short_formatwarning
 
 
 # -------------------------------
@@ -126,44 +165,142 @@ def normalize(df: pd.DataFrame, plugin: str | None = None) -> pd.DataFrame:
     return normalize_columns(df, plugin=plg, strict=True)
 
 
+def _is_csv(path: Path) -> bool:
+    s = "".join(path.suffixes).lower()
+    return s.endswith(".csv") or s.endswith(".bdf.csv")
+
+def _csv_header_has_bdf_required(path: Path) -> bool:
+    """Quickly check if first row contains required BDF columns."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            header = f.readline().strip()
+    except Exception:
+        return False
+    cols = [c.strip() for c in header.split(",")]
+    # import lazily to avoid cycles
+    from .normalize import REQUIRED
+    have = 0
+    for req in REQUIRED:
+        if any(req.lower() == c.lower() for c in cols):
+            have += 1
+    return have == len(REQUIRED)
+
+def _looks_like_bdf_artifact(path: Path) -> bool:
+    """Return True if filename + header suggest this is a BDF file we should try to load."""
+    sfx = "".join(path.suffixes).lower()
+    # Parquet/Feather/JSON: accept outright if extension matches
+    if sfx.endswith(".parquet") or sfx.endswith(".bdf.parquet"):
+        return True
+    if sfx.endswith(".feather") or sfx.endswith(".bdf.feather"):
+        return True
+    if sfx.endswith(".json") or sfx.endswith(".bdf.json"):
+        return True
+    # CSV: require either .bdf.csv OR BDF header row with required columns
+    if _is_csv(path):
+        if ".bdf.csv" in sfx:
+            return True
+        return _csv_header_has_bdf_required(path)
+    return False
+
+
+# src/bdf/__init__.py (validate)
+# src/bdf/__init__.py  (replace the existing validate with this)
+
 def validate(
     obj,
     *,
     report: bool = False,
-    raise_on_error: bool = True,
+    raise_on_error: bool = False,   # <- default False so notebooks don’t crash
     registry_path: str | Path | None = None,
 ):
     """
-    Validate a BDF DataFrame, a local file path, or an HTTP/HTTPS URL.
-    - DataFrame: validate as-is.
-    - Path/URL/dataset id: try loading as an already-normalized BDF artifact, else vendor parse→normalize.
-    Returns a dict report.
+    Validate a BDF DataFrame, a local file path, an HTTP/HTTPS URL, or a dataset id.
+
+    Behavior:
+      - DataFrame: validate as-is (no transformations).
+      - Path/URL/id: only treated as a *BDF artifact* (strict). We do NOT vendor-parse
+        or normalize here. If it doesn’t look like BDF, you’ll get an 'ok=False' report.
+
+    Returns:
+      dict report with at least:
+        {"ok": True, "issues": [...]}   or   {"ok": False, "kind": "...", "detail": "..."}
     """
+    # small local helpers (kept inside to avoid extra imports at module load time)
+    def _bad_report(kind: str, detail: str, **extra):
+        r = {"ok": False, "kind": kind, "detail": detail}
+        if extra:
+            r.update(extra)
+        if report:
+            print(f"Validation failed: {detail}")
+        if raise_on_error:
+            from .validate import BDFValidationError
+            raise BDFValidationError(detail)
+        return r
+
+    # Direct DataFrame path
     if isinstance(obj, pd.DataFrame):
-        df = obj
-    elif isinstance(obj, (str, Path)):
-        # try: path/URL/id → local path
+        from .validate import validate_df
+        return validate_df(obj, report=report, raise_on_error=raise_on_error)
+
+    # Resolve path/URL/registry id to a local path
+    if isinstance(obj, (str, Path)):
+        from .__init__ import _resolve_source  # local helper already in your package
         local_path, _ = _resolve_source(obj, registry_path=registry_path)
+        p = Path(local_path)
+        fname = p.name
 
-        # 1) try as BDF artifact
-        df = None
+        # Only attempt to load files that look like BDF artifacts
+        def _looks_like_bdf_artifact(path: Path) -> bool:
+            # quick filename hint: *.bdf.csv, *.bdf.parquet, *.bdf.feather, *.bdf.json(.gz)
+            name_lc = path.name.lower()
+            if any(name_lc.endswith(suf) for suf in (
+                ".bdf.csv", ".bdf.csv.gz",
+                ".bdf.parquet",
+                ".bdf.feather",
+                ".bdf.json", ".bdf.json.gz",
+            )):
+                return True
+            # header sniff for CSV only (cheap and safe)
+            if name_lc.endswith(".csv") or name_lc.endswith(".csv.gz"):
+                try:
+                    with (gzip.open(path, "rt") if name_lc.endswith(".gz") else open(path, "r", encoding="utf-8", errors="ignore")) as f:
+                        head = "".join([f.readline() for _ in range(2)]).lower()
+                    # must contain all required labels (case-insensitive)
+                    req = {"test time / s", "voltage / v", "current / a"}
+                    header_line = head.splitlines()[0] if head else ""
+                    return all(r in header_line for r in req)
+                except Exception:
+                    return False
+            return False
+
+        # Optional gzip import for header sniff
+        import gzip as _maybe_gzip  # safe alias
+        gzip = _maybe_gzip
+
+        if not _looks_like_bdf_artifact(p):
+            return _bad_report(
+                kind="not_bdf_artifact",
+                detail=f"{fname} does not look like a BDF artifact (expected .bdf.<ext> or a BDF-style header).",
+                file=fname,
+            )
+
+        # Try to load with strict BDF IO (no transformations)
         try:
-            from ._io import load as _load_bdf  # lazy, supports CSV/Parquet/Feather/JSON
-            df_bdf = _load_bdf(local_path)
-            # sanity: if it already contains required columns, accept
-            from .normalize import REQUIRED  # lazy
-            if all(c in df_bdf.columns for c in REQUIRED):
-                df = df_bdf
-        except Exception:
-            df = None
+            from .io import load as _load_bdf  # strict loader for BDF CSV/Parquet/Feather/JSON
+            df = _load_bdf(p)
+        except Exception as e:
+            return _bad_report(
+                kind="io_error",
+                detail=f"Failed to load BDF artifact {fname}: {e}",
+                file=fname,
+            )
 
-        # 2) fallback to vendor pipeline
-        if df is None:
-            df = read(local_path, validate=False)
-    else:
-        raise TypeError("validate() expects a pandas DataFrame, a file path (str/Path), a URL, or a dataset id.")
+        # Validate columns/units only; do NOT normalize or modify
+        from .validate import validate_df
+        return validate_df(df, report=report, raise_on_error=raise_on_error)
 
-    return validate_df(df, report=report, raise_on_error=raise_on_error)
+    # Anything else: wrong type
+    return _bad_report(kind="type_error", detail="validate() expects a pandas DataFrame, a file path (str/Path), a URL, or a dataset id.")
 
 
 def detect(path: str | Path):

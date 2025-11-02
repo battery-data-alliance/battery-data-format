@@ -7,7 +7,7 @@ from . import read_raw_to_bdf  # lazy import inside functions is also fine
 from .visualize import line_plot
 from .validate import validate_path, BDFValidationError
 from .clean import clean_bdf
-from ._io import load as load_bdf, save_csv
+from .io import load as load_bdf, save_csv
 from .metadata import BDFMetadata, Creator, RelatedIdentifier, save_jsonld
 
 

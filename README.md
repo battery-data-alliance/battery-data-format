@@ -103,8 +103,15 @@ The **Battery Data Format (.bdf)** is a step toward unifying and accelerating ba
 
 ### Which label should I use for my column headings?
 
+You should use the Preferred Label for your column headings. This is the label that is designed to adhere to recommendations for human-readable titles and corresponds to the `csvw:titles` property in the table schema.
+
 ### What is the difference between the preferred label and the machine-readable name?
+
+The preferred label is designed to be readable for humans and adhere to IUPAC / SI guidelines for quantity notation. But the preferred label contains some characters (e.g. spaces and slashes) that can create difficulty for some machines. The machine-readable name is designed to be an alias for referring to the quantity in software. It is linked to the preferred label in both the BDF applicaiton ontology and the CSVW table schema. 
 
 ### Why do we use a slash between the quantity and the unit?
 
+This is the notation that is recommended by authoritative bodies like IUPAC and SI. The slash comes from the fact that quantities are the product of a value and a unit, and they obey the rules of algebra. For example, if we say that `Voltage = 4.2 V` and divide both sides of the equation by the unit, we get `Voltage / V = 4.2`
+
 ### How can I check if my file is a valid instance of BDF?
+
