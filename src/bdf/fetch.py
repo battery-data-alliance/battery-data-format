@@ -307,7 +307,7 @@ def load_bdf_from_entry(entry: DatasetEntry):
     )
 
     if entry.is_bdf:
-        from ._io import load as load_bdf  # lazy import to avoid cycles
+        from .io import load as load_bdf  # lazy import to avoid cycles
         df = load_bdf(path)
     else:
         df = read_bdf(path, plugin=entry.plugin, validate=True)
