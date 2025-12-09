@@ -133,6 +133,14 @@ class DataDownload:
             "tableSchema": self.csvw_table_schema_url,
         }
 
+    @classmethod
+    def for_file(cls, path: Union[str, Path], *, csvw_schema_url: Optional[str] = None) -> "DataDownload":
+        """
+        Convenience to build a DataDownload from a local file path.
+        """
+        p = Path(path)
+        return cls(url=p.name, name=p.name, encoding_format=None, id=None, csvw_table_schema_url=csvw_schema_url)
+
 
 # ---------------------------
 # Helpers
@@ -287,6 +295,68 @@ class BDFMetadata:
     is_accessible_for_free: Optional[bool] = None
     publisher: Optional[Creator] = None
     funder: Optional[List[Creator]] = None
+
+    def __init__(
+        self,
+        *,
+        title: str,
+        creators: List[Creator],
+        description: str,
+        keywords: Optional[List[str]] = None,
+        license: str = "CC-BY-4.0",
+        access_right: Optional[str] = None,
+        version: Optional[str] = None,
+        publication_date: Optional[str] = None,
+        language: Optional[str] = "en",
+        url: Optional[str] = None,
+        same_as: Optional[List[str]] = None,
+        identifiers: Optional[List[str]] = None,
+        citation: Optional[List[Union[str, Dict[str, Any]]]] = None,
+        is_based_on: Optional[List[str]] = None,
+        variable_measured: Optional[List[Union[str, PropertyValue]]] = None,
+        measurement_technique: Optional[Union[str, List[str]]] = None,
+        spatial_coverage: Optional[str] = None,
+        temporal_coverage: Optional[str] = None,
+        included_in_data_catalog: Optional[Dict[str, Any]] = None,
+        publisher: Optional[Creator] = None,
+        funder: Optional[List[Creator]] = None,
+        doi: Optional[str] = None,
+        communities: Optional[List[str]] = None,
+        related_identifiers: Optional[List["RelatedIdentifier"]] = None,
+        **extra: Any,
+    ):
+        self.title = title
+        self.creators = creators
+        self.description = description
+        self.keywords = keywords or []
+        self.license = license
+        self.version = version
+        self.publication_date = publication_date
+        self.language = language
+        self.url = url
+        self.same_as = same_as or []
+        self.identifiers = identifiers or []
+        if doi:
+            self.identifiers.append(doi)
+        self.citation = citation or []
+        self.is_based_on = is_based_on or []
+        self.variable_measured = variable_measured or []
+        self.measurement_technique = measurement_technique
+        self.spatial_coverage = spatial_coverage
+        self.temporal_coverage = temporal_coverage
+        self.included_in_data_catalog = included_in_data_catalog
+        self.publisher = publisher
+        self.funder = funder
+        # access_right maps to schema.org isAccessibleForFree when obviously open
+        if access_right:
+            self.is_accessible_for_free = access_right.lower() in {"open", "open access", "public"}
+        else:
+            self.is_accessible_for_free = None
+        # Extra Zenodo-ish fields (kept for completeness)
+        self.communities = communities or []
+        self.related_identifiers = related_identifiers or []
+        # Accept but ignore any additional fields for forward compatibility
+        self._extra = extra
 
     def to_schemaorg_dataset(
         self,
@@ -537,3 +607,53 @@ def save_schemaorg_dataset(
     return out_path
 
 
+# CLI-facing convenience: build JSON-LD sidecar for a single data file
+def save_jsonld(
+    meta: BDFMetadata,
+    data_path: Union[str, Path],
+    *,
+    out_path: Union[str, Path],
+    dataset_uri: Optional[str] = None,
+    identifier: Optional[str] = None,
+    distributions: Optional[List[DataDownload]] = None,
+    context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
+    extra_fields: Optional[Dict[str, Any]] = None,
+    df: Optional["pd.DataFrame"] = None,
+    merge_variables: bool = True,
+    enforce_desc_bounds: bool = True,
+    max_description_len: int = 5000,
+    indent: int = 2,
+    csvw_schema_url: Optional[str] = None,
+) -> Path:
+    data_path = Path(data_path)
+    dist = DataDownload.for_file(data_path)
+    dists = distributions or [dist]
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    obj = meta.to_schemaorg_dataset(
+        dataset_uri=dataset_uri,
+        identifier=identifier,
+        distributions=dists,
+        context=context,
+        extra_fields=extra_fields,
+        df=df,
+        merge_variables=merge_variables,
+        enforce_desc_bounds=enforce_desc_bounds,
+        max_description_len=max_description_len,
+    )
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=indent)
+    return out_path
+
+
+# Exported symbols
+__all__ = [
+    "BDFMetadata",
+    "Creator",
+    "PropertyValue",
+    "RelatedIdentifier",
+    "VariableMeasured",
+    "DataDownload",
+    "save_schemaorg_dataset",
+    "save_jsonld",
+]
