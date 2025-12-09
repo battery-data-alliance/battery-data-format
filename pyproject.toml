@@ -30,7 +30,8 @@ dependencies = [
   "rich>=13.7",
   "matplotlib>=3.8",
   "pydantic>=2.6",
-  "requests>=2.31"
+  "requests>=2.31",
+  "pint>=0.22"
 ]
 
 [project.urls]
