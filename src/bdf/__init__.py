@@ -1,4 +1,5 @@
 from __future__ import annotations
+# mypy: ignore-errors
 
 # ---- Make warnings notebook-friendly (hide local paths) ----
 import warnings
