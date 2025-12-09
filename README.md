@@ -1,4 +1,4 @@
-# Battery Data Format for Time-Series Data (.bdf)
+# Battery Data Format (.bdf)
 
 ## Why introduce an industry standard format for battery data?
 
@@ -99,6 +99,45 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 
 The **Battery Data Format (.bdf)** is a step toward unifying and accelerating battery research and development. By adopting this open-source standard, we can foster collaboration, enhance model interoperability, and unlock the full potential of data-driven battery innovation.
 
+## Install the Pyton Package
+
+```bash
+pip install bdf[viz,arrow,units]
+# for docs/dev: pip install -e .[dev,docs]
+```
+
+### Quickstart
+
+```python
+import bdf
+
+# Read raw or BDF; plugin auto-detects
+df = bdf.read("path/to/file.bdf.csv")
+
+# Validate
+report = bdf.validate(df, report=True, raise_on_error=False)
+
+# Repair time/outliers
+df_clean, rep = bdf.clean_bdf(df, time_fix="segment", outlier="none")
+
+# Plot
+bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
+```
+
+CLI examples:
+
+```bash
+bdf validate data/sample.bdf.csv
+bdf clean data/sample.bdf.csv --out cleaned.bdf.csv --assume-bdf
+bdf convert raw/vendor.csv --to output.bdf.csv
+bdf plot data/sample.bdf.csv --assume-bdf --save plot.png
+bdf meta-jsonld data/sample.bdf.csv --title "My dataset" --description "..." --creator "Name|ORCID|Affiliation"
+```
+
+### Documentation
+
+Full docs (API, CLI, examples) are built with Sphinx/pydata theme. After build, browse `docs/_build/html/index.html`. On GitHub Pages, use the project site.
+
 ## FAQ
 
 ### Which label should I use for my column headings?
@@ -114,4 +153,3 @@ The preferred label is designed to be readable for humans and adhere to IUPAC / 
 This is the notation that is recommended by authoritative bodies like IUPAC and SI. The slash comes from the fact that quantities are the product of a value and a unit, and they obey the rules of algebra. For example, if we say that `Voltage = 4.2 V` and divide both sides of the equation by the unit, we get `Voltage / V = 4.2`
 
 ### How can I check if my file is a valid instance of BDF?
-
