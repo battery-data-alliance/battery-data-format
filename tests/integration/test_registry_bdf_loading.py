@@ -1,11 +1,13 @@
 # tests/test_registry_bdf_loading.py
 from __future__ import annotations
+
+import hashlib
 import json
 import os
 import re
-import hashlib
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pytest
 import requests
@@ -278,7 +280,7 @@ def _looks_nonempty(result: Any) -> bool:
             pass
 
     if hasattr(result, "df"):
-        df = getattr(result, "df")
+        df = result.df
         try:
             if hasattr(df, "empty"):
                 return not bool(df.empty)

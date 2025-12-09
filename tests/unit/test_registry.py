@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from bdf._registry import load_registry, list_datasets, get_entry
+from bdf._registry import get_entry, list_datasets, load_registry
 
 
 def test_registry_load_list_get(tmp_path: Path):

@@ -1,6 +1,8 @@
 # src/bdf/data_sources/landt_csv.py
 from __future__ import annotations
+
 from .base_delimited import DelimitedTextPlugin
+
 
 class LandtCSV(DelimitedTextPlugin):
     """Landt modern CSV export (snake_case headers, SI units)."""

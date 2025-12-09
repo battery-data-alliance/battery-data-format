@@ -1,17 +1,20 @@
 target-version = "py39"
 line-length = 120
 
+[lint]
 select = [
   "E", "F", "I",        # core errors, flakes, imports
   "B",                  # bugbear
-  "UP",                 # pyupgrade
+  # "UP",               # pyupgrade (temporarily relaxed)
   "SIM",                # simplifications
 ]
-
 ignore = [
   "E501",  # line length (handled by formatter/lenient)
+  "B008",  # Typer Options in CLI defaults are acceptable
+  # Temporarily relaxed typing/pyupgrade rules; tighten later.
+  "UP006", "UP007", "UP035", "UP045",
 ]
 
-[isort]
+[lint.isort]
 known-first-party = ["bdf"]
 combine-as-imports = true

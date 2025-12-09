@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 from pathlib import Path
-from typing import List, Optional
+
 import typer
 from rich import print
-from . import read_raw_to_bdf, validate as validate_any, detect as detect_cycler, BDFValidationError
-from .visualize import plot as line_plot
-from .repair import clean_bdf
+
+from . import BDFValidationError, detect as detect_cycler, read_raw_to_bdf, validate as validate_any
 from .io import load as load_bdf, save as save_bdf
 from .metadata import BDFMetadata, Creator, RelatedIdentifier, save_jsonld
-
+from .repair import clean_bdf
+from .visualize import plot as line_plot
 
 app = typer.Typer(help="Battery Data Format utilities")
 
@@ -16,19 +17,19 @@ app = typer.Typer(help="Battery Data Format utilities")
 @app.command("meta-jsonld")
 def meta_jsonld(
     data: str = typer.Argument(..., help="Path to BDF CSV/Parquet"),
-    out: Optional[str] = typer.Option(None, "--out", "-o", help="Metadata JSON-LD output path"),
+    out: str | None = typer.Option(None, "--out", "-o", help="Metadata JSON-LD output path"),
     title: str = typer.Option(..., help="Dataset title"),
     description: str = typer.Option(..., help="Dataset description (markdown allowed)"),
-    creator: List[str] = typer.Option(..., help="Creator spec(s): 'Name|ORCID?|Affiliation?'"),
-    keyword: List[str] = typer.Option([], help="Keyword(s)"),
+    creator: list[str] = typer.Option(..., help="Creator spec(s): 'Name|ORCID?|Affiliation?'"),
+    keyword: list[str] = typer.Option([], help="Keyword(s)"),
     license: str = typer.Option("CC-BY-4.0", help="License identifier"),
     access: str = typer.Option("open", help="Zenodo access_right"),
-    version: Optional[str] = typer.Option(None, help="Version string"),
-    pub_date: Optional[str] = typer.Option(None, help="Publication date YYYY-MM-DD"),
-    doi: Optional[str] = typer.Option(None, help="DOI (optional)"),
-    related: List[str] = typer.Option([], help="Related identifiers: 'relation|scheme|identifier'"),
-    community: List[str] = typer.Option([], help="Zenodo community slugs"),
-    schema_url: Optional[str] = typer.Option(None, help="CSVW schema URL (defaults to BDF_CSVW_SCHEMA_URL)"),
+    version: str | None = typer.Option(None, help="Version string"),
+    pub_date: str | None = typer.Option(None, help="Publication date YYYY-MM-DD"),
+    doi: str | None = typer.Option(None, help="DOI (optional)"),
+    related: list[str] = typer.Option([], help="Related identifiers: 'relation|scheme|identifier'"),
+    community: list[str] = typer.Option([], help="Zenodo community slugs"),
+    schema_url: str | None = typer.Option(None, help="CSVW schema URL (defaults to BDF_CSVW_SCHEMA_URL)"),
     infer_columns: bool = typer.Option(True, help="Infer CSVW columns from the data (recommended)"),
 ):
     """
@@ -36,7 +37,7 @@ def meta_jsonld(
     ready for Zenodo and linked to the BDF CSVW table schema.
     """
     # Parse creators
-    creators: List[Creator] = []
+    creators: list[Creator] = []
     for spec in creator:
         parts = [p.strip() for p in spec.split("|")]
         name = parts[0]
@@ -45,7 +46,7 @@ def meta_jsonld(
         creators.append(Creator(name=name, orcid=orcid, affiliation=aff))
 
     # Parse related identifiers
-    rels: List[RelatedIdentifier] = []
+    rels: list[RelatedIdentifier] = []
     for r in related:
         parts = [p.strip() for p in r.split("|")]
         if len(parts) >= 3:
@@ -124,10 +125,10 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
             print(_json.dumps({"ok": False, "errors": str(e).splitlines(), "warnings": []}, indent=2))
         else:
             print(f"[bdf] INVALID\n{e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     except Exception as e:
         print(f"[bdf] Error reading file: {e}")
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from e
 
     ok = bool(report.get("ok"))
     if json:
@@ -166,10 +167,10 @@ def convert(path: str, to: str = "bdf.csv", as_: str = None):
 def plot(
     path: str,
     xdata: str = typer.Option("Test Time / s", help="BDF column for x-axis"),
-    ydata: List[str] = typer.Option(["Voltage / V"], help="One or more BDF columns for y-axis"),
-    save: Optional[str] = typer.Option(None, "--save", "-s", help="Save figure to file"),
+    ydata: list[str] = typer.Option(["Voltage / V"], help="One or more BDF columns for y-axis"),
+    save: str | None = typer.Option(None, "--save", "-s", help="Save figure to file"),
     show: bool = typer.Option(False, "--show/--no-show", help="Display window"),
-    as_: Optional[str] = typer.Option(None, "--as", help="Force a specific plugin id (e.g., biologic-mpt)"),
+    as_: str | None = typer.Option(None, "--as", help="Force a specific plugin id (e.g., biologic-mpt)"),
     assume_bdf: bool = typer.Option(False, help="Assume input is already BDF (skip detection/normalization)")
 ):
     """
@@ -190,5 +191,5 @@ def plot(
             df = read_raw_to_bdf(p, as_=as_)
 
     # Draw the plot
-    fig = line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")
+    line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")
     print(f"[bdf] plotted {', '.join(ydata)} vs {xdata}" + (f" → {save}" if save else ""))

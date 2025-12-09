@@ -1,7 +1,9 @@
 # tests/conftest.py
 from __future__ import annotations
-import os, json
+
+import json
 from pathlib import Path
+
 import pytest
 
 HERE = Path(__file__).parent
@@ -24,7 +26,7 @@ def tiny_files(data_dir: Path):
 
 @pytest.fixture(scope="session")
 def minimal_registry(data_dir: Path) -> dict:
-    with open(data_dir / "minimal_registry.jsonld", "r", encoding="utf-8") as f:
+    with open(data_dir / "minimal_registry.jsonld", encoding="utf-8") as f:
         return json.load(f)
 
 @pytest.fixture(scope="session")

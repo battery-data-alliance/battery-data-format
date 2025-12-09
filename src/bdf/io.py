@@ -1,8 +1,10 @@
 # src/bdf/io.py
 from __future__ import annotations
+
+import csv
+import json
 from pathlib import Path
-from typing import Tuple
-import json, csv
+
 import pandas as pd
 
 _FMT_EXTS = {
@@ -61,7 +63,7 @@ def load(pathlike) -> pd.DataFrame:
     except Exception as e:
         # Re-raise with a short, path-sanitized message
         emsg = str(e)
-        raise ValueError(f"Failed to parse BDF {fmt.upper()} file: {p.name}: {emsg}")
+        raise ValueError(f"Failed to parse BDF {fmt.upper()} file: {p.name}: {emsg}") from e
 
     raise ValueError(f"Unsupported format: {fmt}")
 

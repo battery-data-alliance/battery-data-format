@@ -1,10 +1,16 @@
 from __future__ import annotations
-import re, csv
-from pathlib import Path
-from typing import Iterable, Optional, Sequence, Dict, Tuple
-import pandas as pd
-from .base import CyclerPlugin, SniffResult
+
+import csv
 import os
+import re
+from collections.abc import Iterable, Sequence
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+
+import pandas as pd
+
+from .base import CyclerPlugin, SniffResult
+
 
 class DelimitedTextPlugin(CyclerPlugin):
     """
@@ -39,13 +45,18 @@ class DelimitedTextPlugin(CyclerPlugin):
         txt = self._safe_decode(head)
         score, reasons = 0.0, []
         if path.suffix.lower() in getattr(self, "exts", ()):
-            score += 0.3; reasons.append("ext")
+            score += 0.3
+            reasons.append("ext")
         for m in self.magic:
             if m.lower() in txt.lower():
-                score += 0.6; reasons.append("magic"); break
+                score += 0.6
+                reasons.append("magic")
+                break
         for pat in self.header_token_patterns:
             if re.search(pat, txt, re.I):
-                score += 0.1; reasons.append("tokens"); break
+                score += 0.1
+                reasons.append("tokens")
+                break
         return SniffResult(self.id, min(score, 1.0), "+".join(reasons), {})
 
     def parse(self, path: Path) -> pd.DataFrame:
@@ -100,7 +111,7 @@ class DelimitedTextPlugin(CyclerPlugin):
 
     def _scan_prefix(self, path: Path, enc: str) -> list[str]:
         out: list[str] = []
-        with open(path, "r", encoding=enc, errors="replace") as f:
+        with open(path, encoding=enc, errors="replace") as f:
             for _ in range(self.max_header_scan_lines):
                 line = f.readline()
                 if not line:
@@ -109,9 +120,12 @@ class DelimitedTextPlugin(CyclerPlugin):
         return out
 
     def _detect_sep_from_line(self, header_line: str) -> str:
-        if "\t" in header_line: return "\t"
-        if ";" in header_line:  return ";"
-        if "," in header_line:  return ","
+        if "\t" in header_line:
+            return "\t"
+        if ";" in header_line:
+            return ";"
+        if "," in header_line:
+            return ","
         return r"\s+"
 
     def _find_header_from_marker(self, path: Path, enc: str, marker_regex: str, offset: int) -> tuple[int, str]:
@@ -128,7 +142,7 @@ class DelimitedTextPlugin(CyclerPlugin):
 
         # Read a small prefix; the Novonix files aren't huge but we still stream
         lines: list[str] = []
-        with open(path, "r", encoding=enc, errors="replace") as f:
+        with open(path, encoding=enc, errors="replace") as f:
             lines = f.readlines()
 
         marker_idx = None
@@ -283,7 +297,7 @@ class DelimitedTextPlugin(CyclerPlugin):
         """
         # Read header line
         header_line = None
-        with open(path, "r", encoding=enc, errors="ignore") as f:
+        with open(path, encoding=enc, errors="ignore") as f:
             for i, line in enumerate(f):
                 if i == header_idx:
                     header_line = line.rstrip("\r\n")
@@ -309,7 +323,7 @@ class DelimitedTextPlugin(CyclerPlugin):
         ncols = len(fields)
         rows: list[list[str]] = []
 
-        with open(path, "r", encoding=enc, errors="ignore") as f:
+        with open(path, encoding=enc, errors="ignore") as f:
             for i, raw in enumerate(f):
                 if i <= header_idx:
                     continue
@@ -341,13 +355,16 @@ class DelimitedTextPlugin(CyclerPlugin):
         return df
 
     def _looks_ok(self, df: pd.DataFrame) -> bool:
-        l = [str(c).lower().strip() for c in df.columns]
-        if any(k in l for k in ("time/s", "ewe/v", "ecell/v", "i/ma", "current / a")):
+        cols_lower = [str(c).lower().strip() for c in df.columns]
+        if any(k in cols_lower for k in ("time/s", "ewe/v", "ecell/v", "i/ma", "current / a")):
             return True
-        for c in l:
-            if re.search(r"\btime\[[^\]]+\]", c): return True
-            if re.search(r"\bu\[[^\]]+\]", c): return True
-            if re.search(r"\bi\[[^\]]+\]", c): return True
+        for c in cols_lower:
+            if re.search(r"\btime\[[^\]]+\]", c):
+                return True
+            if re.search(r"\bu\[[^\]]+\]", c):
+                return True
+            if re.search(r"\bi\[[^\]]+\]", c):
+                return True
         return False
 
     def _detect_units_from_headers(self, cols: Iterable[str]) -> dict[str, str]:

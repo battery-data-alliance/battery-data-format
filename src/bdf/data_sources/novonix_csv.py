@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from .base_delimited import DelimitedTextPlugin
+
 
 class NovonixCSV(DelimitedTextPlugin):
     """

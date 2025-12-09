@@ -1,6 +1,15 @@
 from __future__ import annotations
-from typing import Any, Optional, Mapping, Tuple, List
+
 import re
+from collections.abc import Mapping
+from typing import Any, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+from pint import UnitRegistry
+
+# ---------- Spec (single source of truth) ----------
+from bdf.normalize import spec  # requires only spec.py (no circular import)
 
 # ---------- Pint registry (single place) ----------
 try:
@@ -22,9 +31,6 @@ if _OK:
         pass
 else:
     ureg = None  # type: ignore
-
-# ---------- Spec (single source of truth) ----------
-from bdf.normalize import spec  # requires only spec.py (no circular import)
 
 # ---------- Header parser (very small, Pint-friendly) ----------
 _UNIT_ALIAS = {
@@ -250,10 +256,6 @@ def resolve_unit(value: Any, *, as_string: bool = False):
     raise KeyError(f"Could not resolve unit for: {value!r}")
 
 # ---------- Conversions (Pint-backed) ----------
-import numpy as np
-import pandas as pd
-from pint import UnitRegistry
-
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
 
@@ -269,19 +271,17 @@ def convert(x, to_unit: str, from_unit: str | None = None, *, strict: bool = Fal
 
     # Force a float array (handles pyarrow dtypes safely)
     try:
-        if is_series:
-            # to_numpy() avoids object dtype and works with ArrowDtype
-            arr = x.to_numpy(dtype="float64")
-        else:
-            arr = np.asarray(x, dtype="float64")
+        # to_numpy() avoids object dtype and works with ArrowDtype
+        arr = x.to_numpy(dtype="float64") if is_series else np.asarray(x, dtype="float64")
     except Exception:
         if strict:
             raise
         # best effort: coerce via pandas if available
-        if is_series:
-            arr = pd.to_numeric(x, errors="coerce").to_numpy(dtype="float64")
-        else:
-            arr = np.asarray(x, dtype="float64")
+        arr = (
+            pd.to_numeric(x, errors="coerce").to_numpy(dtype="float64")
+            if is_series
+            else np.asarray(x, dtype="float64")
+        )
 
     # Infer from_unit if needed (use your existing resolver)
     if from_unit is None:
@@ -328,9 +328,9 @@ def convert_dataframe_for_plot(
     Tiny helper for plotting: returns dict of Series (converted if a target unit is given).
     """
     try:
-        import pandas as pd  # type: ignore
+        pass  # type: ignore
     except Exception:
-        raise RuntimeError("convert_dataframe_for_plot requires pandas.")
+        raise RuntimeError("convert_dataframe_for_plot requires pandas.") from None
 
     out: dict[str, pd.Series] = {}
 

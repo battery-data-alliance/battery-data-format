@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from .base_delimited import DelimitedTextPlugin
+
 
 class BioLogicMPT(DelimitedTextPlugin):
     id = "biologic-mpt"

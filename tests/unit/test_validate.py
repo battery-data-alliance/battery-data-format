@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from bdf import validate, validate_df, BDFValidationError
+from bdf import BDFValidationError, validate, validate_df
 
 
 def _base_df():

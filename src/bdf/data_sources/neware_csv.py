@@ -1,6 +1,8 @@
 # src/bdf/data_sources/neware_csv.py
 from __future__ import annotations
+
 from .base_delimited import DelimitedTextPlugin
+
 
 class NewareCSV(DelimitedTextPlugin):
     """Neware/BTS CSV export (EN/中文). 'Time(s)' is STEP time; 'Total/Test Time(s)' is TEST time."""

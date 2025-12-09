@@ -1,6 +1,8 @@
 # src/bdf/data_sources/landt_txt.py
 from __future__ import annotations
+
 from .base_delimited import DelimitedTextPlugin
+
 
 class LandtTXT(DelimitedTextPlugin):
     id = "landt-txt"

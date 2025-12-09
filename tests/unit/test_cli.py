@@ -1,12 +1,10 @@
-from pathlib import Path
 import json
-import os
+from pathlib import Path
 
 import pandas as pd
 from typer.testing import CliRunner
 
 from bdf.cli import app
-
 
 runner = CliRunner()
 

@@ -1,9 +1,15 @@
 # src/bdf/fetch.py
 from __future__ import annotations
+
+import hashlib
+import json
+import os
+import tempfile
+import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any, List, Iterable, Union
-import os, json, hashlib, tempfile, time
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 from platformdirs import user_cache_dir
@@ -123,7 +129,7 @@ def load_registry(path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
     # explicit path wins
     if path:
         p = Path(path)
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             return json.load(f)
 
     # env var
@@ -131,14 +137,14 @@ def load_registry(path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
     if env:
         p = Path(env)
         if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
 
     # repo default
     root = _find_repo_root()
     default_path = root / "data" / "datasets.json"
     if default_path.exists():
-        with open(default_path, "r", encoding="utf-8") as f:
+        with open(default_path, encoding="utf-8") as f:
             return json.load(f)
 
     raise FileNotFoundError("datasets.json not found. Provide path or set BDF_DATASETS.")
@@ -281,7 +287,7 @@ def get_entry(
 
     matches = find_datasets(reg, id=id, name=name, vendor=vendor, format=format, plugin=plugin, tags=tags)
     if not matches:
-        raise ValueError(f"No dataset matched filters.")
+        raise ValueError("No dataset matched filters.")
     if len(matches) > 1:
         raise ValueError(f"Multiple datasets matched; please refine filters. "
                          f"First few ids: {[m.id for m in matches[:5]]}")

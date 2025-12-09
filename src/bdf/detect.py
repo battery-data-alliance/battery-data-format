@@ -1,11 +1,15 @@
 from __future__ import annotations
+
 from pathlib import Path
 from typing import Optional
+
 from .data_sources import all_plugins, get_plugin_by_id
-from .data_sources.base import SniffResult, CyclerPlugin
+from .data_sources.base import CyclerPlugin, SniffResult
+
 
 def _head(path: Path, n: int = 8192) -> bytes:
-    with open(path, "rb") as f: return f.read(n)
+    with open(path, "rb") as f:
+        return f.read(n)
 
 def detect(path: Path) -> SniffResult:
     h = _head(path)
