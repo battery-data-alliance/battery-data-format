@@ -1,10 +1,13 @@
 # src/bdf/visualize.py
 from __future__ import annotations
-from typing import Iterable, Optional, Union, Dict, Tuple, Mapping
-import pandas as pd
-import matplotlib.pyplot as plt
 
-from bdf.units import resolve_unit, convert  # ← streamlined: use the units package
+from collections.abc import Iterable
+from typing import Dict, Optional, Tuple, Union
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from bdf.units import convert, resolve_unit  # ← streamlined: use the units package
 
 X_DEFAULT = "Test Time / s"
 Y_DEFAULT = "Voltage / V"

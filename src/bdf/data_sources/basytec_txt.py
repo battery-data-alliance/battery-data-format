@@ -1,6 +1,8 @@
 # src/bdf/data_sources/basytec_txt.py
 from __future__ import annotations
+
 from .base_delimited import DelimitedTextPlugin
+
 
 class BasytecTxt(DelimitedTextPlugin):
     """Basytec TXT/DAT; header often like: ~Time[h] ... U[V] I[A] ..."""

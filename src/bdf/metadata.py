@@ -1,9 +1,10 @@
 # src/bdf/metadata.py
 from __future__ import annotations
+
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-import json
 
 # Optional pandas (only required if you pass a DataFrame)
 try:
@@ -54,8 +55,10 @@ class Creator:
             **self._id_or_sameas(),
         }
         if self.type.lower() == "person":
-            if self.given_name: node["givenName"] = self.given_name
-            if self.family_name: node["familyName"] = self.family_name
+            if self.given_name:
+                node["givenName"] = self.given_name
+            if self.family_name:
+                node["familyName"] = self.family_name
             if self.affiliation:
                 node["affiliation"] = {"@type": "Organization", "name": self.affiliation}
         return node
@@ -70,8 +73,10 @@ class PropertyValue:
 
     def to_schema_org(self) -> Dict[str, Any]:
         out = {"@type": "PropertyValue", "name": self.name}
-        if self.property_id: out["propertyID"] = self.property_id
-        if self.unit_text:   out["unitText"] = self.unit_text
+        if self.property_id:
+            out["propertyID"] = self.property_id
+        if self.unit_text:
+            out["unitText"] = self.unit_text
         return out
 
 
@@ -134,7 +139,7 @@ class DataDownload:
         }
 
     @classmethod
-    def for_file(cls, path: Union[str, Path], *, csvw_schema_url: Optional[str] = None) -> "DataDownload":
+    def for_file(cls, path: Union[str, Path], *, csvw_schema_url: Optional[str] = None) -> DataDownload:
         """
         Convenience to build a DataDownload from a local file path.
         """
@@ -194,7 +199,7 @@ def _required_pvs_from_spec() -> List[Dict[str, Any]]:
                 pvs.append(PropertyValue(name=name, property_id=iri, unit_text=unit_text).to_schema_org())
     return pvs
 
-def _variable_measured_from_df(df: "pd.DataFrame") -> List[Dict[str, Any]]:
+def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
     Build a list of schema.org PropertyValue from DataFrame columns:
       - Prefer df.attrs["bdf:columns"] for quantity+unit if present
@@ -322,7 +327,7 @@ class BDFMetadata:
         funder: Optional[List[Creator]] = None,
         doi: Optional[str] = None,
         communities: Optional[List[str]] = None,
-        related_identifiers: Optional[List["RelatedIdentifier"]] = None,
+        related_identifiers: Optional[List[RelatedIdentifier]] = None,
         **extra: Any,
     ):
         self.title = title
@@ -366,7 +371,7 @@ class BDFMetadata:
         distributions: List[DataDownload] = (),
         context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
         extra_fields: Optional[Dict[str, Any]] = None,
-        df: Optional["pd.DataFrame"] = None,           # auto variableMeasured from DataFrame
+        df: Optional[pd.DataFrame] = None,           # auto variableMeasured from DataFrame
         merge_variables: bool = True,                  # merge with self.variable_measured
         enforce_desc_bounds: bool = True,              # trim description to Google bounds
         max_description_len: int = 5000,
@@ -478,10 +483,10 @@ class BDFMetadata:
         # anything accepted by to_schemaorg_dataset:
         dataset_uri: Optional[str] = None,
         identifier: Optional[str] = None,
-        distributions: List["DataDownload"] = (),
+        distributions: List[DataDownload] = (),
         context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
         extra_fields: Optional[Dict[str, Any]] = None,
-        df: Optional["pd.DataFrame"] = None,
+        df: Optional[pd.DataFrame] = None,
         merge_variables: bool = True,
         enforce_desc_bounds: bool = True,
         max_description_len: int = 5000,
@@ -514,10 +519,10 @@ class BDFMetadata:
         # anything accepted by to_schemaorg_dataset:
         dataset_uri: Optional[str] = None,
         identifier: Optional[str] = None,
-        distributions: List["DataDownload"] = (),
+        distributions: List[DataDownload] = (),
         context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
         extra_fields: Optional[Dict[str, Any]] = None,
-        df: Optional["pd.DataFrame"] = None,
+        df: Optional[pd.DataFrame] = None,
         merge_variables: bool = True,
         enforce_desc_bounds: bool = True,
         max_description_len: int = 5000,
@@ -580,7 +585,7 @@ def save_schemaorg_dataset(
     context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
     extra_fields: Optional[Dict[str, Any]] = None,
     indent: int = 2,
-    df: Optional["pd.DataFrame"] = None,
+    df: Optional[pd.DataFrame] = None,
     merge_variables: bool = True,
     enforce_desc_bounds: bool = True,
     max_description_len: int = 5000,
@@ -618,7 +623,7 @@ def save_jsonld(
     distributions: Optional[List[DataDownload]] = None,
     context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
     extra_fields: Optional[Dict[str, Any]] = None,
-    df: Optional["pd.DataFrame"] = None,
+    df: Optional[pd.DataFrame] = None,
     merge_variables: bool = True,
     enforce_desc_bounds: bool = True,
     max_description_len: int = 5000,
@@ -652,7 +657,6 @@ __all__ = [
     "Creator",
     "PropertyValue",
     "RelatedIdentifier",
-    "VariableMeasured",
     "DataDownload",
     "save_schemaorg_dataset",
     "save_jsonld",

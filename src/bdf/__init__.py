@@ -1,17 +1,17 @@
 from __future__ import annotations
-from pathlib import Path
-from urllib.parse import urlparse
-import pandas as pd
-
-# light imports that never cause cycles
-from .detect import detect as _detect, load_plugin, list_plugins as _list_plugins
-from .normalize import normalize_columns
-from .validate import validate_df, BDFValidationError  # prints report if asked; warns on non-monotonic time
-from .repair import fix_time, clean_bdf, CleanReport  # public cleaning helpers
-
 
 # ---- Make warnings notebook-friendly (hide local paths) ----
 import warnings
+from pathlib import Path
+from urllib.parse import urlparse
+
+import pandas as pd
+
+# light imports that never cause cycles
+from .detect import detect as _detect, list_plugins as _list_plugins, load_plugin
+from .normalize import normalize_columns
+from .repair import CleanReport, clean_bdf, fix_time  # public cleaning helpers
+from .validate import BDFValidationError, validate_df  # prints report if asked; warns on non-monotonic time
 
 __all__ = [
     # core I/O
@@ -105,7 +105,7 @@ def _resolve_source(
         return path, None
 
     # 3) dataset id from registry
-    from ._registry import load_registry as _load_registry, get_entry as _get_entry  # lazy
+    from ._registry import get_entry as _get_entry, load_registry as _load_registry  # lazy
     reg = _load_registry(registry_path)
     entry = _get_entry(reg, s)  # raises if not found/ambiguous
     url = entry["url"]
@@ -198,7 +198,7 @@ def _is_csv(path: Path) -> bool:
 def _csv_header_has_bdf_required(path: Path) -> bool:
     """Quickly check if first row contains required BDF columns."""
     try:
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, encoding="utf-8", errors="ignore") as f:
             header = f.readline().strip()
     except Exception:
         return False
@@ -289,7 +289,7 @@ def validate(
             # header sniff for CSV only (cheap and safe)
             if name_lc.endswith(".csv") or name_lc.endswith(".csv.gz"):
                 try:
-                    with (gzip.open(path, "rt") if name_lc.endswith(".gz") else open(path, "r", encoding="utf-8", errors="ignore")) as f:
+                    with (gzip.open(path, "rt") if name_lc.endswith(".gz") else open(path, encoding="utf-8", errors="ignore")) as f:
                         head = "".join([f.readline() for _ in range(2)]).lower()
                     # must contain all required labels (case-insensitive)
                     req = {"test time / s", "voltage / v", "current / a"}
@@ -346,7 +346,7 @@ def plugins() -> list[str]:
 # ----- dataset helpers (lazy to avoid cycles) -----
 def datasets(registry_path: str | Path | None = None) -> list[str]:
     """Return dataset IDs from the registry."""
-    from ._registry import load_registry as _load_registry, list_datasets as _list_datasets  # lazy
+    from ._registry import list_datasets as _list_datasets, load_registry as _load_registry  # lazy
     reg = _load_registry(registry_path)
     return _list_datasets(reg)
 
@@ -365,7 +365,7 @@ def read_dataset(entry_id: str, registry_path: str | Path | None = None, validat
     """
     Fetch by dataset id and return (local_path, BDF DataFrame).
     """
-    from ._registry import load_registry as _load_registry, get_entry as _get_entry
+    from ._registry import get_entry as _get_entry, load_registry as _load_registry
     from .fetch import fetch_url
     reg = _load_registry(registry_path)
     entry = _get_entry(reg, entry_id)

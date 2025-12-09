@@ -1,6 +1,8 @@
 # src/bdf/data_sources/digatron_csv.py
 from __future__ import annotations
+
 from .base_delimited import DelimitedTextPlugin
+
 
 class DigatronCSV(DelimitedTextPlugin):
     """

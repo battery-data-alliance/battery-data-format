@@ -1,5 +1,7 @@
 from pathlib import Path
+
 import pandas as pd
+import pytest
 
 from bdf import io
 
@@ -9,15 +11,6 @@ def test_detect_format_known_and_unknown(tmp_path: Path):
     assert io._detect_format(tmp_path / "file.bdf.csv") == "csv"
     assert io._detect_format(tmp_path / "file.bdf.parquet") == "parquet"
     assert io._detect_format(tmp_path / "file.bdf.json") == "json"
-
-    # Unknown should raise
-    bad = tmp_path / "file.unknown"
-    bad.touch()
-    try:
-        io._detect_format(bad)
-        assert False, "expected ValueError for unknown format"
-    except ValueError:
-        pass
 
 
 def test_save_and_load_roundtrip_csv_parquet_json(tmp_path: Path):
@@ -34,3 +27,10 @@ def test_save_and_load_roundtrip_csv_parquet_json(tmp_path: Path):
         io.save(df, path, index=False)
         loaded = io.load(path)
         pd.testing.assert_frame_equal(df, loaded)
+
+
+def test_detect_format_unknown_raises(tmp_path: Path):
+    bad = tmp_path / "file.unknown"
+    bad.touch()
+    with pytest.raises(ValueError):
+        io._detect_format(bad)

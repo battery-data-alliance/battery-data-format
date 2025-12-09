@@ -1,11 +1,15 @@
 # src/bdf/data_sources/base.py
 from __future__ import annotations
+
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple, Type
-import re
+from typing import Any, Dict, Tuple, Type
+
 import numpy as np
 import pandas as pd
+
 
 @dataclass
 class SniffResult:
@@ -15,16 +19,16 @@ class SniffResult:
     meta: Dict[str, Any] = field(default_factory=dict)
 
 class _CyclerRegistry:
-    _by_id: Dict[str, Type["CyclerPlugin"]] = {}
-    def register(self, cls: Type["CyclerPlugin"]):
+    _by_id: Dict[str, Type[CyclerPlugin]] = {}
+    def register(self, cls: Type[CyclerPlugin]):
         if not getattr(cls, "id", None):
             raise ValueError(f"{cls.__name__} missing 'id'")
         if cls.id in self._by_id:
             raise ValueError(f"Duplicate plugin id: {cls.id}")
         self._by_id[cls.id] = cls
-    def get(self, id_: str) -> Type["CyclerPlugin"] | None:
+    def get(self, id_: str) -> Type[CyclerPlugin] | None:
         return self._by_id.get(id_)
-    def all(self) -> Iterable[Type["CyclerPlugin"]]:
+    def all(self) -> Iterable[Type[CyclerPlugin]]:
         return self._by_id.values()
 
 REGISTRY = _CyclerRegistry()
@@ -95,10 +99,14 @@ class CyclerPlugin(metaclass=_AutoRegister):
             x = pd.to_numeric(s, errors="coerce").astype("float64")
             med_abs = float(np.nanmedian(np.abs(x))) if len(x) else np.nan
             if np.isfinite(med_abs):
-                if med_abs >= 1e17: unit = "ns"
-                elif med_abs >= 1e14: unit = "us"
-                elif med_abs >= 1e11: unit = "ms"
-                else: unit = "s"
+                if med_abs >= 1e17:
+                    unit = "ns"
+                elif med_abs >= 1e14:
+                    unit = "us"
+                elif med_abs >= 1e11:
+                    unit = "ms"
+                else:
+                    unit = "s"
             else:
                 unit = "s"
             try:

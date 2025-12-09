@@ -1,7 +1,10 @@
 from __future__ import annotations
+
+import json
+import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, List, Iterable, Optional, Tuple
-import os, json
+from typing import Any
 
 # -------------------------------
 # Registry loading (accepts either {"datasets":[...]} or {"entries":[...]})
@@ -15,7 +18,7 @@ def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path
         p = p.parent
     return Path.cwd().resolve()
 
-def load_registry(path: Optional[str | Path] = None) -> Dict[str, Any]:
+def load_registry(path: str | Path | None = None) -> dict[str, Any]:
     """
     Load datasets registry.
 
@@ -30,20 +33,20 @@ def load_registry(path: Optional[str | Path] = None) -> Dict[str, Any]:
     """
     if path:
         p = Path(path)
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             return json.load(f)
 
     env = os.getenv("BDF_DATASETS")
     if env:
         p = Path(env)
         if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
 
     root = _find_repo_root()
     default_path = root / "data" / "datasets.json"
     if default_path.exists():
-        with open(default_path, "r", encoding="utf-8") as f:
+        with open(default_path, encoding="utf-8") as f:
             return json.load(f)
 
     raise FileNotFoundError("datasets.json not found. Provide path or set BDF_DATASETS.")
@@ -52,7 +55,7 @@ def load_registry(path: Optional[str | Path] = None) -> Dict[str, Any]:
 # Helpers
 # -------------------------------
 
-def _iter_dataset_dicts(reg: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
+def _iter_dataset_dicts(reg: dict[str, Any]) -> Iterable[dict[str, Any]]:
     if isinstance(reg, dict):
         if isinstance(reg.get("datasets"), list):
             yield from (d for d in reg["datasets"] if isinstance(d, dict))
@@ -65,16 +68,16 @@ def _iter_dataset_dicts(reg: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
             if isinstance(d, dict):
                 yield d
 
-def list_datasets(path: Optional[str | Path] = None) -> List[str]:
+def list_datasets(path: str | Path | None = None) -> list[str]:
     """Return list of dataset IDs from the registry."""
     reg = load_registry(path)
-    out: List[str] = []
+    out: list[str] = []
     for d in _iter_dataset_dicts(reg):
         if "id" in d and d["id"] is not None:
             out.append(str(d["id"]))
     return out
 
-def get_entry(registry: Dict[str, Any], entry_id: str) -> Dict[str, Any]:
+def get_entry(registry: dict[str, Any], entry_id: str) -> dict[str, Any]:
     """Return the entry dict with matching id (case-insensitive)."""
     key = (entry_id or "").lower()
     for d in _iter_dataset_dicts(registry):

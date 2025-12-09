@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 import warnings
+from typing import Any, Dict, List
+
 import pandas as pd
-from typing import Dict, Any, List
-from .normalize import REQUIRED, OPTIONAL
+
+from .normalize import OPTIONAL, REQUIRED
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 
 __all__ = ["BDFValidationError", "validate_df"]
@@ -84,6 +87,7 @@ def validate_df(
             f"Non-monotonic 'Test Time / s' detected: {ts['violations']} drops "
             f"(min Δ = {ts['min_drop']:.6g} s). Consider bdf.fix_time(...).",
             RuntimeWarning,
+            stacklevel=2,
         )
 
     if report:

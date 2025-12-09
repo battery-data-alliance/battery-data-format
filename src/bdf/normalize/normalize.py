@@ -1,10 +1,14 @@
 # src/bdf/normalize/normalize.py
 from __future__ import annotations
+
+import contextlib
 import re
-from typing import Dict, Mapping
+from collections.abc import Mapping
+
 import pandas as pd
 
-from bdf.units import parse_from_header, convert_series
+from bdf.units import convert_series, parse_from_header
+
 from . import spec
 
 _SLUG = re.compile(r"[^a-z0-9]+")
@@ -65,10 +69,8 @@ def _coalesce_into(target: pd.Series, incoming: pd.Series) -> pd.Series:
     tnum, inum = _is_numeric_series(target), _is_numeric_series(incoming)
     if inum and not tnum:
         # incoming is better-typed numeric -> replace target where possible
-        try:
+        with contextlib.suppress(Exception):
             incoming = pd.to_numeric(incoming, errors="coerce")
-        except Exception:
-            pass
         return incoming
 
     # general 'fill holes'
@@ -83,7 +85,7 @@ def normalize_columns(
     keep_unmapped: bool = False,
 ) -> pd.DataFrame:
     out = df.copy()
-    meta: Dict[str, Dict[str, str]] = {}
+    meta: dict[str, dict[str, str]] = {}
 
     base_idx = dict(_base_index())                   # slug → quantity (official MR name)
     plugin_direct = _merge_plugin_column_synonyms(plugin)  # slug → canonical label
@@ -177,12 +179,11 @@ def normalize_columns(
             continue
 
         # If we produced this canon earlier (via another vendor column), coalesce and drop
-        if canon in produced and col != canon:
-            if canon in out.columns:
-                out[canon] = _coalesce_into(out[canon], out[col])
-                out.drop(columns=[col], inplace=True)
-                recognized.append(canon)
-                continue
+        if canon in produced and col != canon and canon in out.columns:
+            out[canon] = _coalesce_into(out[canon], out[col])
+            out.drop(columns=[col], inplace=True)
+            recognized.append(canon)
+            continue
 
         # Normal path: rename (if needed), record meta
         if canon != col:
@@ -198,7 +199,6 @@ def normalize_columns(
         }
 
     # ---- Selection logic: keep all canonical columns we recognized (no dup) ----
-    already_canon = [c for c in out.columns if c in REQUIRED or c in OPTIONAL]
     have = set(out.columns)  # after coalescing/renaming
 
     if strict:

@@ -472,7 +472,7 @@ def clean_bdf(
             notes.append(f"Dropped {int(any_bad.sum())} rows due to outliers in {', '.join(cols)}.")
         elif outlier == "clip":
             # robust bounds via MAD (SciPy if available), fallback to IQR
-            for c, m in masks.items():
+            for c, _m in masks.items():
                 s = pd.to_numeric(d[c], errors="coerce")
                 med = float(np.nanmedian(s))
                 if sps is not None:
