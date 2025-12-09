@@ -14,9 +14,7 @@ ignore = [
   # Temporarily relaxed typing/pyupgrade rules; tighten later.
   "UP006", "UP007", "UP035", "UP045",
 ]
-extend-exclude = [
-  "examples/*.ipynb",
-]
+exclude = ["examples/*.ipynb"]
 
 [lint.isort]
 known-first-party = ["bdf"]
