@@ -1,8 +1,8 @@
 from __future__ import annotations
-# mypy: ignore-errors
 
-# ---- Make warnings notebook-friendly (hide local paths) ----
 import warnings
+
+# mypy: ignore-errors
 from pathlib import Path
 from urllib.parse import urlparse
 
