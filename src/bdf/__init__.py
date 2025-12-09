@@ -15,7 +15,7 @@ import warnings
 
 __all__ = [
     # core I/O
-    "read", "parse", "normalize", "validate", "detect", "plugins",
+    "read", "read_raw_to_bdf", "parse", "normalize", "validate", "detect", "detect_cycler", "plugins",
     # datasets helpers
     "datasets", "read_dataset", "load_registry", "get_entry",
     # cleaning
@@ -24,6 +24,8 @@ __all__ = [
     "plot",
     # version
     "__version__",
+    # errors
+    "BDFValidationError",
 ]
 
 # Optional version
@@ -134,6 +136,30 @@ def read(
     """
     local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
     plg = load_plugin(local_path, plugin_id=(plugin or plugin_hint))
+    df_raw = plg.parse(local_path)
+    df_raw = plg.augment(df_raw)
+    df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+    if hasattr(plg, "fixup"):
+        df = plg.fixup(df)
+    if validate:
+        validate_df(df)
+    return df
+
+
+def read_raw_to_bdf(
+    source: str | Path,
+    as_: str | None = None,
+    *,
+    validate: bool = True,
+    include_optional: bool = True,
+    registry_path: str | Path | None = None,
+) -> pd.DataFrame:
+    """
+    Parse a raw vendor file into a normalized BDF DataFrame.
+    This mirrors `read` but makes the raw-intent explicit and allows forcing a plugin via `as_`.
+    """
+    local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
+    plg = load_plugin(local_path, plugin_id=(as_ or plugin_hint))
     df_raw = plg.parse(local_path)
     df_raw = plg.augment(df_raw)
     df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
@@ -306,6 +332,10 @@ def validate(
 def detect(path: str | Path):
     """Return SniffResult with the best-matching plugin and confidence."""
     return _detect(Path(path))
+
+
+# Backwards-friendly alias used by CLI
+detect_cycler = detect
 
 
 def plugins() -> list[str]:

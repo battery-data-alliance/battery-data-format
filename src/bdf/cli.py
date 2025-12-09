@@ -3,11 +3,10 @@ from pathlib import Path
 from typing import List, Optional
 import typer
 from rich import print
-from . import read_raw_to_bdf  # lazy import inside functions is also fine
-from .visualize import line_plot
-from .validate import validate_path, BDFValidationError
-from .clean import clean_bdf
-from .io import load as load_bdf, save_csv
+from . import read_raw_to_bdf, validate as validate_any, detect as detect_cycler, BDFValidationError
+from .visualize import plot as line_plot
+from .repair import clean_bdf
+from .io import load as load_bdf, save as save_bdf
 from .metadata import BDFMetadata, Creator, RelatedIdentifier, save_jsonld
 
 
@@ -106,7 +105,7 @@ def clean(
             df = read_raw_to_bdf(path, as_=as_)
 
     df2, rep = clean_bdf(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=col)
-    save_csv(df2, out)
+    save_bdf(df2, out, index=False)
     typer.echo(str(rep))
     typer.echo(f"Saved: {out}")
 
@@ -118,7 +117,7 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
     Validate a CSV/Parquet file against the BDF schema and basic sanity checks.
     """
     try:
-        report = validate_path(path, strict=strict)
+        report = validate_any(path, report=not json, raise_on_error=strict)
     except BDFValidationError as e:
         if json:
             import json as _json
@@ -130,19 +129,29 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
         print(f"[bdf] Error reading file: {e}")
         raise typer.Exit(code=2)
 
+    ok = bool(report.get("ok"))
     if json:
         import json as _json
-        print(_json.dumps({"ok": report.ok, "errors": report.errors, "warnings": report.warnings}, indent=2))
+        print(_json.dumps(report, indent=2, default=str))
     else:
-        status = "OK" if report.ok else "INVALID"
-        print(f"[bdf] {status}\n{report}")
-    raise typer.Exit(code=0 if report.ok else 1)
+        status = "OK" if ok else "INVALID"
+        missing = report.get("missing") or []
+        extras = report.get("extras") or []
+        print(f"[bdf] {status}")
+        if missing:
+            print("Missing required columns:")
+            for c in missing:
+                print(f"  - {c}")
+        if extras:
+            print("Non-canonical columns (ignored by BDF):")
+            for c in extras:
+                print(f"  - {c}")
+    raise typer.Exit(code=0 if ok else 1)
 
 @app.command()
 def detect(path: str):
-    from . import detect_cycler
     sr = detect_cycler(path)
-    print(f"{sr.id} ({sr.confidence:.2f}) — {sr.reason}")
+    print(f"{sr.id} ({sr.confidence:.2f}) - {sr.reason}")
 
 @app.command()
 def convert(path: str, to: str = "bdf.csv", as_: str = None):
