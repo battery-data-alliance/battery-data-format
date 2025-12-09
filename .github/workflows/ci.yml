@@ -26,7 +26,7 @@ jobs:
           python -m ruff check .
       - name: Type check (mypy)
         run: |
-          python -m mypy src/bdf
+          python -m mypy
       - name: Run unit tests
         env:
           MPLBACKEND: Agg
