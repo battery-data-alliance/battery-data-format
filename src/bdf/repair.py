@@ -321,12 +321,12 @@ def fix_time(
     """
     Repair non-monotonic test time.
 
-    'auto'      : if Date Time ISO exists & usable → recompute from timestamps;
-                  else 'segment' (interpolate decreasing blocks between neighbors).
-    'segment'   : preserve order; interpolate within each decreasing block.
-    'sort'      : stable sort by time ascending; drop exact duplicate timestamps.
-    'drop'      : drop rows where time decreases by more than 'eps'.
-    'recompute' : force recompute from Date Time ISO; raises if no valid timestamps.
+    Methods:
+      - 'auto': if Date Time ISO exists & usable, recompute from timestamps; else 'segment'.
+      - 'segment': preserve order; interpolate within each decreasing block.
+      - 'sort': stable sort by time ascending; drop exact duplicate timestamps.
+      - 'drop': drop rows where time decreases by more than 'eps'.
+      - 'recompute': force recompute from Date Time ISO; raises if no valid timestamps.
     """
     g = df if inplace else df.copy()
     if time_col not in g.columns:
@@ -513,3 +513,5 @@ def clean_bdf(
         notes=notes,
     )
     return d, rep
+
+

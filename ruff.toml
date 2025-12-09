@@ -1,0 +1,17 @@
+target-version = "py39"
+line-length = 120
+
+select = [
+  "E", "F", "I",        # core errors, flakes, imports
+  "B",                  # bugbear
+  "UP",                 # pyupgrade
+  "SIM",                # simplifications
+]
+
+ignore = [
+  "E501",  # line length (handled by formatter/lenient)
+]
+
+[isort]
+known-first-party = ["bdf"]
+combine-as-imports = true
