@@ -1,12 +1,13 @@
 # src/bdf/fetch.py
 from __future__ import annotations
-# mypy: ignore-errors
 
 import hashlib
 import json
 import os
 import tempfile
 import time
+
+# mypy: ignore-errors
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
