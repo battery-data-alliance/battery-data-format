@@ -1,0 +1,13 @@
+.venv
+
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.DS_Store
+*.ipynb_checkpoints
+dist/
+build/
+docs/_build/
+docs/_autosummary/
+*.parquet
