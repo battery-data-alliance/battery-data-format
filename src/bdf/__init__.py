@@ -11,18 +11,18 @@ import pandas as pd
 # light imports that never cause cycles
 from .detect import detect as _detect, list_plugins as _list_plugins, load_plugin
 from .normalize import guess_plugin_by_columns, normalize_columns
-from .repair import CleanReport, clean_bdf, fix_time  # public cleaning helpers
+from .repair import CleanReport, clean  # public cleaning helpers
 from .validate import BDFValidationError, validate_df  # prints report if asked; warns on non-monotonic time
 
 __all__ = [
     # core I/O
-    "read", "read_raw_to_bdf", "parse", "normalize", "validate", "detect", "detect_cycler", "plugins",
+    "read", "parse", "normalize", "validate", "detect", "detect_cycler", "plugins",
     # datasets helpers
-    "datasets", "read_dataset", "load_registry", "get_entry",
+    "datasets", "load_registry", "get_entry",
     # cleaning
-    "fix_time", "clean_bdf", "CleanReport",
+    "clean", "CleanReport",
     # viz
-    "plot", "explore",
+    "plot", "explore", "ingest",
     # version
     "__version__",
     # errors
@@ -161,44 +161,6 @@ def read(
         validate_df(df)
     return df
 
-
-def read_raw_to_bdf(
-    source: str | Path,
-    as_: str | None = None,
-    *,
-    validate: bool = True,
-    include_optional: bool = True,
-    registry_path: str | Path | None = None,
-) -> pd.DataFrame:
-    """
-    Parse a raw vendor file into a normalized BDF DataFrame.
-    This mirrors `read` but makes the raw-intent explicit and allows forcing a plugin via `as_`.
-    """
-    local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
-    plg = load_plugin(local_path, plugin_id=(as_ or plugin_hint))
-    df_raw = plg.parse(local_path)
-    df_raw = plg.augment(df_raw)
-    try:
-        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
-    except ValueError:
-        if as_ is not None:
-            raise
-        alt = guess_plugin_by_columns(df_raw, current_id=getattr(plg, "id", None))
-        if not alt:
-            raise
-        if getattr(alt, "id", None) != getattr(plg, "id", None):
-            warnings.warn(
-                f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'."
-            )
-        plg = alt
-        df_raw = plg.parse(local_path)
-        df_raw = plg.augment(df_raw)
-        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
-    if hasattr(plg, "fixup"):
-        df = plg.fixup(df)
-    if validate:
-        validate_df(df)
-    return df
 
 
 def parse(source: str | Path, plugin: str | None = None, registry_path: str | Path | None = None) -> pd.DataFrame:
@@ -392,19 +354,6 @@ def get_entry(reg, entry_id: str):
     return _get_entry(reg, entry_id)
 
 
-def read_dataset(entry_id: str, registry_path: str | Path | None = None, validate: bool = True):
-    """
-    Fetch by dataset id and return (local_path, BDF DataFrame).
-    """
-    from ._registry import get_entry as _get_entry, load_registry as _load_registry
-    from .fetch import fetch_url
-    reg = _load_registry(registry_path)
-    entry = _get_entry(reg, entry_id)
-    url = entry["url"]
-    path = fetch_url(url, sha256=entry.get("sha256"), filename=entry.get("filename"))
-    df = read(path, plugin=entry.get("plugin"), validate=validate)
-    return path, df
-
 def plot(*args, **kwargs):
     """
     Forward to bdf.visualize.plot(...).
@@ -435,3 +384,97 @@ def explore(*args, **kwargs):
     except Exception as e:
         raise RuntimeError("bdf.explore() is unavailable.") from e
     return _explore(*args, **kwargs)
+
+
+def ingest(
+    source: str | Path,
+    *,
+    out_dir: str | Path | None = None,
+    format: str = "parquet",
+    recursive: bool = True,
+    validate_existing: bool = True,
+    validate_converted: bool = True,
+    include_optional: bool = True,
+    plugin: str | None = None,
+    raise_on_error: bool = False,
+):
+    """
+    Convert raw vendor files to BDF and validate existing BDF artifacts.
+
+    - source: file or directory
+    - format: "parquet" (default) or "csv"
+    - out_dir: optional output root for converted files
+    - validate_existing: validate files that already look like BDF
+    - validate_converted: validate after conversion
+    - plugin: force a specific plugin id for raw files
+
+    Returns a summary dict with converted/validated/failed entries.
+    """
+    p = Path(source)
+    if not p.exists():
+        raise FileNotFoundError(p)
+
+    fmt = format.lower().strip()
+    if fmt not in {"parquet", "csv"}:
+        raise ValueError("format must be 'parquet' or 'csv'")
+
+    root = p if p.is_dir() else p.parent
+    out_root = Path(out_dir) if out_dir else root
+
+    def _strip_all_suffixes(path: Path) -> Path:
+        name = path.name
+        while True:
+            suffix = Path(name).suffix
+            if not suffix:
+                break
+            name = Path(name).stem
+        return path.with_name(name)
+
+    def _output_path(src: Path) -> Path:
+        rel = src.relative_to(root) if src.is_relative_to(root) else Path(src.name)
+        base = _strip_all_suffixes(rel)
+        suffix = ".bdf.parquet" if fmt == "parquet" else ".bdf.csv"
+        return out_root / base.parent / f"{base.name}{suffix}"
+
+    # Snapshot file list before writing outputs
+    if p.is_dir():
+        pattern = "**/*" if recursive else "*"
+        files = [f for f in p.glob(pattern) if f.is_file()]
+    else:
+        files = [p]
+
+    from .io import save as _save  # lazy import
+
+    summary = {
+        "converted": [],
+        "validated": [],
+        "failed": [],
+        "skipped": [],
+    }
+
+    for f in files:
+        try:
+            if _looks_like_bdf_artifact(f):
+                if validate_existing:
+                    rep = validate(f, report=False, raise_on_error=False)
+                    summary["validated"].append({"path": str(f), "ok": rep.get("ok"), "report": rep})
+                else:
+                    summary["skipped"].append({"path": str(f), "reason": "already_bdf"})
+                continue
+
+            df = read(
+                f,
+                plugin=plugin,
+                validate=validate_converted,
+                include_optional=include_optional,
+            )
+            out_path = _output_path(f)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            _save(df, out_path, index=False)
+            summary["converted"].append({"path": str(f), "output": str(out_path)})
+        except Exception as e:
+            summary["failed"].append({"path": str(f), "error": str(e)})
+            if raise_on_error:
+                raise
+
+    return summary

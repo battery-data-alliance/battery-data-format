@@ -1,6 +1,6 @@
 import pandas as pd
 
-from bdf.repair import clean_bdf, fix_time
+from bdf.repair import clean, fix_time
 
 
 def test_fix_time_sorts_and_segments():
@@ -15,7 +15,7 @@ def test_fix_time_sorts_and_segments():
     assert fixed["Test Time / s"].is_monotonic_increasing
 
 
-def test_clean_bdf_reports_and_fixes_time(tmp_path):
+def test_clean_reports_and_fixes_time(tmp_path):
     df = pd.DataFrame(
         {
             "Test Time / s": [0, 1, 2, 1, 3],
@@ -23,7 +23,7 @@ def test_clean_bdf_reports_and_fixes_time(tmp_path):
             "Current / A": [0.1, 0.1, 0.1, 0.1, 0.1],
         }
     )
-    cleaned, report = clean_bdf(df, time_fix="segment", outlier="none")
+    cleaned, report = clean(df, time_fix="segment", outlier="none")
     assert cleaned["Test Time / s"].is_monotonic_increasing
     assert report.n_time_resets >= 1
     assert report.n_rows_out == len(cleaned)

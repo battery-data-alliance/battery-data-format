@@ -22,8 +22,8 @@ Clean non-monotonic time / outliers
 
 .. code-block:: python
 
-   from bdf import clean_bdf
-   df2, rep = clean_bdf(df, time_fix="segment", outlier="none")
+   from bdf import clean
+   df2, rep = clean(df, time_fix="segment", outlier="none")
    print(rep)
 
 Plot
@@ -44,4 +44,3 @@ CLI
    bdf convert path/to/raw.csv --to output.bdf.csv
    bdf plot path/to/file.bdf.csv --save plot.png --show False
    bdf meta-jsonld path/to/file.bdf.csv --title "My Dataset" --description "..." --creator "Name|ORCID|Affiliation"
-

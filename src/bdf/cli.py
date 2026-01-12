@@ -6,10 +6,10 @@ from typing import List, Optional
 import typer
 from rich import print
 
-from . import BDFValidationError, detect as detect_cycler, read_raw_to_bdf, validate as validate_any
+from . import BDFValidationError, detect as detect_cycler, read as read_bdf, validate as validate_any
 from .io import load as load_bdf, save as save_bdf
 from .metadata import BDFMetadata, Creator, RelatedIdentifier, save_jsonld
-from .repair import clean_bdf
+from .repair import clean as clean_bdf
 from .visualize import plot as line_plot
 
 app = typer.Typer(help="Battery Data Format utilities")
@@ -104,7 +104,7 @@ def clean(
         try:
             df = load_bdf(path)
         except Exception:
-            df = read_raw_to_bdf(path, as_=as_)
+            df = read_bdf(path, plugin=as_)
 
     df2, rep = clean_bdf(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=col)
     save_bdf(df2, out, index=False)
@@ -157,8 +157,8 @@ def detect(path: str):
 
 @app.command()
 def convert(path: str, to: str = "bdf.csv", as_: Optional[str] = None):
-    from . import read_raw_to_bdf
-    df = read_raw_to_bdf(path, as_=as_)
+    from . import read as read_bdf
+    df = read_bdf(path, plugin=as_)
     df.to_csv(to, index=False)
     print(f"[bdf] wrote {to}")
 
@@ -189,7 +189,7 @@ def plot(
         try:
             df = load_bdf(p)
         except Exception:
-            df = read_raw_to_bdf(p, as_=as_)
+            df = read_bdf(p, plugin=as_)
 
     # Draw the plot
     line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")

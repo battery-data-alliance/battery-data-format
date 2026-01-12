@@ -5,7 +5,7 @@ import pandas as pd
 import bdf
 
 
-def test_read_raw_to_bdf_with_stub_plugin(tmp_path, monkeypatch):
+def test_read_with_stub_plugin(tmp_path, monkeypatch):
     # Create a dummy file path to satisfy _resolve_source
     raw = tmp_path / "raw.dat"
     raw.write_text("dummy")
@@ -35,5 +35,5 @@ def test_read_raw_to_bdf_with_stub_plugin(tmp_path, monkeypatch):
 
     monkeypatch.setattr(bdf, "load_plugin", lambda path, plugin_id=None: StubPlugin())
 
-    df = bdf.read_raw_to_bdf(raw, as_=None, validate=True)
+    df = bdf.read(raw, plugin=None, validate=True)
     assert list(df.columns)[:3] == ["Test Time / s", "Voltage / V", "Current / A"]
