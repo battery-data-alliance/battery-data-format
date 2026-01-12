@@ -18,7 +18,12 @@ import requests
 # Remote JSON-LD registry (schema.org DataCatalog) hosted on Zenodo:
 REGISTRY_URL = os.getenv(
     "BDF_REGISTRY_URL",
-    "https://zenodo.org/records/17295469/files/metadata.json",
+    "https://zenodo.org/records/18214281/files/metadata.json",
+)
+# Zenodo record API (for iterating all attached files directly)
+RECORD_API_URL = os.getenv(
+    "BDF_RECORD_API_URL",
+    "https://zenodo.org/api/records/18214281",
 )
 
 # Cache directory for registry + downloaded distributions
@@ -95,8 +100,51 @@ def _fetch_registry(url: str) -> Dict[str, Any]:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return data
 
-def _download_file(url: str) -> Path:
-    dest = _cached_path_for_url(url)
+def _fetch_record_files(url: str) -> List[Dict[str, Any]]:
+    cache = _cached_path_for_url(url, suffix="__record.json")
+    if cache.exists() and cache.stat().st_size > 0:
+        with cache.open("r", encoding="utf-8") as f:
+            return json.load(f)
+
+    if OFFLINE:
+        pytest.skip(f"Offline mode and no cached record at {cache}")
+
+    resp = _http_get(url, stream=False)
+    try:
+        data = resp.json()
+    except Exception as e:
+        raise AssertionError(f"Record at {url} is not valid JSON: {e}") from e
+
+    files = data.get("files") or []
+    out: List[Dict[str, Any]] = []
+    for f in files:
+        key = f.get("key") if isinstance(f, dict) else None
+        key_lower = (key or "").lower()
+        if key_lower == "metadata.json":
+            continue
+        links = f.get("links") if isinstance(f, dict) else {}
+        download_url = None
+        if isinstance(links, dict):
+            download_url = links.get("download") or links.get("self")
+        if not download_url:
+            continue
+        out.append({"key": key or download_url.split("/")[-1], "download_url": download_url})
+        if MAX_DATASETS and len(out) >= MAX_DATASETS:
+            break
+
+    if not out:
+        pytest.skip("No files discovered in record (or all filtered out).")
+
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    with cache.open("w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, indent=2)
+    return out
+
+def _download_file(url: str, filename_hint: Optional[str] = None) -> Path:
+    if filename_hint:
+        dest = CACHE_DIR / f"{_hash(url)}__{filename_hint}"
+    else:
+        dest = _cached_path_for_url(url)
     if dest.exists() and dest.stat().st_size > 0:
         return dest
     if OFFLINE:
@@ -149,23 +197,50 @@ def _plugin_slug_from_isBasedOn(is_based_on: Any) -> Optional[str]:
             return slug
     return None
 
-def _infer_plugin_from_filename(provider_org_id: Optional[str], filepath: Path) -> Optional[str]:
+def _infer_plugin_from_filename(
+    provider_org_id: Optional[str],
+    filepath: Path,
+    dataset_identifier: Optional[str] = None,
+    keywords: Optional[List[str]] = None,
+) -> Optional[str]:
     """
     Fallback mapping by extension and provider tail.
     """
     ext = filepath.suffix.lower()
+    name = filepath.name.lower()
+    ident = (dataset_identifier or "").lower()
+    kw = " ".join(k.lower() for k in (keywords or []) if isinstance(k, str))
+    haystack = " ".join([name, ident, kw])
     vendor_tail = None
     if provider_org_id and isinstance(provider_org_id, str):
         vendor_tail = provider_org_id.rstrip("/").split("/")[-1].lower()
 
+    if ext in (".nda", ".ndax"):
+        return "neware-nda"
     if ext == ".mpt":
         return "biologic-mpt"
+    if "biologic" in haystack and ext in (".mpt", ".txt", ".csv"):
+        return "biologic-mpt"
+    if "neware" in haystack and ext == ".csv":
+        return "neware-csv"
+    if "landt" in haystack:
+        if ext == ".csv":
+            return "landt-csv"
+        if ext == ".txt":
+            return "landt-txt"
+    if "basytec" in haystack and ext == ".txt":
+        return "basytec-txt"
+    if "digatron" in haystack and ext == ".csv":
+        return "digatron-csv"
+    if "novonix" in haystack and ext == ".csv":
+        return "novonix-csv"
+
     if ext == ".csv" and vendor_tail:
         return f"{vendor_tail}-csv"
     if ext == ".txt" and vendor_tail:
         return f"{vendor_tail}-txt"
     if ext == ".csv":
-        return "csv"
+        return None
     if ext == ".txt":
         return "txt"
     return None
@@ -211,6 +286,7 @@ def _iter_distributions(registry: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
             case = {
                 "dataset_id": ds_id,
                 "dataset_identifier": ds_ident,
+                "dataset_keywords": ds.get("keywords") if isinstance(ds.get("keywords"), list) else None,
                 "distribution_id": dist_id,
                 "download_url": url,
                 "plugin_slug": plugin_slug,
@@ -236,29 +312,26 @@ def _load_with_bdf(path: Path, plugin_slug: Optional[str]) -> Any:
     if hasattr(bdf, "load"):
         try:
             return bdf.load(path, plugin=plugin_slug)  # type: ignore[attr-defined]
+        except (ImportError, ModuleNotFoundError) as e:
+            pytest.skip(f"Optional dependency missing while loading {path}: {e}")
         except Exception as e:
             last_err = e
 
     if hasattr(bdf, "read"):
         try:
             return bdf.read(path, plugin=plugin_slug)  # type: ignore[attr-defined]
+        except (ImportError, ModuleNotFoundError) as e:
+            pytest.skip(f"Optional dependency missing while loading {path}: {e}")
         except Exception as e:
             last_err = e
 
     if hasattr(bdf, "from_file"):
         try:
             return bdf.from_file(path, plugin=plugin_slug)  # type: ignore[attr-defined]
+        except (ImportError, ModuleNotFoundError) as e:
+            pytest.skip(f"Optional dependency missing while loading {path}: {e}")
         except Exception as e:
             last_err = e
-
-    # Optional legacy path
-    try:
-        import importlib
-        mod = importlib.import_module("bdf.importers")  # type: ignore
-        if hasattr(mod, "load_file"):
-            return mod.load_file(path, plugin=plugin_slug)  # type: ignore[attr-defined]
-    except Exception as e:
-        last_err = e
 
     raise AssertionError(
         f"Could not load with 'bdf'. plugin={plugin_slug!r}, file={str(path)!r}. Last error: {last_err}"
@@ -338,6 +411,7 @@ def _collect_cases() -> List[Dict[str, Any]]:
     return cases
 
 CASES = _collect_cases()
+RECORD_FILES = _fetch_record_files(RECORD_API_URL)
 
 # ============================================================
 # The test
@@ -357,10 +431,30 @@ def test_registry_distribution_loads_with_bdf(case: Dict[str, Any]):
 
     plugin = case.get("plugin_slug")
     if not plugin and case.get("need_infer_plugin"):
-        plugin = _infer_plugin_from_filename(case.get("provider_id"), local_file)
+        plugin = _infer_plugin_from_filename(
+            case.get("provider_id"),
+            local_file,
+            dataset_identifier=case.get("dataset_identifier"),
+            keywords=case.get("dataset_keywords"),
+        )
 
     result = _load_with_bdf(local_file, plugin)
     assert _looks_nonempty(result), (
         f"Empty/invalid result for dataset={case.get('dataset_identifier')}, "
         f"dist={case.get('distribution_id')}, plugin={plugin}, file={local_file}"
+    )
+
+
+@pytest.mark.parametrize(
+    "file_case",
+    RECORD_FILES,
+    ids=lambda c: c.get("key", "?"),
+)
+def test_record_files_load_with_bdf(file_case: Dict[str, Any]):
+    local_file = _download_file(file_case["download_url"], filename_hint=file_case.get("key"))
+    plugin = _infer_plugin_from_filename(None, local_file)
+    result = _load_with_bdf(local_file, plugin)
+    assert _looks_nonempty(result), (
+        f"Empty/invalid result for record file key={file_case.get('key')}, "
+        f"plugin={plugin}, file={local_file}"
     )

@@ -21,6 +21,59 @@ OPTIONAL = spec.optional_labels()
 
 # Force these three to be the first columns when present
 ORDERED_REQUIRED = ("Test Time / s", "Voltage / V", "Current / A")
+_REQUIRED_SLUGS = {_slugify(s.split(" / ", 1)[0]) for s in ORDERED_REQUIRED}
+
+def guess_plugin_by_columns(df: pd.DataFrame, *, current_id: str | None = None):
+    """
+    Best-effort plugin guesser based on column headers only (no re-parse).
+    Returns an instantiated plugin or None if no reasonable match is found.
+    """
+    try:
+        from bdf.data_sources import all_plugins
+    except Exception:
+        return None
+
+    header_slugs = set()
+    for col in df.columns:
+        base, _unit, _source = parse_from_header(str(col))
+        base_slug = _slugify(base.replace("/", " ").replace("#", " "))
+        if base_slug:
+            header_slugs.add(base_slug)
+
+    if not header_slugs:
+        return None
+
+    best = None
+    best_score = 0.0
+
+    for cls in all_plugins():
+        pid = getattr(cls, "id", None)
+        if current_id and pid == current_id:
+            continue
+        try:
+            plugin = cls()
+        except Exception:
+            continue
+
+        plugin_idx = _merge_plugin_column_synonyms(plugin)
+        if not plugin_idx:
+            continue
+
+        keys = set(plugin_idx.keys())
+        hits = header_slugs & keys
+        if not hits:
+            continue
+
+        req_hits = hits & _REQUIRED_SLUGS
+        score = len(hits) + 2.0 * len(req_hits)
+        if score > best_score:
+            best_score = score
+            best = plugin
+
+    # Require at least a couple of matched columns to avoid wild guesses
+    if best_score >= 3.0:
+        return best
+    return None
 
 def _canon_label(quantity: str) -> str:
     return spec._label_for(quantity)
@@ -59,6 +112,28 @@ def _merge_plugin_column_synonyms(plugin) -> dict[str, str]:
 def _is_numeric_series(s: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(s)
 
+def _coerce_with_decimal(s: pd.Series, decimal_hint: str | None) -> pd.Series:
+    if pd.api.types.is_numeric_dtype(s):
+        return s
+    try:
+        s_str = s.astype("string")
+    except Exception:
+        return s
+
+    if decimal_hint and decimal_hint != ".":
+        with contextlib.suppress(Exception):
+            s_num = pd.to_numeric(s_str.str.replace(decimal_hint, ".", regex=False), errors="coerce")
+            if s_num.notna().any():
+                return s_num
+
+    with contextlib.suppress(Exception):
+        if s_str.str.contains(r"[0-9],[0-9]", regex=True).any():
+            s_num = pd.to_numeric(s_str.str.replace(",", ".", regex=False), errors="coerce")
+            if s_num.notna().any():
+                return s_num
+
+    return s
+
 def _coalesce_into(target: pd.Series, incoming: pd.Series) -> pd.Series:
     """
     Merge two series into 'target':
@@ -87,8 +162,9 @@ def normalize_columns(
     out = df.copy()
     meta: dict[str, dict[str, str]] = {}
 
-    base_idx = dict(_base_index())                   # slug → quantity (official MR name)
-    plugin_direct = _merge_plugin_column_synonyms(plugin)  # slug → canonical label
+    base_idx = dict(_base_index())                   # slug -> quantity (official MR name)
+    plugin_direct = _merge_plugin_column_synonyms(plugin)  # slug -> canonical label
+    decimal_hint = getattr(plugin, "decimal", None)
 
     recognized: list[str] = []
     produced: set[str] = set()  # canonical labels we've established in 'out'
@@ -148,6 +224,9 @@ def normalize_columns(
         # but a canonical Unix Time already exists, skip to avoid duplicates.
         if quantity == "unix_time_second" and "Unix Time / s" in out.columns and not _is_numeric_series(out[col]):
             continue
+
+        # Locale-aware coercion when numbers carry comma decimals
+        out[col] = _coerce_with_decimal(out[col], decimal_hint)
 
         # Unit conversion if we can
         unit_src = ""
@@ -230,4 +309,3 @@ def normalize_columns(
 
     out.attrs["bdf:columns"] = meta
     return out
-

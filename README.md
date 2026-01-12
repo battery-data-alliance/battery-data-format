@@ -103,8 +103,21 @@ The **Battery Data Format (.bdf)** is a step toward unifying and accelerating ba
 
 ```bash
 pip install bdf[viz,arrow,units]
+# Neware .nda/.ndax support
+pip install bdf[nda]
+# Interactive plotting (hvplot/bokeh)
+pip install bdf[hvplot]
+# Interactive plotting (plotly backend)
+pip install bdf[plotly]
 # for docs/dev: pip install -e .[dev,docs]
 ```
+
+Optional fast NDA backend (Python >=3.10, numpy >=2.2 required):
+```bash
+pip install fastnda
+```
+Note: fastnda requires numpy >=2.2, which conflicts with bdf's default numpy<2 pin.
+Use a separate environment or install from source with a relaxed numpy constraint if needed.
 
 ### Quickstart
 
@@ -113,6 +126,16 @@ import bdf
 
 # Read raw or BDF; plugin auto-detects
 df = bdf.read("path/to/file.bdf.csv")
+
+# Read Neware .nda/.ndax (requires NewareNDA)
+df = bdf.read("path/to/file.nda")
+
+# Force the fast NDA backend if installed
+df = bdf.read("path/to/file.nda", plugin="neware-nda-fast")
+
+# Interactive exploration (bokeh or plotly)
+bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
+bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)

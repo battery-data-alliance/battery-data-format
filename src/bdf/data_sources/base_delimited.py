@@ -20,6 +20,7 @@ class DelimitedTextPlugin(CyclerPlugin):
     """
 
     # --- basic CSV/TXT settings ---
+    decimal: str = "."                             # decimal separator for numeric fields
     default_encoding: str = "utf-8"
     max_header_scan_lines: int = 600
     header_lines_field_regex: Optional[str] = None   # e.g., r"^Header\s*Lines:\s*(\d+)"
@@ -45,7 +46,7 @@ class DelimitedTextPlugin(CyclerPlugin):
         txt = self._safe_decode(head)
         score, reasons = 0.0, []
         if path.suffix.lower() in getattr(self, "exts", ()):
-            score += 0.3
+            score += 0.25
             reasons.append("ext")
         for m in self.magic:
             if m.lower() in txt.lower():
@@ -54,7 +55,7 @@ class DelimitedTextPlugin(CyclerPlugin):
                 break
         for pat in self.header_token_patterns:
             if re.search(pat, txt, re.I):
-                score += 0.1
+                score += 0.35
                 reasons.append("tokens")
                 break
         return SniffResult(self.id, min(score, 1.0), "+".join(reasons), {})
@@ -235,6 +236,7 @@ class DelimitedTextPlugin(CyclerPlugin):
             encoding=enc,
             engine="python",
             dtype_backend="pyarrow",
+            decimal=getattr(self, "decimal", ".") or ".",
         )
         df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
         return df
@@ -352,7 +354,28 @@ class DelimitedTextPlugin(CyclerPlugin):
 
         df = pd.DataFrame(rows, columns=fields)
         df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
-        return df
+        return self._coerce_decimal(df)
+
+    def _coerce_decimal(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Handle locales where ',' is used as the decimal separator for ragged readers.
+        Keep non-numeric text intact by using errors='ignore'.
+        """
+        dec = getattr(self, "decimal", ".") or "."
+        if dec == ".":
+            return df
+
+        out = df
+        for c in out.columns:
+            s = out[c]
+            if not pd.api.types.is_object_dtype(s):
+                continue
+            try:
+                s_fixed = s.astype("string").str.replace(dec, ".", regex=False)
+                out[c] = pd.to_numeric(s_fixed, errors="ignore")
+            except Exception:
+                continue
+        return out
 
     def _looks_ok(self, df: pd.DataFrame) -> bool:
         cols_lower = [str(c).lower().strip() for c in df.columns]

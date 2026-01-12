@@ -44,11 +44,16 @@ bdf = "bdf.cli:app"
 [project.entry-points."bdf.data_sources"]
 biologic-mpt = "bdf.data_sources.biologic_mpt:BioLogicMPT"
 neware-csv   = "bdf.data_sources.neware_csv:NewareCSV"
+neware-nda   = "bdf.data_sources.neware_nda:NewareNDA"
+neware-nda-fast = "bdf.data_sources.neware_nda:NewareNDAFast"
 
 [project.optional-dependencies]
 units = ["pint>=0.22"]
 viz = ["matplotlib>=3.8"]
 arrow = ["pyarrow>=15.0"]
+nda = ["NewareNDA"]
+hvplot = ["hvplot", "holoviews", "bokeh"]
+plotly = ["plotly", "nbformat>=4.2"]
 dev = [
   "pytest",
   "pytest-cov",
