@@ -18,6 +18,7 @@ Repair datasets with common bugs
    .. code:: python
 
       import bdf
+      from bdf.repair import fix_time
 
 .. container:: cell code
    :name: b037504c
@@ -31,7 +32,7 @@ Repair datasets with common bugs
 
       ::
 
-         RuntimeWarning [bdf.validate:83]: Non-monotonic 'Test Time / s' detected: 19 drops (min Δ = -125193 s). Consider bdf.fix_time(...).
+         RuntimeWarning [bdf.validate:83]: Non-monotonic 'Test Time / s' detected: 19 drops (min Δ = -125193 s). Consider bdf.repair.fix_time(...).
 
 .. container:: cell code
    :name: 81d52780
@@ -50,7 +51,7 @@ Repair datasets with common bugs
    .. code:: python
 
       # Fix non-monotonic time
-      df = bdf.fix_time(df, method="auto")
+      df = fix_time(df, method="auto")
 
 .. container:: cell code
    :name: 1588bcb6

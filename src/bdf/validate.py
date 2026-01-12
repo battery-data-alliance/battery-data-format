@@ -69,7 +69,7 @@ def _print_report(rep: Dict[str, Any]) -> None:
             f"   ⚠️ Non-monotonic 'Test Time / s': "
             f"{ts['violations']} drops (min Δ = {ts['min_drop']:.6g} s, eps≈{ts['epsilon']:.6g})."
         )
-        print("      Suggestion: bdf.fix_time(df, method='auto') or bdf.clean_bdf(df, time_fix='segment').")
+        print("      Suggestion: bdf.clean(df, time_fix='segment') or bdf.repair.fix_time(df, method='auto').")
 
 
 def validate_df(
@@ -85,7 +85,7 @@ def validate_df(
     if ts.get("present") and not ts.get("monotonic", True):
         warnings.warn(
             f"Non-monotonic 'Test Time / s' detected: {ts['violations']} drops "
-            f"(min Δ = {ts['min_drop']:.6g} s). Consider bdf.fix_time(...).",
+            f"(min Δ = {ts['min_drop']:.6g} s). Consider bdf.repair.fix_time(...).",
             RuntimeWarning,
             stacklevel=2,
         )

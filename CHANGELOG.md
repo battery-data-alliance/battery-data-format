@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - CI pipeline with lint/type/tests/docs and build/twine checks.
 - Sphinx docs with pydata theme and converted notebook examples.
 - Unit tests for IO, registry, validation, repair, CLI, and raw conversion.
-- CLI/core alignment (`read_raw_to_bdf`, `save_jsonld`, metadata helpers).
+- CLI/core alignment (`save_jsonld`, metadata helpers).
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, SECURITY.
 
 ### Changed

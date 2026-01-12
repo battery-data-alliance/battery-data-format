@@ -93,6 +93,36 @@ Visualize a dataset
 
       |image4|
 
+Interactive exploration
+-----------------------
+
+Use :func:`bdf.explore` for interactive plotting. Choose a backend:
+
+- ``backend="bokeh"`` (requires ``pip install bdf[hvplot]``)
+- ``backend="plotly"`` (requires ``pip install bdf[plotly]``)
+
+.. code:: python
+
+   bdf.explore(
+       df,
+       xdata="Test Time / s", xunit="h",
+       ydata="Voltage / V",
+       yydata="Current / A", yyunit="mA",
+       backend="bokeh",
+       kind="scatter",
+   )
+
+.. code:: python
+
+   bdf.explore(
+       df,
+       xdata="Test Time / s", xunit="h",
+       ydata="Voltage / V",
+       yydata="Current / A", yyunit="mA",
+       backend="plotly",
+       kind="scatter",
+   )
+
 .. |image1| image:: ../_static/examples/86bd863453cdf7e70dc0dbd2ce063435847029a6.png
 .. |image2| image:: ../_static/examples/45e91fc1a51ac3f412a778665ded3c44d81643d3.png
 .. |image3| image:: ../_static/examples/95028c3e88a4befd4dbd2c47d2f08dcfd082ca5c.png

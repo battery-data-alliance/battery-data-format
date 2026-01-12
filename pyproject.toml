@@ -59,6 +59,9 @@ dev = [
   "pytest-cov",
   "ruff",
   "mypy",
+  "nbclient>=0.9",
+  "nbformat>=5.9",
+  "ipykernel>=6.0",
 ]
 docs = [
   "sphinx>=7.0",

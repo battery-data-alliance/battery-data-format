@@ -141,10 +141,17 @@ bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A"
 report = bdf.validate(df, report=True, raise_on_error=False)
 
 # Repair time/outliers
-df_clean, rep = bdf.clean_bdf(df, time_fix="segment", outlier="none")
+df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
 
 # Plot
 bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
+
+# Interactive exploration (requires extras)
+bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
+bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
+
+# Ingest a folder of raw files into BDF artifacts
+summary = bdf.ingest("data/raw", out_dir="data/bdf", format="parquet")
 ```
 
 CLI examples:

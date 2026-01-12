@@ -1,0 +1,148 @@
+{
+  "@context": [
+    "https://schema.org/",
+    "http://www.w3.org/ns/csvw"
+  ],
+  "@type": "Dataset",
+  "name": "Digatron INR21700 HPPC",
+  "description": "HPPC characterization of an INR21700 cell at 25°C on a Digatron cycler.",
+  "creator": [
+    {
+      "@type": "Person",
+      "name": "Example Creator",
+      "sameAs": "https://orcid.org/0000-0002-0000-0010",
+      "givenName": "Example",
+      "familyName": "Creator",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Your Lab"
+      }
+    }
+  ],
+  "keywords": [
+    "li-ion",
+    "inr21700",
+    "hppc"
+  ],
+  "license": "https://spdx.org/licenses/CC-BY-4.0",
+  "inLanguage": "en",
+  "@id": "https://doi.org/10.5281/zenodo.16994937#digatron-csv-li-ion-hppc",
+  "identifier": "digatron-csv-li-ion-hppc",
+  "url": "https://zenodo.org/records/17295469",
+  "version": "1.0.0",
+  "datePublished": "2025-06-06",
+  "variableMeasured": [
+    {
+      "@type": "PropertyValue",
+      "name": "Step Index",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index",
+      "unitText": "1"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Test Time",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+      "unitText": "s"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Cycle Count",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cycle_count",
+      "unitText": "1"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Cumulative Capacity",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_capacity_ah",
+      "unitText": "Ah"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Charging Capacity",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_capacity_ah",
+      "unitText": "Ah"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Discharging Capacity",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_capacity_ah",
+      "unitText": "Ah"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Step Capacity",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_capacity_ah",
+      "unitText": "Ah"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Net Capacity",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_capacity_ah",
+      "unitText": "Ah"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Cumulative Energy",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_energy_wh",
+      "unitText": "Wh"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Charging Energy",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_energy_wh",
+      "unitText": "Wh"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Discharging Energy",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_energy_wh",
+      "unitText": "Wh"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Step Energy",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_energy_wh",
+      "unitText": "Wh"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Voltage",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+      "unitText": "V"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Current",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+      "unitText": "A"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Ambient Temperature",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius",
+      "unitText": "degC"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Surface Temperature T1",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t1_celsius",
+      "unitText": "degC"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "Unix Time",
+      "propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#unix_time_second",
+      "unitText": "s"
+    }
+  ],
+  "distribution": [
+    {
+      "@type": "DataDownload",
+      "@id": "https://zenodo.org/records/17295469/files/FZJ__INR21700__20250606__HPPC__25degC__Digatron.csv",
+      "name": "Digatron CSV file",
+      "contentUrl": "https://zenodo.org/records/17295469/files/FZJ__INR21700__20250606__HPPC__25degC__Digatron.csv",
+      "encodingFormat": "text/csv",
+      "description": "Primary CSV export from Digatron cycler."
+    }
+  ]
+}

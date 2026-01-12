@@ -16,7 +16,7 @@ except Exception:
 TIME_COL = "Test Time / s"
 DEFAULT_OUTLIER_COLS = ("Voltage / V", "Current / A")
 
-__all__ = ["fix_time", "clean_bdf", "CleanReport"]
+__all__ = ["fix_time", "clean", "CleanReport"]
 
 # -----------------------------
 # Reporting
@@ -368,7 +368,7 @@ def fix_time(
 # -----------------------------
 # Public API — full cleaner
 # -----------------------------
-def clean_bdf(
+def clean(
     df: pd.DataFrame,
     *,
     time_fix: str = "segment",  # 'segment' | 'sort' | 'drop' | 'none'

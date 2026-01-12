@@ -12,4 +12,5 @@ The following examples are converted from Jupyter notebooks. They mirror common 
    repair
    units
    visualization
+   ingest
    metadata
