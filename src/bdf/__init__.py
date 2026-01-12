@@ -10,7 +10,7 @@ import pandas as pd
 
 # light imports that never cause cycles
 from .detect import detect as _detect, list_plugins as _list_plugins, load_plugin
-from .normalize import normalize_columns
+from .normalize import guess_plugin_by_columns, normalize_columns
 from .repair import CleanReport, clean_bdf, fix_time  # public cleaning helpers
 from .validate import BDFValidationError, validate_df  # prints report if asked; warns on non-monotonic time
 
@@ -22,7 +22,7 @@ __all__ = [
     # cleaning
     "fix_time", "clean_bdf", "CleanReport",
     # viz
-    "plot",
+    "plot", "explore",
     # version
     "__version__",
     # errors
@@ -139,7 +139,22 @@ def read(
     plg = load_plugin(local_path, plugin_id=(plugin or plugin_hint))
     df_raw = plg.parse(local_path)
     df_raw = plg.augment(df_raw)
-    df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+    try:
+        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+    except ValueError:
+        if plugin is not None:
+            raise
+        alt = guess_plugin_by_columns(df_raw, current_id=getattr(plg, "id", None))
+        if not alt:
+            raise
+        if getattr(alt, "id", None) != getattr(plg, "id", None):
+            warnings.warn(
+                f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'."
+            )
+        plg = alt
+        df_raw = plg.parse(local_path)
+        df_raw = plg.augment(df_raw)
+        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
     if hasattr(plg, "fixup"):
         df = plg.fixup(df)
     if validate:
@@ -163,7 +178,22 @@ def read_raw_to_bdf(
     plg = load_plugin(local_path, plugin_id=(as_ or plugin_hint))
     df_raw = plg.parse(local_path)
     df_raw = plg.augment(df_raw)
-    df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+    try:
+        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+    except ValueError:
+        if as_ is not None:
+            raise
+        alt = guess_plugin_by_columns(df_raw, current_id=getattr(plg, "id", None))
+        if not alt:
+            raise
+        if getattr(alt, "id", None) != getattr(plg, "id", None):
+            warnings.warn(
+                f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'."
+            )
+        plg = alt
+        df_raw = plg.parse(local_path)
+        df_raw = plg.augment(df_raw)
+        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
     if hasattr(plg, "fixup"):
         df = plg.fixup(df)
     if validate:
@@ -391,3 +421,17 @@ def plot(*args, **kwargs):
             "Ensure matplotlib is installed."
         ) from e
     return _plot(*args, **kwargs)
+
+
+def explore(*args, **kwargs):
+    """
+    Forward to bdf._explore.explore(...).
+
+    Example:
+        bdf.explore(df, xdata="Test Time / s", ydata=["Voltage / V"], backend="bokeh")
+    """
+    try:
+        from ._explore import explore as _explore
+    except Exception as e:
+        raise RuntimeError("bdf.explore() is unavailable.") from e
+    return _explore(*args, **kwargs)
