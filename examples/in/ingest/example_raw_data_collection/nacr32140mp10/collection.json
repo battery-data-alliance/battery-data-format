@@ -1,0 +1,9 @@
+{
+  "title": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data",
+  "description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery.",
+  "keywords": ["li-ion", "SLPBA842126HV", "battery", "ICP42/127/10", "dcir", "rate", "thermal"],
+  "license": "CC-BY-4.0",
+  "url": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410",
+  "url_base": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410",
+  "version": "1.0.0"
+}

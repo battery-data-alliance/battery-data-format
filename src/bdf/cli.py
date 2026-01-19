@@ -8,7 +8,7 @@ from rich import print
 
 from . import BDFValidationError, detect as detect_cycler, read as read_bdf, validate as validate_any
 from .io import load as load_bdf, save as save_bdf
-from .metadata import BDFMetadata, Creator, RelatedIdentifier, save_jsonld
+from .metadata import Dataset, Creator, RelatedIdentifier, save_jsonld
 from .repair import clean as clean_bdf
 from .visualize import plot as line_plot
 
@@ -57,7 +57,7 @@ def meta_jsonld(
         else:
             raise typer.BadParameter("Use 'relation|scheme|identifier' for --related")
 
-    meta = BDFMetadata(
+    meta = Dataset(
         title=title,
         creators=creators,
         description=description,

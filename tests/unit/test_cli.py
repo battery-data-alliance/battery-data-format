@@ -94,4 +94,4 @@ def test_cli_meta_jsonld(tmp_path: Path):
     assert res.exit_code == 0
     assert out.exists()
     data = json.loads(out.read_text(encoding="utf-8"))
-    assert data.get("@type") == "Dataset"
+    assert data.get("@type") == "schema:Dataset"

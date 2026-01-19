@@ -54,7 +54,7 @@ Metadata
    .. code:: python
 
       import bdf
-      from bdf.metadata import BDFMetadata, Creator, DataDownload
+      from bdf.metadata import Dataset, Creator, DataDownload
 
 .. container:: cell code
    :name: afee3447
@@ -116,7 +116,7 @@ Metadata
 
    .. code:: python
 
-      meta = BDFMetadata(
+      meta = Dataset(
           title="Digatron INR21700 HPPC",
           creators=[Creator(name="Example Creator", orcid="0000-0002-0000-0010", given_name="Example", family_name="Creator", affiliation="Your Lab")],
           description="HPPC characterization of an INR21700 cell at 25°C on a Digatron cycler.",
@@ -142,7 +142,7 @@ Metadata
       # Save the metadata to JSON-LD
 
       meta.save_jsonld(
-          "out/dataset.schemaorg.jsonld",
+         "out/metadata.jsonld",
           dataset_uri="https://doi.org/10.5281/zenodo.16994937#digatron-csv-li-ion-hppc",
           identifier="digatron-csv-li-ion-hppc",
           distributions=[dist],
@@ -153,7 +153,7 @@ Metadata
 
       ::
 
-         WindowsPath('out/dataset.schemaorg.jsonld')
+        WindowsPath('out/metadata.jsonld')
 
 .. container:: cell code
    :name: e32cf246
@@ -163,7 +163,7 @@ Metadata
       # Save the metadata as rich results html for Google / Semantic Web integration
 
       meta.save_rich_results_html(
-          "out/dataset.schemaorg.html",
+         "out/metadata.html",
           title="Digatron INR21700 HPPC",
           graphify=True,
           dataset_uri="https://doi.org/10.5281/zenodo.16994937#digatron-csv-li-ion-hppc",
@@ -176,4 +176,4 @@ Metadata
 
       ::
 
-         WindowsPath('out/dataset.schemaorg.html')
+        WindowsPath('out/metadata.html')

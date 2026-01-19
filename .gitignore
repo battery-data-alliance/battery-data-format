@@ -11,3 +11,9 @@ build/
 docs/_build/
 docs/_autosummary/
 *.parquet
+out/
+examples/out/
+**/.bdf.state.json
+examples/in/raw_data_collection/g20m7/**
+examples/in/raw_data_collection/nacr32140mp10/**
+**/metadata.jsonld
