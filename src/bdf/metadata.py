@@ -23,6 +23,46 @@ except Exception:
 _SPEC = None  # set by _ensure_spec()
 
 BDF_CSVW_SCHEMA_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schema"
+EMMO_BATTERY_CONTEXT = "https://w3id.org/emmo/domain/battery/context"
+SCHEMA_CONTEXT = {
+    "schema": "https://schema.org/",
+    "csvw": "http://www.w3.org/ns/csvw#",
+    "bdf": "https://w3id.org/bdf/",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+}
+DEFAULT_JSONLD_CONTEXT = (EMMO_BATTERY_CONTEXT, SCHEMA_CONTEXT)
+
+MATERIAL_TERM_MAP = {
+    "lfp": "LithiumIronPhosphate",
+    "lco": "LithiumCobaltOxide",
+    "nmc": "LithiumNickelManganeseCobaltOxide",
+    "nmc111": "LithiumNickelManganeseCobaltOxide111",
+    "nmc811": "LithiumNickelManganeseCobaltOxide811",
+    "nmc532": "LithiumNickelManganeseCobaltOxide532",
+    "nca": "LithiumNickelCobaltAluminiumOxide",
+    "graphite": "Graphite",
+    "gr": "Graphite",
+    "c6": "Graphite",
+    "lto": "LithiumTitanate",
+    "lithium": "Lithium",
+    "li": "Lithium",
+    "silicon": "Silicon",
+    "si": "Silicon",
+    "cobalt": "Cobalt",
+    "co": "Cobalt",
+    "lno": "LithiumNickelOxide",
+    "lmo": "LithiumManganeseOxide",
+    "lnmo": "LithiumNickelManganeseOxide",
+    "lmfp": "LithiumManganeseIronPhosphate",
+    "nickel": "Nickel",
+    "ni": "Nickel",
+    "manganese": "Manganese",
+    "mn": "Manganese",
+    "iron": "Iron",
+    "fe": "Iron",
+    "vanadium": "Vanadium",
+    "v": "Vanadium",
+}
 
 
 # ---------------------------
@@ -46,21 +86,24 @@ class Creator:
             same_as = self.orcid if self.orcid.startswith("http") else f"https://orcid.org/{self.orcid}"
         if self.type.lower() == "organization" and self.ror:
             same_as = self.ror if self.ror.startswith("http") else f"https://ror.org/{self.ror}"
-        return {"sameAs": same_as} if same_as else {}
+        return {"schema:sameAs": same_as} if same_as else {}
 
     def to_schema_org(self) -> Dict[str, Any]:
         node: Dict[str, Any] = {
-            "@type": "Person" if self.type.lower() == "person" else "Organization",
-            "name": self.name,
+            "@type": "schema:Person" if self.type.lower() == "person" else "schema:Organization",
+            "schema:name": self.name,
             **self._id_or_sameas(),
         }
         if self.type.lower() == "person":
             if self.given_name:
-                node["givenName"] = self.given_name
+                node["schema:givenName"] = self.given_name
             if self.family_name:
-                node["familyName"] = self.family_name
+                node["schema:familyName"] = self.family_name
             if self.affiliation:
-                node["affiliation"] = {"@type": "Organization", "name": self.affiliation}
+                node["schema:affiliation"] = {
+                    "@type": "schema:Organization",
+                    "schema:name": self.affiliation,
+                }
         return node
 
 
@@ -72,11 +115,11 @@ class PropertyValue:
     unit_text: Optional[str] = None     # e.g., "V", "A", "A*h", "degC"
 
     def to_schema_org(self) -> Dict[str, Any]:
-        out = {"@type": "PropertyValue", "name": self.name}
+        out = {"@type": "schema:PropertyValue", "schema:name": self.name}
         if self.property_id:
-            out["propertyID"] = self.property_id
+            out["schema:propertyID"] = self.property_id
         if self.unit_text:
-            out["unitText"] = self.unit_text
+            out["schema:unitText"] = self.unit_text
         return out
 
 
@@ -91,6 +134,161 @@ class RelatedIdentifier:
         if self.scheme:
             d["scheme"] = self.scheme
         return d
+
+
+@dataclass
+class Battery:
+    """
+    Lightweight battery profile (human-facing).
+    """
+    id: str
+    iri: Optional[str] = None
+    model: Optional[str] = None
+    name: Optional[str] = None
+    manufacturer: Optional[str] = None
+    chemistry: Optional[str] = None
+    iec_code: Optional[str] = None
+    form_factor: Optional[str] = None
+    nominal_voltage_v: Optional[float] = None
+    rated_capacity_ah: Optional[float] = None
+    rated_energy_wh: Optional[float] = None
+    mass_g: Optional[float] = None
+    volume_l: Optional[float] = None
+    pe_materials: List[str] = field(default_factory=list)
+    ne_materials: List[str] = field(default_factory=list)
+
+    def to_dict(self, *, drop_none: bool = True) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "id": self.id,
+            "iri": self.iri,
+            "model": self.model,
+            "name": self.name,
+            "manufacturer": self.manufacturer,
+            "chemistry": self.chemistry,
+            "iec_code": self.iec_code,
+            "form_factor": self.form_factor,
+            "nominal_voltage_v": self.nominal_voltage_v,
+            "rated_capacity_ah": self.rated_capacity_ah,
+            "rated_energy_wh": self.rated_energy_wh,
+            "mass_g": self.mass_g,
+            "volume_l": self.volume_l,
+            "pe_materials": list(self.pe_materials),
+            "ne_materials": list(self.ne_materials),
+        }
+        if drop_none:
+            out = {k: v for k, v in out.items() if v is not None}
+        return out
+
+    def to_schemaorg(self) -> Dict[str, Any]:
+        node: Dict[str, Any] = {"@type": ["schema:Product", "Battery"]}
+
+        if self.iri:
+            node["@id"] = self.iri
+        elif self.id:
+            node["@id"] = f"bdf:battery/{self.id}"
+
+        schema_identifier: Optional[Union[str, List[str]]] = None
+        if self.id:
+            if self.iec_code and self.iec_code != self.id:
+                schema_identifier = [self.id, self.iec_code]
+            else:
+                schema_identifier = self.id
+        elif self.iec_code:
+            schema_identifier = self.iec_code
+        if schema_identifier:
+            node["schema:identifier"] = schema_identifier
+
+        display_name = self.name or self.model
+        if display_name:
+            node["schema:name"] = display_name
+        if self.model:
+            node["schema:model"] = self.model
+        if self.manufacturer:
+            node["schema:manufacturer"] = {
+                "@type": "schema:Organization",
+                "schema:name": self.manufacturer,
+            }
+        if self.chemistry:
+            node["schema:category"] = self.chemistry
+
+        schema_props: List[Dict[str, Any]] = []
+
+        def _add_schema_prop(
+            name: str, property_id: str, value: Any, unit_text: Optional[str] = None
+        ) -> None:
+            if value is None:
+                return
+            prop: Dict[str, Any] = {
+                "@type": "schema:PropertyValue",
+                "schema:name": name,
+                "schema:propertyID": property_id,
+                "schema:value": value,
+            }
+            if unit_text:
+                prop["schema:unitText"] = unit_text
+            schema_props.append(prop)
+
+        _add_schema_prop("IEC code", "bdf:iec_code", self.iec_code)
+        _add_schema_prop("Chemistry", "bdf:chemistry", self.chemistry)
+        _add_schema_prop("Form factor", "bdf:form_factor", self.form_factor)
+        _add_schema_prop("Nominal voltage", "bdf:nominal_voltage_v", self.nominal_voltage_v, "V")
+        _add_schema_prop("Rated capacity", "bdf:rated_capacity_ah", self.rated_capacity_ah, "Ah")
+        _add_schema_prop("Rated energy", "bdf:rated_energy_wh", self.rated_energy_wh, "Wh")
+        _add_schema_prop("Mass", "bdf:mass_g", self.mass_g, "g")
+        _add_schema_prop("Volume", "bdf:volume_l", self.volume_l, "L")
+
+        if schema_props:
+            node["schema:additionalProperty"] = schema_props
+
+        emmo_props: List[Dict[str, Any]] = []
+
+        def _add_emmo_prop(
+            prop_type: str, label: str, value: Any, unit: str
+        ) -> None:
+            if value is None:
+                return
+            emmo_props.append(
+                {
+                    "@type": prop_type,
+                    "rdfs:label": label,
+                    "hasNumberValue": value,
+                    "hasMeasurementUnit": unit,
+                }
+            )
+
+        _add_emmo_prop("NominalVoltage", "nominal voltage", self.nominal_voltage_v, "emmo:Volt")
+        _add_emmo_prop("RatedCapacity", "rated capacity", self.rated_capacity_ah, "emmo:AmpereHour")
+        _add_emmo_prop("RatedEnergy", "rated energy", self.rated_energy_wh, "emmo:WattHour")
+        _add_emmo_prop("Mass", "mass", self.mass_g, "emmo:Gram")
+        _add_emmo_prop("Volume", "volume", self.volume_l, "emmo:Litre")
+
+        if emmo_props:
+            node["hasProperty"] = emmo_props
+
+        def _material_nodes(materials: List[str]) -> List[Dict[str, Any]]:
+            nodes: List[Dict[str, Any]] = []
+            for material in materials:
+                term = _material_term(material)
+                if term:
+                    nodes.append({"@type": term, "rdfs:label": term})
+                else:
+                    nodes.append({"@type": "Material", "rdfs:label": material})
+            return nodes
+
+        if self.pe_materials:
+            node["hasPositiveElectrode"] = {
+                "@type": "Electrode",
+                "rdfs:label": "positive electrode",
+                "hasActiveMaterial": _material_nodes(self.pe_materials),
+            }
+        if self.ne_materials:
+            node["hasNegativeElectrode"] = {
+                "@type": "Electrode",
+                "rdfs:label": "negative electrode",
+                "hasActiveMaterial": _material_nodes(self.ne_materials),
+            }
+
+        return node
 
 
 @dataclass
@@ -116,15 +314,15 @@ class DataDownload:
 
     def to_schema_org(self) -> Dict[str, Any]:
         node: Dict[str, Any] = {
-            "@type": "DataDownload",
+            "@type": "schema:DataDownload",
             "@id": self.id or self.url,
-            "name": self.name or self.url.split("/")[-1],
-            "contentUrl": self.url,
+            "schema:name": self.name or self.url.split("/")[-1],
+            "schema:contentUrl": self.url,
         }
         if self.encoding_format:
-            node["encodingFormat"] = self.encoding_format
+            node["schema:encodingFormat"] = self.encoding_format
         if self.description:
-            node["description"] = self.description
+            node["schema:description"] = self.description
         return node
 
     def to_csvw_table_embedded(self) -> Optional[Dict[str, Any]]:
@@ -133,9 +331,9 @@ class DataDownload:
             return None
         return {
             "@id": self._csvw_id(),
-            "@type": "Table",
-            "url": self.url,
-            "tableSchema": self.csvw_table_schema_url,
+            "@type": "csvw:Table",
+            "csvw:url": self.url,
+            "csvw:tableSchema": self.csvw_table_schema_url,
         }
 
     @classmethod
@@ -156,6 +354,17 @@ def _license_to_url(license_value: str) -> str:
     if license_value.startswith(("http://", "https://")):
         return license_value
     return f"https://spdx.org/licenses/{license_value}"
+
+
+def _normalize_material_key(value: str) -> str:
+    return "".join(ch.lower() for ch in value if ch.isalnum())
+
+
+def _material_term(value: str) -> Optional[str]:
+    if not value:
+        return None
+    return MATERIAL_TERM_MAP.get(_normalize_material_key(value))
+
 
 def _left_of_label(label: str) -> str:
     return label.split("/", 1)[0].strip()
@@ -234,7 +443,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
         seen = set()
         dedup: List[Dict[str, Any]] = []
         for it in items:
-            key = (it.get("name"), it.get("propertyID"))
+            key = (it.get("schema:name"), it.get("schema:propertyID"))
             if key not in seen:
                 seen.add(key)
                 dedup.append(it)
@@ -261,7 +470,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
     seen = set()
     dedup = []
     for it in items:
-        key = (it.get("name"), it.get("propertyID"))
+        key = (it.get("schema:name"), it.get("schema:propertyID"))
         if key not in seen:
             seen.add(key)
             dedup.append(it)
@@ -269,11 +478,11 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
 
 # ---------------------------
-# BDFMetadata
+# Dataset metadata
 # ---------------------------
 
 @dataclass
-class BDFMetadata:
+class Dataset:
     # Core
     title: str
     creators: List[Creator]
@@ -296,7 +505,7 @@ class BDFMetadata:
     measurement_technique: Optional[Union[str, List[str]]] = None
     spatial_coverage: Optional[str] = None
     temporal_coverage: Optional[str] = None
-    included_in_data_catalog: Optional[Dict[str, Any]] = None  # {"@type":"DataCatalog","name":"...","url":"..."}
+    included_in_data_catalog: Optional[Dict[str, Any]] = None  # {"@type":"schema:DataCatalog","schema:name":"..."}
     is_accessible_for_free: Optional[bool] = None
     publisher: Optional[Creator] = None
     funder: Optional[List[Creator]] = None
@@ -369,7 +578,7 @@ class BDFMetadata:
         dataset_uri: Optional[str] = None,             # optional @id
         identifier: Optional[str] = None,              # short slug or DOI
         distributions: List[DataDownload] = (),
-        context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
+        context: Union[str, List[Any]] = DEFAULT_JSONLD_CONTEXT,
         extra_fields: Optional[Dict[str, Any]] = None,
         df: Optional[pd.DataFrame] = None,           # auto variableMeasured from DataFrame
         merge_variables: bool = True,                  # merge with self.variable_measured
@@ -383,48 +592,54 @@ class BDFMetadata:
 
         creators = [c.to_schema_org() for c in self.creators]
         dataset: Dict[str, Any] = {
-            "@type": "Dataset",
-            "name": self.title,
-            "description": desc,
-            "creator": creators,
-            "keywords": self.keywords or [],
-            "license": _license_to_url(self.license),
-            "inLanguage": self.language or "en",
+            "@type": "schema:Dataset",
+            "schema:name": self.title,
+            "schema:description": desc,
+            "schema:creator": creators,
+            "schema:keywords": self.keywords or [],
+            "schema:license": _license_to_url(self.license),
+            "schema:inLanguage": self.language or "en",
         }
         if dataset_uri:
             dataset["@id"] = dataset_uri
-        if identifier:
-            dataset["identifier"] = identifier
         if self.url:
-            dataset["url"] = self.url
+            dataset["schema:url"] = self.url
         if self.version:
-            dataset["version"] = self.version
+            dataset["schema:version"] = self.version
         if self.publication_date:
-            dataset["datePublished"] = self.publication_date
+            dataset["schema:datePublished"] = self.publication_date
         if self.same_as:
-            dataset["sameAs"] = self.same_as
-        if self.identifiers:
-            dataset.setdefault("identifier", self.identifiers if len(self.identifiers) > 1 else self.identifiers[0])
+            dataset["schema:sameAs"] = self.same_as
+        identifiers: List[str] = []
+        if identifier:
+            identifiers.append(identifier)
+        for ident in self.identifiers:
+            if ident not in identifiers:
+                identifiers.append(ident)
+        if identifiers:
+            dataset["schema:identifier"] = identifiers if len(identifiers) > 1 else identifiers[0]
         if self.is_based_on:
-            dataset["isBasedOn"] = self.is_based_on
+            dataset["schema:isBasedOn"] = self.is_based_on
         if self.is_accessible_for_free is not None:
-            dataset["isAccessibleForFree"] = self.is_accessible_for_free
+            dataset["schema:isAccessibleForFree"] = self.is_accessible_for_free
         if self.publisher:
-            dataset["publisher"] = self.publisher.to_schema_org()
+            dataset["schema:publisher"] = self.publisher.to_schema_org()
         if self.funder:
-            dataset["funder"] = [f.to_schema_org() for f in self.funder]
+            dataset["schema:funder"] = [f.to_schema_org() for f in self.funder]
         if self.temporal_coverage:
-            dataset["temporalCoverage"] = self.temporal_coverage
+            dataset["schema:temporalCoverage"] = self.temporal_coverage
         if self.spatial_coverage:
-            dataset["spatialCoverage"] = self.spatial_coverage
+            dataset["schema:spatialCoverage"] = self.spatial_coverage
         if self.measurement_technique:
-            dataset["measurementTechnique"] = self.measurement_technique
+            dataset["schema:measurementTechnique"] = self.measurement_technique
         if self.citation:
-            dataset["citation"] = self.citation
+            dataset["schema:citation"] = self.citation
 
         # variableMeasured: explicit + inferred (if df provided) with dedup; else required-from-spec fallback.
         explicit_vm: List[Dict[str, Any]] = [
-            v.to_schema_org() if hasattr(v, "to_schema_org") else {"@type": "PropertyValue", "name": str(v)}
+            v.to_schema_org()
+            if hasattr(v, "to_schema_org")
+            else {"@type": "schema:PropertyValue", "schema:name": str(v)}
             for v in (self.variable_measured or [])
         ]
         inferred_vm: List[Dict[str, Any]] = _variable_measured_from_df(df) if (df is not None) else []
@@ -435,7 +650,7 @@ class BDFMetadata:
             seen = set()
             dedup_vm: List[Dict[str, Any]] = []
             for it in all_vm:
-                key = (it.get("name"), it.get("propertyID"))
+                key = (it.get("schema:name"), it.get("schema:propertyID"))
                 if key not in seen:
                     seen.add(key)
                     dedup_vm.append(it)
@@ -451,12 +666,12 @@ class BDFMetadata:
                 PropertyValue(name="Current", property_id=None, unit_text="A").to_schema_org(),
                 PropertyValue(name="Test Time", property_id=None, unit_text="s").to_schema_org(),
             ]
-        dataset["variableMeasured"] = vm_final
+        dataset["schema:variableMeasured"] = vm_final
 
         # Distributions
         dd_nodes: List[Dict[str, Any]] = [d.to_schema_org() for d in distributions] if distributions else []
         if dd_nodes:
-            dataset["distribution"] = dd_nodes
+            dataset["schema:distribution"] = dd_nodes
 
         # Inline CSVW Table(s) under mainEntity
         csvw_embedded: List[Dict[str, Any]] = []
@@ -465,10 +680,10 @@ class BDFMetadata:
             if t:
                 csvw_embedded.append(t)
         if csvw_embedded:
-            dataset["mainEntity"] = csvw_embedded
+            dataset["schema:mainEntity"] = csvw_embedded
 
         if self.included_in_data_catalog:
-            dataset["includedInDataCatalog"] = self.included_in_data_catalog
+            dataset["schema:includedInDataCatalog"] = self.included_in_data_catalog
 
         if extra_fields:
             dataset.update(extra_fields)
@@ -576,13 +791,13 @@ class BDFMetadata:
 # ---------------------------
 
 def save_schemaorg_dataset(
-    meta: BDFMetadata,
+    meta: Dataset,
     *,
     dataset_uri: Optional[str],
     identifier: Optional[str],
     distributions: List[DataDownload],
     out_path: Union[str, Path],
-    context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
+    context: Union[str, List[Any]] = DEFAULT_JSONLD_CONTEXT,
     extra_fields: Optional[Dict[str, Any]] = None,
     indent: int = 2,
     df: Optional[pd.DataFrame] = None,
@@ -614,14 +829,14 @@ def save_schemaorg_dataset(
 
 # CLI-facing convenience: build JSON-LD sidecar for a single data file
 def save_jsonld(
-    meta: BDFMetadata,
+    meta: Dataset,
     data_path: Union[str, Path],
     *,
     out_path: Union[str, Path],
     dataset_uri: Optional[str] = None,
     identifier: Optional[str] = None,
     distributions: Optional[List[DataDownload]] = None,
-    context: Union[str, List[Any]] = ("https://schema.org/", "http://www.w3.org/ns/csvw"),
+    context: Union[str, List[Any]] = DEFAULT_JSONLD_CONTEXT,
     extra_fields: Optional[Dict[str, Any]] = None,
     df: Optional[pd.DataFrame] = None,
     merge_variables: bool = True,
@@ -653,10 +868,11 @@ def save_jsonld(
 
 # Exported symbols
 __all__ = [
-    "BDFMetadata",
+    "Dataset",
     "Creator",
     "PropertyValue",
     "RelatedIdentifier",
+    "Battery",
     "DataDownload",
     "save_schemaorg_dataset",
     "save_jsonld",

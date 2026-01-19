@@ -1,0 +1,26 @@
+[
+    {
+      "id": "simon-clark",
+      "name": "Simon Clark",
+      "orcid": "https://orcid.org/0000-0002-8758-6109",
+      "given_name": "Simon",
+      "family_name": "Clark",
+      "affiliation": "SINTEF"
+    },
+    {
+      "id": "stig-yngve-martinsen",
+      "name": "Stig Yngve Martinsen",
+      "orcid": "https://orcid.org/0009-0004-8522-9900",
+      "given_name": "Stig Yngve",
+      "family_name": "Martinsen",
+      "affiliation": "SINTEF"
+    },
+    {
+      "id": "julian-tolchard",
+      "name": "Julian Tolchard",
+      "orcid": "https://orcid.org/0000-0003-0934-4515",
+      "given_name": "Julian",
+      "family_name": "Tolchard",
+      "affiliation": "SINTEF"
+    }
+]

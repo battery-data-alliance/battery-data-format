@@ -83,72 +83,59 @@ class CyclerPlugin(metaclass=_AutoRegister):
     # ----- helpers -----
     def _ensure_unix_time(self, df: pd.DataFrame) -> pd.DataFrame:
         col_out = self.unix_time_col_name
-        if col_out in df.columns:
-            return df
+        hint = _timestamp_hint(df)
+        hinted_col = hint.get("column")
+        hinted_fmt = hint.get("format")
+        hinted_tz = hint.get("timezone") or self.assume_naive_tz
 
-        # find a timestamp-like column
+        from bdf.time import parse_unix_time
+
+        if col_out in df.columns:
+            s = df[col_out]
+            if pd.api.types.is_numeric_dtype(s):
+                return df
+            try:
+                unix = parse_unix_time(s, fmt=hinted_fmt, tz=hinted_tz, min_success=0.5)
+                out = df.copy()
+                out[col_out] = unix
+                return out
+            except Exception:
+                return df
+
+        if hinted_col and hinted_col in df.columns:
+            try:
+                unix = parse_unix_time(
+                    df[hinted_col],
+                    fmt=hinted_fmt,
+                    tz=hinted_tz,
+                    min_success=0.5,
+                )
+                out = df.copy()
+                out[col_out] = unix
+                return out
+            except Exception:
+                pass
+
         pat = re.compile("|".join(self.timestamp_candidate_patterns), re.IGNORECASE)
         cand = next((c for c in df.columns if pat.search(str(c).strip().lower())), None)
         if cand is None:
             return df
 
-        s = df[cand]
-
-        # numeric epoch? (auto-detect s/ms/us/ns)
-        if pd.api.types.is_numeric_dtype(s):
-            x = pd.to_numeric(s, errors="coerce").astype("float64")
-            med_abs = float(np.nanmedian(np.abs(x))) if len(x) else np.nan
-            if np.isfinite(med_abs):
-                if med_abs >= 1e17:
-                    unit = "ns"
-                elif med_abs >= 1e14:
-                    unit = "us"
-                elif med_abs >= 1e11:
-                    unit = "ms"
-                else:
-                    unit = "s"
-            else:
-                unit = "s"
-            try:
-                dt = pd.to_datetime(x, unit=unit, utc=True, errors="coerce")
-            except Exception:
-                dt = pd.to_datetime(x, utc=True, errors="coerce")
-        else:
-            # string-like
-            dt0 = pd.to_datetime(s, utc=False, errors="coerce")
-            if getattr(dt0.dtype, "tz", None) is None:
-                if self.assume_naive_tz:
-                    try:
-                        dt = (
-                            pd.to_datetime(s, errors="coerce")
-                            .dt.tz_localize(self.assume_naive_tz)
-                            .dt.tz_convert("UTC")
-                        )
-                    except Exception:
-                        dt = pd.to_datetime(s, utc=True, errors="coerce")
-                else:
-                    dt = pd.to_datetime(s, utc=True, errors="coerce")
-            else:
-                try:
-                    dt = dt0.dt.tz_convert("UTC")
-                except Exception:
-                    dt = dt0
-
-        # keep only if it parsed for a reasonable fraction of rows
-        if len(df) == 0 or float(dt.notna().mean()) < 0.5:
+        try:
+            unix = parse_unix_time(df[cand], tz=self.assume_naive_tz, min_success=0.5)
+        except Exception:
             return df
 
-        # --- FIX: mask NaT before int conversion to avoid huge negative values ---
-        valid = dt.notna().to_numpy()
-        epoch_s = np.full(len(dt), np.nan, dtype="float64")
-        try:
-            # pandas ≥ 2.x preferred
-            epoch_ns_valid = dt.astype("int64")[valid]
-        except TypeError:
-            # older pandas fallback
-            epoch_ns_valid = dt.view("int64")[valid]
-        epoch_s[valid] = epoch_ns_valid.astype("float64") / 1_000_000_000.0
-
         out = df.copy()
-        out[col_out] = epoch_s
+        out[col_out] = unix
         return out
+
+
+def _timestamp_hint(df: pd.DataFrame) -> Dict[str, Any]:
+    meta = getattr(df, "attrs", {}).get("bdf:timestamp")
+    if not isinstance(meta, dict):
+        return {}
+    column = meta.get("column") or meta.get("source") or meta.get("name")
+    fmt = meta.get("format")
+    timezone = meta.get("timezone") or meta.get("tz")
+    return {"column": column, "format": fmt, "timezone": timezone}

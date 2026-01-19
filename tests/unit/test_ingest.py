@@ -44,7 +44,7 @@ def test_ingest_converts_raw_and_validates_bdf(tmp_path: Path) -> None:
     validated = [v["path"] for v in summary.get("validated", [])]
 
     assert str(raw_csv) in converted
-    assert str(bdf_csv) in validated
+    assert str(out_dir / "sample.bdf.csv") in validated
     assert (out_dir / "raw.bdf.csv").exists()
 
 
@@ -80,3 +80,56 @@ def test_neware_nda_fixup_skips_amp_values() -> None:
 
     out = NewareNDA().fixup(df)
     assert np.isclose(out["Current / A"].iloc[0], 5.0)
+
+
+def test_ingest_existing_bdf_does_not_delete_source(tmp_path: Path) -> None:
+    root = tmp_path / "collection"
+    root.mkdir()
+
+    # minimal metadata inputs
+    (root / "collection.json").write_text(
+        '{"title": "Test Collection", "description": "Test", "keywords": ["test"]}',
+        encoding="utf-8",
+    )
+    (root / "person.json").write_text(
+        '{"p1": {"name": "Test Person"}}',
+        encoding="utf-8",
+    )
+    (root / "battery.json").write_text(
+        '{"spec": {"manufacturer": "Test", "model": "X", "batch": "1"}, "ids": ["cell1"]}',
+        encoding="utf-8",
+    )
+
+    # source BDF file in root
+    src_bdf = root / "cell1.bdf.csv"
+    _write_text(
+        src_bdf,
+        "Test Time / s,Voltage / V,Current / A\n"
+        "1,4.0,0.1\n"
+        "2,4.1,0.1\n",
+    )
+
+    # existing output in data/ to force conflict
+    data_dir = root / "data"
+    data_dir.mkdir()
+    out_bdf = data_dir / "cell1.bdf.csv"
+    _write_text(
+        out_bdf,
+        "Test Time / s,Voltage / V,Current / A\n"
+        "1,4.0,0.1\n",
+    )
+
+    summary = bdf.ingest(
+        root,
+        layout="nested",
+        format="csv",
+        recursive=False,
+        validate_existing=True,
+        validate_converted=True,
+    )
+
+    assert src_bdf.exists(), "Source BDF should not be deleted when output exists."
+    assert out_bdf.exists(), "Existing output BDF should be preserved."
+    assert (root / "metadata.jsonld").exists(), "Collection metadata should be generated."
+    assert (root / "test-x-1-cell1" / "metadata.jsonld").exists(), "Cell metadata should be generated."
+    assert any(item.get("reason") == "output_exists" for item in summary.get("skipped", []))
