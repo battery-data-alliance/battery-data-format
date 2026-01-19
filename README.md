@@ -102,13 +102,10 @@ The **Battery Data Format (.bdf)** is a step toward unifying and accelerating ba
 ## Install the Pyton Package
 
 ```bash
-pip install bdf[viz,arrow,units]
-# Neware .nda/.ndax support
-pip install bdf[nda]
+pip install bdf
+# Neware .nda/.ndax support is included in base
 # Interactive plotting (hvplot/bokeh)
 pip install bdf[hvplot]
-# Interactive plotting (plotly backend)
-pip install bdf[plotly]
 # for docs/dev: pip install -e .[dev,docs]
 ```
 
@@ -127,13 +124,13 @@ import bdf
 # Read raw or BDF; plugin auto-detects
 df = bdf.read("path/to/file.bdf.csv")
 
-# Read Neware .nda/.ndax (requires NewareNDA)
+# Read Neware .nda/.ndax (supported by default)
 df = bdf.read("path/to/file.nda")
 
 # Force the fast NDA backend if installed
 df = bdf.read("path/to/file.nda", plugin="neware-nda-fast")
 
-# Interactive exploration (bokeh or plotly)
+# Interactive exploration (plotly included in base; bokeh requires bdf[hvplot])
 bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
 bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 
@@ -146,7 +143,7 @@ df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
 # Plot
 bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
 
-# Interactive exploration (requires extras)
+# Interactive exploration (plotly included in base; bokeh requires bdf[hvplot])
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 

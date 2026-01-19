@@ -99,7 +99,7 @@ Interactive exploration
 Use :func:`bdf.explore` for interactive plotting. Choose a backend:
 
 - ``backend="bokeh"`` (requires ``pip install bdf[hvplot]``)
-- ``backend="plotly"`` (requires ``pip install bdf[plotly]``)
+- ``backend="plotly"`` (included in the base install)
 
 .. code:: python
 

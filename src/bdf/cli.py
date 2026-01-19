@@ -6,7 +6,7 @@ from typing import List, Optional
 import typer
 from rich import print
 
-from . import BDFValidationError, detect as detect_cycler, read as read_bdf, validate as validate_any
+from . import BDFValidationError, detect, read as read_bdf, validate as validate_any
 from .io import load as load_bdf, save as save_bdf
 from .metadata import Dataset, Creator, RelatedIdentifier, save_jsonld
 from .repair import clean as clean_bdf
@@ -152,7 +152,7 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
 
 @app.command()
 def detect(path: str):
-    sr = detect_cycler(path)
+    sr = detect(path)
     print(f"{sr.id} ({sr.confidence:.2f}) - {sr.reason}")
 
 @app.command()

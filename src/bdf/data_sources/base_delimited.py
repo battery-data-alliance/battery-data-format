@@ -34,6 +34,8 @@ class DelimitedTextPlugin(CyclerPlugin):
     # --- robustness knobs ---
     ragged_row_policy: Optional[str] = None          # None | "fold_last" | "skip"
     strip_headers: bool = True                       # strip whitespace/BOM in headers
+    drop_units_row: bool = False                     # drop a unit annotation row after the header
+    unit_row_min_ratio: float = 0.6                  # fraction of bracketed/empty cells to treat as unit row
 
     # --- INI-style preamble / sectioned files (e.g., Novonix with [Data]) ---
     data_section_marker: Optional[str] = None        # regex; if present, start from the line after this marker
@@ -87,6 +89,9 @@ class DelimitedTextPlugin(CyclerPlugin):
 
         if getattr(self, "strip_headers", False):
             df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
+
+        if getattr(self, "drop_units_row", False):
+            df = self._drop_units_row(df)
 
         self._unit_hints = self._detect_units_from_headers(df.columns)
 
@@ -408,6 +413,32 @@ class DelimitedTextPlugin(CyclerPlugin):
                         hints[canon_col] = unit
                         break
         return hints
+
+    def _drop_units_row(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+
+        row = df.iloc[0]
+        total = len(row)
+        if total == 0:
+            return df
+
+        unit_like = 0
+        for val in row:
+            if pd.isna(val):
+                unit_like += 1
+                continue
+            s = str(val).strip()
+            if not s:
+                unit_like += 1
+                continue
+            if re.match(r"^\[.*\]$", s):
+                unit_like += 1
+
+        ratio = unit_like / total
+        if ratio >= getattr(self, "unit_row_min_ratio", 0.6):
+            return df.iloc[1:].reset_index(drop=True)
+        return df
 
     def fixup(self, df: pd.DataFrame) -> pd.DataFrame:
         """
