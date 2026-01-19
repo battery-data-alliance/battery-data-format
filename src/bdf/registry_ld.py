@@ -213,7 +213,7 @@ def _as_float(value: Any) -> Optional[float]:
 def _extract_graph(registry_dir: Path) -> Any:
     ttl_path = registry_dir / "registry.ttl"
     if not ttl_path.exists():
-        raise FileNotFoundError(f"{ttl_path} not found. Run ingest_sources() first.")
+        raise FileNotFoundError(f"{ttl_path} not found. Run build_registry() first.")
     cache_key = str(ttl_path.resolve())
     if cache_key in _GRAPH_CACHE:
         return _GRAPH_CACHE[cache_key]
@@ -224,7 +224,7 @@ def _extract_graph(registry_dir: Path) -> Any:
     return graph
 
 
-def ingest_sources(
+def build_registry(
     sources: str | list[str],
     registry_dir: str | Path | None = None,
     refresh: bool = False,
@@ -274,17 +274,6 @@ def ingest_sources(
     }
 
 
-def crawl(
-    sources: str | list[str],
-    registry_dir: str | Path | None = None,
-    refresh: bool = False,
-) -> dict[str, Any]:
-    """
-    Crawl metadata sources and build/update registry.ttl and registry.db.
-    """
-    return ingest_sources(sources, registry_dir=registry_dir, refresh=refresh)
-
-
 def sparql(query: str, registry_dir: str | Path | None = None) -> list[dict[str, str]]:
     reg_dir = Path(registry_dir) if registry_dir else _default_registry_dir()
     graph = _extract_graph(reg_dir)
@@ -320,7 +309,7 @@ def search(
     reg_dir = Path(registry_dir) if registry_dir else _default_registry_dir()
     db_path = reg_dir / "registry.db"
     if not db_path.exists():
-        raise FileNotFoundError(f"{db_path} not found. Run ingest_sources() first.")
+        raise FileNotFoundError(f"{db_path} not found. Run build_registry() first.")
 
     tokens, numeric_filters = _parse_search_query(query)
     conn = sqlite3.connect(db_path)

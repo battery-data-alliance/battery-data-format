@@ -17,13 +17,11 @@ from .validate import BDFValidationError, validate_df  # prints report if asked;
 
 __all__ = [
     # core I/O
-    "read", "parse", "normalize", "validate", "detect", "detect_cycler", "plugins",
+    "read", "parse", "normalize", "validate", "detect", "plugins",
     # datasets helpers
     "datasets", "load_registry", "get_entry",
     # registry LD helpers
-    "ingest_sources", "search", "sparql",
-    # harvesting helpers
-    "harvest", "crawl",
+    "build_registry", "search", "sparql",
     # cleaning
     "clean", "CleanReport",
     # viz
@@ -124,21 +122,110 @@ def _resolve_source(
     return path, plugin_hint
 
 
+def _default_ingest_cache_dir() -> Path:
+    import os
+
+    env = os.getenv("BDF_CRAWL_CACHE")
+    if env:
+        return Path(env).expanduser().resolve()
+    return Path.home() / ".bdf" / "crawl"
+
+
+def _ensure_dir(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _parse_github_tree(url: str) -> tuple[str, str, str, str] | None:
+    import re
+
+    match = re.match(
+        r"^https?://github\.com/(?P<org>[^/]+)/(?P<repo>[^/]+)"
+        r"(?:/tree/(?P<branch>[^/]+)(?:/(?P<path>.*))?)?$",
+        url,
+    )
+    if not match:
+        return None
+    org = match.group("org")
+    repo = match.group("repo")
+    branch = match.group("branch") or "main"
+    subpath = match.group("path") or ""
+    return org, repo, branch, subpath
+
+
+def _download_github_repo(url: str, cache_dir: Path, refresh: bool) -> Path:
+    parsed = _parse_github_tree(url)
+    if not parsed:
+        raise ValueError(f"Unsupported GitHub URL: {url}")
+    org, repo, branch, subpath = parsed
+    slug = f"{org}-{repo}-{branch}"
+    zip_name = f"{slug}.zip"
+    zip_path = cache_dir / zip_name
+    extract_root = cache_dir / slug
+
+    if refresh:
+        if zip_path.exists():
+            zip_path.unlink()
+        if extract_root.exists():
+            shutil.rmtree(extract_root)
+
+    if not zip_path.exists():
+        import requests
+
+        zip_url = f"https://github.com/{org}/{repo}/archive/refs/heads/{branch}.zip"
+        resp = requests.get(zip_url, timeout=60)
+        resp.raise_for_status()
+        zip_path.write_bytes(resp.content)
+
+    if not extract_root.exists():
+        import zipfile
+
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(extract_root)
+
+    extracted_dirs = [p for p in extract_root.iterdir() if p.is_dir()]
+    if not extracted_dirs:
+        raise FileNotFoundError(f"No extracted repo found in {extract_root}")
+    repo_root = extracted_dirs[0]
+    return repo_root / subpath if subpath else repo_root
+
+
+def _resolve_ingest_source(source: str | Path, cache_dir: Path, refresh: bool) -> Path:
+    s = str(source)
+    path = Path(s)
+    if path.exists():
+        return path.resolve()
+    if _is_url(s):
+        if "github.com" in s:
+            return _download_github_repo(s, cache_dir, refresh)
+        from .fetch import fetch_url  # lazy
+        return fetch_url(s)
+    raise FileNotFoundError(s)
+
+
+def _find_collection_roots(root: Path) -> list[Path]:
+    if (root / "collection.json").exists():
+        return [root]
+    return sorted({p.parent for p in root.rglob("collection.json")})
+
+
 # -------------------------------
 # public API
 # -------------------------------
 def read(
     source: str | Path,
     plugin: str | None = None,
+    normalize: bool = True,
     validate: bool = True,
     include_optional: bool = True,
     registry_path: str | Path | None = None,
 ) -> pd.DataFrame:
     """
-    Universal reader → BDF DataFrame (strict columns).
+    Universal reader → DataFrame.
       - source: local path, http(s) URL, or dataset id (from datasets.json)
       - plugin: force a specific cycler plugin id (optional)
-      - validate: run BDF validator (prints warnings/report if configured in validate_df)
+      - normalize: if True, normalize to BDF columns; if False, parse only
+      - validate: validate BDF artifacts (or normalized output)
     """
     local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
     if _looks_like_bdf_artifact(local_path):
@@ -147,6 +234,11 @@ def read(
         if validate:
             validate_df(df)
         return df
+    if not normalize:
+        if validate:
+            raise ValueError("validate=True requires a BDF artifact or normalize=True.")
+        plg = load_plugin(local_path, plugin_id=(plugin or plugin_hint))
+        return plg.parse(local_path)
     plg = load_plugin(local_path, plugin_id=(plugin or plugin_hint))
     df_raw = plg.parse(local_path)
     df_raw = plg.augment(df_raw)
@@ -176,9 +268,7 @@ def read(
 
 def parse(source: str | Path, plugin: str | None = None, registry_path: str | Path | None = None) -> pd.DataFrame:
     """Parse vendor file only (no normalization/validation)."""
-    local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
-    plg = load_plugin(local_path, plugin_id=(plugin or plugin_hint))
-    return plg.parse(local_path)
+    return read(source, plugin=plugin, normalize=False, validate=False, registry_path=registry_path)
 
 
 def normalize(df: pd.DataFrame, plugin: str | None = None) -> pd.DataFrame:
@@ -338,10 +428,6 @@ def detect(path: str | Path):
     return _detect(Path(path))
 
 
-# Backwards-friendly alias used by CLI
-detect_cycler = detect
-
-
 def plugins() -> list[str]:
     """List available plugin ids."""
     return _list_plugins()
@@ -365,13 +451,13 @@ def get_entry(reg, entry_id: str):
     return _get_entry(reg, entry_id)
 
 
-def ingest_sources(
+def build_registry(
     sources: str | list[str],
     registry_dir: str | Path | None = None,
     refresh: bool = False,
 ) -> dict[str, Any]:
-    from .registry_ld import ingest_sources as _ingest_sources  # lazy
-    return _ingest_sources(sources, registry_dir=registry_dir, refresh=refresh)
+    from .registry_ld import build_registry as _build_registry  # lazy
+    return _build_registry(sources, registry_dir=registry_dir, refresh=refresh)
 
 
 def search(query: str, registry_dir: str | Path | None = None, limit: int = 50):
@@ -382,50 +468,6 @@ def search(query: str, registry_dir: str | Path | None = None, limit: int = 50):
 def sparql(query: str, registry_dir: str | Path | None = None):
     from .registry_ld import sparql as _sparql  # lazy
     return _sparql(query, registry_dir=registry_dir)
-
-
-def harvest(
-    root: str | Path,
-    *,
-    layout: str = "nested",
-    format: str = "parquet",
-    recursive: bool = False,
-    validate_existing: bool = True,
-    validate_converted: bool = True,
-    include_optional: bool = True,
-    plugin: str | None = None,
-    incremental: bool = True,
-    force: bool = False,
-    raise_on_error: bool = False,
-):
-    import importlib
-    _self = harvest
-    _harvest_mod = importlib.import_module(".harvest", __package__)
-    # Restore the public function after module import to avoid shadowing.
-    globals()["harvest"] = _self
-    return _harvest_mod.harvest(
-        root,
-        layout=layout,
-        format=format,
-        recursive=recursive,
-        validate_existing=validate_existing,
-        validate_converted=validate_converted,
-        include_optional=include_optional,
-        plugin=plugin,
-        incremental=incremental,
-        force=force,
-        raise_on_error=raise_on_error,
-    )
-
-
-def crawl(
-    sources: str | list[str],
-    *,
-    registry_dir: str | Path | None = None,
-    refresh: bool = False,
-):
-    from .registry_ld import crawl as _crawl  # lazy
-    return _crawl(sources, registry_dir=registry_dir, refresh=refresh)
 
 
 def plot(*args, **kwargs):
@@ -451,7 +493,7 @@ def explore(*args, **kwargs):
     Forward to bdf._explore.explore(...).
 
     Example:
-        bdf.explore(df, xdata="Test Time / s", ydata=["Voltage / V"], backend="bokeh")
+        bdf.explore(df, xdata="Test Time / s", ydata=["Voltage / V"], backend="plotly")
     """
     try:
         from ._explore import explore as _explore
@@ -461,7 +503,7 @@ def explore(*args, **kwargs):
 
 
 def ingest(
-    source: str | Path,
+    source: str | Path | list[str | Path],
     *,
     out_dir: str | Path | None = None,
     format: str = "parquet",
@@ -475,11 +517,14 @@ def ingest(
     incremental: bool = True,
     force: bool = False,
     raise_on_error: bool = False,
+    discover_collections: bool = False,
+    refresh: bool = False,
+    cache_dir: str | Path | None = None,
 ):
     """
     Convert raw vendor files to BDF and validate existing BDF artifacts.
 
-    - source: file or directory
+    - source: file, directory, URL, or list of sources
     - format: "parquet" (default) or "csv"
     - layout: "flat" (default) or "nested"
         * flat: convert into out_dir/source and emit one collection metadata file
@@ -492,11 +537,94 @@ def ingest(
     - plugin: force a specific plugin id for raw files
     - incremental: skip previously processed files when unchanged
     - force: reprocess even if a file looks unchanged
+    - discover_collections: if True, ingest each folder containing collection.json
+    - refresh/cache_dir: refresh cached remote sources (GitHub URLs supported)
 
     Returns a summary dict with converted/validated/failed entries.
+    When source is a list, the summary includes "sources"; when discover_collections
+    is True, the summary includes "roots".
     Metadata generation uses collection.json/person.json, and nested layout requires battery.json.
     """
-    p = Path(source)
+    if isinstance(source, (list, tuple, set)):
+        results: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        for src in source:
+            try:
+                summary = ingest(
+                    src,
+                    out_dir=out_dir,
+                    format=format,
+                    layout=layout,
+                    battery_metadata=battery_metadata,
+                    recursive=recursive,
+                    validate_existing=validate_existing,
+                    validate_converted=validate_converted,
+                    include_optional=include_optional,
+                    plugin=plugin,
+                    incremental=incremental,
+                    force=force,
+                    raise_on_error=raise_on_error,
+                    discover_collections=discover_collections,
+                    refresh=refresh,
+                    cache_dir=cache_dir,
+                )
+                results.append({"source": str(src), "summary": summary})
+            except Exception as exc:
+                errors.append({"source": str(src), "error": str(exc)})
+                if raise_on_error:
+                    raise
+        return {"sources": results, "errors": errors}
+
+    cache_root: Path | None = None
+    path = Path(str(source))
+    if path.exists():
+        p = path.resolve()
+    else:
+        cache_root = _ensure_dir(Path(cache_dir) if cache_dir else _default_ingest_cache_dir())
+        p = _resolve_ingest_source(str(source), cache_root, refresh)
+
+    if discover_collections and p.is_dir():
+        collection_roots = _find_collection_roots(p)
+        if not collection_roots:
+            raise FileNotFoundError("No collection.json found under root.")
+
+        results: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        for collection_root in collection_roots:
+            per_out_dir = None
+            if out_dir is not None:
+                out_base = Path(out_dir)
+                try:
+                    rel = collection_root.relative_to(p)
+                except Exception:
+                    rel = Path(collection_root.name)
+                per_out_dir = out_base / rel
+            try:
+                summary = ingest(
+                    collection_root,
+                    out_dir=per_out_dir,
+                    format=format,
+                    layout=layout,
+                    battery_metadata=battery_metadata,
+                    recursive=recursive,
+                    validate_existing=validate_existing,
+                    validate_converted=validate_converted,
+                    include_optional=include_optional,
+                    plugin=plugin,
+                    incremental=incremental,
+                    force=force,
+                    raise_on_error=raise_on_error,
+                    discover_collections=False,
+                    refresh=refresh,
+                    cache_dir=cache_dir,
+                )
+                results.append({"path": str(collection_root), "summary": summary})
+            except Exception as exc:
+                errors.append({"path": str(collection_root), "error": str(exc)})
+                if raise_on_error:
+                    raise
+        return {"roots": results, "errors": errors}
+
     if not p.exists():
         raise FileNotFoundError(p)
 

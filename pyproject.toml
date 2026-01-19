@@ -30,9 +30,12 @@ dependencies = [
   "typer>=0.12",
   "rich>=13.7",
   "matplotlib>=3.8",
+  "plotly",
+  "nbformat>=4.2",
   "pydantic>=2.6",
   "requests>=2.31",
-  "pint>=0.22"
+  "pint>=0.22",
+  "NewareNDA"
 ]
 
 [project.urls]
@@ -49,12 +52,8 @@ neware-nda   = "bdf.data_sources.neware_nda:NewareNDA"
 neware-nda-fast = "bdf.data_sources.neware_nda:NewareNDAFast"
 
 [project.optional-dependencies]
-units = ["pint>=0.22"]
-viz = ["matplotlib>=3.8"]
-arrow = ["pyarrow>=15.0"]
-nda = ["NewareNDA"]
+fastnda = ["fastnda"]
 hvplot = ["hvplot", "holoviews", "bokeh"]
-plotly = ["plotly", "nbformat>=4.2"]
 dev = [
   "pytest",
   "pytest-cov",

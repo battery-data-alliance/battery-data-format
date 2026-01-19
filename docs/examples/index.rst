@@ -1,7 +1,8 @@
 Examples
 ========
 
-The following examples are converted from Jupyter notebooks. They mirror common workflows for BDF.
+The following examples are converted from Jupyter notebooks and are the best place
+to start if you want end-to-end workflows.
 
 .. toctree::
    :maxdepth: 1

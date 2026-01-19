@@ -179,7 +179,7 @@ def explore(
     xunit: Optional[str] = None,
     yunit: Optional[str] = None,
     yyunit: Optional[str] = None,
-    backend: str = "bokeh",
+    backend: str = "plotly",
     kind: str = "line",
     title: Optional[str] = None,
     **kwargs,
@@ -191,7 +191,7 @@ def explore(
       - "bokeh": hvPlot + Bokeh backend (supports dual y-axis)
       - "plotly": native Plotly (supports dual y-axis)
     """
-    backend_norm = (backend or "bokeh").lower()
+    backend_norm = (backend or "plotly").lower()
     if backend_norm == "plotly":
         return _plot_plotly(
             df,
