@@ -87,6 +87,12 @@ For collections:
 
    summary = bdf.ingest("data/raw", out_dir="data/bdf", format="parquet")
 
+CLI equivalent:
+
+.. code-block:: bash
+
+   bdf ingest data/raw --out-dir data/bdf --format parquet
+
 For repositories with multiple collections:
 
 .. code-block:: python

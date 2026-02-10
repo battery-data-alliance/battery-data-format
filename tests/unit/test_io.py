@@ -34,3 +34,32 @@ def test_detect_format_unknown_raises(tmp_path: Path):
     bad.touch()
     with pytest.raises(ValueError):
         io._detect_format(bad)
+
+
+def test_save_defaults_to_notation_and_human_opt_in(tmp_path: Path):
+    df = pd.DataFrame(
+        {
+            "Test Time / s": [0, 1],
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+        }
+    )
+
+    machine_path = tmp_path / "machine.bdf.csv"
+    io.save(df, machine_path, index=False)
+    raw_machine = pd.read_csv(machine_path)
+    assert "test_time_second" in raw_machine.columns
+    assert "voltage_volt" in raw_machine.columns
+    assert "current_ampere" in raw_machine.columns
+
+    loaded = io.load(machine_path)
+    assert "Test Time / s" in loaded.columns
+    assert "Voltage / V" in loaded.columns
+    assert "Current / A" in loaded.columns
+
+    human_path = tmp_path / "human.bdf.csv"
+    io.save(df, human_path, index=False, human=True)
+    raw_human = pd.read_csv(human_path)
+    assert "Test Time / s" in raw_human.columns
+    assert "Voltage / V" in raw_human.columns
+    assert "Current / A" in raw_human.columns

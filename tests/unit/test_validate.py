@@ -37,3 +37,17 @@ def test_validate_function_on_dataframe_and_path(tmp_path):
 
     rep_path = validate(csv_path, report=False, raise_on_error=True)
     assert rep_path["ok"] is True
+
+
+def test_validate_accepts_notation_headers(tmp_path):
+    df = pd.DataFrame(
+        {
+            "test_time_second": [0, 1, 2],
+            "voltage_volt": [3.7, 3.6, 3.5],
+            "current_ampere": [0.1, 0.1, 0.1],
+        }
+    )
+    csv_path = tmp_path / "notation.bdf.csv"
+    df.to_csv(csv_path, index=False)
+    rep = validate(csv_path, report=False, raise_on_error=True)
+    assert rep["ok"] is True

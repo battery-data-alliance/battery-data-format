@@ -1,0 +1,9 @@
+{
+  "title": "Google Pixel 10 Battery - G20M7 Lithium-Ion Cell Test Data",
+  "description": "Performance data for the G20M7 lithium-ion battery used in Google Pixel 10 mobile phones.",
+  "keywords": ["li-ion", "g20m7", "battery", "icp6/65/75", "hppc", "ici", "gitt"],
+  "license": "CC-BY-4.0",
+  "url": "https://github.com/digibatt/battery-data/google/g20m7/202512",
+  "url_base": "https://github.com/digibatt/battery-data/google/g20m7/202512",
+  "version": "0.1.0"
+}

@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import contextlib
 import re
+import warnings
 from collections.abc import Mapping
 
 import pandas as pd
 
+from bdf.ontology_labels import load_alias_index
 from bdf.units import convert_series, parse_from_header
 
 from . import spec
@@ -109,6 +111,9 @@ def _merge_plugin_column_synonyms(plugin) -> dict[str, str]:
         pass
     return idx
 
+def _legacy_alias_index() -> dict[str, object]:
+    return load_alias_index()
+
 def _is_numeric_series(s: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(s)
 
@@ -164,10 +169,12 @@ def normalize_columns(
 
     base_idx = dict(_base_index())                   # slug -> quantity (official MR name)
     plugin_direct = _merge_plugin_column_synonyms(plugin)  # slug -> canonical label
+    alias_idx = _legacy_alias_index()
     decimal_hint = getattr(plugin, "decimal", None)
 
     recognized: list[str] = []
     produced: set[str] = set()  # canonical labels we've established in 'out'
+    legacy_headers: list[str] = []
 
     # ---- Derive Unix Time / s from Timestamp if present (prefer derived) ----
     if "Timestamp" in out.columns and "Unix Time / s" not in out.columns:
@@ -194,11 +201,13 @@ def normalize_columns(
 
         base, unit_expr, source = parse_from_header(str(col))
         base_slug = _slugify(base.replace("/", " ").replace("#", " "))
+        full_slug = _slugify(str(col).replace("/", " ").replace("#", " "))
 
         # 1) plugin can force a direct canonical label
         canon = plugin_direct.get(base_slug)
         quantity = None
         target_unit = None
+        alias = alias_idx.get(base_slug) or alias_idx.get(full_slug)
 
         if canon:
             # find spec quantity by left label part
@@ -212,8 +221,12 @@ def normalize_columns(
             if target_unit is None:
                 # Fallback to the unit part of the plugin label
                 target_unit = canon.split(" / ", 1)[-1]
+        elif alias:
+            quantity = alias.quantity
+            target_unit = alias.unit
+            canon = alias.label
         else:
-            # 2) base-name → quantity from spec
+            # 2) base-name -> quantity from spec
             quantity = base_idx.get(base_slug)
             if not quantity:
                 continue
@@ -228,8 +241,10 @@ def normalize_columns(
         # Locale-aware coercion when numbers carry comma decimals
         out[col] = _coerce_with_decimal(out[col], decimal_hint)
 
-        # Unit conversion if we can
+        # Unit conversion if we can (legacy alias may imply the source unit)
         unit_src = ""
+        if alias and alias.source_unit and not unit_expr:
+            unit_expr = alias.source_unit
         if _is_numeric_series(out[col]) and unit_expr:
             try:
                 out[col] = convert_series(out[col], unit_expr, target_unit)
@@ -276,6 +291,8 @@ def normalize_columns(
             "unit": target_unit,
             "parsedFrom": source if quantity else (source or "plugin-canonical"),
         }
+        if alias:
+            legacy_headers.append(str(col))
 
     # ---- Selection logic: keep all canonical columns we recognized (no dup) ----
     have = set(out.columns)  # after coalescing/renaming
@@ -308,4 +325,105 @@ def normalize_columns(
     out = out[front + tail].copy()
 
     out.attrs["bdf:columns"] = meta
+    if legacy_headers:
+        warnings.warn(
+            "Legacy BDF column labels detected (skos:altLabel/notation). "
+            "They were normalized to preferred labels.",
+            stacklevel=2,
+        )
     return out
+
+
+def canonicalize_legacy_labels(
+    df: pd.DataFrame,
+    *,
+    keep_unmapped: bool = True,
+) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Rename legacy ontology labels to preferred labels, with unit conversion if needed.
+    Returns (new_df, legacy_headers_used).
+    """
+    alias_idx = _legacy_alias_index()
+
+    out = df.copy()
+    legacy_headers: list[str] = []
+    base_preferred: dict[str, str] = {}
+    deprecated_pref_labels: set[str] = set()
+    deprecated_notations: set[str] = set()
+    for q, s in spec.COLUMNS.items():
+        if bool(s.get("deprecated")):
+            continue
+        base = spec._label_for(q).split(" / ", 1)[0].strip().lower()
+        base_preferred.setdefault(base, q)
+
+    notation_to_canon: dict[str, tuple[str, str]] = {}
+    pref_to_canon: dict[str, tuple[str, str]] = {}
+    for q in spec.COLUMNS:
+        s = spec.COLUMNS[q]
+        pref = spec._label_for(q)
+        notation = spec.notation_for(q)
+        target_q = q
+        if bool(s.get("deprecated")):
+            base = pref.split(" / ", 1)[0].strip().lower()
+            target_q = base_preferred.get(base, q)
+            deprecated_pref_labels.add(pref)
+            deprecated_notations.add(notation)
+        target_canon = spec._label_for(target_q)
+        target_unit = spec.unit_for(target_q)
+        notation_to_canon[notation] = (target_canon, target_unit)
+        pref_to_canon[pref] = (target_canon, target_unit)
+
+    for col in list(out.columns):
+        pref_hit = pref_to_canon.get(str(col))
+        if pref_hit:
+            canon, _target_unit = pref_hit
+            if str(col) in deprecated_pref_labels and str(col) != canon:
+                legacy_headers.append(str(col))
+            if canon in out.columns and col != canon:
+                out[canon] = _coalesce_into(out[canon], out[col])
+                out.drop(columns=[col], inplace=True)
+            elif canon != col:
+                out.rename(columns={col: canon}, inplace=True)
+            continue
+
+        notation_hit = notation_to_canon.get(str(col))
+        if notation_hit:
+            canon, _target_unit = notation_hit
+            if str(col) in deprecated_notations:
+                legacy_headers.append(str(col))
+            if canon in out.columns and col != canon:
+                out[canon] = _coalesce_into(out[canon], out[col])
+                out.drop(columns=[col], inplace=True)
+            elif canon != col:
+                out.rename(columns={col: canon}, inplace=True)
+            continue
+
+        base, unit_expr, _source = parse_from_header(str(col))
+        base_slug = _slugify(base.replace("/", " ").replace("#", " "))
+        full_slug = _slugify(str(col).replace("/", " ").replace("#", " "))
+        alias = alias_idx.get(base_slug) or alias_idx.get(full_slug)
+        if not alias:
+            continue
+        legacy_headers.append(str(col))
+
+        canon = alias.label
+        target_unit = alias.unit
+        if alias.source_unit and not unit_expr:
+            unit_expr = alias.source_unit
+
+        if _is_numeric_series(out[col]) and unit_expr:
+            with contextlib.suppress(Exception):
+                out[col] = convert_series(out[col], unit_expr, target_unit)
+
+        if canon in out.columns and col != canon:
+            out[canon] = _coalesce_into(out[canon], out[col])
+            out.drop(columns=[col], inplace=True)
+        elif canon != col:
+            out.rename(columns={col: canon}, inplace=True)
+
+    if keep_unmapped:
+        return out, legacy_headers
+    # If dropping unmapped, keep only canonical columns
+    canonical_all = set(REQUIRED) | set(OPTIONAL)
+    out = out[[c for c in out.columns if c in canonical_all]].copy()
+    return out, legacy_headers

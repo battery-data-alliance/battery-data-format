@@ -34,7 +34,7 @@ class CleanReport:
 
     def __str__(self) -> str:
         lines = [
-            f"Rows: {self.n_rows_in} → {self.n_rows_out}",
+            f"Rows: {self.n_rows_in} -> {self.n_rows_out}",
             f"Time fix: {self.time_method} (resets={self.n_time_resets})",
             f"Outliers: {self.outlier_method} (z>{self.z_thresh:g})",
         ]
@@ -307,7 +307,7 @@ def _interp_inplace(y: pd.Series, x: Optional[pd.Series]) -> pd.Series:
 
 
 # -----------------------------
-# Public API — simple time repair
+# Public API -  simple time repair
 # -----------------------------
 def fix_time(
     df: pd.DataFrame,
@@ -366,7 +366,7 @@ def fix_time(
 
 
 # -----------------------------
-# Public API — full cleaner
+# Public API -  full cleaner
 # -----------------------------
 def clean(
     df: pd.DataFrame,

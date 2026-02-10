@@ -96,7 +96,7 @@ def parse_from_header(header: str) -> Tuple[str, Optional[str], str]:
         return base, unit, "paren"
 
     tokens = [t for t in _SPLIT.split(h.lower()) if t]
-    # try longest → shortest suffix; accept only if Pint can parse the unit
+    # try longest -> shortest suffix; accept only if Pint can parse the unit
     for i in range(min(6, len(tokens)), 0, -1):
         unit = _norm_tokens(tokens[-i:])
         if not unit:
@@ -111,7 +111,7 @@ def parse_from_header(header: str) -> Tuple[str, Optional[str], str]:
 
     return h, None, "none"
 
-# ---------- Unit resolution (spec → label → IRI → header → heuristic) ----------
+# ---------- Unit resolution (spec -> label -> IRI -> header -> heuristic) ----------
 def _to_pint(unit_str: str, as_string: bool):
     if as_string or not has_pint:
         return unit_str
@@ -125,7 +125,7 @@ def _label_unit(label: str) -> Optional[str]:
     return None
 
 def _heuristic_from_mr_suffix(mr_name: str) -> Optional[str]:
-    """Try suffixes of MR names via Pint (e.g., ampere_hour → A*h)."""
+    """Try suffixes of MR names via Pint (e.g., ampere_hour -> A*h)."""
     alias = {
         "celsius": "degC", "degree_celsius": "degC",
         "pascal": "Pa",
@@ -185,11 +185,11 @@ def resolve_unit(value: Any, *, as_string: bool = False):
     """
     One-shot resolver. Pass a Series, IRI, canonical label, MR name, or vendor header.
     Order:
-      A) Series → df.attrs['bdf:columns'][name]['unit']
+      A) Series -> df.attrs['bdf:columns'][name]['unit']
       B) MR name (spec)     C) Canonical label (spec)     D) IRI (spec)
       E) Heuristic from MR suffix (Pint-validated)
-      F) Vendor header parse ('#','()','snake') → unit
-      G) Base-name synonym → spec quantity → unit
+      F) Vendor header parse ('#','()','snake') -> unit
+      G) Base-name synonym -> spec quantity -> unit
       H) Last-chance: 'X / UNIT'
     """
     # Optional pandas support without hard dependency
@@ -241,9 +241,9 @@ def resolve_unit(value: Any, *, as_string: bool = False):
     if unit_expr:
         return _to_pint(unit_expr, as_string)
 
-    # Base-name synonym → spec quantity → unit
+    # Base-name synonym -> spec quantity -> unit
     base_slug = re.sub(r"[^a-z0-9]+", "-", base.lower()).strip("-")
-    syn_idx: Mapping[str, str] = spec.base_synonym_index()  # slug → MR name
+    syn_idx: Mapping[str, str] = spec.base_synonym_index()  # slug -> MR name
     q = syn_idx.get(base_slug)
     if q:
         return _to_pint(spec.COLUMNS[q]["unit"], as_string)

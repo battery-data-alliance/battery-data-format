@@ -58,6 +58,18 @@ def test_cli_convert_and_plot(tmp_path: Path, monkeypatch):
     res_conv = runner.invoke(app, ["convert", str(src), "--to", str(conv)])
     assert res_conv.exit_code == 0
     assert conv.exists()
+    conv_df = pd.read_csv(conv)
+    assert "test_time_second" in conv_df.columns
+    assert "voltage_volt" in conv_df.columns
+    assert "current_ampere" in conv_df.columns
+
+    conv_human = tmp_path / "converted-human.bdf.csv"
+    res_conv_human = runner.invoke(app, ["convert", str(src), "--to", str(conv_human), "--human"])
+    assert res_conv_human.exit_code == 0
+    conv_human_df = pd.read_csv(conv_human)
+    assert "Test Time / s" in conv_human_df.columns
+    assert "Voltage / V" in conv_human_df.columns
+    assert "Current / A" in conv_human_df.columns
 
     res_plot = runner.invoke(
         app,
@@ -95,3 +107,31 @@ def test_cli_meta_jsonld(tmp_path: Path):
     assert out.exists()
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data.get("@type") == "schema:Dataset"
+
+
+def test_cli_ingest_existing_bdf(tmp_path: Path, monkeypatch):
+    root = tmp_path / "my-contribution"
+    raw_dir = root / "timeseries" / "raw"
+    raw_dir.mkdir(parents=True)
+    src = raw_dir / "sample.bdf.csv"
+    df = pd.DataFrame(
+        {
+            "Test Time / s": [0, 1, 2],
+            "Voltage / V": [3.7, 3.6, 3.5],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    df.to_csv(src, index=False)
+
+    monkeypatch.chdir(root)
+    res = runner.invoke(
+        app,
+        [
+            "ingest",
+            "--format",
+            "csv",
+        ],
+    )
+    assert res.exit_code == 0
+    out = root / "timeseries" / "sample.bdf.csv"
+    assert out.exists()

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/excel.schema.json",
+  "title": "BDF Excel config",
+  "description": "Configuration for Excel parsing.",
+  "type": "object",
+  "properties": {
+    "sheet": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "integer", "minimum": 0 }
+      ]
+    },
+    "sheet_name": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "integer", "minimum": 0 }
+      ]
+    },
+    "worksheet": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "integer", "minimum": 0 }
+      ]
+    },
+    "sheet_index": { "type": "integer", "minimum": 1 },
+    "header_row": {
+      "anyOf": [
+        { "type": "integer", "minimum": 1 },
+        { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+      ]
+    },
+    "header": {
+      "anyOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      ]
+    },
+    "usecols": { "type": "string" },
+    "skiprows": {
+      "anyOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      ]
+    },
+    "nrows": { "type": "integer", "minimum": 1 },
+    "engine": { "type": "string" },
+    "rename": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "drop_empty_rows": { "type": "boolean" },
+    "strip_headers": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

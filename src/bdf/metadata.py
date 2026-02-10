@@ -78,7 +78,7 @@ class Creator:
     ror: Optional[str] = None           # Org: ROR (URL or bare)
     given_name: Optional[str] = None    # Person
     family_name: Optional[str] = None   # Person
-    affiliation: Optional[str] = None   # Person → Organization name
+    affiliation: Optional[str] = None   # Person -> Organization name
 
     def _id_or_sameas(self) -> Dict[str, Any]:
         same_as = None
@@ -189,10 +189,7 @@ class Battery:
 
         schema_identifier: Optional[Union[str, List[str]]] = None
         if self.id:
-            if self.iec_code and self.iec_code != self.id:
-                schema_identifier = [self.id, self.iec_code]
-            else:
-                schema_identifier = self.id
+            schema_identifier = [self.id, self.iec_code] if self.iec_code and self.iec_code != self.id else self.id
         elif self.iec_code:
             schema_identifier = self.iec_code
         if schema_identifier:
@@ -393,7 +390,7 @@ def _spec_match_by_left(left: str) -> Optional[Dict[str, Any]]:
 def _required_pvs_from_spec() -> List[Dict[str, Any]]:
     """
     Build default PropertyValue list for required quantities directly from spec.COLUMNS.
-    Uses label_template → left name, unit, and iri.
+    Uses label_template -> left name, unit, and iri.
     If spec is unavailable, returns [] (caller has emergency fallback).
     """
     _ensure_spec()

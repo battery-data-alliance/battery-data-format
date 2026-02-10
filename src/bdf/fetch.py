@@ -55,6 +55,7 @@ def fetch_url(
     *,
     sha256: Optional[str] = None,
     filename: Optional[str] = None,
+    refresh: bool = False,
     cache_subdir: str = "bdf",
     timeout: int = 120,
     alt_urls: Optional[List[str]] = None,
@@ -67,6 +68,7 @@ def fetch_url(
     - Uses a content-addressed cache name: "<sha12(url)>__<basename>"
     - Tries alt_urls[] if the primary download fails.
     - 'retries' = extra attempts on transient network errors (per URL).
+    - 'refresh' forces a re-download even if cached.
     """
     cache_dir = _cache_dir(cache_subdir)
     name = _safe_cache_name(url, filename)
@@ -74,10 +76,13 @@ def fetch_url(
 
     # Use cache if present and verified
     if dest.exists():
-        if not sha256 or sha256_file(dest).lower() == sha256.lower():
+        if refresh:
+            dest.unlink(missing_ok=True)
+        elif not sha256 or sha256_file(dest).lower() == sha256.lower():
             return dest
-        # bad hash → drop cache and redownload
-        dest.unlink(missing_ok=True)
+        else:
+            # bad hash -> drop cache and redownload
+            dest.unlink(missing_ok=True)
 
     candidates = [url] + list(alt_urls or [])
     last_err: Optional[Exception] = None

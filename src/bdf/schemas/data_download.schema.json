@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/data_download.schema.json",
+  "title": "BDF data_download.json",
+  "description": "Optional per-dataset distribution metadata sidecar.",
+  "type": ["object", "array"],
+  "oneOf": [
+    {
+      "type": "array",
+      "items": { "$ref": "#/$defs/DataDownload" }
+    },
+    { "$ref": "#/$defs/DataDownload" }
+  ],
+  "$defs": {
+    "DataDownload": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "path": { "type": "string" },
+        "name": { "type": "string" },
+        "encoding_format": { "type": "string" },
+        "description": { "type": "string" },
+        "id": { "type": "string" },
+        "sha256": { "type": "string" },
+        "checksum": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["url"] },
+        { "required": ["path"] }
+      ],
+      "additionalProperties": true
+    }
+  }
+}

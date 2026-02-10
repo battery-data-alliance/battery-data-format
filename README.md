@@ -106,6 +106,10 @@ pip install bdf
 # Neware .nda/.ndax support is included in base
 # Interactive plotting (hvplot/bokeh)
 pip install bdf[hvplot]
+# Polars + fast NDA backend
+pip install bdf[polars]
+# Force numpy 2.x (combine as needed, e.g. bdf[polars,numpy2])
+pip install bdf[numpy2]
 # for docs/dev: pip install -e .[dev,docs]
 ```
 
@@ -113,8 +117,8 @@ Optional fast NDA backend (Python >=3.10, numpy >=2.2 required):
 ```bash
 pip install fastnda
 ```
-Note: fastnda requires numpy >=2.2, which conflicts with bdf's default numpy<2 pin.
-Use a separate environment or install from source with a relaxed numpy constraint if needed.
+Note: fastnda requires numpy >=2.2. If you need fastnda, install with the numpy 2.x extra,
+for example `bdf[polars,numpy2]` or `bdf[numpy2]`.
 
 ### Quickstart
 
@@ -159,6 +163,8 @@ bdf clean data/sample.bdf.csv --out cleaned.bdf.csv --assume-bdf
 bdf convert raw/vendor.csv --to output.bdf.csv
 bdf plot data/sample.bdf.csv --assume-bdf --save plot.png
 bdf meta-jsonld data/sample.bdf.csv --title "My dataset" --description "..." --creator "Name|ORCID|Affiliation"
+bdf templates contribution battery excel --root my-contribution
+bdf ingest my-contribution --raw-dir timeseries/raw --data-dir timeseries
 ```
 
 ### Documentation

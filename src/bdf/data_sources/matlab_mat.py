@@ -19,17 +19,13 @@ class MatlabMat(CyclerPlugin):
 
     Mapping file (JSON) should define target BDF columns -> source variable names:
       {
-        "variables": {
-          "Test Time / s": "t",
-          "Voltage / V": "U",
-          "Current / A": "I"
+        "fields": {
+          "test_time_second": {"source": "t", "source_unit": "h"},
+          "voltage_volt": {"source": "U"},
+          "current_ampere": {"source": "I", "source_unit": "mA"}
         },
-        "units": {
-          "Test Time / s": "h",
-          "Current / A": "mA"
-        },
-        "scale": {"Voltage / V": 0.001},
-        "offset": {"Voltage / V": 0.0},
+        "scale": {"voltage_volt": 0.001},
+        "offset": {"voltage_volt": 0.0},
         "data_path": "data"   # optional nested struct path
       }
     """
@@ -58,10 +54,11 @@ class MatlabMat(CyclerPlugin):
         data = _load_mat_data(path, mapping.get("data_path") if mapping else None)
 
         if mapping is None and allow_infer:
-            mapping = {"variables": _infer_mapping(list(data.keys()))}
+            mapping = {"fields": _infer_mapping(list(data.keys()))}
             warnings.warn(
                 "Inferred .mat mapping (BDF_MAT_INFER=1). "
-                "Provide a .map.json file to lock this down."
+                "Provide a .map.json file to lock this down.",
+                stacklevel=2,
             )
 
         if mapping is None:
@@ -70,19 +67,22 @@ class MatlabMat(CyclerPlugin):
                 "Create a sidecar <name>.map.json or bdf.mapping.json."
             )
 
-        variables = (
-            mapping.get("variables")
-            or mapping.get("columns")
-            or mapping.get("map")
-        )
+        variables, field_units = _mapping_variables_and_units(mapping)
         if not isinstance(variables, dict) or not variables:
             raise ValueError(
-                "Mapping file must include a 'variables' object mapping "
-                "BDF columns to .mat variables."
+                "Mapping file must include target-keyed 'fields' entries "
+                "or a legacy 'variables'/'columns'/'map' object."
             )
 
         variables = _normalize_mapping(variables)
-        units = mapping.get("units") or {}
+        units: dict[str, Any] = {}
+        source_units = mapping.get("source_units")
+        if isinstance(source_units, dict):
+            units.update(source_units)
+        legacy_units = mapping.get("units")
+        if isinstance(legacy_units, dict):
+            units.update(legacy_units)
+        units.update(field_units)
         scale = mapping.get("scale") or {}
         offset = mapping.get("offset") or {}
 
@@ -127,7 +127,7 @@ class MatlabMat(CyclerPlugin):
             if col not in df.columns:
                 continue
             try:
-                from bdf.units.core import resolve_unit, convert_series
+                from bdf.units.core import convert_series, resolve_unit
                 to_unit = resolve_unit(col, as_string=True)
                 df[col] = convert_series(df[col], str(unit), str(to_unit))
             except Exception:
@@ -197,7 +197,7 @@ def _load_mat_hdf5(path: Path) -> dict[str, Any]:
         ) from exc
     data: dict[str, Any] = {}
     with h5py.File(path, "r") as f:
-        for key in f.keys():
+        for key in f:
             data[key] = f[key][()]
     return data
 
@@ -260,7 +260,7 @@ def _select_source_name(source: Any, data: dict[str, Any]) -> Optional[str]:
 
 def _find_key_case_insensitive(name: str, data: dict[str, Any]) -> Optional[str]:
     name_lower = name.lower()
-    for key in data.keys():
+    for key in data:
         if str(key).lower() == name_lower:
             return str(key)
     return None
@@ -269,9 +269,8 @@ def _find_key_case_insensitive(name: str, data: dict[str, Any]) -> Optional[str]
 def _extract_array(data: dict[str, Any], source: str) -> np.ndarray:
     obj = data[source]
     arr = np.asarray(obj)
-    if arr.ndim > 1:
-        if 1 in arr.shape:
-            arr = arr.reshape(-1)
+    if arr.ndim > 1 and 1 in arr.shape:
+        arr = arr.reshape(-1)
     return arr
 
 
@@ -306,15 +305,29 @@ def _infer_mapping(variables: list[str]) -> dict[str, str]:
 
 def _normalize_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
     def _looks_like_bdf(label: str) -> bool:
-        if " / " in label:
+        text = label.strip()
+        if " / " in text:
             return True
-        return label.strip().lower() in {
+        if text.lower() in {
             "test time / s",
             "voltage / v",
             "current / a",
-        }
+        }:
+            return True
+        try:
+            from bdf.normalize import spec
+            if text in spec.COLUMNS:
+                return True
+            for q in spec.COLUMNS:
+                if text == spec._label_for(q):
+                    return True
+                if text == spec.notation_for(q):
+                    return True
+        except Exception:
+            pass
+        return False
 
-    keys = [str(k) for k in mapping.keys()]
+    keys = [str(k) for k in mapping]
     values = [str(v) for v in mapping.values()]
     if any(_looks_like_bdf(k) for k in keys):
         return mapping
@@ -370,6 +383,47 @@ def _datetime_config(
     return {"source": source, "target": target, "format": fmt, "timezone": tz}
 
 
+def _mapping_variables_and_units(mapping: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    fields = mapping.get("fields")
+    units: dict[str, str] = {}
+    if isinstance(fields, dict) and fields:
+        variables: dict[str, Any] = {}
+        for target, spec in fields.items():
+            key = str(target)
+            if isinstance(spec, (str, list)):
+                variables[key] = spec
+                continue
+            if not isinstance(spec, dict):
+                continue
+            source = spec.get("source")
+            if source is None:
+                source = spec.get("column")
+            if source is None:
+                source = spec.get("variable")
+            if source is None:
+                continue
+            variables[key] = source
+            src_unit = spec.get("source_unit")
+            if isinstance(src_unit, str) and src_unit:
+                units[key] = src_unit
+            else:
+                unit = spec.get("unit")
+                if isinstance(unit, str) and unit:
+                    units[key] = unit
+        if variables:
+            return variables, units
+
+    variables = (
+        mapping.get("variables")
+        or mapping.get("columns")
+        or mapping.get("map")
+        or {}
+    )
+    if isinstance(variables, dict):
+        return variables, units
+    return {}, units
+
+
 def _looks_like_datetime_format(value: str) -> bool:
     text = value.strip()
     if "%" in text:
@@ -377,6 +431,4 @@ def _looks_like_datetime_format(value: str) -> bool:
     for token in ("YYYY", "YY", "DD", "HH", "SS", "AM", "PM"):
         if token in text:
             return True
-    if "/" in text and ":" in text:
-        return True
-    return False
+    return bool("/" in text and ":" in text)

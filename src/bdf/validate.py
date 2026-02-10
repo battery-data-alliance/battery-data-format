@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import re
 import warnings
 from typing import Any, Dict, List
 
 import pandas as pd
 
-from .normalize import OPTIONAL, REQUIRED
+from .normalize import OPTIONAL, REQUIRED, spec
+from .ontology_labels import load_alias_index
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
+from .units import parse_from_header
 
 __all__ = ["BDFValidationError", "validate_df"]
 
@@ -14,10 +17,65 @@ class BDFValidationError(Exception):
     """Raised when a DataFrame fails BDF validation."""
 
 
+_SLUG = re.compile(r"[^a-z0-9]+")
+
+
+def _slugify(text: str) -> str:
+    return _SLUG.sub("-", text.lower()).strip("-")
+
+
 def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
     allowed = set(REQUIRED + OPTIONAL)
-    extras: List[str] = [c for c in df.columns if c not in allowed]
-    missing: List[str] = [c for c in REQUIRED if c not in df.columns]
+    alias_idx = load_alias_index()
+    legacy_cols: List[str] = []
+    notation_cols: List[str] = []
+    deprecated_pref_cols: List[str] = []
+    canonical_present: set[str] = set()
+    notation_to_canonical: dict[str, str] = {}
+    deprecated_pref_to_canonical: dict[str, str] = {}
+    base_preferred: dict[str, str] = {}
+    for q, s in spec.COLUMNS.items():
+        if bool(s.get("deprecated")):
+            continue
+        base = spec._label_for(q).split(" / ", 1)[0].strip().lower()
+        base_preferred.setdefault(base, q)
+    for q in spec.COLUMNS:
+        s = spec.COLUMNS[q]
+        pref = spec._label_for(q)
+        target_q = q
+        if bool(s.get("deprecated")):
+            base = pref.split(" / ", 1)[0].strip().lower()
+            target_q = base_preferred.get(base, q)
+            deprecated_pref_to_canonical[pref] = spec._label_for(target_q)
+        notation_to_canonical[spec.notation_for(q)] = spec._label_for(target_q)
+
+    for col in df.columns:
+        if col in allowed:
+            canonical_present.add(col)
+            continue
+        canonical_from_deprecated_pref = deprecated_pref_to_canonical.get(str(col))
+        if canonical_from_deprecated_pref:
+            deprecated_pref_cols.append(col)
+            canonical_present.add(canonical_from_deprecated_pref)
+            continue
+        canonical_from_notation = notation_to_canonical.get(str(col))
+        if canonical_from_notation:
+            notation_cols.append(col)
+            canonical_present.add(canonical_from_notation)
+            continue
+        base, _unit, _src = parse_from_header(str(col))
+        base_slug = _slugify(base.replace("/", " ").replace("#", " "))
+        full_slug = _slugify(str(col).replace("/", " ").replace("#", " "))
+        alias = alias_idx.get(base_slug) or alias_idx.get(full_slug)
+        if alias:
+            legacy_cols.append(col)
+            canonical_present.add(alias.label)
+
+    extras: List[str] = [
+        c for c in df.columns
+        if c not in allowed and c not in legacy_cols and c not in notation_cols and c not in deprecated_pref_cols
+    ]
+    missing: List[str] = [c for c in REQUIRED if c not in canonical_present]
 
     # --- time monotonicity (warning-level) ---
     time_stats = {"present": False, "monotonic": True, "violations": 0, "min_drop": 0.0}
@@ -44,6 +102,7 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
         "extras": extras,
         "required": REQUIRED,
         "optional": OPTIONAL,
+        "legacy_labels": legacy_cols,
         "n_rows": len(df),
         "n_cols": len(df.columns),
         "time_stats": time_stats,
@@ -87,6 +146,15 @@ def validate_df(
             f"Non-monotonic 'Test Time / s' detected: {ts['violations']} drops "
             f"(min Δ = {ts['min_drop']:.6g} s). Consider bdf.repair.fix_time(...).",
             RuntimeWarning,
+            stacklevel=2,
+        )
+
+    legacy = rep.get("legacy_labels") or []
+    if legacy:
+        warnings.warn(
+            "Legacy BDF column labels detected (skos:altLabel/notation). "
+            "They are accepted for compatibility but should be updated to preferred labels.",
+            UserWarning,
             stacklevel=2,
         )
 

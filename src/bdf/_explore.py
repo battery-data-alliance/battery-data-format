@@ -9,10 +9,7 @@ from .units import convert, resolve_unit
 
 
 def _label_with_unit(name: str, unit: str) -> str:
-    if " / " in name:
-        base = name.split(" / ", 1)[0].strip()
-    else:
-        base = name
+    base = name.split(" / ", 1)[0].strip() if " / " in name else name
     return f"{base} / {unit}"
 
 
@@ -49,9 +46,9 @@ def _plot_bokeh(
     **kwargs,
 ):
     try:
+        import holoviews as hv
         import hvplot  # type: ignore
         import hvplot.pandas  # noqa: F401
-        import holoviews as hv
     except Exception as e:
         raise RuntimeError(
             "bdf.explore(..., backend='bokeh') requires hvplot. Install with "

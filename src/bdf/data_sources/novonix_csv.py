@@ -95,7 +95,7 @@ class NovonixCSV(DelimitedTextPlugin):
     # --- Lightweight unit hints for simple post-read fixups (optional) ---
     # (The main normalization path with Pint covers full conversions;
     # these help ensure correctness if a plugin column already maps to canon
-    # but its vendor unit is linear like h→s, mA→A, etc.)
+    # but its vendor unit is linear like h->s, mA->A, etc.)
     unit_column_patterns = {
         "Test Time / s": [
             (r"\brun\s*time\s*\(h\)\b", "h"),
