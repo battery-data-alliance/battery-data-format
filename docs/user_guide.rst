@@ -63,7 +63,7 @@ Workflows
    bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"])
 
 Plotly interactive plots are included in the base install; Bokeh/HoloViews
-backends require ``bdf[hvplot]``.
+backends require ``batterydf[hvplot]``.
 
 Recommended usage
 -----------------

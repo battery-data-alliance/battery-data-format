@@ -102,23 +102,25 @@ The **Battery Data Format (.bdf)** is a step toward unifying and accelerating ba
 ## Install the Pyton Package
 
 ```bash
-pip install bdf
+pip install batterydf
 # Neware .nda/.ndax support is included in base
 # Interactive plotting (hvplot/bokeh)
-pip install bdf[hvplot]
+pip install batterydf[hvplot]
 # Polars + fast NDA backend
-pip install bdf[polars]
-# Force numpy 2.x (combine as needed, e.g. bdf[polars,numpy2])
-pip install bdf[numpy2]
+pip install batterydf[polars]
+# Force numpy 2.x (combine as needed, e.g. batterydf[polars,numpy2])
+pip install batterydf[numpy2]
 # for docs/dev: pip install -e .[dev,docs]
 ```
+
+PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
 
 Optional fast NDA backend (Python >=3.10, numpy >=2.2 required):
 ```bash
 pip install fastnda
 ```
 Note: fastnda requires numpy >=2.2. If you need fastnda, install with the numpy 2.x extra,
-for example `bdf[polars,numpy2]` or `bdf[numpy2]`.
+for example `batterydf[polars,numpy2]` or `batterydf[numpy2]`.
 
 ### Quickstart
 
@@ -134,7 +136,7 @@ df = bdf.read("path/to/file.nda")
 # Force the fast NDA backend if installed
 df = bdf.read("path/to/file.nda", plugin="neware-nda-fast")
 
-# Interactive exploration (plotly included in base; bokeh requires bdf[hvplot])
+# Interactive exploration (plotly included in base; bokeh requires batterydf[hvplot])
 bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
 bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 
@@ -147,7 +149,7 @@ df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
 # Plot
 bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
 
-# Interactive exploration (plotly included in base; bokeh requires bdf[hvplot])
+# Interactive exploration (plotly included in base; bokeh requires batterydf[hvplot])
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 

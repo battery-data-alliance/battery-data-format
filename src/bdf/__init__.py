@@ -37,7 +37,10 @@ __all__ = [
 # Optional version
 try:
     from importlib.metadata import version as _pkg_version  # type: ignore
-    __version__ = _pkg_version("bdf")
+    try:
+        __version__ = _pkg_version("batterydf")
+    except Exception:
+        __version__ = _pkg_version("bdf")
 except Exception:
     __version__ = "0.0.0-dev"
 

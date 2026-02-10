@@ -10,8 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - Unit tests for IO, registry, validation, repair, CLI, and raw conversion.
 - CLI/core alignment (`save_jsonld`, metadata helpers).
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, SECURITY.
+- Release workflow for TestPyPI/PyPI publication via GitHub Actions.
 
 ### Changed
 - Enriched packaging metadata and optional extras.
 - Improved README with install/quickstart and CLI examples.
 - Relaxed numpy upper bound and added a numpy2 install extra.
+- Switched PyPI distribution name from `bdf` to `batterydf` (import/CLI remain `bdf`).

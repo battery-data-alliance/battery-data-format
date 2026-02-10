@@ -108,7 +108,7 @@ class NewareNDA(_NewareNDABase):
                 return _read_fastnda(path)
             except Exception:
                 raise ImportError(
-                    "Reading .nda/.ndax requires NewareNDA. Install bdf[nda] "
+                    "Reading .nda/.ndax requires NewareNDA. Install batterydf "
                     "or install fastnda and use plugin 'neware-nda-fast'."
                 ) from exc
         return _neware.read(str(path))
