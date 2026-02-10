@@ -21,7 +21,7 @@ def _require_rdflib():
     except Exception as exc:  # pragma: no cover - import guard
         raise RuntimeError(
             "Linked-data registry requires rdflib. "
-            "Install with `pip install bdf`."
+            "Install with `pip install batterydf`."
         ) from exc
     return rdflib
 

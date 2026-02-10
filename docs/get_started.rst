@@ -29,9 +29,11 @@ Install
 
 .. code-block:: bash
 
-   pip install bdf
+   pip install batterydf
 
-Extras (combine as needed, for example ``pip install "bdf[hvplot]"``):
+PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
+
+Extras (combine as needed, for example ``pip install "batterydf[hvplot]"``):
 
 .. list-table::
    :header-rows: 1

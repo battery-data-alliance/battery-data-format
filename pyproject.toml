@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bdf"
+name = "batterydf"
 version = "0.1.0"
 description = "Battery Data Format: load, convert, visualize, and publish"
 requires-python = ">=3.9"

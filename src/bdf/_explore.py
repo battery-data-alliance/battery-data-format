@@ -52,7 +52,7 @@ def _plot_bokeh(
     except Exception as e:
         raise RuntimeError(
             "bdf.explore(..., backend='bokeh') requires hvplot. Install with "
-            "`pip install bdf[hvplot]`."
+            "`pip install batterydf[hvplot]`."
         ) from e
 
     hvplot.extension("bokeh")
@@ -114,7 +114,7 @@ def _plot_plotly(
     except Exception as e:
         raise RuntimeError(
             "bdf.explore(..., backend='plotly') requires plotly. Install with "
-            "`pip install bdf[plotly]`."
+            "`pip install batterydf[plotly]`."
         ) from e
 
     mode = "lines"
