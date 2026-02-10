@@ -14,3 +14,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 ### Changed
 - Enriched packaging metadata and optional extras.
 - Improved README with install/quickstart and CLI examples.
+- Relaxed numpy upper bound and added a numpy2 install extra.

@@ -141,10 +141,7 @@ def _fetch_record_files(url: str) -> List[Dict[str, Any]]:
     return out
 
 def _download_file(url: str, filename_hint: Optional[str] = None) -> Path:
-    if filename_hint:
-        dest = CACHE_DIR / f"{_hash(url)}__{filename_hint}"
-    else:
-        dest = _cached_path_for_url(url)
+    dest = CACHE_DIR / f"{_hash(url)}__{filename_hint}" if filename_hint else _cached_path_for_url(url)
     if dest.exists() and dest.stat().st_size > 0:
         return dest
     if OFFLINE:

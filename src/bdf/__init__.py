@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 import shutil
 import warnings
 
 # mypy: ignore-errors
 from pathlib import Path
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -25,7 +27,7 @@ __all__ = [
     # cleaning
     "clean", "CleanReport",
     # viz
-    "plot", "explore", "ingest",
+    "plot", "explore", "ingest", "templates",
     # version
     "__version__",
     # errors
@@ -71,8 +73,14 @@ def _bdf_short_formatwarning(message, category, filename, lineno, line=None):
 
     return f"{category.__name__} [{where}]: {message}\n"
 
-# Install the formatter
-warnings.formatwarning = _bdf_short_formatwarning
+def _enable_short_warnings() -> bool:
+    val = os.getenv("BDF_FORMAT_WARNINGS", "").strip().lower()
+    return val in {"1", "true", "yes", "on"}
+
+
+# Install the formatter (opt-in via env var).
+if _enable_short_warnings():
+    warnings.formatwarning = _bdf_short_formatwarning
 
 
 # -------------------------------
@@ -102,7 +110,7 @@ def _resolve_source(
     if p.exists():
         return p, None
 
-    # 2) URL → cache it
+    # 2) URL -> cache it
     if _is_url(s):
         from .fetch import fetch_url  # lazy
         path = fetch_url(s)
@@ -199,14 +207,77 @@ def _resolve_ingest_source(source: str | Path, cache_dir: Path, refresh: bool) -
         if "github.com" in s:
             return _download_github_repo(s, cache_dir, refresh)
         from .fetch import fetch_url  # lazy
-        return fetch_url(s)
+        return fetch_url(s, refresh=refresh)
     raise FileNotFoundError(s)
 
 
+def _find_contribution_file(root: Path) -> Path | None:
+    preferred = root / "contribution.json"
+    legacy = root / "collection.json"
+    if preferred.exists() and legacy.exists():
+        warnings.warn(
+            "Both contribution.json and collection.json found; using contribution.json.",
+            stacklevel=2,
+        )
+    if preferred.exists():
+        return preferred
+    if legacy.exists():
+        return legacy
+    return None
+
+
 def _find_collection_roots(root: Path) -> list[Path]:
-    if (root / "collection.json").exists():
+    if _find_contribution_file(root):
         return [root]
-    return sorted({p.parent for p in root.rglob("collection.json")})
+    roots: set[Path] = set()
+    for name in ("contribution.json", "collection.json"):
+        roots.update({p.parent for p in root.rglob(name)})
+    return sorted(roots)
+
+
+def _candidate_plugins(path: Path, *, plugin: str | None, plugin_hint: str | None):
+    try:
+        primary = load_plugin(path, plugin_id=(plugin or plugin_hint))
+    except Exception:
+        if plugin is not None:
+            raise
+        primary = load_plugin(path, plugin_id=None)
+    if plugin is not None:
+        return [primary]
+
+    candidates = []
+    seen: set[str] = set()
+
+    def _push(plg) -> None:
+        pid = str(getattr(plg, "id", "")).strip() or plg.__class__.__name__
+        if pid in seen:
+            return
+        seen.add(pid)
+        candidates.append(plg)
+
+    _push(primary)
+
+    try:
+        from .data_sources import all_plugins  # lazy
+
+        with open(path, "rb") as f:
+            head = f.read(8192)
+
+        ranked = []
+        for cls in all_plugins():
+            try:
+                plg = cls()
+                sr = plg.sniff(path, head)
+                score = float(getattr(sr, "confidence", 0.0) or 0.0)
+                ranked.append((score, plg))
+            except Exception:
+                continue
+        for _score, plg in sorted(ranked, key=lambda x: x[0], reverse=True):
+            _push(plg)
+    except Exception:
+        pass
+
+    return candidates
 
 
 # -------------------------------
@@ -221,7 +292,7 @@ def read(
     registry_path: str | Path | None = None,
 ) -> pd.DataFrame:
     """
-    Universal reader → DataFrame.
+    Universal reader -> DataFrame.
       - source: local path, http(s) URL, or dataset id (from datasets.json)
       - plugin: force a specific cycler plugin id (optional)
       - normalize: if True, normalize to BDF columns; if False, parse only
@@ -231,38 +302,84 @@ def read(
     if _looks_like_bdf_artifact(local_path):
         from .io import load as _load_bdf  # lazy import
         df = _load_bdf(local_path)
+        from .normalize import canonicalize_legacy_labels  # lazy import
+        df, legacy = canonicalize_legacy_labels(df)
+        if legacy:
+            warnings.warn(
+                "Legacy BDF column labels detected (skos:altLabel/notation). "
+                "They were normalized to preferred labels.",
+                stacklevel=2,
+            )
         if validate:
             validate_df(df)
         return df
     if not normalize:
         if validate:
             raise ValueError("validate=True requires a BDF artifact or normalize=True.")
-        plg = load_plugin(local_path, plugin_id=(plugin or plugin_hint))
-        return plg.parse(local_path)
-    plg = load_plugin(local_path, plugin_id=(plugin or plugin_hint))
-    df_raw = plg.parse(local_path)
-    df_raw = plg.augment(df_raw)
-    try:
-        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
-    except ValueError:
-        if plugin is not None:
-            raise
-        alt = guess_plugin_by_columns(df_raw, current_id=getattr(plg, "id", None))
-        if not alt:
-            raise
-        if getattr(alt, "id", None) != getattr(plg, "id", None):
-            warnings.warn(
-                f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'."
-            )
-        plg = alt
-        df_raw = plg.parse(local_path)
-        df_raw = plg.augment(df_raw)
-        df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
-    if hasattr(plg, "fixup"):
-        df = plg.fixup(df)
-    if validate:
-        validate_df(df)
-    return df
+        parse_errors: list[tuple[str, str]] = []
+        for plg in _candidate_plugins(local_path, plugin=plugin, plugin_hint=plugin_hint):
+            try:
+                return plg.parse(local_path)
+            except Exception as exc:
+                if plugin is not None:
+                    raise
+                parse_errors.append((getattr(plg, "id", "?"), f"{type(exc).__name__}: {exc}"))
+        details = "; ".join(f"{pid} -> {msg}" for pid, msg in parse_errors[:4])
+        raise RuntimeError(f"Could not parse source '{local_path}'. {details}")
+
+    normalize_errors: list[tuple[str, str]] = []
+    for plg in _candidate_plugins(local_path, plugin=plugin, plugin_hint=plugin_hint):
+        try:
+            df_raw = plg.parse(local_path)
+            df_raw = plg.augment(df_raw)
+        except Exception as exc:
+            if plugin is not None:
+                raise
+            normalize_errors.append((getattr(plg, "id", "?"), f"parse failed: {type(exc).__name__}: {exc}"))
+            continue
+
+        try:
+            df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+        except ValueError as exc:
+            if plugin is not None:
+                raise
+            alt = guess_plugin_by_columns(df_raw, current_id=getattr(plg, "id", None))
+            if not alt or getattr(alt, "id", None) == getattr(plg, "id", None):
+                normalize_errors.append(
+                    (getattr(plg, "id", "?"), f"normalize failed: {type(exc).__name__}: {exc}")
+                )
+                continue
+            try:
+                warnings.warn(
+                    f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'."
+                    , stacklevel=2
+                )
+                plg = alt
+                df_raw = plg.parse(local_path)
+                df_raw = plg.augment(df_raw)
+                df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+            except Exception as alt_exc:
+                normalize_errors.append(
+                    (
+                        getattr(alt, "id", "?"),
+                        f"retry failed: {type(alt_exc).__name__}: {alt_exc}",
+                    )
+                )
+                continue
+        except Exception as exc:
+            if plugin is not None:
+                raise
+            normalize_errors.append((getattr(plg, "id", "?"), f"normalize failed: {type(exc).__name__}: {exc}"))
+            continue
+
+        if hasattr(plg, "fixup"):
+            df = plg.fixup(df)
+        if validate:
+            validate_df(df)
+        return df
+
+    details = "; ".join(f"{pid} -> {msg}" for pid, msg in normalize_errors[:6])
+    raise RuntimeError(f"Could not parse+normalize source '{local_path}'. {details}")
 
 
 
@@ -296,14 +413,17 @@ def _csv_header_has_bdf_required(path: Path) -> bool:
             header = f.readline().strip()
     except Exception:
         return False
-    cols = [c.strip() for c in header.split(",")]
+    cols_l = {c.strip().lower() for c in header.split(",")}
     # import lazily to avoid cycles
-    from .normalize import REQUIRED
-    have = 0
-    for req in REQUIRED:
-        if any(req.lower() == c.lower() for c in cols):
-            have += 1
-    return have == len(REQUIRED)
+    from .normalize import spec
+    for q, s in spec.COLUMNS.items():
+        if not s.get("required") or bool(s.get("deprecated")):
+            continue
+        pref = spec._label_for(q).lower()
+        notation = spec.notation_for(q).lower()
+        if pref not in cols_l and notation not in cols_l:
+            return False
+    return True
 
 def _looks_like_bdf_artifact(path: Path) -> bool:
     """Return True if filename + header suggest this is a BDF file we should try to load."""
@@ -385,10 +505,17 @@ def validate(
                 try:
                     with (gzip.open(path, "rt") if name_lc.endswith(".gz") else open(path, encoding="utf-8", errors="ignore")) as f:
                         head = "".join([f.readline() for _ in range(2)]).lower()
-                    # must contain all required labels (case-insensitive)
-                    req = {"test time / s", "voltage / v", "current / a"}
                     header_line = head.splitlines()[0] if head else ""
-                    return all(r in header_line for r in req)
+                    cols_l = {c.strip().lower() for c in header_line.split(",")}
+                    from .normalize import spec
+                    for q, s in spec.COLUMNS.items():
+                        if not s.get("required") or bool(s.get("deprecated")):
+                            continue
+                        pref = spec._label_for(q).lower()
+                        notation = spec.notation_for(q).lower()
+                        if pref not in cols_l and notation not in cols_l:
+                            return False
+                    return True
                 except Exception:
                     return False
             return False
@@ -470,6 +597,19 @@ def sparql(query: str, registry_dir: str | Path | None = None):
     return _sparql(query, registry_dir=registry_dir)
 
 
+def templates(*names, root: str | Path = ".", overwrite: bool = False):
+    # Importing submodule "bdf.templates" can shadow this function on the package object.
+    # Restore this symbol after the call so repeated bdf.templates(...) calls stay callable.
+    _self = templates
+    try:
+        from importlib import import_module
+
+        mod = import_module(".templates", __name__)
+        return mod.templates(*names, root=root, overwrite=overwrite)
+    finally:
+        globals()["templates"] = _self
+
+
 def plot(*args, **kwargs):
     """
     Forward to bdf.visualize.plot(...).
@@ -520,6 +660,12 @@ def ingest(
     discover_collections: bool = False,
     refresh: bool = False,
     cache_dir: str | Path | None = None,
+    data_dir: str | Path | None = "timeseries",
+    raw_dir: str | Path | None = "timeseries/raw",
+    cell_metadata_dir: str | Path | None = "batteries",
+    doi_enrich: bool = True,
+    doi_timeout: int = 15,
+    human: bool = False,
 ):
     """
     Convert raw vendor files to BDF and validate existing BDF artifacts.
@@ -532,18 +678,24 @@ def ingest(
           and emit per-cell metadata.jsonld folders that describe only the battery
     - battery_metadata: "embedded" (default) or "separate" for flat layout
     - out_dir: optional output root for converted files (defaults to source_dir)
+    - data_dir: output subdir for converted files (relative to out_dir)
+    - raw_dir: input subdir for raw files (relative to source_dir)
+    - cell_metadata_dir: base dir for per-cell metadata folders (relative to out_dir)
     - validate_existing: validate files that already look like BDF
     - validate_converted: validate after conversion
     - plugin: force a specific plugin id for raw files
     - incremental: skip previously processed files when unchanged
     - force: reprocess even if a file looks unchanged
-    - discover_collections: if True, ingest each folder containing collection.json
-    - refresh/cache_dir: refresh cached remote sources (GitHub URLs supported)
+    - discover_collections: if True, ingest each folder containing contribution.json (or collection.json)
+    - refresh/cache_dir: refresh cached remote sources
+    - doi_enrich: if True, enrich missing dataset metadata from DOI (DataCite, then Crossref)
+    - doi_timeout: per-request timeout (seconds) for DOI lookups
+    - human: if True, serialize with human prefLabels; default writes skos:notation labels
 
     Returns a summary dict with converted/validated/failed entries.
     When source is a list, the summary includes "sources"; when discover_collections
     is True, the summary includes "roots".
-    Metadata generation uses collection.json/person.json, and nested layout requires battery.json.
+    Metadata generation uses contribution.json/person.json, and nested layout requires battery.json.
     """
     if isinstance(source, (list, tuple, set)):
         results: list[dict[str, Any]] = []
@@ -567,6 +719,12 @@ def ingest(
                     discover_collections=discover_collections,
                     refresh=refresh,
                     cache_dir=cache_dir,
+                    data_dir=data_dir,
+                    raw_dir=raw_dir,
+                    cell_metadata_dir=cell_metadata_dir,
+                    doi_enrich=doi_enrich,
+                    doi_timeout=doi_timeout,
+                    human=human,
                 )
                 results.append({"source": str(src), "summary": summary})
             except Exception as exc:
@@ -586,7 +744,7 @@ def ingest(
     if discover_collections and p.is_dir():
         collection_roots = _find_collection_roots(p)
         if not collection_roots:
-            raise FileNotFoundError("No collection.json found under root.")
+            raise FileNotFoundError("No contribution.json (or collection.json) found under root.")
 
         results: list[dict[str, Any]] = []
         errors: list[dict[str, str]] = []
@@ -617,6 +775,12 @@ def ingest(
                     discover_collections=False,
                     refresh=refresh,
                     cache_dir=cache_dir,
+                    data_dir=data_dir,
+                    raw_dir=raw_dir,
+                    cell_metadata_dir=cell_metadata_dir,
+                    doi_enrich=doi_enrich,
+                    doi_timeout=doi_timeout,
+                    human=human,
                 )
                 results.append({"path": str(collection_root), "summary": summary})
             except Exception as exc:
@@ -643,6 +807,39 @@ def ingest(
     root = p if p.is_dir() else p.parent
     out_root = Path(out_dir) if out_dir else root
     data_root = out_root / "data" if layout_mode == "nested" else out_root
+    raw_root: Optional[Path] = None
+    raw_path = Path(raw_dir) if raw_dir is not None else None
+
+    if data_dir is not None:
+        data_path = Path(data_dir)
+        data_root = data_path if data_path.is_absolute() else out_root / data_path
+
+    if raw_path is not None:
+        configured_raw = raw_path if raw_path.is_absolute() else root / raw_path
+        if configured_raw.exists():
+            raw_root = configured_raw
+            if data_dir is None and raw_path.name.lower() == "raw" and raw_path.parent.parts:
+                parent = raw_path.parent
+                data_root = parent if parent.is_absolute() else out_root / parent
+        else:
+            warnings.warn(
+                f"Configured raw_dir not found: {configured_raw}. Falling back to auto-discovery.",
+                stacklevel=2,
+            )
+
+    if raw_root is None and data_dir is not None:
+        data_path = Path(data_dir)
+        if not data_path.is_absolute():
+            candidate = root / data_path / "raw"
+            if candidate.exists():
+                raw_root = candidate
+
+    if raw_root is None:
+        candidate = root / "timeseries" / "raw"
+        if candidate.exists():
+            if data_dir is None:
+                data_root = out_root / "timeseries"
+            raw_root = candidate
 
     def _strip_all_suffixes(path: Path) -> Path:
         name = path.name
@@ -654,7 +851,8 @@ def ingest(
         return path.with_name(name)
 
     def _output_path(src: Path) -> Path:
-        rel = src.relative_to(root) if src.is_relative_to(root) else Path(src.name)
+        base_root = raw_root if raw_root and src.is_relative_to(raw_root) else root
+        rel = src.relative_to(base_root) if src.is_relative_to(base_root) else Path(src.name)
         base = _strip_all_suffixes(rel)
         suffix = ".bdf.parquet" if fmt == "parquet" else ".bdf.csv"
         return data_root / base.parent / f"{base.name}{suffix}"
@@ -662,6 +860,12 @@ def ingest(
     def _metadata_output_path(out_path: Path) -> Path:
         base = _strip_all_suffixes(out_path)
         return base.with_suffix(".jsonld")
+
+    def _cell_meta_root() -> Path:
+        if cell_metadata_dir is None:
+            return out_root
+        cell_path = Path(cell_metadata_dir)
+        return cell_path if cell_path.is_absolute() else out_root / cell_path
 
     def _parse_filename_parts(path: Path) -> dict[str, str]:
         base = _strip_all_suffixes(path).name
@@ -696,9 +900,10 @@ def ingest(
         return None
 
     # Snapshot file list before writing outputs
-    if p.is_dir():
+    file_root = raw_root if raw_root and raw_root.is_dir() else p
+    if file_root.is_dir():
         pattern = "**/*" if recursive else "*"
-        files = [f for f in p.glob(pattern) if f.is_file()]
+        files = [f for f in file_root.glob(pattern) if f.is_file()]
     else:
         files = [p]
 
@@ -720,6 +925,321 @@ def ingest(
         import json
         with open(path, encoding="utf-8") as f:
             return json.load(f)
+
+    def _normalize_doi(value: Any) -> Optional[str]:
+        import re
+        if value is None:
+            return None
+        s = str(value).strip()
+        if not s:
+            return None
+        sl = s.lower()
+        if sl.startswith("doi:"):
+            s = s[4:].strip()
+        if sl.startswith("https://doi.org/"):
+            s = s[len("https://doi.org/"):]
+        elif sl.startswith("http://doi.org/"):
+            s = s[len("http://doi.org/"):]
+        elif sl.startswith("http://dx.doi.org/"):
+            s = s[len("http://dx.doi.org/"):]
+        match = re.search(r"(10\.\d{4,9}/\S+)", s)
+        if not match:
+            return None
+        doi = match.group(1).rstrip(").,;\"'")
+        return doi or None
+
+    def _doi_from_identifiers(values: Any) -> Optional[str]:
+        if isinstance(values, str):
+            return _normalize_doi(values)
+        if isinstance(values, list):
+            for item in values:
+                doi = _normalize_doi(item)
+                if doi:
+                    return doi
+        return None
+
+    def _normalize_citation_values(values: Any) -> list[str]:
+        if values is None:
+            return []
+        raw_values = values if isinstance(values, list) else [values]
+        out: list[str] = []
+        for item in raw_values:
+            doi = _normalize_doi(item)
+            if not doi:
+                continue
+            value = f"https://doi.org/{doi}"
+            if value not in out:
+                out.append(value)
+        return out
+
+    def _canonicalize_metadata_keys(meta_raw: dict) -> dict:
+        if not isinstance(meta_raw, dict):
+            return meta_raw
+        normalized = dict(meta_raw)
+        dataset_doi = _normalize_doi(normalized.get("dataset_doi"))
+        if dataset_doi:
+            normalized["dataset_doi"] = f"https://doi.org/{dataset_doi}"
+            if not normalized.get("doi"):
+                normalized["doi"] = dataset_doi
+        else:
+            doi = _normalize_doi(normalized.get("doi"))
+            if doi:
+                normalized["doi"] = doi
+                normalized.setdefault("dataset_doi", f"https://doi.org/{doi}")
+
+        citation_doi_values = normalized.get("citation_doi")
+        if citation_doi_values is not None:
+            citation_dois = _normalize_citation_values(citation_doi_values)
+            if citation_dois:
+                normalized["citation_doi"] = (
+                    citation_dois[0] if len(citation_dois) == 1 else citation_dois
+                )
+                if not normalized.get("citation"):
+                    normalized["citation"] = citation_dois
+        if normalized.get("citation") is not None:
+            citation_values = _normalize_citation_values(normalized.get("citation"))
+            if citation_values:
+                normalized["citation"] = citation_values
+
+        creators = normalized.get("creators")
+        if isinstance(creators, dict):
+            normalized["creators"] = [creators]
+        creator = normalized.get("creator")
+        if isinstance(creator, dict):
+            normalized["creator"] = [creator]
+        return normalized
+
+    def _strip_html(value: str) -> str:
+        import re
+        return re.sub(r"<[^>]+>", "", value).strip()
+
+    def _doi_request_json(url: str) -> Optional[dict]:
+        try:
+            import requests
+        except Exception:
+            return None
+        headers = {
+            "User-Agent": f"bdf/{__version__}",
+            "Accept": "application/json",
+        }
+        try:
+            resp = requests.get(url, headers=headers, timeout=doi_timeout)
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            return resp.json()
+        except Exception:
+            return None
+
+    def _datacite_to_meta(attrs: dict, doi: str) -> dict:
+        out: dict[str, Any] = {}
+        titles = attrs.get("titles")
+        if isinstance(titles, list):
+            for item in titles:
+                if isinstance(item, dict) and item.get("title"):
+                    out["title"] = item["title"]
+                    break
+        elif isinstance(titles, str):
+            out["title"] = titles
+
+        descriptions = attrs.get("descriptions")
+        desc = None
+        if isinstance(descriptions, list):
+            for item in descriptions:
+                if isinstance(item, dict) and item.get("descriptionType", "").lower() == "abstract":
+                    desc = item.get("description")
+                    if desc:
+                        break
+            if not desc:
+                for item in descriptions:
+                    if isinstance(item, dict) and item.get("description"):
+                        desc = item["description"]
+                        break
+        if isinstance(desc, str) and desc.strip():
+            out["description"] = _strip_html(desc)
+
+        creators_out: list[dict[str, Any]] = []
+        creators = attrs.get("creators") or []
+        if isinstance(creators, list):
+            for creator in creators:
+                if not isinstance(creator, dict):
+                    continue
+                given = creator.get("givenName")
+                family = creator.get("familyName")
+                name = creator.get("name") or " ".join([p for p in (given, family) if p])
+                if not name:
+                    continue
+                orcid = None
+                for ident in creator.get("nameIdentifiers") or []:
+                    if not isinstance(ident, dict):
+                        continue
+                    if str(ident.get("nameIdentifierScheme", "")).upper() == "ORCID":
+                        orcid = ident.get("nameIdentifier")
+                        break
+                affiliation = None
+                aff_list = creator.get("affiliation")
+                if isinstance(aff_list, list) and aff_list:
+                    if isinstance(aff_list[0], dict):
+                        affiliation = aff_list[0].get("name")
+                    elif isinstance(aff_list[0], str):
+                        affiliation = aff_list[0]
+                entry = {"name": name}
+                if given:
+                    entry["given_name"] = given
+                if family:
+                    entry["family_name"] = family
+                if orcid:
+                    entry["orcid"] = orcid
+                if affiliation:
+                    entry["affiliation"] = affiliation
+                creators_out.append(entry)
+        if creators_out:
+            out["creators"] = creators_out
+
+        pub_year = attrs.get("publicationYear")
+        if pub_year:
+            out["publication_date"] = str(pub_year)
+
+        url = attrs.get("url") or f"https://doi.org/{doi}"
+        if url:
+            out["url"] = url
+
+        subjects = attrs.get("subjects")
+        if isinstance(subjects, list):
+            keywords: list[str] = []
+            for item in subjects:
+                if isinstance(item, dict) and item.get("subject"):
+                    keywords.append(item["subject"])
+                elif isinstance(item, str):
+                    keywords.append(item)
+            if keywords:
+                out["keywords"] = keywords
+
+        return out
+
+    def _crossref_to_meta(message: dict, doi: str) -> dict:
+        out: dict[str, Any] = {}
+        titles = message.get("title")
+        if isinstance(titles, list) and titles:
+            out["title"] = titles[0]
+        elif isinstance(titles, str):
+            out["title"] = titles
+
+        abstract = message.get("abstract")
+        if isinstance(abstract, str) and abstract.strip():
+            out["description"] = _strip_html(abstract)
+
+        creators_out: list[dict[str, Any]] = []
+        authors = message.get("author") or []
+        if isinstance(authors, list):
+            for author in authors:
+                if not isinstance(author, dict):
+                    continue
+                given = author.get("given")
+                family = author.get("family")
+                name = author.get("name") or " ".join([p for p in (given, family) if p])
+                if not name:
+                    continue
+                orcid = author.get("ORCID")
+                affiliation = None
+                aff_list = author.get("affiliation")
+                if isinstance(aff_list, list) and aff_list:
+                    if isinstance(aff_list[0], dict):
+                        affiliation = aff_list[0].get("name")
+                    elif isinstance(aff_list[0], str):
+                        affiliation = aff_list[0]
+                entry = {"name": name}
+                if given:
+                    entry["given_name"] = given
+                if family:
+                    entry["family_name"] = family
+                if orcid:
+                    entry["orcid"] = orcid
+                if affiliation:
+                    entry["affiliation"] = affiliation
+                creators_out.append(entry)
+        if creators_out:
+            out["creators"] = creators_out
+
+        issued = message.get("issued", {})
+        if isinstance(issued, dict):
+            date_parts = issued.get("date-parts")
+            if isinstance(date_parts, list) and date_parts:
+                parts = date_parts[0]
+                if isinstance(parts, list) and parts:
+                    year = str(parts[0])
+                    if len(parts) >= 3:
+                        month = f"{int(parts[1]):02d}" if str(parts[1]).isdigit() else str(parts[1])
+                        day = f"{int(parts[2]):02d}" if str(parts[2]).isdigit() else str(parts[2])
+                        out["publication_date"] = f"{year}-{month}-{day}"
+                    elif len(parts) == 2:
+                        month = f"{int(parts[1]):02d}" if str(parts[1]).isdigit() else str(parts[1])
+                        out["publication_date"] = f"{year}-{month}"
+                    else:
+                        out["publication_date"] = year
+
+        url = message.get("URL") or f"https://doi.org/{doi}"
+        if url:
+            out["url"] = url
+
+        subjects = message.get("subject")
+        if isinstance(subjects, list) and subjects:
+            out["keywords"] = [str(s) for s in subjects if s]
+
+        return out
+
+    def _lookup_doi_metadata(doi: str) -> dict:
+        from urllib.parse import quote
+
+        datacite = _doi_request_json(f"https://api.datacite.org/dois/{quote(doi)}")
+        if datacite:
+            attrs = datacite.get("data", {}).get("attributes", {})
+            if isinstance(attrs, dict):
+                meta = _datacite_to_meta(attrs, doi)
+                if meta:
+                    return meta
+
+        crossref = _doi_request_json(f"https://api.crossref.org/works/{quote(doi)}")
+        if crossref:
+            message = crossref.get("message", {})
+            if isinstance(message, dict):
+                meta = _crossref_to_meta(message, doi)
+                if meta:
+                    return meta
+
+        return {}
+
+    def _apply_doi_enrichment(meta_raw: dict) -> dict:
+        meta_raw = _canonicalize_metadata_keys(meta_raw)
+        if not doi_enrich or not isinstance(meta_raw, dict):
+            return meta_raw
+        doi = _normalize_doi(meta_raw.get("doi")) or _doi_from_identifiers(meta_raw.get("identifiers"))
+        if not doi:
+            return meta_raw
+        needs_creators = not (meta_raw.get("creators") or meta_raw.get("creator"))
+        needs_title = not meta_raw.get("title")
+        needs_description = not meta_raw.get("description")
+        if not (needs_creators or needs_title or needs_description):
+            return meta_raw
+        meta = _lookup_doi_metadata(doi)
+        if not meta:
+            warnings.warn(f"DOI enrichment failed for {doi}", stacklevel=2)
+            return meta_raw
+
+        enriched = dict(meta_raw)
+        if needs_title and meta.get("title"):
+            enriched["title"] = meta["title"]
+        if needs_description and meta.get("description"):
+            enriched["description"] = meta["description"]
+        if needs_creators and meta.get("creators"):
+            enriched["creators"] = meta["creators"]
+        if not enriched.get("publication_date") and meta.get("publication_date"):
+            enriched["publication_date"] = meta["publication_date"]
+        if not enriched.get("url") and meta.get("url"):
+            enriched["url"] = meta["url"]
+        if not enriched.get("keywords") and meta.get("keywords"):
+            enriched["keywords"] = meta["keywords"]
+        return enriched
 
     def _load_state() -> None:
         if not incremental or not state_path.exists():
@@ -746,7 +1266,7 @@ def ingest(
 
     def _state_key(path: Path) -> str:
         try:
-            rel = path.relative_to(root)
+            rel = path.relative_to(raw_root or root)
         except Exception:
             rel = Path(path.name)
         return rel.as_posix()
@@ -755,6 +1275,7 @@ def ingest(
         name = path.name.lower()
         if name in {
             "collection.json",
+            "contribution.json",
             "dataset.json",
             "battery.json",
             "person.json",
@@ -817,16 +1338,61 @@ def ingest(
         if isinstance(battery_raw, list):
             return [item for item in battery_raw if isinstance(item, dict)]
         if isinstance(battery_raw, dict):
+            if "cells" in battery_raw and isinstance(battery_raw.get("cells"), list):
+                spec = battery_raw.get("spec")
+                if not isinstance(spec, dict):
+                    spec = {}
+
+                manufacturer_value = spec.get("manufacturer")
+                manufacturer_name = manufacturer_value
+                if isinstance(manufacturer_value, dict):
+                    manufacturer_name = manufacturer_value.get("name")
+
+                product_id = spec.get("productID") or spec.get("model")
+                base_item: dict[str, Any] = {**spec}
+                if manufacturer_name:
+                    base_item["manufacturer"] = manufacturer_name
+                if product_id and not base_item.get("model"):
+                    base_item["model"] = product_id
+
+                items: list[dict] = []
+                for entry in battery_raw.get("cells", []):
+                    if entry is None:
+                        continue
+                    if isinstance(entry, dict):
+                        name = entry.get("name")
+                        cell_id = entry.get("cell_id") or entry.get("id") or name
+                        if not cell_id:
+                            continue
+                        item = {**base_item, **entry}
+                        item["id"] = str(cell_id)
+                        if name:
+                            item["name"] = str(name).lower()
+                        items.append(item)
+                        continue
+
+                    name = str(entry).strip()
+                    if not name:
+                        continue
+                    item = {**base_item, "id": name, "name": name.lower()}
+                    items.append(item)
+                return items
+
             if "ids" in battery_raw and isinstance(battery_raw.get("ids"), list):
                 spec = battery_raw.get("spec")
                 if not isinstance(spec, dict):
                     spec = {k: v for k, v in battery_raw.items() if k != "ids"}
                 manufacturer = spec.get("manufacturer")
-                model = spec.get("model")
+                if isinstance(manufacturer, dict):
+                    manufacturer = manufacturer.get("name")
+                model = spec.get("model") or spec.get("productID")
+                if manufacturer:
+                    spec["manufacturer"] = manufacturer
+                if model and not spec.get("model"):
+                    spec["model"] = model
                 batch = spec.get("batch")
                 namespace = spec.get("namespace")
                 name_template = spec.get("name_template")
-                id_template = spec.get("id_template")
                 iri_template = spec.get("iri_template")
                 use_short_id = bool(name_template)
 
@@ -843,13 +1409,6 @@ def ingest(
                     )
 
                 def _build_full_id(short_id: str) -> str:
-                    if id_template:
-                        return _format_template(
-                            id_template,
-                            short_id=short_id,
-                            full_id=short_id,
-                            name=None,
-                        )
                     if manufacturer and model and batch:
                         return f"{manufacturer}-{model}-{batch}-{short_id}"
                     return short_id
@@ -950,44 +1509,85 @@ def ingest(
         if isinstance(item, str):
             pdata = people_index.get(item.lower())
             if not pdata:
-                raise ValueError(f"Creator id not found in person.json: {item}")
+                warnings.warn(f"Creator id not found in person.json: {item}", stacklevel=2)
+                return None
             return Creator(**_filter_fields(Creator, pdata))
         if isinstance(item, dict):
             if "id" in item and (len(item) == 1 or all(k in {"id"} for k in item)):
                 pid = str(item["id"]).lower()
                 pdata = people_index.get(pid)
                 if not pdata:
-                    raise ValueError(f"Creator id not found in person.json: {item['id']}")
+                    warnings.warn(f"Creator id not found in person.json: {item['id']}", stacklevel=2)
+                    return None
                 return Creator(**_filter_fields(Creator, pdata))
             return Creator(**_filter_fields(Creator, item))
         return None
 
-    def _build_creators(meta_raw: dict, people_index: dict[str, dict]):
+    def _build_creators(
+        meta_raw: dict, people_index: dict[str, dict], *, allow_fallback_unknown: bool = True
+    ):
         creators_raw = meta_raw.get("creators") or meta_raw.get("creator") or []
         creators = [c for c in (_resolve_creator(it, people_index) for it in creators_raw) if c is not None]
         if not creators and people_index:
             from .metadata import Creator  # lazy import
             creators = [Creator(**_filter_fields(Creator, pdata)) for pdata in people_index.values()]
+        if not creators and allow_fallback_unknown:
+            from .metadata import Creator  # lazy import
+            creators = [Creator(name="Unknown contributor")]
         return creators
+
+    def _finalize_dataset_metadata(meta_raw: dict, *, source_label: str) -> dict:
+        if not isinstance(meta_raw, dict):
+            meta_raw = {}
+        out = dict(meta_raw)
+        doi = _normalize_doi(out.get("doi"))
+        if doi:
+            out["doi"] = doi
+            out.setdefault("dataset_doi", f"https://doi.org/{doi}")
+        if not out.get("license"):
+            out["license"] = "CC-BY-4.0"
+        if not out.get("title"):
+            out["title"] = f"Battery dataset ({doi})" if doi else f"Battery dataset ({source_label})"
+            warnings.warn(
+                f"Missing title in metadata for {source_label}; using auto-generated title.",
+                stacklevel=2,
+            )
+        if not out.get("description"):
+            out["description"] = (
+                "Auto-generated BDF metadata. Add description/creators in sidecar metadata for richer records."
+            )
+            warnings.warn(
+                f"Missing description in metadata for {source_label}; using auto-generated description.",
+                stacklevel=2,
+            )
+        return out
+
+    def _error_code(exc: Exception) -> str:
+        if isinstance(exc, FileNotFoundError):
+            return "file_not_found"
+        if isinstance(exc, PermissionError):
+            return "permission_denied"
+        if isinstance(exc, BDFValidationError):
+            return "validation_error"
+        if isinstance(exc, ValueError):
+            return "value_error"
+        if isinstance(exc, KeyError):
+            return "key_error"
+        return "processing_error"
 
     def _write_metadata(src: Path, *, df: pd.DataFrame, out_path: Path) -> Optional[Path]:
         dataset_path = src.parent / "dataset.json"
         if not dataset_path.exists():
             return None
 
-        from .metadata import Dataset, DataDownload, Battery  # lazy import
+        from .metadata import Battery, DataDownload, Dataset  # lazy import
 
         meta_raw = _load_json(dataset_path)
+        meta_raw = _apply_doi_enrichment(meta_raw)
+        meta_raw = _finalize_dataset_metadata(meta_raw, source_label=src.name)
         url_base = meta_raw.get("url_base")
         people_index = _load_people_index(src.parent)
         creators = _build_creators(meta_raw, people_index)
-        if not creators:
-            raise ValueError("dataset.json must include at least one creator entry (or person.json).")
-
-        title = meta_raw.get("title")
-        description = meta_raw.get("description")
-        if not title or not description:
-            raise ValueError("dataset.json must include 'title' and 'description'.")
 
         meta_kwargs = dict(meta_raw)
         meta_kwargs.pop("url_base", None)
@@ -1030,22 +1630,18 @@ def ingest(
             dists = [DataDownload(url=base_url, name=base_name, encoding_format=base_encoding)]
 
         battery_path = src.parent / "battery.json"
-        if not battery_path.exists():
-            raise FileNotFoundError(
-                f"{battery_path} not found (required when dataset.json is present)."
-            )
-        battery_raw = _load_json(battery_path)
-        battery_items = _expand_battery_items(battery_raw)
-        batteries = [
-            Battery(**_filter_fields(Battery, item))
-            for item in battery_items
-            if isinstance(item, dict)
-        ]
-        if not batteries:
-            raise ValueError(f"{battery_path} must contain a battery object or a list of objects.")
+        batteries: list[Battery] = []
+        if battery_path.exists():
+            battery_raw = _load_json(battery_path)
+            battery_items = _expand_battery_items(battery_raw)
+            batteries = [
+                Battery(**_filter_fields(Battery, item))
+                for item in battery_items
+                if isinstance(item, dict)
+            ]
 
         cell_id = _parse_cell_id(src)
-        if not cell_id:
+        if not cell_id and batteries:
             key_list = []
             for b in batteries:
                 if b.id:
@@ -1067,11 +1663,12 @@ def ingest(
         if matched:
             batteries = matched
 
-        about_value = [b.to_schemaorg() for b in batteries]
-        if len(about_value) == 1:
-            about_value = about_value[0]
-
-        extra_fields = {"schema:about": about_value}
+        extra_fields = None
+        if batteries:
+            about_value = [b.to_schemaorg() for b in batteries]
+            if len(about_value) == 1:
+                about_value = about_value[0]
+            extra_fields = {"schema:about": about_value}
         meta_out = _metadata_output_path(out_path)
         meta.save_jsonld(meta_out, distributions=dists, extra_fields=extra_fields, df=df)
         return meta_out
@@ -1083,24 +1680,19 @@ def ingest(
     def _write_collection_metadata(
         *, include_batteries: bool = False
     ) -> tuple[Optional[Path], dict[str, list[str]]]:
-        dataset_path = root / "collection.json"
-        if not dataset_path.exists():
+        dataset_path = _find_contribution_file(root)
+        if not dataset_path:
             return None, {}
 
-        from .metadata import Dataset, DataDownload  # lazy import
+        from .metadata import DataDownload, Dataset  # lazy import
 
         meta_raw = _load_json(dataset_path)
+        meta_raw = _apply_doi_enrichment(meta_raw)
+        meta_raw = _finalize_dataset_metadata(meta_raw, source_label=root.name)
         url_base = meta_raw.get("url_base")
         collection_doi = meta_raw.get("doi")
         people_index = _load_people_index(root)
         creators = _build_creators(meta_raw, people_index)
-        if not creators:
-            raise ValueError("collection.json must include at least one creator entry (or person.json).")
-
-        title = meta_raw.get("title")
-        description = meta_raw.get("description")
-        if not title or not description:
-            raise ValueError("collection.json must include 'title' and 'description'.")
 
         meta_kwargs = dict(meta_raw)
         meta_kwargs.pop("url_base", None)
@@ -1159,7 +1751,10 @@ def ingest(
             if override_path.exists():
                 override_raw = _load_json(override_path)
                 if isinstance(override_raw, dict):
-                    override_creators = _build_creators(override_raw, people_index)
+                    override_raw = _canonicalize_metadata_keys(override_raw)
+                    override_creators = _build_creators(
+                        override_raw, people_index, allow_fallback_unknown=False
+                    )
                     if override_creators:
                         child_kwargs["creators"] = override_creators
                     override_raw = dict(override_raw)
@@ -1211,8 +1806,9 @@ def ingest(
         meta_out = out_root / "metadata.jsonld"
 
         if include_batteries and battery_index:
-            from .metadata import DEFAULT_JSONLD_CONTEXT  # lazy import
             import json
+
+            from .metadata import DEFAULT_JSONLD_CONTEXT  # lazy import
 
             dataset_obj = meta.to_schemaorg_dataset(
                 extra_fields=extra_fields or None,
@@ -1255,8 +1851,9 @@ def ingest(
     def _write_battery_metadata_files(
         battery_index: dict[str, Any], dataset_links: dict[str, list[str]]
     ) -> list[Path]:
-        from .metadata import DEFAULT_JSONLD_CONTEXT  # lazy import
         import json
+
+        from .metadata import DEFAULT_JSONLD_CONTEXT  # lazy import
 
         meta_paths: list[Path] = []
         batteries: list[Any] = []
@@ -1289,16 +1886,24 @@ def ingest(
         return meta_paths
 
     def _write_nested_metadata() -> list[Path]:
-        dataset_path = root / "collection.json"
-        if not dataset_path.exists():
-            raise FileNotFoundError("collection.json is required for nested metadata generation.")
+        dataset_path = _find_contribution_file(root)
+        if not dataset_path:
+            raise FileNotFoundError(
+                "contribution.json (or collection.json) is required for nested metadata generation."
+            )
+
+        import json
 
         from .metadata import DEFAULT_JSONLD_CONTEXT  # lazy import
-        import json
 
         battery_index = _build_battery_index(root)
         if not battery_index:
-            raise ValueError("battery.json is required for nested metadata generation.")
+            warnings.warn(
+                "battery.json not found or empty; generating only collection metadata for nested layout.",
+                stacklevel=2,
+            )
+            root_meta, _ = _write_collection_metadata()
+            return [root_meta] if root_meta else []
 
         meta_paths: list[Path] = []
         root_meta, dataset_links = _write_collection_metadata()
@@ -1316,9 +1921,10 @@ def ingest(
             seen_ids.add(key)
             batteries.append(battery)
 
+        cell_root = _cell_meta_root()
         for battery in batteries:
             cell_id = str(battery.id)
-            cell_dir = out_root / cell_id
+            cell_dir = cell_root / cell_id
             cell_dir.mkdir(parents=True, exist_ok=True)
             meta_out = cell_dir / "metadata.jsonld"
             battery_doc = {"@context": list(DEFAULT_JSONLD_CONTEXT), **battery.to_schemaorg()}
@@ -1339,10 +1945,13 @@ def ingest(
 
         return meta_paths
 
-    collection_metadata = layout_mode == "flat" and p.is_dir() and (root / "collection.json").exists()
+    collection_metadata = layout_mode == "flat" and p.is_dir() and _find_contribution_file(root)
 
     for f in files:
         try:
+            if f.name.startswith("~$"):
+                summary["skipped"].append({"path": str(f), "reason": "excel_temp_file"})
+                continue
             if _is_metadata_file(f):
                 summary["skipped"].append({"path": str(f), "reason": "metadata_file"})
                 continue
@@ -1389,7 +1998,9 @@ def ingest(
                             existing_entry["metadata"] = str(meta_path)
                             summary["metadata"].append({"path": str(output_used), "metadata": str(meta_path)})
                     except Exception as meta_err:
-                        summary["metadata_failed"].append({"path": str(output_used), "error": str(meta_err)})
+                        summary["metadata_failed"].append(
+                            {"path": str(output_used), "error": str(meta_err), "code": _error_code(meta_err)}
+                        )
                         if raise_on_error:
                             raise
                 summary["converted"].append(existing_entry)
@@ -1418,7 +2029,7 @@ def ingest(
             )
             out_path = _output_path(f)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            _save(df, out_path, index=False)
+            _save(df, out_path, index=False, human=human)
             converted_entry = {"path": str(f), "output": str(out_path)}
             if incremental:
                 key = _state_key(f)
@@ -1436,12 +2047,14 @@ def ingest(
                         converted_entry["metadata"] = str(meta_path)
                         summary["metadata"].append({"path": str(f), "metadata": str(meta_path)})
                 except Exception as meta_err:
-                    summary["metadata_failed"].append({"path": str(f), "error": str(meta_err)})
+                    summary["metadata_failed"].append(
+                        {"path": str(f), "error": str(meta_err), "code": _error_code(meta_err)}
+                    )
                     if raise_on_error:
                         raise
             summary["converted"].append(converted_entry)
         except Exception as e:
-            summary["failed"].append({"path": str(f), "error": str(e)})
+            summary["failed"].append({"path": str(f), "error": str(e), "code": _error_code(e)})
             if raise_on_error:
                 raise
 
@@ -1457,7 +2070,9 @@ def ingest(
                     for meta_path in _write_battery_metadata_files(battery_index, dataset_links):
                         summary["metadata"].append({"path": str(meta_path.parent), "metadata": str(meta_path)})
         except Exception as meta_err:
-            summary["metadata_failed"].append({"path": str(root), "error": str(meta_err)})
+            summary["metadata_failed"].append(
+                {"path": str(root), "error": str(meta_err), "code": _error_code(meta_err)}
+            )
             if raise_on_error:
                 raise
     elif layout_mode == "nested" and p.is_dir():
@@ -1466,7 +2081,9 @@ def ingest(
             for meta_path in meta_paths:
                 summary["metadata"].append({"path": str(meta_path.parent), "metadata": str(meta_path)})
         except Exception as meta_err:
-            summary["metadata_failed"].append({"path": str(root), "error": str(meta_err)})
+            summary["metadata_failed"].append(
+                {"path": str(root), "error": str(meta_err), "code": _error_code(meta_err)}
+            )
             if raise_on_error:
                 raise
 

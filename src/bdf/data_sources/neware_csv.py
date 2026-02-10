@@ -26,7 +26,7 @@ class NewareCSV(DelimitedTextPlugin):
         r"\bRecord\b",
     )
 
-    # Map vendor headers → canonical BDF (case-insensitive exact text)
+    # Map vendor headers -> canonical BDF (case-insensitive exact text)
     column_synonyms = {
         # REQUIRED BDF
         "Test Time / s": [

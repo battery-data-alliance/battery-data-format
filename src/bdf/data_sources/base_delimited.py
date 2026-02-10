@@ -298,7 +298,7 @@ class DelimitedTextPlugin(CyclerPlugin):
     def _read_csv_ragged(self, path: Path, sep: str, header_idx: int, enc: str) -> pd.DataFrame:
         """
         Robust reader:
-          - If sep == '\\s+' (or contains '\\s'): split with whitespace rules (tabs → 2+ spaces → any ws),
+          - If sep == '\\s+' (or contains '\\s'): split with whitespace rules (tabs -> 2+ spaces -> any ws),
             folding extras into the last column.
           - Else (single-char delimiters): use csv.reader; fold extras into the last column.
         """

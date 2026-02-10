@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/bdf.mapping.schema.json",
+  "title": "BDF mapping sidecar",
+  "description": "Mapping file for source files. Target BDF quantities should be used as keys.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "type": "string" },
+    "fields": {
+      "type": "object",
+      "description": "Target quantity -> source binding.",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "anyOf": [
+                  { "type": "string" },
+                  { "type": "array", "items": { "type": "string" } }
+                ]
+              },
+              "source_unit": { "type": "string" },
+              "unit": { "type": "string" }
+            },
+            "required": ["source"],
+            "additionalProperties": true
+          }
+        ]
+      }
+    },
+    "source_locator": {
+      "type": "object",
+      "description": "Optional source table selector, mainly for tabular formats like Excel.",
+      "properties": {
+        "sheet_name": { "type": "string" },
+        "sheet_index": { "type": "integer", "minimum": 1 },
+        "header_row": { "type": "integer", "minimum": 1 },
+        "usecols": { "type": "string" },
+        "skiprows": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+          ]
+        },
+        "nrows": { "type": "integer", "minimum": 1 }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": ["sheet_name", "sheet_index"]
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "source_units": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "variables": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      }
+    },
+    "columns": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      }
+    },
+    "map": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      }
+    },
+    "units": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "scale": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "offset": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "data_path": { "type": "string" },
+    "datetime": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "format": { "type": "string" },
+        "timezone": { "type": "string" },
+        "tz": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "timestamp": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "format": { "type": "string" },
+        "timezone": { "type": "string" },
+        "tz": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "datetime_source": { "type": "string" },
+    "datetime_target": { "type": "string" },
+    "datetime_format": { "type": "string" },
+    "datetime_timezone": { "type": "string" },
+    "datetime_tz": { "type": "string" },
+    "timestamp_source": { "type": "string" },
+    "timestamp_target": { "type": "string" },
+    "timestamp_format": { "type": "string" },
+    "timestamp_timezone": { "type": "string" },
+    "timestamp_tz": { "type": "string" }
+  },
+  "additionalProperties": true
+}

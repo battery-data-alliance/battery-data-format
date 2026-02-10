@@ -7,7 +7,7 @@ from typing import Dict, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from bdf.units import convert, resolve_unit  # ← streamlined: use the units package
+from bdf.units import convert, resolve_unit  # <- streamlined: use the units package
 
 X_DEFAULT = "Test Time / s"
 Y_DEFAULT = "Voltage / V"

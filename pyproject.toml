@@ -23,7 +23,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-  "numpy>=1.24,<2.0",
+  "numpy>=1.24,<3.0",
   "pandas>=2.0",
   "pyarrow>=15.0",
   "rdflib>=7.0",
@@ -32,6 +32,7 @@ dependencies = [
   "matplotlib>=3.8",
   "plotly",
   "nbformat>=4.2",
+  "openpyxl>=3.1",
   "pydantic>=2.6",
   "requests>=2.31",
   "pint>=0.22",
@@ -53,7 +54,9 @@ neware-nda-fast = "bdf.data_sources.neware_nda:NewareNDAFast"
 
 [project.optional-dependencies]
 fastnda = ["fastnda"]
+polars = ["polars", "fastnda"]
 hvplot = ["hvplot", "holoviews", "bokeh"]
+numpy2 = ["numpy>=2.0,<3.0"]
 dev = [
   "pytest",
   "pytest-cov",
@@ -73,3 +76,19 @@ docs = [
 [project.readme]
 file = "README.md"
 content-type = "text/markdown"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+  "src/bdf",
+]
+include = [
+  "src/bdf/schemas/*.json",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/bdf/**",
+  "src/bdf/schemas/*.json",
+  "README.md",
+  "pyproject.toml",
+]

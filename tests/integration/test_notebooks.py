@@ -7,7 +7,7 @@ import pytest
 
 nbformat = pytest.importorskip("nbformat")
 nbclient = pytest.importorskip("nbclient")
-from nbclient import NotebookClient
+NotebookClient = nbclient.NotebookClient
 
 
 ROOT = Path(__file__).resolve().parents[2]

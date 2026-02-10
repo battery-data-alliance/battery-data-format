@@ -19,7 +19,7 @@ class BasytecTxt(DelimitedTextPlugin):
         r"\bi\[(a|ma|ua)\]",       # I[A] / I[mA] / I[uA]
     )
 
-    # Map vendor headers → canonical BDF names (case-insensitive)
+    # Map vendor headers -> canonical BDF names (case-insensitive)
     column_synonyms = {
         "Test Time / s": ["time[s]", "time[h]", "time[min]", "time[h:min:s]", "time"],
         "Voltage / V":   ["u[v]", "voltage[v]", "u", "voltage"],
@@ -29,7 +29,7 @@ class BasytecTxt(DelimitedTextPlugin):
     }
 
     # Unit hints so the base .fixup() converts to canonical units:
-    #   Current → A, Time → s, Voltage → V
+    #   Current -> A, Time -> s, Voltage -> V
     unit_column_patterns = {
         "Test Time / s": [
             (r"^time\[s\]$", "s"),

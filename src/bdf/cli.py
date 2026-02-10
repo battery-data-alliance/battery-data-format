@@ -6,13 +6,83 @@ from typing import List, Optional
 import typer
 from rich import print
 
-from . import BDFValidationError, detect, read as read_bdf, validate as validate_any
+from . import (
+    BDFValidationError,
+    detect as detect_source,
+    ingest as ingest_bdf,
+    read as read_bdf,
+    templates as templates_api,
+    validate as validate_any,
+)
 from .io import load as load_bdf, save as save_bdf
-from .metadata import Dataset, Creator, RelatedIdentifier, save_jsonld
+from .metadata import Creator, Dataset, RelatedIdentifier, save_jsonld
 from .repair import clean as clean_bdf
 from .visualize import plot as line_plot
 
 app = typer.Typer(help="Battery Data Format utilities")
+
+
+@app.command()
+def ingest(
+    source: str = typer.Argument(".", help="Path, URL, or directory to ingest"),
+    out_dir: Optional[str] = typer.Option(None, help="Output root for converted files"),
+    format: str = typer.Option("parquet", help="Output format: parquet or csv"),
+    layout: str = typer.Option("flat", help="Output layout: flat or nested"),
+    battery_metadata: str = typer.Option("embedded", help="Battery metadata mode: embedded or separate"),
+    recursive: bool = typer.Option(True, "--recursive/--no-recursive", help="Recurse into subdirectories"),
+    validate_existing: bool = typer.Option(
+        True, "--validate-existing/--no-validate-existing", help="Validate existing BDF files"
+    ),
+    validate_converted: bool = typer.Option(
+        True, "--validate-converted/--no-validate-converted", help="Validate newly converted files"
+    ),
+    include_optional: bool = typer.Option(
+        True, "--include-optional/--exclude-optional", help="Include optional BDF columns"
+    ),
+    plugin: Optional[str] = typer.Option(None, help="Force a specific plugin id for raw files"),
+    incremental: bool = typer.Option(True, "--incremental/--no-incremental", help="Skip unchanged files"),
+    force: bool = typer.Option(False, help="Reprocess files even if unchanged"),
+    raise_on_error: bool = typer.Option(False, help="Raise error on first failure"),
+    discover_collections: bool = typer.Option(False, help="Ingest each folder with contribution.json"),
+    refresh: bool = typer.Option(False, help="Refresh cached remote sources"),
+    cache_dir: Optional[str] = typer.Option(None, help="Cache directory for remote sources"),
+    data_dir: Optional[str] = typer.Option("timeseries", help="Output subdir for converted files"),
+    raw_dir: Optional[str] = typer.Option("timeseries/raw", help="Input subdir for raw files"),
+    cell_metadata_dir: Optional[str] = typer.Option("batteries", help="Base dir for per-cell metadata folders"),
+    doi_enrich: bool = typer.Option(
+        True, "--doi-enrich/--no-doi-enrich", help="Enrich missing metadata from DOI"
+    ),
+    doi_timeout: int = typer.Option(15, help="Per-request timeout (seconds) for DOI lookups"),
+    human: bool = typer.Option(False, "--human/--machine", help="Serialize headers as prefLabel instead of notation"),
+):
+    """
+    Convert raw vendor files to BDF and emit metadata sidecars.
+    """
+    summary = ingest_bdf(
+        source,
+        out_dir=out_dir,
+        format=format,
+        layout=layout,
+        battery_metadata=battery_metadata,
+        recursive=recursive,
+        validate_existing=validate_existing,
+        validate_converted=validate_converted,
+        include_optional=include_optional,
+        plugin=plugin,
+        incremental=incremental,
+        force=force,
+        raise_on_error=raise_on_error,
+        discover_collections=discover_collections,
+        refresh=refresh,
+        cache_dir=cache_dir,
+        data_dir=data_dir,
+        raw_dir=raw_dir,
+        cell_metadata_dir=cell_metadata_dir,
+        doi_enrich=doi_enrich,
+        doi_timeout=doi_timeout,
+        human=human,
+    )
+    print(summary)
 
 
 @app.command("meta-jsonld")
@@ -152,14 +222,36 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
 
 @app.command()
 def detect(path: str):
-    sr = detect(path)
+    sr = detect_source(path)
     print(f"{sr.id} ({sr.confidence:.2f}) - {sr.reason}")
 
 @app.command()
-def convert(path: str, to: str = "bdf.csv", as_: Optional[str] = None):
+def templates(
+    names: List[str] = typer.Argument(..., help="Template names (contribution, battery, excel, data_download, mapping)"),
+    root: str = typer.Option(".", help="Target directory for template files"),
+    overwrite: bool = typer.Option(False, help="Overwrite existing files"),
+):
+    """
+    Create sidecar metadata templates with REQUIRED/OPTIONAL placeholders.
+    """
+    result = templates_api(*names, root=root, overwrite=overwrite)
+    created = result.get("created") or []
+    skipped = result.get("skipped") or []
+    for p in created:
+        print(f"[bdf] created {p}")
+    for p in skipped:
+        print(f"[bdf] skipped {p}")
+
+@app.command()
+def convert(
+    path: str,
+    to: str = "bdf.csv",
+    as_: Optional[str] = None,
+    human: bool = typer.Option(False, "--human/--machine", help="Serialize headers as prefLabel instead of notation"),
+):
     from . import read as read_bdf
     df = read_bdf(path, plugin=as_)
-    df.to_csv(to, index=False)
+    save_bdf(df, to, index=False, human=human)
     print(f"[bdf] wrote {to}")
 
 
@@ -193,4 +285,4 @@ def plot(
 
     # Draw the plot
     line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")
-    print(f"[bdf] plotted {', '.join(ydata)} vs {xdata}" + (f" → {save}" if save else ""))
+    print(f"[bdf] plotted {', '.join(ydata)} vs {xdata}" + (f" -> {save}" if save else ""))

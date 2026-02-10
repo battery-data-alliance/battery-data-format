@@ -48,10 +48,7 @@ def parse_unix_time(
         dt = pd.to_datetime(s, errors="coerce", utc=False)
 
     if getattr(dt.dtype, "tz", None) is None:
-        if tz:
-            dt = dt.dt.tz_localize(tz)
-        else:
-            dt = dt.dt.tz_localize("UTC")
+        dt = dt.dt.tz_localize(tz) if tz else dt.dt.tz_localize("UTC")
     else:
         if tz:
             dt = dt.dt.tz_convert(tz)
@@ -115,7 +112,4 @@ def _normalize_datetime_format(fmt: Optional[str]) -> Optional[str]:
 
 
 def re_search_any(text: str, tokens: list[str]) -> bool:
-    for token in tokens:
-        if token in text:
-            return True
-    return False
+    return any(token in text for token in tokens)

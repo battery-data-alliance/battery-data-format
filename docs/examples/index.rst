@@ -14,4 +14,5 @@ to start if you want end-to-end workflows.
    units
    visualization
    ingest
+   registry
    metadata

@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/contribution.schema.json",
+  "title": "BDF contribution.json",
+  "description": "Dataset-level contribution metadata for BDF ingest.",
+  "type": "object",
+  "required": ["dataset_doi", "license"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "default": "1.0.0"
+    },
+    "dataset_doi": { "$ref": "#/$defs/DoiString" },
+    "citation_doi": {
+      "anyOf": [
+        { "$ref": "#/$defs/DoiString" },
+        { "type": "array", "items": { "$ref": "#/$defs/DoiString" } }
+      ]
+    },
+    "license": { "type": "string", "minLength": 1 },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "creators": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/CreatorRef" }
+    },
+    "creator": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/CreatorRef" }
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "version": { "type": "string" },
+    "publication_date": { "type": "string" },
+    "language": { "type": "string" },
+    "same_as": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" }
+    },
+    "identifiers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "doi": { "$ref": "#/$defs/DoiString" },
+    "citation": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DoiString"
+      }
+    },
+    "is_based_on": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "variable_measured": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          { "type": "string" },
+          { "$ref": "#/$defs/VariableMeasured" }
+        ]
+      }
+    },
+    "measurement_technique": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "spatial_coverage": { "type": "string" },
+    "temporal_coverage": { "type": "string" },
+    "included_in_data_catalog": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" }
+      },
+      "additionalProperties": true
+    },
+    "is_accessible_for_free": { "type": "boolean" },
+    "publisher": { "$ref": "#/$defs/Creator" },
+    "funder": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Creator" }
+    },
+    "access_right": { "type": "string" },
+    "communities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "related_identifiers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/RelatedIdentifier" }
+    },
+    "excel": { "$ref": "excel.schema.json" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "DoiString": {
+      "type": "string",
+      "description": "Accepts DOI identifier or https://doi.org/<identifier>.",
+      "pattern": "^(?:https://doi\\.org/)?10\\.\\d{4,9}/\\S+$"
+    },
+    "CreatorRef": {
+      "anyOf": [
+        { "type": "string" },
+        { "$ref": "#/$defs/Creator" }
+      ]
+    },
+    "Creator": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["Person", "Organization"]
+        },
+        "orcid": { "type": "string" },
+        "ror": { "type": "string" },
+        "given_name": { "type": "string" },
+        "family_name": { "type": "string" },
+        "affiliation": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "RelatedIdentifier": {
+      "type": "object",
+      "required": ["identifier"],
+      "properties": {
+        "identifier": { "type": "string" },
+        "relation": { "type": "string" },
+        "scheme": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "VariableMeasured": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "property_id": { "type": "string" },
+        "unit_text": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

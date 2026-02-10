@@ -231,10 +231,7 @@ def build_registry(
 ) -> dict[str, Any]:
     rdflib = _require_rdflib()
 
-    if isinstance(sources, str):
-        sources_list = [sources]
-    else:
-        sources_list = list(sources)
+    sources_list = [sources] if isinstance(sources, str) else list(sources)
 
     reg_dir = _ensure_dir(Path(registry_dir) if registry_dir else _default_registry_dir())
     cache_dir = _ensure_dir(reg_dir / "sources")

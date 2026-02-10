@@ -41,6 +41,10 @@ Extras (combine as needed, for example ``pip install "bdf[hvplot]"``):
      - Adds
    * - ``hvplot``
      - Interactive exploration with Bokeh/HoloViews.
+   * - ``polars``
+     - Polars support plus the fast NDA backend (requires numpy>=2.2).
+   * - ``numpy2``
+     - Forces numpy 2.x (recommended for fastnda).
    * - ``dev``
      - Test and lint tooling for contributors.
    * - ``docs``

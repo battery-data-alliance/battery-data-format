@@ -153,4 +153,22 @@ Reading datasets into BDF
 
 
       # Read from the BDF data registry
-      # TODO
+      # This registry is a local JSON file (datasets.json), separate from the metadata registry.
+      import json
+      from pathlib import Path
+
+      registry_path = Path("out/datasets.json")
+      registry_path.parent.mkdir(parents=True, exist_ok=True)
+      registry_path.write_text(json.dumps({
+          "schema_version": "0.3",
+          "entries": [
+              {
+                  "id": "sintef-biologic-demo",
+                  "url": "https://zenodo.org/records/17289383/files/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt",
+                  "plugin": "biologic-mpt",
+              }
+          ],
+      }, indent=2), encoding="utf-8")
+
+      df = bdf.read("sintef-biologic-demo", registry_path=registry_path)
+      df.head()

@@ -1,0 +1,44 @@
+@prefix : <https://w3id.org/battery-data-alliance/ontology/battery-data-format#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+:test_time_millisecond rdf:type owl:Class ;
+    owl:deprecated "true"^^xsd:boolean ;
+    skos:prefLabel "Test Time / ms"@en ;
+    skos:altLabel "test_time_millisecond"@en ;
+    skos:notation "test_time_millisecond" .
+
+:test_time_second rdf:type owl:Class ;
+    skos:prefLabel "Test Time / s"@en ;
+    skos:altLabel "test_time_second"@en ;
+    skos:notation "test_time_second" .
+
+:voltage_volt rdf:type owl:Class ;
+    skos:prefLabel "Voltage / V"@en ;
+    skos:altLabel "voltage_volt"@en ;
+    skos:notation "voltage_volt" .
+
+:current_ampere rdf:type owl:Class ;
+    skos:prefLabel "Current / A"@en ;
+    skos:altLabel "current_ampere"@en ;
+    skos:altLabel "current_a"@en ;
+    skos:notation "current_ampere" .
+
+:cycle_count rdf:type owl:Class ;
+    skos:prefLabel "Cycle Count / 1"@en ;
+    skos:altLabel "cycle_count"@en ;
+    skos:altLabel "cycle_dimensionless"@en ;
+    skos:notation "cycle_count" .
+
+:ambient_temperature_celsius rdf:type owl:Class ;
+    skos:prefLabel "Ambient Temperature / degC"@en ;
+    skos:altLabel "ambient_temperature_celsius"@en ;
+    skos:notation "ambient_temperature_celsius" .
+
+:internal_resistance_ohm rdf:type owl:Class ;
+    skos:prefLabel "Internal Resistance / ohm"@en ;
+    skos:altLabel "internal_resistance_ohm"@en ;
+    skos:hiddenLabel "Internal Resistance / Ohm"@en ;
+    skos:notation "internal_resistance_ohm" .
