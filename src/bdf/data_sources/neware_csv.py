@@ -50,8 +50,8 @@ class NewareCSV(DelimitedTextPlugin):
         "Date Time ISO":          ["DateTime", "Datetime", "DATE_TIME"],
 
         # Capacity/energy (kept if present)
-        "Charge Capacity / mAh":    ["Charge Capacity(mAh)", "Chg.Capacity(mAh)", "Chg. Cap.(mAh)"],
-        "Discharge Capacity / mAh": ["Discharge Capacity(mAh)", "DChg.Capacity(mAh)", "DChg. Cap.(mAh)"],
+        "Charging Capacity / Ah":    ["Charge Capacity(mAh)", "Chg.Capacity(mAh)", "Chg. Cap.(mAh)"],
+        "Discharging Capacity / Ah": ["Discharge Capacity(mAh)", "DChg.Capacity(mAh)", "DChg. Cap.(mAh)"],
         "Charge Energy / mWh":      ["Charge Energy(mWh)"],
         "Discharge Energy / mWh":   ["Discharge Energy(mWh)"],
 
@@ -89,8 +89,8 @@ class NewareCSV(DelimitedTextPlugin):
             (r"^Temperature\(°C\)$", "degC"),
             (r"^温度\(°C\)$", "degC"),
         ],
-        "Charge Capacity / mAh":    [(r"^Charge Capacity\(mAh\)$", "mAh"), (r"^Chg\.Capacity\(mAh\)$", "mAh")],
-        "Discharge Capacity / mAh": [(r"^Discharge Capacity\(mAh\)$", "mAh"), (r"^DChg\.Capacity\(mAh\)$", "mAh")],
+        "Charging Capacity / Ah":    [(r"^Charge Capacity\(mAh\)$", "mAh"), (r"^Chg\.Capacity\(mAh\)$", "mAh"), (r"^Chg\. Cap\.\(mAh\)$", "mAh")],
+        "Discharging Capacity / Ah": [(r"^Discharge Capacity\(mAh\)$", "mAh"), (r"^DChg\.Capacity\(mAh\)$", "mAh"), (r"^DChg\. Cap\.\(mAh\)$", "mAh")],
         "Charge Energy / mWh":      [(r"^Charge Energy\(mWh\)$", "mWh")],
         "Discharge Energy / mWh":   [(r"^Discharge Energy\(mWh\)$", "mWh")],
     }
