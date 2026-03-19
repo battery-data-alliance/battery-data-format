@@ -10,6 +10,9 @@ class NewareCSV(DelimitedTextPlugin):
     exts = (".csv",)
 
     # Encoding & robustness
+    timestamp_candidate_patterns = (
+        r"^date$", r"^datetime$", r"^date[_\s/:-]*time$",
+    )
     default_encoding = "utf-8-sig"
     encodings_try = ("utf-8", "gb18030", "cp1252", "latin-1")
     ragged_row_policy = "fold_last"
@@ -18,8 +21,8 @@ class NewareCSV(DelimitedTextPlugin):
     header_token_patterns = (
         r"\bVoltage\(V\)\b|\b电压\(V\)\b",
         r"\bCurrent\(A\)\b|\b电流\(A\)\b",
-        r"\bTime\(s\)\b|\b时间\(s\)\b",                 # step time
-        r"\b(Total|Test)\s*Time\(s\)\b|\b总时间\(s\)\b|\b测试时间\(s\)\b",  # test time
+        r"\bTime(?:\(s\))?\b|\b时间\(s\)\b",              # step time (with or without unit)
+        r"\b(Total|Test)\s*Time(?:\(s\))?\b|\b总时间\(s\)\b|\b测试时间\(s\)\b",  # test time
         r"\bDateTime\b|\bDatetime\b",
         r"\bCycle\b",
         r"\bStep\b",
@@ -30,8 +33,9 @@ class NewareCSV(DelimitedTextPlugin):
     column_synonyms = {
         # REQUIRED BDF
         "Test Time / s": [
-            "Total Time(s)", "Test Time(s)", "TotalTime(s)", "TotalTime_S", "Total Time",
-            "总时间(s)", "测试时间(s)"
+            "Total Time(s)", "Test Time(s)", "TotalTime(s)", "TotalTime_S",
+            "总时间(s)", "测试时间(s)",
+            "Total Time",
         ],
         "Voltage / V":   ["Voltage(V)", "电压(V)"],
         "Current / A":   ["Current(A)", "电流(A)"],
@@ -40,7 +44,8 @@ class NewareCSV(DelimitedTextPlugin):
         "Step Time / s": [
             "Time(s)", "Relative Time(s)", "State Time(s)",
             "StepTime(s)", "Step Time(s)", "StepTime_S",
-            "时间(s)"
+            "时间(s)",
+            "Time",
         ],
 
         # Helpful optional columns
@@ -72,6 +77,7 @@ class NewareCSV(DelimitedTextPlugin):
             (r"^TotalTime_S$", "s"),
             (r"^总时间\(s\)$", "s"),
             (r"^测试时间\(s\)$", "s"),
+            (r"^Total Time$", "hms"),
         ],
         "Step Time / s": [
             (r"^Time\(s\)$", "s"),
@@ -81,6 +87,7 @@ class NewareCSV(DelimitedTextPlugin):
             (r"^Step Time\(s\)$", "s"),
             (r"^StepTime_S$", "s"),
             (r"^时间\(s\)$", "s"),
+            (r"^Time$", "hms"),
         ],
         "Voltage / V": [
             (r"^Voltage\(V\)$", "V"),
