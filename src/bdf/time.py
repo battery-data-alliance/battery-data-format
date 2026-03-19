@@ -69,11 +69,16 @@ def _datetime_to_unix(dt: pd.Series, *, min_success: float) -> pd.Series:
 
     valid = dt.notna().to_numpy()
     epoch_s = np.full(len(dt), np.nan, dtype="float64")
+
+    # Determine divisor from datetime64 resolution (ns, us, ms, s)
+    reso = getattr(dt.dtype, "unit", "ns")
+    divisor = {"s": 1, "ms": 1e3, "us": 1e6, "ns": 1e9}.get(str(reso), 1e9)
+
     try:
-        epoch_ns_valid = dt.astype("int64")[valid]
+        int_valid = dt.astype("int64")[valid]
     except TypeError:
-        epoch_ns_valid = dt.view("int64")[valid]
-    epoch_s[valid] = epoch_ns_valid.astype("float64") / 1_000_000_000.0
+        int_valid = dt.view("int64")[valid]
+    epoch_s[valid] = int_valid.astype("float64") / divisor
     return pd.Series(epoch_s, index=dt.index, name="Unix Time / s")
 
 
