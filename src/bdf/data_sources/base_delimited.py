@@ -456,12 +456,16 @@ class DelimitedTextPlugin(CyclerPlugin):
             elif u == "ua":
                 out["Current / A"] = pd.to_numeric(out["Current / A"], errors="coerce") / 1_000_000.0
 
-        if "Test Time / s" in out.columns:
-            u = (hints.get("Test Time / s") or "").lower()
+        for time_col in ("Test Time / s", "Step Time / s"):
+            if time_col not in out.columns:
+                continue
+            u = (hints.get(time_col) or "").lower()
             if u == "h":
-                out["Test Time / s"] = pd.to_numeric(out["Test Time / s"], errors="coerce") * 3600.0
+                out[time_col] = pd.to_numeric(out[time_col], errors="coerce") * 3600.0
             elif u == "min":
-                out["Test Time / s"] = pd.to_numeric(out["Test Time / s"], errors="coerce") * 60.0
+                out[time_col] = pd.to_numeric(out[time_col], errors="coerce") * 60.0
+            elif u == "hms":
+                out[time_col] = pd.to_timedelta(out[time_col], errors="coerce").dt.total_seconds()
 
         if "Voltage / V" in out.columns:
             u = (hints.get("Voltage / V") or "").lower()
