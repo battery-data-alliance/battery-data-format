@@ -50,8 +50,8 @@ class NewareCSV(DelimitedTextPlugin):
         "Date Time ISO":          ["DateTime", "Datetime", "DATE_TIME"],
 
         # Capacity/energy (kept if present)
-        "Charge Capacity / mAh":    ["Charge Capacity(mAh)", "Chg.Capacity(mAh)"],
-        "Discharge Capacity / mAh": ["Discharge Capacity(mAh)", "DChg.Capacity(mAh)"],
+        "Charge Capacity / mAh":    ["Charge Capacity(mAh)", "Chg.Capacity(mAh)", "Chg. Cap.(mAh)"],
+        "Discharge Capacity / mAh": ["Discharge Capacity(mAh)", "DChg.Capacity(mAh)", "DChg. Cap.(mAh)"],
         "Charge Energy / mWh":      ["Charge Energy(mWh)"],
         "Discharge Energy / mWh":   ["Discharge Energy(mWh)"],
 
