@@ -57,6 +57,11 @@ class NewareCSV(DelimitedTextPlugin):
 
         # Temperature
         "Ambient Temperature / degC": ["Temperature(°C)", "温度(°C)"],
+        "Surface Temperature T1 / degC": ["T1(°C)"],
+        "Surface Temperature T2 / degC": ["T2(°C)"],
+        "Surface Temperature T3 / degC": ["T3(°C)"],
+        "Surface Temperature T4 / degC": ["T4(°C)"],
+        "Surface Temperature T5 / degC": ["T5(°C)"],
     }
 
     # Units so base .fixup() normalizes to s, V, A, mAh/mWh, degC
