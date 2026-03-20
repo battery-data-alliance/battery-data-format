@@ -4,6 +4,7 @@ import csv
 import os
 import re
 from collections.abc import Iterable, Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -40,6 +41,10 @@ class DelimitedTextPlugin(CyclerPlugin):
     # --- INI-style preamble / sectioned files (e.g., Novonix with [Data]) ---
     data_section_marker: Optional[str] = None        # regex; if present, start from the line after this marker
     data_header_offset: int = 1                      # number of lines after marker where the header row appears
+
+    # --- header start-time extraction ---
+    start_time_line_regex: Optional[str] = None      # regex with one capture group for the datetime value
+    start_time_format: Optional[str] = None          # strftime format to parse the captured value
 
     # -------------------------------------------------------------------------
     # Public API
@@ -94,6 +99,7 @@ class DelimitedTextPlugin(CyclerPlugin):
             df = self._drop_units_row(df)
 
         self._unit_hints = self._detect_units_from_headers(df.columns)
+        self._start_time_epoch = self._extract_start_time(path, enc)
 
         if self._debug_on():
             print(f"[bdf][DelimitedTextPlugin] columns={list(df.columns)}")
@@ -114,6 +120,22 @@ class DelimitedTextPlugin(CyclerPlugin):
             except Exception:
                 pass
         return b.decode("latin-1", "ignore")
+
+    def _extract_start_time(self, path: Path, enc: str) -> float | None:
+        """Scan header lines for a start timestamp and return it as a Unix epoch float."""
+        if not self.start_time_line_regex or not self.start_time_format:
+            return None
+        pat = re.compile(self.start_time_line_regex, re.IGNORECASE)
+        for line in self._scan_prefix(path, enc):
+            m = pat.search(line)
+            if m:
+                try:
+                    ts = pd.Timestamp(datetime.strptime(m.group(1).strip(), self.start_time_format))
+                    tz = getattr(self, "assume_naive_tz", "UTC") or "UTC"
+                    return ts.tz_localize(tz).tz_convert("UTC").timestamp()
+                except Exception:
+                    return None
+        return None
 
     def _scan_prefix(self, path: Path, enc: str) -> list[str]:
         out: list[str] = []
@@ -471,5 +493,13 @@ class DelimitedTextPlugin(CyclerPlugin):
             u = (hints.get("Voltage / V") or "").lower()
             if u == "mv":
                 out["Voltage / V"] = pd.to_numeric(out["Voltage / V"], errors="coerce") / 1000.0
+
+        start = getattr(self, "_start_time_epoch", None)
+        if (
+            start is not None
+            and "Test Time / s" in out.columns
+            and "Unix Time / s" not in out.columns
+        ):
+            out["Unix Time / s"] = start + pd.to_numeric(out["Test Time / s"], errors="coerce")
 
         return out
