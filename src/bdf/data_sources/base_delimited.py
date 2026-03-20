@@ -405,16 +405,9 @@ class DelimitedTextPlugin(CyclerPlugin):
         return out
 
     def _looks_ok(self, df: pd.DataFrame) -> bool:
-        cols_lower = [str(c).lower().strip() for c in df.columns]
-        if any(k in cols_lower for k in ("time/s", "ewe/v", "ecell/v", "i/ma", "current / a")):
-            return True
-        for c in cols_lower:
-            if re.search(r"\btime\[[^\]]+\]", c):
-                return True
-            if re.search(r"\bu\[[^\]]+\]", c):
-                return True
-            if re.search(r"\bi\[[^\]]+\]", c):
-                return True
+        if self.header_token_patterns:
+            cols_joined = " ".join(str(c).lower().strip() for c in df.columns)
+            return any(re.search(p, cols_joined, re.I) for p in self.header_token_patterns)
         return False
 
     def _detect_units_from_headers(self, cols: Iterable[str]) -> dict[str, str]:
