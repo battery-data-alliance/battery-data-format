@@ -84,7 +84,6 @@ class NewareXlsx(CyclerPlugin):
 
         # Drop fully empty rows
         df = df.dropna(how="all")
-
         # Coerce non-numeric, non-string columns (e.g. datetime.time, Timestamp)
         # to strings so downstream parsers (augment/fixup) can handle them uniformly
         for col in df.columns:
@@ -94,24 +93,9 @@ class NewareXlsx(CyclerPlugin):
                 continue
             df[col] = df[col].astype(str)
 
-        return df
-
-    def fixup(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert HH:MM:SS duration strings (and Excel epoch-leaked datetimes) to float seconds.
-
-        Excel stores durations as fractional days. For durations < 24h openpyxl
-        returns ``datetime.time`` objects (stringified as ``HH:MM:SS``).  For
-        durations >= 24h it returns ``datetime`` objects relative to the Excel
-        epoch (1899-12-30), stringified as e.g. ``1900-01-06 12:19:42``.
-
-        Strategy: try ``pd.to_datetime`` first (handles both formats with
-        ``format='mixed'``), subtract the Excel epoch.  For any remaining NaT
-        (pure ``HH:MM:SS`` strings without a date part), fall back to
-        ``pd.to_timedelta``.
-        """
         epoch = pd.Timestamp("1899-12-31")
 
-        for time_col in ("Test Time / s", "Step Time / s"):
+        for time_col in self.column_synonyms["Step Time / s"] + self.column_synonyms["Test Time / s"]:
             if time_col not in df.columns or pd.api.types.is_numeric_dtype(df[time_col]):
                 continue
 
