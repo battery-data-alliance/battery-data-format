@@ -479,9 +479,6 @@ class DelimitedTextPlugin(CyclerPlugin):
                 out[time_col] = pd.to_numeric(out[time_col], errors="coerce") * 3600.0
             elif u == "min":
                 out[time_col] = pd.to_numeric(out[time_col], errors="coerce") * 60.0
-            elif u == "hms":
-                out[time_col] = pd.to_timedelta(out[time_col], errors="coerce").dt.total_seconds()
-
         if "Voltage / V" in out.columns:
             u = (hints.get("Voltage / V") or "").lower()
             if u == "mv":
