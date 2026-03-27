@@ -293,6 +293,7 @@ def read(
     validate: bool = True,
     include_optional: bool = True,
     registry_path: str | Path | None = None,
+    timezone: str | None = None,
 ) -> pd.DataFrame:
     """
     Universal reader -> DataFrame.
@@ -300,6 +301,8 @@ def read(
       - plugin: force a specific cycler plugin id (optional)
       - normalize: if True, normalize to BDF columns; if False, parse only
       - validate: validate BDF artifacts (or normalized output)
+      - timezone: IANA timezone string for naive timestamps (e.g. "America/New_York");
+                  defaults to plugin's own assume_naive_tz (usually UTC)
     """
     local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
     if _looks_like_bdf_artifact(local_path):
@@ -322,6 +325,8 @@ def read(
         parse_errors: list[tuple[str, str]] = []
         for plg in _candidate_plugins(local_path, plugin=plugin, plugin_hint=plugin_hint):
             try:
+                if timezone is not None:
+                    plg.assume_naive_tz = timezone
                 return plg.parse(local_path)
             except Exception as exc:
                 if plugin is not None:
@@ -333,6 +338,8 @@ def read(
     normalize_errors: list[tuple[str, str]] = []
     for plg in _candidate_plugins(local_path, plugin=plugin, plugin_hint=plugin_hint):
         try:
+            if timezone is not None:
+                plg.assume_naive_tz = timezone
             df_raw = plg.parse(local_path)
             df_raw = plg.augment(df_raw)
         except Exception as exc:
@@ -358,6 +365,8 @@ def read(
                     , stacklevel=2
                 )
                 plg = alt
+                if timezone is not None:
+                    plg.assume_naive_tz = timezone
                 df_raw = plg.parse(local_path)
                 df_raw = plg.augment(df_raw)
                 df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
@@ -386,9 +395,9 @@ def read(
 
 
 
-def parse(source: str | Path, plugin: str | None = None, registry_path: str | Path | None = None) -> pd.DataFrame:
+def parse(source: str | Path, plugin: str | None = None, registry_path: str | Path | None = None, timezone: str | None = None) -> pd.DataFrame:
     """Parse vendor file only (no normalization/validation)."""
-    return read(source, plugin=plugin, normalize=False, validate=False, registry_path=registry_path)
+    return read(source, plugin=plugin, normalize=False, validate=False, registry_path=registry_path, timezone=timezone)
 
 
 def normalize(df: pd.DataFrame, plugin: str | None = None) -> pd.DataFrame:
