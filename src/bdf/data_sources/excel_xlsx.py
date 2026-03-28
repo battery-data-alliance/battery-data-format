@@ -20,6 +20,7 @@ class ExcelXlsx(CyclerPlugin):
       3) bdf.excel.json
       4) excel.json
       5) contribution.json / collection.json with an "excel" object (search parents)
+      6) plugin._excel_config_override (class or instance variable, lowest priority)
 
     Config keys (all optional):
       - sheet / sheet_name / worksheet: sheet name or 0-based index
@@ -36,6 +37,7 @@ class ExcelXlsx(CyclerPlugin):
 
     id = "excel-xlsx"
     exts = (".xlsx", ".xlsm", ".xls")
+    _excel_config_override: dict[str, Any] | None = None
 
     def sniff(self, path: Path, head: bytes) -> SniffResult:
         score, reasons = 0.0, []
@@ -52,7 +54,7 @@ class ExcelXlsx(CyclerPlugin):
         return SniffResult(self.id, min(score, 1.0), "+".join(reasons), {})
 
     def parse(self, path: Path) -> pd.DataFrame:
-        cfg = _load_excel_config(path)
+        cfg = _load_excel_config(path, plugin=self)
         sheet = _resolve_sheet(cfg)
         header = _resolve_header(cfg)
         usecols = cfg.get("usecols")
@@ -119,11 +121,13 @@ def _load_json(path: Path) -> dict:
     return raw
 
 
-def _load_excel_config(path: Path) -> dict[str, Any]:
+def _load_excel_config(path: Path, plugin=None) -> dict[str, Any]:
+    # 1) Check environment variable (highest priority for explicit override)
     env = os.environ.get("BDF_EXCEL_CONFIG")
     if env:
         return _load_json(Path(env))
 
+    # 2) Check for sidecar JSON files
     base = _strip_all_suffixes(path)
     candidates = [
         path.with_name(f"{base}.excel.json"),
@@ -134,9 +138,16 @@ def _load_excel_config(path: Path) -> dict[str, Any]:
         if candidate.exists():
             return _load_json(candidate)
 
+    # 3) Check for parent contribution.json / collection.json
     parent_cfg = _find_contribution_excel_config(path.parent)
     if parent_cfg:
         return parent_cfg
+
+    # 4) Check for plugin instance or class-level override (lowest priority fallback)
+    if plugin is not None:
+        override = getattr(plugin, "_excel_config_override", None)
+        if isinstance(override, dict):
+            return override
 
     return {}
 

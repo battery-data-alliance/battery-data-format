@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from .base import CyclerPlugin, SniffResult
-from .excel_xlsx import _default_engine_for
+from .excel_xlsx import _default_engine_for, _load_excel_config, _resolve_header, _resolve_sheet
 from .neware_csv import NewareCSV
 
 # Build a single sniff regex from the CSV plugin's header_token_patterns
@@ -29,6 +29,9 @@ class NewareXlsx(CyclerPlugin):
     column_synonyms = NewareCSV.column_synonyms
     unit_column_patterns = NewareCSV.unit_column_patterns
     timestamp_candidate_patterns = NewareCSV.timestamp_candidate_patterns
+    
+    # Optional config override (set programmatically)
+    _excel_config_override = None
 
     def sniff(self, path: Path, head: bytes) -> SniffResult:
         score, reasons = 0.0, []
@@ -66,7 +69,8 @@ class NewareXlsx(CyclerPlugin):
         return SniffResult(self.id, min(score, 1.0), "+".join(reasons), {})
 
     def parse(self, path: Path) -> pd.DataFrame:
-        engine = _default_engine_for(path)
+        cfg = _load_excel_config(path, plugin=self)
+        engine = cfg.get("engine") or _default_engine_for(path)
         sheet = self._find_record_sheet(path)
         if sheet is None:
             sheet = 0  # fall back to first sheet
@@ -116,11 +120,11 @@ class NewareXlsx(CyclerPlugin):
                 df[time_col] = seconds
         return df
 
-    @staticmethod
-    def _find_record_sheet(path: Path) -> str | int | None:
+    def _find_record_sheet(self, path: Path) -> str | int | None:
         """Return the 'record' sheet name if it exists, else None."""
+        cfg = _load_excel_config(path, plugin=self)
         try:
-            xl = pd.ExcelFile(path, engine=_default_engine_for(path))
+            xl = pd.ExcelFile(path, engine=cfg.get("engine") or _default_engine_for(path))
             for name in _RECORD_SHEET_NAMES:
                 if name in xl.sheet_names:
                     return name
