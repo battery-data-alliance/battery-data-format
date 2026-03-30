@@ -255,18 +255,39 @@ class DelimitedTextPlugin(CyclerPlugin):
         return header_idx, sep
 
     def _read_csv(self, path: Path, sep: str, header_idx: int, enc: str) -> pd.DataFrame:
-        df = pd.read_csv(
-            path,
-            sep=sep,
-            skiprows=header_idx,
-            header=0,
-            encoding=enc,
-            engine="python",
-            dtype_backend="pyarrow",
-            decimal=getattr(self, "decimal", ".") or ".",
-        )
-        df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
-        return df
+        # Prefer the C engine for simple delimiters because it is more tolerant
+        # of malformed quoted text in skipped preambles (e.g., Novonix [Protocol]
+        # JSON). Fall back to the Python engine if needed. Regex separators
+        # require the Python engine.
+        is_regex_sep = "\\s" in sep
+        engines = ("python",) if is_regex_sep else ("c", "python")
+        last_exc: Exception | None = None
+
+        for engine in engines:
+            try:
+                df = pd.read_csv(
+                    path,
+                    sep=sep,
+                    skiprows=header_idx,
+                    header=0,
+                    encoding=enc,
+                    engine=engine,
+                    dtype_backend="pyarrow",
+                    decimal=getattr(self, "decimal", ".") or ".",
+                )
+                df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
+                return df
+            except Exception as exc:
+                last_exc = exc
+                if self._debug_on():
+                    print(
+                        "[bdf][DelimitedTextPlugin] read_csv failed "
+                        f"engine={engine!r} sep={sep!r}: {type(exc).__name__}: {exc}"
+                    )
+
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("CSV read failed with no captured exception.")
 
     def _split_header_fields(self, header_line: str, sep: str) -> list[str]:
         try:
