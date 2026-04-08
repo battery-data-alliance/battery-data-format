@@ -23,7 +23,7 @@ __all__ = [
     # datasets helpers
     "datasets", "load_registry", "get_entry",
     # registry LD helpers
-    "build_registry", "search", "sparql",
+    "build_registry", "registries", "add_registry", "remove_registry", "search", "sparql",
     # cleaning
     "clean", "CleanReport",
     # viz
@@ -590,7 +590,25 @@ def build_registry(
     return _build_registry(sources, registry_dir=registry_dir, refresh=refresh)
 
 
-def search(query: str, registry_dir: str | Path | None = None, limit: int = 50):
+def registries(registry_dir: str | Path | None = None):
+    """Return the available built-in registry sources with summary stats."""
+    from .registry_ld import registries as _registries  # lazy
+    return _registries(registry_dir=registry_dir)
+
+
+def add_registry(name: str, url: str) -> None:
+    """Add a persistent registry source (saved to ~/.bdf/sources.json)."""
+    from .registry_ld import add_registry as _add  # lazy
+    _add(name, url)
+
+
+def remove_registry(name: str) -> None:
+    """Remove a user-added registry source."""
+    from .registry_ld import remove_registry as _remove  # lazy
+    _remove(name)
+
+
+def search(query: str = "", registry_dir: str | Path | None = None, limit: int = 50):
     from .registry_ld import search as _search  # lazy
     return _search(query, registry_dir=registry_dir, limit=limit)
 
