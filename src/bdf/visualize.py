@@ -111,8 +111,8 @@ def plot(
         raise ValueError("Provide at least one series in ydata or yydata.")
 
     # Colors & line widths
-    primary_color = "#1f77b4"   # blue
-    secondary_color = "#4d4d4d" # dark grey
+    primary_color = "#d62728"   # red (voltage)
+    secondary_color = "#1f77b4" # blue (current)
     lw_primary = 2.8
     lw_secondary = 3.2
 
@@ -210,7 +210,13 @@ def plot(
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = (ax2.get_legend_handles_labels() if ax2 else ([], []))
     if h1 or h2:
-        leg = ax.legend(h1 + h2, l1 + l2, loc="upper left", frameon=True)
+        leg = ax.legend(
+            h1 + h2, l1 + l2,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 1.02),
+            ncol=len(h1) + len(h2),
+            frameon=True,
+        )
         leg.get_frame().set_facecolor("white")
         leg.get_frame().set_edgecolor("#333333")
         leg.get_frame().set_linewidth(1.2)
