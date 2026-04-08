@@ -1,5 +1,7 @@
 # Battery Data Format (.bdf)
 
+Standard file format for battery test data
+
 ## Why introduce an industry standard format for battery data?
 
 It is well known that organizing, cleaning, and preparing battery data for analytics takes significant time and effort, creating a high barrier to leveraging advances in battery modeling for battery development cycles.
@@ -155,6 +157,37 @@ bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Curren
 
 # Ingest a folder of raw files into BDF artifacts
 summary = bdf.ingest("data/raw", out_dir="data/bdf", format="parquet")
+
+# --- Registry: discover and search battery datasets ---
+
+# See available data sources
+bdf.registries()
+# {'bdf-datastore': {'url': '...', 'cells': 28, 'contributors': ['Microsoft', 'SINTEF']}}
+
+# Search across all sources (auto-builds index on first call)
+hits = bdf.search("google nmc")
+# DatasetResult('SINTEF/google-g20m7-202512-5y1vrv',
+#   manufacturer='google', model='g20m7', chemistry='li-ion',
+#   form_factor='pouch', rated_capacity_ah=4.835, files=6)
+
+# Search with numeric filters
+hits = bdf.search(">=4ah pouch")
+
+# Load and plot directly from a search result
+hit = hits[0]
+df = hit.load()                    # fetch, cache, and read the first data file
+hit.plot(save="voltage_current.png") # voltage + current on dual axes
+
+# Explore interactively
+bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A")
+
+# Add your own data sources (persisted across sessions)
+bdf.add_registry("my-lab", "https://github.com/my-org/our-cells")
+bdf.add_registry("local-data", "/path/to/my/cells")
+bdf.registries()  # now shows bdf-datastore + my-lab + local-data
+
+# Remove a user-added source
+bdf.remove_registry("my-lab")
 ```
 
 CLI examples:
