@@ -69,11 +69,8 @@ def _datetime_to_unix(dt: pd.Series, *, min_success: float) -> pd.Series:
 
     valid = dt.notna().to_numpy()
     epoch_s = np.full(len(dt), np.nan, dtype="float64")
-    try:
-        epoch_ns_valid = dt.astype("int64")[valid]
-    except TypeError:
-        epoch_ns_valid = dt.view("int64")[valid]
-    epoch_s[valid] = epoch_ns_valid.astype("float64") / 1_000_000_000.0
+    epoch = dt - pd.Timestamp("1970-01-01", tz="UTC")
+    epoch_s[valid] = epoch.dt.total_seconds().to_numpy(dtype="float64")[valid]
     return pd.Series(epoch_s, index=dt.index, name="Unix Time / s")
 
 

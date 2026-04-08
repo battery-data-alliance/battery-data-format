@@ -8,13 +8,23 @@ import pytest
 import bdf
 
 
-def test_legacy_labels_normalized_from_ontology(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_legacy_labels_normalized_from_ontology(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     ontology = Path("tests/fixtures/ontology_labels.ttl").resolve()
     monkeypatch.setenv("BDF_ONTOLOGY_PATH", str(ontology))
 
-    legacy_path = Path("data/empa__ccid000001.bdf.parquet")
-    df = pd.read_parquet(legacy_path)
-    assert "test_time_millisecond" in df.columns
+    df = pd.DataFrame(
+        {
+            "test_time_millisecond": [0.0, 1000.0],
+            "voltage_volt": [3.7, 3.8],
+            "current_ampere": [0.1, 0.1],
+            "cycle_count": [1, 1],
+            "ambient_temperature_celsius": [25.0, 25.0],
+        }
+    )
+    legacy_path = tmp_path / "legacy.bdf.parquet"
+    df.to_parquet(legacy_path, index=False)
 
     with pytest.warns(UserWarning):
         normalized = bdf.read(legacy_path, validate=True)
