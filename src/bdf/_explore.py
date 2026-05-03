@@ -9,7 +9,14 @@ from .units import convert, resolve_unit
 
 
 def _label_with_unit(name: str, unit: str) -> str:
-    base = name.split(" / ", 1)[0].strip() if " / " in name else name
+    from .normalize.spec import COLUMNS
+    if name in COLUMNS:
+        # Canonical BDF column name (e.g. "voltage_volt") — use the human-readable
+        # label template so axis titles read "Voltage / V" not "voltage_volt / V".
+        base = COLUMNS[name]["label_template"].split(" / ", 1)[0].strip()
+    else:
+        # Already humanized (e.g. "Voltage / V") or an unrecognised custom column.
+        base = name.split(" / ", 1)[0].strip() if " / " in name else name
     return f"{base} / {unit}"
 
 
