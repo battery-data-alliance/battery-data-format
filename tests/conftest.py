@@ -9,6 +9,8 @@ import pytest
 HERE = Path(__file__).parent
 DATA = HERE / "data"
 
+BIOLOGIC_DATA = DATA / "biologic"
+
 @pytest.fixture(scope="session")
 def data_dir() -> Path:
     return DATA
@@ -41,3 +43,16 @@ def pint_ureg():
         return pint.UnitRegistry()
     except Exception:
         pytest.skip("pint not available")
+
+def _biologic_pairs() -> list[tuple[Path, Path]]:
+    """Get all pairs of .mpr and .mpt files in Biologic data folder."""
+    mprs = {p.stem: p for p in BIOLOGIC_DATA.glob("*.mpr")}
+    mpts = {p.stem: p for p in BIOLOGIC_DATA.glob("*.mpt")}
+    unpaired = (mprs.keys() ^ mpts.keys())
+    assert not unpaired, f"Unpaired biologic files: {unpaired}"
+    return [(mprs[stem], mpts[stem]) for stem in sorted(mprs) if stem in mpts]
+
+@pytest.fixture(params=_biologic_pairs(), ids=lambda p: p[0].stem, scope="session")
+def biologic_file_pair(request) -> tuple[Path, Path]:
+    """Get a pair of .mpr and .mpt biologic files."""
+    return request.param
