@@ -118,6 +118,15 @@ class BioLogicMPT(DelimitedTextPlugin):
         ],
     }
 
+    def augment(self, df_raw: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add empty current column if it is missing, e.g. in OCV techniques.
+        """
+        cols = set(df_raw.columns)
+        if not (set(self.column_synonyms["Current / A"]) & cols):
+            df_raw["I"] = 0
+        return df_raw
+
     def fixup(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Extend base fixups to downscale Biologic mAh/mWh style units to Ah/Wh when hints were detected.
