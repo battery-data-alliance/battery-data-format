@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [Unreleased]
 ### Added
+- `cumulative_capacity_ah` / `cumulative_energy_wh` now explicitly defined as throughput (`charging + discharging`), always monotonically non-decreasing. Digatron plugin now computes these correctly (previously emitted `charging - discharging`, the same as net).
+- `net_capacity_ah` / `net_energy_wh` now explicitly defined as the running integral of signed current/power from test start (`charging - discharging`); can be negative. Equivalent to BioLogic Q-Q0. Digatron's `AhBal`/`WhBal` (instrument-internal balance values) replaced by the correct formula.
+- `charging_capacity_ah`, `discharging_capacity_ah`, `charging_energy_wh`, `discharging_energy_wh` definitions clarified: these accumulate from test start and never reset between steps or cycles — distinct from step-level accumulators used by some instruments (e.g. BioLogic EC-Lab).
 - `cycle_count` (`Cycle Count / 1`) starting value clarified: any instrument-defined starting value (0, 1, or user-configured) is valid and must be preserved by converters. Cycle 0 typically represents pre-cycling or conditioning steps.
 - New column `step_id` (`Step ID / 1`): the step identifier from the test program schedule. Maps to Arbin `Step_Index`, Neware `Step_ID`, Digatron `Step`, BioLogic `Ns`. Values are instrument-defined and may be non-contiguous or repeating across cycles.
 - New column `step_type` (`Step Type / 1`): string label for the step's operational mode (e.g. `CC_CHG`, `CC_DCH`, `CV_CHG`, `REST`, `OCV`). Controlled vocabulary is not yet standardised; values are preserved as reported by the instrument.
