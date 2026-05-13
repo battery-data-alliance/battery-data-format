@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [Unreleased]
 ### Added
+- `cycle_count` (`Cycle Count / 1`) starting value clarified: any instrument-defined starting value (0, 1, or user-configured) is valid and must be preserved by converters. Cycle 0 typically represents pre-cycling or conditioning steps.
 - New column `step_id` (`Step ID / 1`): the step identifier from the test program schedule. Maps to Arbin `Step_Index`, Neware `Step_ID`, Digatron `Step`, BioLogic `Ns`. Values are instrument-defined and may be non-contiguous or repeating across cycles.
 - New column `step_type` (`Step Type / 1`): string label for the step's operational mode (e.g. `CC_CHG`, `CC_DCH`, `CV_CHG`, `REST`, `OCV`). Controlled vocabulary is not yet standardised; values are preserved as reported by the instrument.
 
