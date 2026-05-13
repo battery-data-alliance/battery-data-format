@@ -76,7 +76,6 @@ class BioLogicMPR(CyclerPlugin):
                 # Then multiply by diff(time) / s to get current in mA
                 # mA -> A happens in fixup, when changing from mpr units to bdf units
                 dq_col = next(col for col in ("dq", "dQ") if col in cols)
-                print(dq_col)
                 dt = df_raw["uts"].diff().fillna(float("inf"))
                 df_raw["I"] = 3600 * df_raw[dq_col] / dt
             else:
