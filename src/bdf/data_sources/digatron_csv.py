@@ -44,7 +44,8 @@ class DigatronCSV(DelimitedTextPlugin):
         # --- Recommended ---
         "Unix Time / s":      ["timestamp"],
         "Cycle Count / 1":    ["cycle"],
-        "Step Index / 1":     ["step"],
+        "Step ID / 1":        ["step"],
+        "Step Type / 1":      ["status"],
         "Step Time / s":      ["step time"],
         "Ambient Temperature / degC": ["tenv#degc"],
 

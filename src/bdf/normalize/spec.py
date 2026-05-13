@@ -96,9 +96,7 @@ _STATIC_COLUMNS = {
         "required": False,
         "mr_name": "step_count",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_count",
-        "synonyms": [
-            "step", "step-no", "step-number", "step-id",
-        ],
+        "synonyms": [],
     },
     "ambient_temperature_celsius": {
         "unit": "degC",
@@ -121,7 +119,34 @@ _STATIC_COLUMNS = {
         "mr_name": "step_index",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index",
         "synonyms": [
-            "step-index", "point-index", "sample-index",
+            "point-index", "sample-index", "step-position",
+        ],
+    },
+    "step_id": {
+        "unit": "1",
+        "label_template": "Step ID / {unit}",
+        "required": False,
+        "mr_name": "step_id",
+        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_id",
+        "synonyms": [
+            # generic
+            "step", "step-no", "step-number", "step-id",
+            # Arbin: Step_Index
+            "step-index",
+            # BioLogic: Ns (number of sequences)
+            "ns",
+            # Maccor: Procedure Step
+            "procedure-step",
+        ],
+    },
+    "step_type": {
+        "unit": "1",
+        "label_template": "Step Type / {unit}",
+        "required": False,
+        "mr_name": "step_type",
+        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_type",
+        "synonyms": [
+            "status", "step-type", "mode", "step-mode",
         ],
     },
     "charging_capacity_ah": {

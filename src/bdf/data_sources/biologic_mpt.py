@@ -27,6 +27,7 @@ class BioLogicMPT(DelimitedTextPlugin):
         ],
         # Recommended
         "Cycle Count / 1": ["cycle number", "z cycle"],
+        "Step ID / 1": ["ns", "n"],
         "Ambient Temperature / degC": [
             "temperature/c",
             "temperature/degc",

@@ -27,8 +27,8 @@ class LandtCSV(DelimitedTextPlugin):
         "Voltage / V":   ["voltage_v"],
         "Current / A":   ["current_a"],
         "Step Time / s": ["step_time_s"],
-        "Cycle Index":   ["cycle_index"],
-        "Step Index":    ["step_index"],
+        "Cycle Count / 1": ["cycle_index"],
+        "Step ID / 1":     ["step_index"],
         "Channel Index": ["channel_index"],
         "Date Time ISO": ["date_time_iso_string"],
     }

@@ -62,7 +62,7 @@ class NovonixCSV(DelimitedTextPlugin):
         "Cycle Count / 1": [
             "cycle number", "cycle", "cycle #", "cycle#"
         ],
-        "Step Count / 1": [
+        "Step ID / 1": [
             "step number", "step", "step #", "step#"
         ],
         "Step Index / 1": [
