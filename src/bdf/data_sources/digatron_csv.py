@@ -68,27 +68,34 @@ class DigatronCSV(DelimitedTextPlugin):
     }
 
     def fixup(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Re-derive all capacity/energy columns from primary accumulators.
+        """Re-derive test-level capacity/energy columns from primary accumulators.
 
         Digatron's AhAccu/WhAccu are net (charging - discharging), not
         throughput; AhBal/WhBal are rolling instrument-internal balances that
-        diverge from the BDF net definition; AhStep/WhStep are unsigned.
-        This method recomputes every derived column from the two primary
-        test-level accumulators (charging and discharging) to ensure
-        consistency with BDF definitions.
+        diverge from the BDF net definition. This method recomputes the
+        test-level derived columns from the two primary accumulators (charging
+        and discharging) to ensure consistency with BDF definitions.
+
+        AhStep/WhStep are unsigned magnitudes as exported by the instrument and
+        are retained as-is — BDF defines step_capacity_ah and step_energy_wh
+        as unsigned quantities.
         """
         chg_cap = "Charging Capacity / Ah"
         dchg_cap = "Discharging Capacity / Ah"
         chg_e = "Charging Energy / Wh"
         dchg_e = "Discharging Energy / Wh"
-        step_col = "Step ID"
 
         if chg_cap not in df.columns or dchg_cap not in df.columns:
             return df
 
         out = df.copy()
 
-        # --- Test-level derived columns ---
+        # Coerce to numeric — Digatron files can carry string dtype if the
+        # parser did not infer types from the data rows.
+        for col in (chg_cap, dchg_cap, chg_e, dchg_e):
+            if col in out.columns:
+                out[col] = pd.to_numeric(out[col], errors="coerce")
+
         # cumulative = throughput (charging + discharging), always non-decreasing
         out["Cumulative Capacity / Ah"] = out[chg_cap] + out[dchg_cap]
         # net = signed running integral (charging - discharging), can be negative
@@ -98,19 +105,4 @@ class DigatronCSV(DelimitedTextPlugin):
             out["Cumulative Energy / Wh"] = out[chg_e] + out[dchg_e]
             out["Net Energy / Wh"] = out[chg_e] - out[dchg_e]
 
-        # --- Step-level derived columns (signed: positive=charge, negative=discharge) ---
-        if step_col not in df.columns:
-            return out
-
-        step_group = (df[step_col] != df[step_col].shift()).cumsum()
-
-        def _signed_delta(pos_col: str, neg_col: str, result_col: str) -> None:
-            if pos_col not in out.columns or neg_col not in out.columns:
-                return
-            start_pos = out.groupby(step_group)[pos_col].transform("first")
-            start_neg = out.groupby(step_group)[neg_col].transform("first")
-            out[result_col] = (out[pos_col] - start_pos) - (out[neg_col] - start_neg)
-
-        _signed_delta(chg_cap, dchg_cap, "Step Capacity / Ah")
-        _signed_delta(chg_e, dchg_e, "Step Energy / Wh")
         return out
