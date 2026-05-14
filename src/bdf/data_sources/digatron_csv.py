@@ -44,8 +44,8 @@ class DigatronCSV(DelimitedTextPlugin):
         # --- Recommended ---
         "Unix Time / s":      ["timestamp"],
         "Cycle Count / 1":    ["cycle"],
-        "Step ID / 1":        ["step"],
-        "Step Type / 1":      ["status"],
+        "Step ID":        ["step"],
+        "Step Type":      ["status"],
         "Step Time / s":      ["step time"],
         "Ambient Temperature / degC": ["tenv#degc"],
 
@@ -81,7 +81,7 @@ class DigatronCSV(DelimitedTextPlugin):
         dchg_cap = "Discharging Capacity / Ah"
         chg_e = "Charging Energy / Wh"
         dchg_e = "Discharging Energy / Wh"
-        step_col = "Step ID / 1"
+        step_col = "Step ID"
 
         if chg_cap not in df.columns or dchg_cap not in df.columns:
             return df

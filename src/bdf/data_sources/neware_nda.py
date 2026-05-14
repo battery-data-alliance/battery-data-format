@@ -37,7 +37,7 @@ class _NewareNDABase(CyclerPlugin):
         "Voltage / V": ["Voltage", "voltage_V"],
         "Current / A": ["Current(mA)", "current_mA"],
         "Cycle Count / 1": ["Cycle", "cycle_count"],
-        "Step ID / 1": ["Step", "step_count", "Step_Index", "step_index"],
+        "Step ID": ["Step", "step_count", "Step_Index", "step_index"],
         "Unix Time / s": ["unix_time_s"],
         "Charging Capacity / Ah": ["Charge_Capacity(mAh)"],
         "Discharging Capacity / Ah": ["Discharge_Capacity(mAh)"],

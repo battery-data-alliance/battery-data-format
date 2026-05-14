@@ -28,7 +28,7 @@ class LandtCSV(DelimitedTextPlugin):
         "Current / A":   ["current_a"],
         "Step Time / s": ["step_time_s"],
         "Cycle Count / 1": ["cycle_index"],
-        "Step ID / 1":     ["step_index"],
+        "Step ID":     ["step_index"],
         "Channel Index": ["channel_index"],
         "Date Time ISO": ["date_time_iso_string"],
     }

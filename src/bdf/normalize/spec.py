@@ -124,7 +124,7 @@ _STATIC_COLUMNS = {
     },
     "step_id": {
         "unit": "1",
-        "label_template": "Step ID / {unit}",
+        "label_template": "Step ID",
         "required": False,
         "mr_name": "step_id",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_id",
@@ -141,7 +141,7 @@ _STATIC_COLUMNS = {
     },
     "step_type": {
         "unit": "1",
-        "label_template": "Step Type / {unit}",
+        "label_template": "Step Type",
         "required": False,
         "mr_name": "step_type",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_type",

@@ -45,7 +45,7 @@ class NewareCSV(DelimitedTextPlugin):
 
         # Helpful optional columns
         "Cycle Count / 1":        ["Cycle"],
-        "Step ID / 1":            ["Step"],
+        "Step ID":            ["Step"],
         "Record Index / 1":       ["Record"],
         "Date Time ISO":          ["DateTime", "Datetime", "DATE_TIME"],
 

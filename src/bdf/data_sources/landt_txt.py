@@ -24,7 +24,7 @@ class LandtTXT(DelimitedTextPlugin):
         "Current / A":   ["amps", "amp", "current", "a", "i(a)"],
         "Step Time / s": ["dpt-time", "dpt time", "step time (s)", "step_time_s"],
         "Cycle Count / 1": ["cycle", "cycle#", "cycle index"],
-        "Step ID / 1":     ["step", "step#", "step index"],
+        "Step ID":     ["step", "step#", "step index"],
         "Record Index":  ["rec#", "record", "record#"],
     }
 
