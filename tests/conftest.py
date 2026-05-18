@@ -1,9 +1,7 @@
 # tests/conftest.py
 from __future__ import annotations
 
-import gzip
 import json
-import shutil
 from pathlib import Path
 
 import pytest
@@ -11,7 +9,49 @@ import pytest
 HERE = Path(__file__).parent
 DATA = HERE / "data"
 
-BIOLOGIC_DATA = DATA / "biologic"
+# For downloading test data from yadg repo
+YADG_BASE_URL = "https://raw.githubusercontent.com/dgbowl/yadg/main/tests/test_x_eclab"
+
+# Stems must match filenames in the yadg repo
+# The file should exist at YADG_BASE_URL/{stem}.mpr and .mpt
+BIOLOGIC_FILE_STEMS = [
+    "bcd.issue_241",
+    "ca.issue_149",
+    "coc.issue_185",
+    "cov.issue_185",
+    "cp.issue_149",
+    "cv.issue_217",
+    "cva.issue_202",
+    "gcpl.issue_226.CxN",
+    "gcpl.issue_230",
+    "geis.issue_149",
+    "lsv.issue_195",
+    "mb.issue_223",
+    "mp.issue_183",
+    "ocv.issue_149",
+    "peis.issue_149",
+]
+
+
+def _biologic_cache_dir() -> Path:
+    base = Path.home() / ".cache" / "bdf" / "biologic"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+def _fetch_biologic_file(stem: str, ext: str) -> Path | None:
+    """Return cached file path, downloading from yadg if needed. Returns None on failure."""
+    cached = _biologic_cache_dir() / f"{stem}.{ext}"
+    if cached.exists():
+        return cached
+    import requests
+    url = f"{YADG_BASE_URL}/{stem}.{ext}"
+    try:
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        cached.write_bytes(r.content)
+        return cached
+    except Exception:
+        return None
 
 @pytest.fixture(scope="session")
 def data_dir() -> Path:
@@ -46,33 +86,20 @@ def pint_ureg():
     except Exception:
         pytest.skip("pint not available")
 
-def _biologic_gz_pairs() -> list[tuple[Path, Path]]:
-    """Get all pairs of .mpr.gz and .mpt.gz files in Biologic data folder."""
-    mprs = {p.with_suffix("").stem: p for p in BIOLOGIC_DATA.glob("*.mpr.gz")}
-    mpts = {p.with_suffix("").stem: p for p in BIOLOGIC_DATA.glob("*.mpt.gz")}
-    unpaired = mprs.keys() ^ mpts.keys()
-    assert not unpaired, f"Unpaired biologic files: {unpaired}"
-    return [(mprs[stem], mpts[stem]) for stem in sorted(mprs) if stem in mpts]
-
-@pytest.fixture(scope="session")
-def biologic_unzip_dir(tmp_path_factory) -> Path:
-    """Decompress all .mpr.gz and .mpt.gz files into temp directory."""
-    tmp = tmp_path_factory.mktemp("biologic")
-    for gz_path in BIOLOGIC_DATA.glob("*.gz"):
-        out_path = tmp / gz_path.with_suffix("").name
-        with gzip.open(gz_path, "rb") as f_in, open(out_path, "wb") as f_out:
-            shutil.copyfileobj(f_in, f_out)
-    return tmp
-
 @pytest.fixture(
-    params=_biologic_gz_pairs(),
-    ids=lambda p: p[0].with_suffix("").stem,
+    params=BIOLOGIC_FILE_STEMS,
+    ids=lambda s: s,
     scope="session",
 )
-def biologic_file_pair(request, biologic_unzip_dir) -> tuple[Path, Path]:
-    """Get a pair of .mpr and .mpt biologic files."""
-    gz_mpr, gz_mpt = request.param
-    return (
-        biologic_unzip_dir / gz_mpr.with_suffix("").name,
-        biologic_unzip_dir / gz_mpt.with_suffix("").name,
-    )
+def biologic_file_pair(request) -> tuple[Path, Path]:
+    """Provide a (mpr, mpt) file pair for a biologic test stem.
+
+    Files are downloaded from yadg on first use and cached locally.
+    Tests are skipped with a warning when a file cannot be fetched.
+    """
+    stem = request.param
+    mpr = _fetch_biologic_file(stem, "mpr")
+    mpt = _fetch_biologic_file(stem, "mpt")
+    if mpr is None or mpt is None:
+        pytest.skip(f"biologic test file '{stem}' not cached and could not be downloaded")
+    return mpr, mpt
