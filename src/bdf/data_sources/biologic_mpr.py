@@ -61,7 +61,13 @@ class BioLogicMPR(CyclerPlugin):
         return SniffResult(self.id, min(score, 1.0), "+".join(reasons), {})
 
     def parse(self, path: Path) -> pd.DataFrame:
-        import yadg
+        try:
+            import yadg
+        except ImportError as e:
+            raise ImportError(
+                "yadg is required to read .mpr files.\n"
+                "Install it with: pip install yadg"
+            ) from e
 
         return yadg.extractors.extract("eclab.mpr", path).to_dataset().to_dataframe().reset_index()
 
