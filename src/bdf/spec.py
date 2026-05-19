@@ -1,4 +1,4 @@
-# src/bdf/normalize/spec.py
+# src/bdf/spec.py
 from __future__ import annotations
 
 import copy
@@ -43,7 +43,10 @@ _STATIC_COLUMNS = {
         "mr_name": "test_time_second",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
         "synonyms": [
-            "test-time", "time", "program-duration", "elapsed-time",
+            "test-time",
+            "time",
+            "program-duration",
+            "elapsed-time",
         ],
     },
     "voltage_volt": {
@@ -53,7 +56,9 @@ _STATIC_COLUMNS = {
         "mr_name": "voltage_volt",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
         "synonyms": [
-            "voltage", "u", "cell-voltage",
+            "voltage",
+            "u",
+            "cell-voltage",
         ],
     },
     "current_ampere": {
@@ -63,10 +68,11 @@ _STATIC_COLUMNS = {
         "mr_name": "current_ampere",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
         "synonyms": [
-            "current", "i", "cell-current",
+            "current",
+            "i",
+            "cell-current",
         ],
     },
-
     # -------------------------
     # Recommended quantities
     # -------------------------
@@ -77,7 +83,10 @@ _STATIC_COLUMNS = {
         "mr_name": "unix_time_second",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#unix_time_second",
         "synonyms": [
-            "unix-time", "timestamp", "date-time", "datetime",
+            "unix-time",
+            "timestamp",
+            "date-time",
+            "datetime",
         ],
     },
     "cycle_count": {
@@ -87,7 +96,10 @@ _STATIC_COLUMNS = {
         "mr_name": "cycle_count",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cycle_count",
         "synonyms": [
-            "cycle", "cycle-index", "cycle-no", "cycle-number",
+            "cycle",
+            "cycle-index",
+            "cycle-no",
+            "cycle-number",
         ],
     },
     "step_count": {
@@ -97,7 +109,10 @@ _STATIC_COLUMNS = {
         "mr_name": "step_count",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_count",
         "synonyms": [
-            "step", "step-no", "step-number", "step-id",
+            "step",
+            "step-no",
+            "step-number",
+            "step-id",
         ],
     },
     "ambient_temperature_celsius": {
@@ -107,10 +122,13 @@ _STATIC_COLUMNS = {
         "mr_name": "ambient_temperature_celsius",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius",
         "synonyms": [
-            "ambient-temperature", "temperature", "tenv", "env-temp", "chamber-temp",
+            "ambient-temperature",
+            "temperature",
+            "tenv",
+            "env-temp",
+            "chamber-temp",
         ],
     },
-
     # -------------------------
     # Optional quantities
     # -------------------------
@@ -121,7 +139,9 @@ _STATIC_COLUMNS = {
         "mr_name": "step_index",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index",
         "synonyms": [
-            "step-index", "point-index", "sample-index",
+            "step-index",
+            "point-index",
+            "sample-index",
         ],
     },
     "charging_capacity_ah": {
@@ -131,7 +151,9 @@ _STATIC_COLUMNS = {
         "mr_name": "charging_capacity_ah",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_capacity_ah",
         "synonyms": [
-            "ahcha", "charge-capacity", "capacity-charge",
+            "ahcha",
+            "charge-capacity",
+            "capacity-charge",
         ],
     },
     "discharging_capacity_ah": {
@@ -141,7 +163,9 @@ _STATIC_COLUMNS = {
         "mr_name": "discharging_capacity_ah",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_capacity_ah",
         "synonyms": [
-            "ahdch", "discharge-capacity", "capacity-discharge",
+            "ahdch",
+            "discharge-capacity",
+            "capacity-discharge",
         ],
     },
     "step_capacity_ah": {
@@ -151,7 +175,8 @@ _STATIC_COLUMNS = {
         "mr_name": "step_capacity_ah",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_capacity_ah",
         "synonyms": [
-            "ahstep", "capacity-step",
+            "ahstep",
+            "capacity-step",
         ],
     },
     "net_capacity_ah": {
@@ -161,7 +186,8 @@ _STATIC_COLUMNS = {
         "mr_name": "net_capacity_ah",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_capacity_ah",
         "synonyms": [
-            "net-capacity", "capacity-net",
+            "net-capacity",
+            "capacity-net",
         ],
     },
     "cumulative_capacity_ah": {
@@ -171,7 +197,11 @@ _STATIC_COLUMNS = {
         "mr_name": "cumulative_capacity_ah",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_capacity_ah",
         "synonyms": [
-            "ahaccu", "ahbal", "capacity-accumulated", "accumulated-capacity", "total-capacity",
+            "ahaccu",
+            "ahbal",
+            "capacity-accumulated",
+            "accumulated-capacity",
+            "total-capacity",
         ],
     },
     "charging_energy_wh": {
@@ -181,7 +211,8 @@ _STATIC_COLUMNS = {
         "mr_name": "charging_energy_wh",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_energy_wh",
         "synonyms": [
-            "whcha", "energy-charge",
+            "whcha",
+            "energy-charge",
         ],
     },
     "discharging_energy_wh": {
@@ -191,7 +222,8 @@ _STATIC_COLUMNS = {
         "mr_name": "discharging_energy_wh",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_energy_wh",
         "synonyms": [
-            "whdch", "energy-discharge",
+            "whdch",
+            "energy-discharge",
         ],
     },
     "step_energy_wh": {
@@ -201,7 +233,8 @@ _STATIC_COLUMNS = {
         "mr_name": "step_energy_wh",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_energy_wh",
         "synonyms": [
-            "whstep", "energy-step",
+            "whstep",
+            "energy-step",
         ],
     },
     "net_energy_wh": {
@@ -211,7 +244,8 @@ _STATIC_COLUMNS = {
         "mr_name": "net_energy_wh",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_energy_wh",
         "synonyms": [
-            "net-energy", "energy-net",
+            "net-energy",
+            "energy-net",
         ],
     },
     "cumulative_energy_wh": {
@@ -221,7 +255,10 @@ _STATIC_COLUMNS = {
         "mr_name": "cumulative_energy_wh",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_energy_wh",
         "synonyms": [
-            "whaccu", "energy-accumulated", "accumulated-energy", "total-energy",
+            "whaccu",
+            "energy-accumulated",
+            "accumulated-energy",
+            "total-energy",
         ],
     },
     "power_watt": {
@@ -231,7 +268,8 @@ _STATIC_COLUMNS = {
         "mr_name": "power_watt",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#power_watt",
         "synonyms": [
-            "power", "pwr",
+            "power",
+            "pwr",
         ],
     },
     "internal_resistance_ohm": {
@@ -241,7 +279,12 @@ _STATIC_COLUMNS = {
         "mr_name": "internal_resistance_ohm",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#internal_resistance_ohm",
         "synonyms": [
-            "internal-resistance", "rint", "ir", "dcir", "ohmic-resistance", "resistance",
+            "internal-resistance",
+            "rint",
+            "ir",
+            "dcir",
+            "ohmic-resistance",
+            "resistance",
         ],
     },
     "ambient_pressure_pa": {
@@ -251,7 +294,9 @@ _STATIC_COLUMNS = {
         "mr_name": "ambient_pressure_pa",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_pressure_pa",
         "synonyms": [
-            "ambient-pressure", "pamb", "baro-pressure",
+            "ambient-pressure",
+            "pamb",
+            "baro-pressure",
         ],
     },
     "applied_pressure_pa": {
@@ -261,10 +306,11 @@ _STATIC_COLUMNS = {
         "mr_name": "applied_pressure_pa",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#applied_pressure_pa",
         "synonyms": [
-            "applied-pressure", "press", "papp",
+            "applied-pressure",
+            "press",
+            "papp",
         ],
     },
-
     # Surface temperatures (T1..T5)
     "temperature_t1_celsius": {
         "unit": "degC",
@@ -518,6 +564,7 @@ COLUMNS: Mapping[str, dict[str, Any]] = _ColumnsProxy()
 
 # --------- Helpers consumed by the normalizer ----------
 
+
 def _label_for(quantity: str) -> str:
     col = _current_columns()[quantity]
     return col["label_template"].format(unit=col["unit"])
@@ -565,4 +612,3 @@ def base_synonym_index() -> dict[str, str]:
             if slug:
                 idx.setdefault(slug, q)
     return idx
-

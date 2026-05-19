@@ -14,7 +14,8 @@ _FMT_EXTS = {
     "feather": {".feather", ".bdf.feather"},
     "json": {".json", ".bdf.json"},
 }
-_COMPRESS = {".gz":"gzip", ".bz2":"bz2", ".xz":"xz", ".zst":"zstd"}
+_COMPRESS = {".gz": "gzip", ".bz2": "bz2", ".xz": "xz", ".zst": "zstd"}
+
 
 def _detect_format(path: Path) -> str:
     sfx = "".join(path.suffixes).lower()
@@ -26,12 +27,14 @@ def _detect_format(path: Path) -> str:
         return last.lstrip(".")
     raise ValueError(f"Unknown BDF artifact format: {path.name}")
 
+
 def _detect_compression(path: Path) -> str | None:
     s = str(path).lower()
     for ext, comp in _COMPRESS.items():
         if s.endswith(ext):
             return comp
     return None
+
 
 def _meta_sidecar(path: Path) -> Path:
     return path.with_name(path.name + ".metadata.json")
@@ -47,7 +50,7 @@ def _label_maps() -> tuple[dict[str, str], dict[str, str]]:
       - pref_label -> machine label (notation), using non-deprecated canonical targets.
       - machine label (notation) -> human pref_label, using non-deprecated canonical targets.
     """
-    from .normalize import spec
+    from . import spec
 
     base_preferred: dict[str, str] = {}
     for q, s in spec.COLUMNS.items():
@@ -106,6 +109,7 @@ def _serialize_labels(df: pd.DataFrame, *, human: bool) -> pd.DataFrame:
             out.rename(columns={source: target}, inplace=True)
     return out
 
+
 def load(pathlike) -> pd.DataFrame:
     p = Path(pathlike)
     if not p.exists():
@@ -119,7 +123,7 @@ def load(pathlike) -> pd.DataFrame:
             # strict CSV: no banner rows, uniform columns
             df = pd.read_csv(
                 p,
-                engine="python",   # better error messages for malformed rows
+                engine="python",  # better error messages for malformed rows
                 sep=",",
                 quoting=csv.QUOTE_MINIMAL,
                 on_bad_lines="error",
@@ -137,11 +141,11 @@ def load(pathlike) -> pd.DataFrame:
 
         # Always expose human canonical labels in-memory.
         from .normalize import canonicalize_legacy_labels
+
         df, legacy = canonicalize_legacy_labels(df)
         if legacy:
             warnings.warn(
-                "Legacy BDF column labels detected (skos:altLabel/notation). "
-                "They were normalized to preferred labels.",
+                "Legacy BDF column labels detected (skos:altLabel/notation). They were normalized to preferred labels.",
                 stacklevel=2,
             )
         return _serialize_labels(df, human=True)
@@ -149,6 +153,7 @@ def load(pathlike) -> pd.DataFrame:
         # Re-raise with a short, path-sanitized message
         emsg = str(e)
         raise ValueError(f"Failed to parse BDF {fmt.upper()} file: {p.name}: {emsg}") from e
+
 
 def save(
     df: pd.DataFrame,
@@ -166,6 +171,7 @@ def save(
 
     try:
         from .normalize import canonicalize_legacy_labels
+
         df, _legacy = canonicalize_legacy_labels(df)
     except Exception:
         pass

@@ -16,8 +16,10 @@ except Exception:  # pragma: no cover
 try:
     from bdf.units import resolve_unit  # type: ignore
 except Exception:
+
     def resolve_unit(value: Any, *, as_string: bool = False):  # fallback stub
         raise RuntimeError("bdf.units.resolve_unit is unavailable")
+
 
 # Lazy-loaded spec to avoid import-order issues
 _SPEC = None  # set by _ensure_spec()
@@ -69,16 +71,18 @@ MATERIAL_TERM_MAP = {
 # Dataclasses
 # ---------------------------
 
+
 @dataclass
 class Creator:
     """schema.org Person or Organization; emits ORCID/ROR in sameAs."""
+
     name: str
-    type: str = "Person"                # 'Person' or 'Organization'
-    orcid: Optional[str] = None         # Person: ORCID (URL or bare)
-    ror: Optional[str] = None           # Org: ROR (URL or bare)
-    given_name: Optional[str] = None    # Person
-    family_name: Optional[str] = None   # Person
-    affiliation: Optional[str] = None   # Person -> Organization name
+    type: str = "Person"  # 'Person' or 'Organization'
+    orcid: Optional[str] = None  # Person: ORCID (URL or bare)
+    ror: Optional[str] = None  # Org: ROR (URL or bare)
+    given_name: Optional[str] = None  # Person
+    family_name: Optional[str] = None  # Person
+    affiliation: Optional[str] = None  # Person -> Organization name
 
     def _id_or_sameas(self) -> Dict[str, Any]:
         same_as = None
@@ -110,9 +114,10 @@ class Creator:
 @dataclass
 class PropertyValue:
     """For variableMeasured as PropertyValue."""
+
     name: str
-    property_id: Optional[str] = None   # e.g., your BDF IRI
-    unit_text: Optional[str] = None     # e.g., "V", "A", "A*h", "degC"
+    property_id: Optional[str] = None  # e.g., your BDF IRI
+    unit_text: Optional[str] = None  # e.g., "V", "A", "A*h", "degC"
 
     def to_schema_org(self) -> Dict[str, Any]:
         out = {"@type": "schema:PropertyValue", "schema:name": self.name}
@@ -141,6 +146,7 @@ class Battery:
     """
     Lightweight battery profile (human-facing).
     """
+
     id: str
     iri: Optional[str] = None
     model: Optional[str] = None
@@ -210,9 +216,7 @@ class Battery:
 
         schema_props: List[Dict[str, Any]] = []
 
-        def _add_schema_prop(
-            name: str, property_id: str, value: Any, unit_text: Optional[str] = None
-        ) -> None:
+        def _add_schema_prop(name: str, property_id: str, value: Any, unit_text: Optional[str] = None) -> None:
             if value is None:
                 return
             prop: Dict[str, Any] = {
@@ -239,9 +243,7 @@ class Battery:
 
         emmo_props: List[Dict[str, Any]] = []
 
-        def _add_emmo_prop(
-            prop_type: str, label: str, value: Any, unit: str
-        ) -> None:
+        def _add_emmo_prop(prop_type: str, label: str, value: Any, unit: str) -> None:
             if value is None:
                 return
             emmo_props.append(
@@ -294,11 +296,12 @@ class DataDownload:
     schema.org DataDownload (downloadable distribution)
     + optional CSVW metadata (embedded under Dataset.mainEntity).
     """
-    url: str                               # contentUrl
+
+    url: str  # contentUrl
     name: Optional[str] = None
     encoding_format: Optional[str] = None  # e.g., "text/csv", "application/zip"
     description: Optional[str] = None
-    id: Optional[str] = None               # defaults to url
+    id: Optional[str] = None  # defaults to url
 
     # CSVW extras (optional, used to embed a CSVW Table node in mainEntity)
     csvw_table_schema_url: Optional[str] = None
@@ -346,6 +349,7 @@ class DataDownload:
 # Helpers
 # ---------------------------
 
+
 def _license_to_url(license_value: str) -> str:
     """Accept a full URL or an SPDX id (e.g., 'CC-BY-4.0') and return a URL."""
     if license_value.startswith(("http://", "https://")):
@@ -366,15 +370,18 @@ def _material_term(value: str) -> Optional[str]:
 def _left_of_label(label: str) -> str:
     return label.split("/", 1)[0].strip()
 
+
 def _ensure_spec():
     """Lazy import spec to avoid import-order issues during development/CI."""
     global _SPEC
     if _SPEC is None:
         try:
-            from bdf.normalize import spec as _loaded  # type: ignore
+            from bdf import spec as _loaded  # type: ignore
+
             _SPEC = _loaded
         except Exception:
             _SPEC = None
+
 
 def _spec_match_by_left(left: str) -> Optional[Dict[str, Any]]:
     """Return the spec column entry dict for a given preferred-label 'left' text."""
@@ -386,6 +393,7 @@ def _spec_match_by_left(left: str) -> Optional[Dict[str, Any]]:
         if _left_of_label(canon).lower() == left.lower():
             return meta
     return None
+
 
 def _required_pvs_from_spec() -> List[Dict[str, Any]]:
     """
@@ -404,6 +412,7 @@ def _required_pvs_from_spec() -> List[Dict[str, Any]]:
                 iri = meta.get("iri")
                 pvs.append(PropertyValue(name=name, property_id=iri, unit_text=unit_text).to_schema_org())
     return pvs
+
 
 def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
@@ -478,6 +487,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
 # Dataset metadata
 # ---------------------------
 
+
 @dataclass
 class Dataset:
     # Core
@@ -493,7 +503,7 @@ class Dataset:
     language: Optional[str] = "en"
 
     # Google / schema.org friendly additions
-    url: Optional[str] = None                    # landing page URL
+    url: Optional[str] = None  # landing page URL
     same_as: List[str] = field(default_factory=list)
     identifiers: List[str] = field(default_factory=list)  # include DOI/compact IDs
     citation: List[Union[str, Dict[str, Any]]] = field(default_factory=list)
@@ -572,14 +582,14 @@ class Dataset:
     def to_schemaorg_dataset(
         self,
         *,
-        dataset_uri: Optional[str] = None,             # optional @id
-        identifier: Optional[str] = None,              # short slug or DOI
+        dataset_uri: Optional[str] = None,  # optional @id
+        identifier: Optional[str] = None,  # short slug or DOI
         distributions: List[DataDownload] = (),
         context: Union[str, List[Any]] = DEFAULT_JSONLD_CONTEXT,
         extra_fields: Optional[Dict[str, Any]] = None,
-        df: Optional[pd.DataFrame] = None,           # auto variableMeasured from DataFrame
-        merge_variables: bool = True,                  # merge with self.variable_measured
-        enforce_desc_bounds: bool = True,              # trim description to Google bounds
+        df: Optional[pd.DataFrame] = None,  # auto variableMeasured from DataFrame
+        merge_variables: bool = True,  # merge with self.variable_measured
+        enforce_desc_bounds: bool = True,  # trim description to Google bounds
         max_description_len: int = 5000,
     ) -> Dict[str, Any]:
         # Description with guardrails (Google recommends ≤ 5000 chars)
@@ -687,7 +697,7 @@ class Dataset:
 
         ctx = list(context) if isinstance(context, (list, tuple)) else [context]
         return {"@context": ctx, **dataset}
-    
+
     def save_jsonld(
         self,
         out_path: Union[str, Path],
@@ -782,10 +792,10 @@ class Dataset:
         return out_path
 
 
-
 # ---------------------------
 # IO helpers
 # ---------------------------
+
 
 def save_schemaorg_dataset(
     meta: Dataset,

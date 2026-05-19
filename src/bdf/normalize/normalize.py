@@ -11,11 +11,14 @@ import pandas as pd
 from bdf.ontology_labels import load_alias_index
 from bdf.units import convert_series, parse_from_header
 
-from . import spec
+from .. import spec
 
 _SLUG = re.compile(r"[^a-z0-9]+")
+
+
 def _slugify(s: str) -> str:
     return _SLUG.sub("-", s.lower()).strip("-")
+
 
 # Public constants
 REQUIRED = spec.required_labels()
@@ -24,6 +27,7 @@ OPTIONAL = spec.optional_labels()
 # Force these three to be the first columns when present
 ORDERED_REQUIRED = ("Test Time / s", "Voltage / V", "Current / A")
 _REQUIRED_SLUGS = {_slugify(s.split(" / ", 1)[0]) for s in ORDERED_REQUIRED}
+
 
 def guess_plugin_by_columns(df: pd.DataFrame, *, current_id: str | None = None):
     """
@@ -77,14 +81,18 @@ def guess_plugin_by_columns(df: pd.DataFrame, *, current_id: str | None = None):
         return best
     return None
 
+
 def _canon_label(quantity: str) -> str:
     return spec._label_for(quantity)
+
 
 def _quantity_unit(quantity: str) -> str:
     return spec.unit_for(quantity)
 
+
 def _base_index() -> Mapping[str, str]:
     return spec.base_synonym_index()
+
 
 def _merge_plugin_column_synonyms(plugin) -> dict[str, str]:
     idx: dict[str, str] = {}
@@ -111,11 +119,14 @@ def _merge_plugin_column_synonyms(plugin) -> dict[str, str]:
         pass
     return idx
 
+
 def _legacy_alias_index() -> dict[str, object]:
     return load_alias_index()
 
+
 def _is_numeric_series(s: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(s)
+
 
 def _coerce_with_decimal(s: pd.Series, decimal_hint: str | None) -> pd.Series:
     if pd.api.types.is_numeric_dtype(s):
@@ -139,6 +150,7 @@ def _coerce_with_decimal(s: pd.Series, decimal_hint: str | None) -> pd.Series:
 
     return s
 
+
 def _coalesce_into(target: pd.Series, incoming: pd.Series) -> pd.Series:
     """
     Merge two series into 'target':
@@ -156,6 +168,7 @@ def _coalesce_into(target: pd.Series, incoming: pd.Series) -> pd.Series:
     # general 'fill holes'
     return target.where(target.notna(), incoming)
 
+
 def normalize_columns(
     df: pd.DataFrame,
     *,
@@ -167,7 +180,7 @@ def normalize_columns(
     out = df.copy()
     meta: dict[str, dict[str, str]] = {}
 
-    base_idx = dict(_base_index())                   # slug -> quantity (official MR name)
+    base_idx = dict(_base_index())  # slug -> quantity (official MR name)
     plugin_direct = _merge_plugin_column_synonyms(plugin)  # slug -> canonical label
     alias_idx = _legacy_alias_index()
     decimal_hint = getattr(plugin, "decimal", None)
@@ -180,7 +193,7 @@ def normalize_columns(
     if "Timestamp" in out.columns and "Unix Time / s" not in out.columns:
         try:
             ts = pd.to_datetime(out["Timestamp"], utc=True, errors="coerce")
-            out["Unix Time / s"] = (ts.view("int64") / 1e9)
+            out["Unix Time / s"] = ts.view("int64") / 1e9
             recognized.append("Unix Time / s")
             produced.add("Unix Time / s")
             meta["Unix Time / s"] = {
@@ -256,13 +269,16 @@ def normalize_columns(
         if canon in out.columns and col != canon:
             out[canon] = _coalesce_into(out[canon], out[col])
             # record meta (append note)
-            meta.setdefault(canon, {
-                "quantity": quantity or "",
-                "sourceHeader": "",
-                "sourceUnit": "",
-                "unit": target_unit,
-                "parsedFrom": source or "",
-            })
+            meta.setdefault(
+                canon,
+                {
+                    "quantity": quantity or "",
+                    "sourceHeader": "",
+                    "sourceUnit": "",
+                    "unit": target_unit,
+                    "parsedFrom": source or "",
+                },
+            )
             # Append provenance (multiple sources)
             prev = meta[canon].get("sourceHeader", "")
             meta[canon]["sourceHeader"] = (prev + "|" if prev else "") + str(col)
@@ -302,10 +318,8 @@ def normalize_columns(
         if missing:
             sample_cols = list(out.columns)[:25]
             raise ValueError(
-                "Missing required BDF columns after normalization: "
-                f"{missing}. Seen columns: {sample_cols}"
+                f"Missing required BDF columns after normalization: {missing}. Seen columns: {sample_cols}"
             )
-
 
     if not include_optional and not keep_unmapped:
         # only required, in the forced order
@@ -321,14 +335,13 @@ def normalize_columns(
 
     # Always move required trio to the very front in the specified order
     front = [c for c in ORDERED_REQUIRED if c in candidate]
-    tail  = [c for c in candidate if c not in ORDERED_REQUIRED]
+    tail = [c for c in candidate if c not in ORDERED_REQUIRED]
     out = out[front + tail].copy()
 
     out.attrs["bdf:columns"] = meta
     if legacy_headers:
         warnings.warn(
-            "Legacy BDF column labels detected (skos:altLabel/notation). "
-            "They were normalized to preferred labels.",
+            "Legacy BDF column labels detected (skos:altLabel/notation). They were normalized to preferred labels.",
             stacklevel=2,
         )
     return out

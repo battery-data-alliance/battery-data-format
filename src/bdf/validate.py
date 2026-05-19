@@ -6,12 +6,14 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
-from .normalize import OPTIONAL, REQUIRED, spec
+from . import spec
+from .normalize import OPTIONAL, REQUIRED
 from .ontology_labels import load_alias_index
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .units import parse_from_header
 
 __all__ = ["BDFValidationError", "validate_df"]
+
 
 class BDFValidationError(Exception):
     """Raised when a DataFrame fails BDF validation."""
@@ -72,7 +74,8 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
             canonical_present.add(alias.label)
 
     extras: List[str] = [
-        c for c in df.columns
+        c
+        for c in df.columns
         if c not in allowed and c not in legacy_cols and c not in notation_cols and c not in deprecated_pref_cols
     ]
     missing: List[str] = [c for c in REQUIRED if c not in canonical_present]
