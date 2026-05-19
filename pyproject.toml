@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "batterydf"
 version = "0.1.0"
 description = "Battery Data Format: load, convert, visualize, and publish"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Battery Data Alliance" }]
 keywords = ["battery", "data", "time-series", "bdf", "csv", "parquet"]
@@ -65,6 +65,7 @@ dev = [
   "nbclient>=0.9",
   "nbformat>=5.9",
   "ipykernel>=6.0",
+  "pre-commit>=4.6.0",
 ]
 docs = [
   "sphinx>=7.0",
