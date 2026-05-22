@@ -13,21 +13,35 @@ import pandas as pd
 
 # light imports that never cause cycles
 from .detect import detect as _detect, list_plugins as _list_plugins, load_plugin
-from .normalize import guess_plugin_by_columns, normalize_columns
+from .normalizer import canonicalize_legacy_labels, normalize as _normalize_df
 from .repair import CleanReport, clean  # public cleaning helpers
+from .sources import REGISTRY as _SOURCE_REGISTRY, Source
 from .validate import BDFValidationError, validate_df  # prints report if asked; warns on non-monotonic time
 
 __all__ = [
     # core I/O
-    "read", "parse", "normalize", "validate", "detect", "plugins",
+    "read",
+    "parse",
+    "normalize",
+    "validate",
+    "detect",
+    "plugins",
     # datasets helpers
-    "datasets", "load_registry", "get_entry",
+    "datasets",
+    "load_registry",
+    "get_entry",
     # registry LD helpers
-    "build_registry", "search", "sparql",
+    "build_registry",
+    "search",
+    "sparql",
     # cleaning
-    "clean", "CleanReport",
+    "clean",
+    "CleanReport",
     # viz
-    "plot", "explore", "ingest", "templates",
+    "plot",
+    "explore",
+    "ingest",
+    "templates",
     # version
     "__version__",
     # errors
@@ -37,6 +51,7 @@ __all__ = [
 # Optional version
 try:
     from importlib.metadata import version as _pkg_version  # type: ignore
+
     try:
         __version__ = _pkg_version("batterydf")
     except Exception:
@@ -47,6 +62,7 @@ except Exception:
 
 # Keep a handle to the original in case you want to restore it later
 _default_formatwarning = warnings.formatwarning
+
 
 def _bdf_short_formatwarning(message, category, filename, lineno, line=None):
     """
@@ -75,6 +91,7 @@ def _bdf_short_formatwarning(message, category, filename, lineno, line=None):
         where = "<unknown>"
 
     return f"{category.__name__} [{where}]: {message}\n"
+
 
 def _enable_short_warnings() -> bool:
     val = os.getenv("BDF_FORMAT_WARNINGS", "").strip().lower()
@@ -116,11 +133,13 @@ def _resolve_source(
     # 2) URL -> cache it
     if _is_url(s):
         from .fetch import fetch_url  # lazy
+
         path = fetch_url(s)
         return path, None
 
     # 3) dataset id from registry
     from ._registry import get_entry as _get_entry, load_registry as _load_registry  # lazy
+
     reg = _load_registry(registry_path)
     entry = _get_entry(reg, s)  # raises if not found/ambiguous
     url = entry["url"]
@@ -129,8 +148,36 @@ def _resolve_source(
     filename = entry.get("filename")
 
     from .fetch import fetch_url  # lazy
+
     path = fetch_url(url, sha256=sha256, filename=filename)
     return path, plugin_hint
+
+
+def normalize_columns(
+    df: pd.DataFrame,
+    plugin: str | Source | None = None,
+    *,
+    strict: bool = True,
+    include_optional: bool = True,
+) -> pd.DataFrame:
+    """Compatibility wrapper around the current normalizer implementation."""
+    _ = strict
+    return _normalize_df(df, source=plugin, include_optional=include_optional)
+
+
+def guess_plugin_by_columns(df: pd.DataFrame, current_id: str | None = None) -> Source | None:
+    """Return the best matching built-in source for a DataFrame header set."""
+    headers = list(df.columns)
+    best: Source | None = None
+    best_score = -1
+    for src in _SOURCE_REGISTRY.values():
+        if current_id is not None and src.id == current_id:
+            continue
+        score = src.score(headers)
+        if score > best_score:
+            best = src
+            best_score = score
+    return best
 
 
 def _default_ingest_cache_dir() -> Path:
@@ -210,6 +257,7 @@ def _resolve_ingest_source(source: str | Path, cache_dir: Path, refresh: bool) -
         if "github.com" in s:
             return _download_github_repo(s, cache_dir, refresh)
         from .fetch import fetch_url  # lazy
+
         return fetch_url(s, refresh=refresh)
     raise FileNotFoundError(s)
 
@@ -304,13 +352,12 @@ def read(
     local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
     if _looks_like_bdf_artifact(local_path):
         from .io import load as _load_bdf  # lazy import
+
         df = _load_bdf(local_path)
-        from .normalize import canonicalize_legacy_labels  # lazy import
         df, legacy = canonicalize_legacy_labels(df)
         if legacy:
             warnings.warn(
-                "Legacy BDF column labels detected (skos:altLabel/notation). "
-                "They were normalized to preferred labels.",
+                "Legacy BDF column labels detected (skos:altLabel/notation). They were normalized to preferred labels.",
                 stacklevel=2,
             )
         if validate:
@@ -348,14 +395,12 @@ def read(
                 raise
             alt = guess_plugin_by_columns(df_raw, current_id=getattr(plg, "id", None))
             if not alt or getattr(alt, "id", None) == getattr(plg, "id", None):
-                normalize_errors.append(
-                    (getattr(plg, "id", "?"), f"normalize failed: {type(exc).__name__}: {exc}")
-                )
+                normalize_errors.append((getattr(plg, "id", "?"), f"normalize failed: {type(exc).__name__}: {exc}"))
                 continue
             try:
                 warnings.warn(
-                    f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'."
-                    , stacklevel=2
+                    f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'.",
+                    stacklevel=2,
                 )
                 plg = alt
                 df_raw = plg.parse(local_path)
@@ -385,7 +430,6 @@ def read(
     raise RuntimeError(f"Could not parse+normalize source '{local_path}'. {details}")
 
 
-
 def parse(source: str | Path, plugin: str | None = None, registry_path: str | Path | None = None) -> pd.DataFrame:
     """Parse vendor file only (no normalization/validation)."""
     return read(source, plugin=plugin, normalize=False, validate=False, registry_path=registry_path)
@@ -399,6 +443,7 @@ def normalize(df: pd.DataFrame, plugin: str | None = None) -> pd.DataFrame:
     plg = None
     if plugin:
         from .data_sources import get_plugin_by_id  # lazy
+
         cls = get_plugin_by_id(plugin)
         if cls:
             plg = cls()
@@ -409,6 +454,7 @@ def _is_csv(path: Path) -> bool:
     s = "".join(path.suffixes).lower()
     return s.endswith(".csv") or s.endswith(".bdf.csv")
 
+
 def _csv_header_has_bdf_required(path: Path) -> bool:
     """Quickly check if first row contains required BDF columns."""
     try:
@@ -418,7 +464,8 @@ def _csv_header_has_bdf_required(path: Path) -> bool:
         return False
     cols_l = {c.strip().lower() for c in header.split(",")}
     # import lazily to avoid cycles
-    from .normalize import spec
+    from . import spec
+
     for q, s in spec.COLUMNS.items():
         if not s.get("required") or bool(s.get("deprecated")):
             continue
@@ -427,6 +474,7 @@ def _csv_header_has_bdf_required(path: Path) -> bool:
         if pref not in cols_l and notation not in cols_l:
             return False
     return True
+
 
 def _looks_like_bdf_artifact(path: Path) -> bool:
     """Return True if filename + header suggest this is a BDF file we should try to load."""
@@ -449,11 +497,12 @@ def _looks_like_bdf_artifact(path: Path) -> bool:
 # src/bdf/__init__.py (validate)
 # src/bdf/__init__.py  (replace the existing validate with this)
 
+
 def validate(
     obj,
     *,
     report: bool = False,
-    raise_on_error: bool = False,   # <- default False so notebooks don’t crash
+    raise_on_error: bool = False,  # <- default False so notebooks don’t crash
     registry_path: str | Path | None = None,
 ):
     """
@@ -468,6 +517,7 @@ def validate(
       dict report with at least:
         {"ok": True, "issues": [...]}   or   {"ok": False, "kind": "...", "detail": "..."}
     """
+
     # small local helpers (kept inside to avoid extra imports at module load time)
     def _bad_report(kind: str, detail: str, **extra):
         r = {"ok": False, "kind": kind, "detail": detail}
@@ -477,17 +527,20 @@ def validate(
             print(f"Validation failed: {detail}")
         if raise_on_error:
             from .validate import BDFValidationError
+
             raise BDFValidationError(detail)
         return r
 
     # Direct DataFrame path
     if isinstance(obj, pd.DataFrame):
         from .validate import validate_df
+
         return validate_df(obj, report=report, raise_on_error=raise_on_error)
 
     # Resolve path/URL/registry id to a local path
     if isinstance(obj, (str, Path)):
         from .__init__ import _resolve_source  # local helper already in your package
+
         local_path, _ = _resolve_source(obj, registry_path=registry_path)
         p = Path(local_path)
         fname = p.name
@@ -496,21 +549,31 @@ def validate(
         def _looks_like_bdf_artifact(path: Path) -> bool:
             # quick filename hint: *.bdf.csv, *.bdf.parquet, *.bdf.feather, *.bdf.json(.gz)
             name_lc = path.name.lower()
-            if any(name_lc.endswith(suf) for suf in (
-                ".bdf.csv", ".bdf.csv.gz",
-                ".bdf.parquet",
-                ".bdf.feather",
-                ".bdf.json", ".bdf.json.gz",
-            )):
+            if any(
+                name_lc.endswith(suf)
+                for suf in (
+                    ".bdf.csv",
+                    ".bdf.csv.gz",
+                    ".bdf.parquet",
+                    ".bdf.feather",
+                    ".bdf.json",
+                    ".bdf.json.gz",
+                )
+            ):
                 return True
             # header sniff for CSV only (cheap and safe)
             if name_lc.endswith(".csv") or name_lc.endswith(".csv.gz"):
                 try:
-                    with (gzip.open(path, "rt") if name_lc.endswith(".gz") else open(path, encoding="utf-8", errors="ignore")) as f:
+                    with (
+                        gzip.open(path, "rt")
+                        if name_lc.endswith(".gz")
+                        else open(path, encoding="utf-8", errors="ignore")
+                    ) as f:
                         head = "".join([f.readline() for _ in range(2)]).lower()
                     header_line = head.splitlines()[0] if head else ""
                     cols_l = {c.strip().lower() for c in header_line.split(",")}
-                    from .normalize import spec
+                    from . import spec
+
                     for q, s in spec.COLUMNS.items():
                         if not s.get("required") or bool(s.get("deprecated")):
                             continue
@@ -525,6 +588,7 @@ def validate(
 
         # Optional gzip import for header sniff
         import gzip as _maybe_gzip  # safe alias
+
         gzip = _maybe_gzip
 
         if not _looks_like_bdf_artifact(p):
@@ -537,6 +601,7 @@ def validate(
         # Try to load with strict BDF IO (no transformations)
         try:
             from .io import load as _load_bdf  # strict loader for BDF CSV/Parquet/Feather/JSON
+
             df = _load_bdf(p)
         except Exception as e:
             return _bad_report(
@@ -547,10 +612,14 @@ def validate(
 
         # Validate columns/units only; do NOT normalize or modify
         from .validate import validate_df
+
         return validate_df(df, report=report, raise_on_error=raise_on_error)
 
     # Anything else: wrong type
-    return _bad_report(kind="type_error", detail="validate() expects a pandas DataFrame, a file path (str/Path), a URL, or a dataset id.")
+    return _bad_report(
+        kind="type_error",
+        detail="validate() expects a pandas DataFrame, a file path (str/Path), a URL, or a dataset id.",
+    )
 
 
 def detect(path: str | Path):
@@ -567,17 +636,20 @@ def plugins() -> list[str]:
 def datasets(registry_path: str | Path | None = None) -> list[str]:
     """Return dataset IDs from the registry."""
     from ._registry import list_datasets as _list_datasets, load_registry as _load_registry  # lazy
+
     reg = _load_registry(registry_path)
     return _list_datasets(reg)
 
 
 def load_registry(path: str | Path | None = None):
     from ._registry import load_registry as _load_registry  # lazy
+
     return _load_registry(path)
 
 
 def get_entry(reg, entry_id: str):
     from ._registry import get_entry as _get_entry  # lazy
+
     return _get_entry(reg, entry_id)
 
 
@@ -587,16 +659,19 @@ def build_registry(
     refresh: bool = False,
 ) -> dict[str, Any]:
     from .registry_ld import build_registry as _build_registry  # lazy
+
     return _build_registry(sources, registry_dir=registry_dir, refresh=refresh)
 
 
 def search(query: str, registry_dir: str | Path | None = None, limit: int = 50):
     from .registry_ld import search as _search  # lazy
+
     return _search(query, registry_dir=registry_dir, limit=limit)
 
 
 def sparql(query: str, registry_dir: str | Path | None = None):
     from .registry_ld import sparql as _sparql  # lazy
+
     return _sparql(query, registry_dir=registry_dir)
 
 
@@ -625,8 +700,7 @@ def plot(*args, **kwargs):
         from .visualize import plot as _plot
     except Exception as e:
         raise RuntimeError(
-            "bdf.plot() requires the visualization module (matplotlib). "
-            "Ensure matplotlib is installed."
+            "bdf.plot() requires the visualization module (matplotlib). Ensure matplotlib is installed."
         ) from e
     return _plot(*args, **kwargs)
 
@@ -926,11 +1000,13 @@ def ingest(
 
     def _load_json(path: Path) -> dict:
         import json
+
         with open(path, encoding="utf-8") as f:
             return json.load(f)
 
     def _normalize_doi(value: Any) -> Optional[str]:
         import re
+
         if value is None:
             return None
         s = str(value).strip()
@@ -940,11 +1016,11 @@ def ingest(
         if sl.startswith("doi:"):
             s = s[4:].strip()
         if sl.startswith("https://doi.org/"):
-            s = s[len("https://doi.org/"):]
+            s = s[len("https://doi.org/") :]
         elif sl.startswith("http://doi.org/"):
-            s = s[len("http://doi.org/"):]
+            s = s[len("http://doi.org/") :]
         elif sl.startswith("http://dx.doi.org/"):
-            s = s[len("http://dx.doi.org/"):]
+            s = s[len("http://dx.doi.org/") :]
         match = re.search(r"(10\.\d{4,9}/\S+)", s)
         if not match:
             return None
@@ -994,9 +1070,7 @@ def ingest(
         if citation_doi_values is not None:
             citation_dois = _normalize_citation_values(citation_doi_values)
             if citation_dois:
-                normalized["citation_doi"] = (
-                    citation_dois[0] if len(citation_dois) == 1 else citation_dois
-                )
+                normalized["citation_doi"] = citation_dois[0] if len(citation_dois) == 1 else citation_dois
                 if not normalized.get("citation"):
                     normalized["citation"] = citation_dois
         if normalized.get("citation") is not None:
@@ -1014,6 +1088,7 @@ def ingest(
 
     def _strip_html(value: str) -> str:
         import re
+
         return re.sub(r"<[^>]+>", "", value).strip()
 
     def _doi_request_json(url: str) -> Optional[dict]:
@@ -1259,6 +1334,7 @@ def ingest(
             return
         import json
         from datetime import datetime, timezone
+
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         with open(state_path, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
@@ -1494,11 +1570,7 @@ def ingest(
             return {}
         battery_raw = _load_json(battery_path)
         battery_items = _expand_battery_items(battery_raw)
-        batteries = [
-            Battery(**_filter_fields(Battery, item))
-            for item in battery_items
-            if isinstance(item, dict)
-        ]
+        batteries = [Battery(**_filter_fields(Battery, item)) for item in battery_items if isinstance(item, dict)]
         index: dict[str, Battery] = {}
         for b in batteries:
             if b.id:
@@ -1509,6 +1581,7 @@ def ingest(
 
     def _resolve_creator(item: Any, people_index: dict[str, dict]):
         from .metadata import Creator  # lazy import
+
         if isinstance(item, str):
             pdata = people_index.get(item.lower())
             if not pdata:
@@ -1526,16 +1599,16 @@ def ingest(
             return Creator(**_filter_fields(Creator, item))
         return None
 
-    def _build_creators(
-        meta_raw: dict, people_index: dict[str, dict], *, allow_fallback_unknown: bool = True
-    ):
+    def _build_creators(meta_raw: dict, people_index: dict[str, dict], *, allow_fallback_unknown: bool = True):
         creators_raw = meta_raw.get("creators") or meta_raw.get("creator") or []
         creators = [c for c in (_resolve_creator(it, people_index) for it in creators_raw) if c is not None]
         if not creators and people_index:
             from .metadata import Creator  # lazy import
+
             creators = [Creator(**_filter_fields(Creator, pdata)) for pdata in people_index.values()]
         if not creators and allow_fallback_unknown:
             from .metadata import Creator  # lazy import
+
             creators = [Creator(name="Unknown contributor")]
         return creators
 
@@ -1637,11 +1710,7 @@ def ingest(
         if battery_path.exists():
             battery_raw = _load_json(battery_path)
             battery_items = _expand_battery_items(battery_raw)
-            batteries = [
-                Battery(**_filter_fields(Battery, item))
-                for item in battery_items
-                if isinstance(item, dict)
-            ]
+            batteries = [Battery(**_filter_fields(Battery, item)) for item in battery_items if isinstance(item, dict)]
 
         cell_id = _parse_cell_id(src)
         if not cell_id and batteries:
@@ -1658,8 +1727,7 @@ def ingest(
             matched = [
                 b
                 for b in batteries
-                if str(b.id).lower() == cell_id_lower
-                or (b.name and str(b.name).lower() == cell_id_lower)
+                if str(b.id).lower() == cell_id_lower or (b.name and str(b.name).lower() == cell_id_lower)
             ]
         else:
             matched = []
@@ -1680,9 +1748,7 @@ def ingest(
         parts = _parse_filename_parts(path)
         return parts.get("measurement_technique")
 
-    def _write_collection_metadata(
-        *, include_batteries: bool = False
-    ) -> tuple[Optional[Path], dict[str, list[str]]]:
+    def _write_collection_metadata(*, include_batteries: bool = False) -> tuple[Optional[Path], dict[str, list[str]]]:
         dataset_path = _find_contribution_file(root)
         if not dataset_path:
             return None, {}
@@ -1708,11 +1774,7 @@ def ingest(
             sfx = "".join(path.suffixes).lower()
             return ".bdf" in sfx
 
-        bdf_files = [
-            f
-            for f in data_root.rglob("*")
-            if f.is_file() and _is_bdf_output(f)
-        ]
+        bdf_files = [f for f in data_root.rglob("*") if f.is_file() and _is_bdf_output(f)]
         battery_index = _build_battery_index(root)
         child_nodes: list[dict[str, Any]] = []
         dataset_links: dict[str, list[str]] = {}
@@ -1755,9 +1817,7 @@ def ingest(
                 override_raw = _load_json(override_path)
                 if isinstance(override_raw, dict):
                     override_raw = _canonicalize_metadata_keys(override_raw)
-                    override_creators = _build_creators(
-                        override_raw, people_index, allow_fallback_unknown=False
-                    )
+                    override_creators = _build_creators(override_raw, people_index, allow_fallback_unknown=False)
                     if override_creators:
                         child_kwargs["creators"] = override_creators
                     override_raw = dict(override_raw)
@@ -1851,9 +1911,7 @@ def ingest(
             meta.save_jsonld(meta_out, extra_fields=extra_fields or None)
         return meta_out, dataset_links
 
-    def _write_battery_metadata_files(
-        battery_index: dict[str, Any], dataset_links: dict[str, list[str]]
-    ) -> list[Path]:
+    def _write_battery_metadata_files(battery_index: dict[str, Any], dataset_links: dict[str, list[str]]) -> list[Path]:
         import json
 
         from .metadata import DEFAULT_JSONLD_CONTEXT  # lazy import
@@ -1992,6 +2050,7 @@ def ingest(
                     df_for_meta = None
                     try:
                         from .io import load as _load_bdf  # lazy import
+
                         df_for_meta = _load_bdf(output_used)
                     except Exception:
                         df_for_meta = None

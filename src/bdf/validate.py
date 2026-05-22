@@ -7,10 +7,12 @@ from typing import Any, Dict, List
 import pandas as pd
 
 from . import spec
-from ._normalize_legacy import OPTIONAL, REQUIRED
 from .ontology_labels import load_alias_index
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .units import parse_from_header
+
+REQUIRED = list(spec.COLUMN_ONTOLOGY.required_labels())
+OPTIONAL = list(spec.COLUMN_ONTOLOGY.optional_labels())
 
 __all__ = ["BDFValidationError", "validate_df"]
 
