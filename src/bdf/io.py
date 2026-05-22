@@ -141,7 +141,7 @@ def load(pathlike) -> pd.DataFrame:
             raise ValueError(f"Unsupported format: {fmt}")
 
         # Always expose human canonical labels in-memory.
-        from .normalize import canonicalize_legacy_labels
+        from .normalizer import canonicalize_legacy_labels
 
         df, legacy = canonicalize_legacy_labels(df)
         if legacy:
@@ -171,7 +171,7 @@ def save(
     comp = _detect_compression(p)
 
     try:
-        from .normalize import canonicalize_legacy_labels
+        from .normalizer import canonicalize_legacy_labels
 
         df, _legacy = canonicalize_legacy_labels(df)
     except Exception:
