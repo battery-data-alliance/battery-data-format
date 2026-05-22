@@ -63,11 +63,8 @@ def _pick_labels(graph: Graph, subject, predicate) -> list[str]:
 
 def _build_alias_entries(graph: Graph) -> list[tuple[str, AliasInfo]]:
     spec_base: dict[str, str] = {}
-    for q in spec.COLUMNS:
-        label = spec._label_for(q)
-        # Keep first match so ontology extensions that reuse a base label
-        # (e.g., deprecated unit variants) do not override canonical targets.
-        spec_base.setdefault(_label_base(label).lower(), q)
+    for q, s in spec.COLUMN_ONTOLOGY:
+        spec_base.setdefault(_label_base(s.label).lower(), q)
 
     alias_entries: list[tuple[str, AliasInfo]] = []
 
@@ -90,7 +87,7 @@ def _build_alias_entries(graph: Graph) -> list[tuple[str, AliasInfo]]:
                 continue
 
         base_key = _label_base(pref_label).lower()
-        quantity = fragment if fragment in spec.COLUMNS else spec_base.get(base_key)
+        quantity = fragment if hasattr(spec.COLUMN_ONTOLOGY, fragment) else spec_base.get(base_key)
         if deprecated:
             preferred = spec_base.get(base_key)
             if preferred:
@@ -98,8 +95,8 @@ def _build_alias_entries(graph: Graph) -> list[tuple[str, AliasInfo]]:
         if not quantity:
             continue
 
-        target_label = spec._label_for(quantity)
-        target_unit = spec.unit_for(quantity)
+        target_label = getattr(spec.COLUMN_ONTOLOGY, quantity).label
+        target_unit = getattr(spec.COLUMN_ONTOLOGY, quantity).unit
         source_unit = None
         pref_unit = _label_unit(pref_label)
         if pref_unit and pref_unit != target_unit:

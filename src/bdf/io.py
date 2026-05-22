@@ -53,26 +53,27 @@ def _label_maps() -> tuple[dict[str, str], dict[str, str]]:
     from . import spec
 
     base_preferred: dict[str, str] = {}
-    for q, s in spec.COLUMNS.items():
-        if bool(s.get("deprecated")):
+    for q, s in spec.COLUMN_ONTOLOGY:
+        if s.deprecated:
             continue
-        base = spec._label_for(q).split(" / ", 1)[0].strip().lower()
+        base = s.label.split(" / ", 1)[0].strip().lower()
         base_preferred.setdefault(base, q)
 
     pref_to_machine: dict[str, str] = {}
     machine_to_pref: dict[str, str] = {}
 
-    for q, s in spec.COLUMNS.items():
-        source_pref = spec._label_for(q)
-        source_notation = spec.notation_for(q)
+    for q, s in spec.COLUMN_ONTOLOGY:
+        source_pref = s.label
+        source_notation = s.effective_notation
 
         target_q = q
-        if bool(s.get("deprecated")):
+        if s.deprecated:
             base = source_pref.split(" / ", 1)[0].strip().lower()
             target_q = base_preferred.get(base, q)
 
-        target_pref = spec._label_for(target_q)
-        target_notation = spec.notation_for(target_q)
+        target = getattr(spec.COLUMN_ONTOLOGY, target_q)
+        target_pref = target.label
+        target_notation = target.effective_notation
 
         pref_to_machine.setdefault(source_pref, target_notation)
         machine_to_pref.setdefault(source_notation, target_pref)
