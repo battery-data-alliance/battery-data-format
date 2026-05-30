@@ -540,18 +540,6 @@ class TestNormalizerNormalize:
         out = n.normalize(df)
         assert out is df
 
-    def test_normalize_column_map_override(self, simple_df):
-        """normalize applies column_map unit conversion on top of resolved columns."""
-        n = Normalizer(test_time_second=[DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",))])
-        out = n.normalize(simple_df, column_map={"Voltage / mV": "Voltage-V"})
-        assert out["Voltage / V"][0] == pytest.approx(3.2 * 0.001)
-
-    def test_normalize_column_map_invalid_key_raises(self, simple_df):
-        """normalize raises ValueError for unknown BDF label in column_map."""
-        n = Normalizer()
-        with pytest.raises(ValueError, match="label base not found"):
-            n.normalize(simple_df, column_map={"NotReal / V": "Voltage-V"})
-
     def test_normalize_extra_columns_passthrough(self, simple_df):
         """normalize includes extra_columns with specified names."""
         n = Normalizer(voltage_volt=[Syn("Voltage-{unit}")])
@@ -619,6 +607,130 @@ class TestNormalizerNormalize:
         assert out["Voltage / V"].dtype == pl.Float64
 
 
+class TestNormalizerFromColumnMap:
+    def test_empty_dict_raises(self):
+        """from_column_map raises ValueError for empty dict."""
+        with pytest.raises(ValueError, match="column_map must not be empty"):
+            Normalizer.from_column_map({})
+
+    def test_single_entry_returns_normalizer(self):
+        """from_column_map with one valid entry returns a Normalizer."""
+        n = Normalizer.from_column_map({"Voltage / V": "my_v"})
+        assert isinstance(n, Normalizer)
+
+    def test_resolved_column_set_on_correct_field(self):
+        """from_column_map sets the ResolvedColumn on the correct mr_name field."""
+        n = Normalizer.from_column_map({"Voltage / V": "my_v"})
+        assert isinstance(n.voltage_volt, ResolvedColumn)
+        assert n.voltage_volt.source_header == "my_v"
+
+    def test_source_header_preserved(self):
+        """from_column_map stores the original source header string."""
+        n = Normalizer.from_column_map({"Current / A": "raw_current_col"})
+        assert isinstance(n.current_ampere, ResolvedColumn)
+        assert n.current_ampere.source_header == "raw_current_col"
+
+    def test_same_unit_scale_one(self):
+        """from_column_map sets scale=1.0 when key unit matches BDF unit."""
+        n = Normalizer.from_column_map({"Voltage / V": "v"})
+        assert isinstance(n.voltage_volt, ResolvedColumn)
+        assert n.voltage_volt.scale == pytest.approx(1.0)
+
+    def test_unit_conversion_millivolt(self):
+        """from_column_map sets scale=0.001 when key unit is mV and BDF unit is V."""
+        n = Normalizer.from_column_map({"Voltage / mV": "v_mv"})
+        assert isinstance(n.voltage_volt, ResolvedColumn)
+        assert n.voltage_volt.scale == pytest.approx(0.001)
+        assert n.voltage_volt.offset == pytest.approx(0.0)
+
+    def test_unit_conversion_milliampere(self):
+        """from_column_map sets scale=0.001 when key unit is mA and BDF unit is A."""
+        n = Normalizer.from_column_map({"Current / mA": "i_ma"})
+        assert isinstance(n.current_ampere, ResolvedColumn)
+        assert n.current_ampere.scale == pytest.approx(0.001)
+
+    def test_unit_conversion_hours_to_seconds(self):
+        """from_column_map converts hours to seconds (scale=3600)."""
+        n = Normalizer.from_column_map({"Test Time / h": "t_h"})
+        assert isinstance(n.test_time_second, ResolvedColumn)
+        assert n.test_time_second.scale == pytest.approx(3600.0)
+
+    def test_multiple_entries(self):
+        """from_column_map handles multiple entries and sets each field correctly."""
+        n = Normalizer.from_column_map(
+            {
+                "Voltage / mV": "col_v",
+                "Current / mA": "col_i",
+                "Test Time / s": "col_t",
+            }
+        )
+        assert isinstance(n.voltage_volt, ResolvedColumn)
+        assert isinstance(n.current_ampere, ResolvedColumn)
+        assert isinstance(n.test_time_second, ResolvedColumn)
+        assert n.voltage_volt.source_header == "col_v"
+        assert n.current_ampere.source_header == "col_i"
+        assert n.test_time_second.source_header == "col_t"
+
+    def test_unset_fields_remain_none(self):
+        """from_column_map leaves unspecified fields as None."""
+        n = Normalizer.from_column_map({"Voltage / V": "v"})
+        assert n.current_ampere is None
+        assert n.test_time_second is None
+
+    def test_invalid_label_raises(self):
+        """from_column_map raises ValueError for unknown BDF label base."""
+        with pytest.raises(ValueError, match="label base not found"):
+            Normalizer.from_column_map({"NotReal / V": "col"})
+
+    def test_incompatible_unit_warns_and_uses_scale_one(self):
+        """from_column_map warns on incompatible unit and falls back to scale=1.0."""
+        with pytest.warns(UserWarning, match="not compatible"):
+            n = Normalizer.from_column_map({"Voltage / A": "col_v"})
+        assert isinstance(n.voltage_volt, ResolvedColumn)
+        assert n.voltage_volt.scale == pytest.approx(1.0)
+
+    def test_fields_are_resolved_column_not_syn_list(self):
+        """from_column_map produces ResolvedColumn fields, not synonym lists."""
+        n = Normalizer.from_column_map({"Current / A": "i"})
+        assert isinstance(n.current_ampere, ResolvedColumn)
+
+    def test_can_normalize_dataframe(self):
+        """Normalizer built from from_column_map correctly normalizes a DataFrame."""
+        n = Normalizer.from_column_map(
+            {
+                "Voltage / mV": "v_mv",
+                "Current / mA": "i_ma",
+            }
+        )
+        df = pl.DataFrame({"v_mv": [1000.0, 2000.0], "i_ma": [500.0, 1000.0]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            out = n.normalize(df)
+        assert "Voltage / V" in out.columns
+        assert "Current / A" in out.columns
+        assert out["Voltage / V"].to_list() == pytest.approx([1.0, 2.0])
+        assert out["Current / A"].to_list() == pytest.approx([0.5, 1.0])
+
+    def test_resolve_uses_source_header(self):
+        """Normalizer from from_column_map resolves to correct source_header in resolve()."""
+        n = Normalizer.from_column_map({"Voltage / V": "vendor_v"})
+        resolved = n.resolve(["vendor_v"])
+        assert "voltage_volt" in resolved
+        assert resolved["voltage_volt"].source_header == "vendor_v"
+
+    def test_duplicate_mr_name_last_wins(self):
+        """from_column_map with two keys mapping to same mr_name: last entry wins."""
+        n = Normalizer.from_column_map(
+            {
+                "Voltage / V": "first_col",
+                "Voltage / mV": "second_col",
+            }
+        )
+        assert isinstance(n.voltage_volt, ResolvedColumn)
+        assert n.voltage_volt.source_header == "second_col"
+        assert n.voltage_volt.scale == pytest.approx(0.001)
+
+
 class TestNormalizerModelValidate:
     def test_json_validation_synonym_list(self):
         """model_validate accepts dict with Syn and DateTimeSyn data."""
@@ -646,19 +758,19 @@ class TestNormalizerModelValidate:
 
 
 class TestNormalizeFn:
-    def test_no_source_no_column_map_no_extra_returns_df(self):
+    def test_no_source_no_normalizer_no_extra_returns_df(self):
         """normalize() returns input unchanged when no normalization applies."""
         df = pl.DataFrame({"unknown_col": [1.0, 2.0]})
         with patch("bdf.normalizer._detect_source", return_value=None):
             out = normalize(df)
         assert out is df
 
-    def test_column_map_only_no_source(self):
-        """normalize() with column_map creates normalizer from map and applies it."""
+    def test_normalizer_only_no_source(self):
+        """normalize() with explicit normalizer bypasses source detection."""
         df = pl.DataFrame({"my_v": [1000.0]})
-        with patch("bdf.normalizer._detect_source", return_value=None), warnings.catch_warnings():
+        with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
-            out = normalize(df, column_map={"Voltage / mV": "my_v"})
+            out = normalize(df, normalizer={"Voltage / mV": "my_v"})
         assert "Voltage / V" in out.columns
         assert out["Voltage / V"][0] == pytest.approx(1.0)
 

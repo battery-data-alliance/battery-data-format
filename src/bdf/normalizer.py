@@ -279,12 +279,22 @@ class Normalizer(BaseModel):
         resolved = self.resolve(headers)
         return sum(1 for rc in resolved.values() if rc.source_header in headers)
 
+    @classmethod
+    def from_column_map(cls, column_map: dict[str, str]) -> "Normalizer":
+        """Convert a BDF label-key dict to a Normalizer via ResolvedColumn.from_column_map."""
+        if not column_map:
+            raise ValueError("column_map must not be empty")
+        kwargs: dict[str, ResolvedColumn] = {}
+        for bdf_label_key, src_header in column_map.items():
+            mr_name, rc = ResolvedColumn.from_column_map(bdf_label_key, src_header)
+            kwargs[mr_name] = rc
+        return cls(**kwargs)
+
     def normalize(
         self,
         df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
         *,
         include_optional: bool = True,
-        column_map: dict[str, str] | None = None,
         extra_columns: dict[str, str] | None = None,
     ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
         """Resolve headers → BDF columns, apply unit conversion, return df_out.
@@ -296,7 +306,6 @@ class Normalizer(BaseModel):
             result = self.normalize(
                 lf,
                 include_optional=include_optional,
-                column_map=column_map,
                 extra_columns=extra_columns,
             )
             assert isinstance(result, pl.LazyFrame)
@@ -306,11 +315,6 @@ class Normalizer(BaseModel):
         headers = list(schema.names())
 
         resolved = self.resolve(headers)
-
-        if column_map:
-            for bdf_label_key, src_header in column_map.items():
-                mr_name, rc = ResolvedColumn.from_column_map(bdf_label_key, src_header)
-                resolved[mr_name] = rc
 
         if not include_optional:
             resolved = {mr: r for mr, r in resolved.items() if getattr(COLUMN_ONTOLOGY, mr).required}
@@ -371,12 +375,15 @@ def normalize(
     source: str | Source | None = None,
     *,
     include_optional: bool = True,
-    column_map: dict[str, str] | None = None,
+    normalizer: "Normalizer | dict[str, str] | None" = None,
     extra_columns: dict[str, str] | None = None,
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
     """Map vendor columns to BDF canonical names with unit conversion and dtype casting.
 
     Accepts ``pl.DataFrame``, ``pl.LazyFrame``, or ``pandas.DataFrame``. Return type matches input.
+
+    Pass ``normalizer`` to bypass source detection entirely and use explicit normalisation
+    instructions. When omitted, the source is detected from column headers (or ``source``).
     """
     from .sources import Source, get_normalizer  # lazy: avoids circular import
 
@@ -386,22 +393,26 @@ def normalize(
     else:
         headers = list(df.columns)
 
-    src: Source | None
-    if isinstance(source, Source):
-        src = source
-    elif isinstance(source, str):
-        src = get_normalizer(source)
+    norm: Normalizer
+    if normalizer is not None:
+        norm = normalizer if isinstance(normalizer, Normalizer) else Normalizer.from_column_map(normalizer)
     else:
-        src = _detect_source(headers)
+        src: Source | None
+        if isinstance(source, Source):
+            src = source
+        elif isinstance(source, str):
+            src = get_normalizer(source)
+        else:
+            src = _detect_source(headers)
 
-    if src is None and not column_map and not extra_columns:
-        return df
+        if src is None and not extra_columns:
+            return df
 
-    normalizer: Normalizer = src.normalizer if src is not None else Normalizer()
-    return normalizer.normalize(
+        norm = src.normalizer if src is not None else Normalizer()
+
+    return norm.normalize(
         df,
         include_optional=include_optional,
-        column_map=column_map,
         extra_columns=extra_columns,
     )
 
