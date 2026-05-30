@@ -11,7 +11,7 @@ Authoring a new built-in source
 
            MY_VENDOR = Source(
                id="my_vendor",
-               exts=(".csv",),
+               unique_exts=(".myvendor",),
                magic=("My Vendor file format",),
                metadata=MetadataParser(start_time="Start: (.+)"),
                normalizer=Normalizer(...),
@@ -45,12 +45,15 @@ class Source(BaseModel):
 
     id: str
     magic: tuple[str, ...] = ()
-    exts: tuple[str, ...] = ()
+    unique_exts: tuple[str, ...] = ()
     metadata: MetadataParser = Field(default_factory=MetadataParser)
     normalizer: Normalizer
 
     def score(self, headers: list[str]) -> int:
         return self.normalizer.score(headers)
+
+    def match_ext(self, ext: str) -> bool:
+        return ext.lower() in self.unique_exts
 
     def match_magic(self, head: bytes) -> bool:
         if not self.magic:
@@ -68,7 +71,6 @@ _ARBIN_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%
 
 ARBIN_CSV = Source(
     id="arbin_csv",
-    exts=(".csv",),
     metadata=MetadataParser(),
     normalizer=Normalizer(
         test_time_second=[Syn("test time ({unit})")],
@@ -97,7 +99,7 @@ ARBIN_CSV = Source(
 
 BASYTEC_TXT = Source(
     id="basytec_txt",
-    exts=(".txt", ".dat"),
+    unique_exts=(".dat",),
     magic=(
         "resultfile from basytec battery test system",
         "basytec battery test system",
@@ -134,7 +136,7 @@ BASYTEC_TXT = Source(
 
 BIOLOGIC_MPT = Source(
     id="biologic_mpt",
-    exts=(".mpt",),
+    unique_exts=(".mpt",),
     magic=("bt-lab ascii file", "ec-lab ascii file"),
     metadata=MetadataParser(start_time=r"Acquisition started on\s*:\s*(.+)"),
     normalizer=Normalizer(
@@ -198,7 +200,6 @@ _DIGATRON_DT_FMTS = ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S")
 
 DIGATRON_CSV = Source(
     id="digatron_csv",
-    exts=(".csv",),
     metadata=MetadataParser(),
     normalizer=Normalizer(
         test_time_second=[
@@ -231,7 +232,6 @@ DIGATRON_CSV = Source(
 
 LANDT_CSV = Source(
     id="landt_csv",
-    exts=(".csv",),
     metadata=MetadataParser(),
     normalizer=Normalizer(
         test_time_second=[Syn("test_time_s")],
@@ -248,7 +248,6 @@ LANDT_CSV = Source(
 
 LANDT_TXT = Source(
     id="landt_txt",
-    exts=(".txt",),
     metadata=MetadataParser(),
     normalizer=Normalizer(
         test_time_second=[
@@ -302,7 +301,6 @@ _MACCOR_DT_FMTS = ("%d-%b-%y %I:%M:%S %p", "%d-%b-%y %H:%M:%S", "%Y-%m-%d %H:%M:
 
 MACCOR_CSV = Source(
     id="maccor_csv",
-    exts=(".csv",),
     magic=("today's date", "date of test:"),
     metadata=MetadataParser(start_time=r"Date of Test:,(.+)"),
     normalizer=Normalizer(
@@ -329,7 +327,6 @@ _NEWARE_DT_FMTS = ("%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:
 
 NEWARE_CSV = Source(
     id="neware_csv",
-    exts=(".csv",),
     metadata=MetadataParser(),
     normalizer=Normalizer(
         test_time_second=[
@@ -388,7 +385,6 @@ NEWARE_CSV = Source(
 
 NOVONIX_CSV = Source(
     id="novonix_csv",
-    exts=(".csv",),
     magic=("[summary]", "[data]", "novonix uhpc data file", "novonix"),
     metadata=MetadataParser(),
     normalizer=Normalizer(
