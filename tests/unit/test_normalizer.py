@@ -18,7 +18,6 @@ from bdf.normalizer import (
     Syn,
     normalize,
 )
-from bdf.sources import Source
 
 
 class TestSyn:
@@ -761,7 +760,7 @@ class TestNormalizeFn:
     def test_no_source_no_normalizer_no_extra_returns_df(self):
         """normalize() returns input unchanged when no normalization applies."""
         df = pl.DataFrame({"unknown_col": [1.0, 2.0]})
-        with patch("bdf.normalizer._detect_source", return_value=None):
+        with patch("bdf.normalizer._detect_normalizer", return_value=None):
             out = normalize(df)
         assert out is df
 
@@ -777,23 +776,23 @@ class TestNormalizeFn:
     def test_extra_columns_only_no_source(self):
         """normalize() with extra_columns passes through extra columns."""
         df = pl.DataFrame({"raw": [1.0, 2.0]})
-        with patch("bdf.normalizer._detect_source", return_value=None):
+        with patch("bdf.normalizer._detect_normalizer", return_value=None):
             out = normalize(df, extra_columns={"raw": "Raw Out"})
         assert "Raw Out" in out.columns
 
     def test_lazyframe_passthrough_unchanged(self):
         """normalize() on unknown LazyFrame returns it unchanged."""
         lf = pl.LazyFrame({"unknown_xyz": [1.0]})
-        with patch("bdf.normalizer._detect_source", return_value=None):
+        with patch("bdf.normalizer._detect_normalizer", return_value=None):
             out = normalize(lf)
         assert isinstance(out, pl.LazyFrame)
         assert out is lf
 
-    def test_source_object_uses_its_normalizer(self):
-        """normalize() with explicit source uses that source's normalizer."""
-        src = Source(id="test_src", normalizer=Normalizer(voltage_volt=[Syn("v")]))
+    def test_explicit_normalizer_uses_its_mapping(self):
+        """normalize() with an explicit normalizer uses that normalizer's mapping."""
+        norm = Normalizer(voltage_volt=[Syn("v")])
         df = pl.DataFrame({"v": [3.5]})
-        with patch("bdf.normalizer._detect_source", return_value=None), warnings.catch_warnings():
+        with patch("bdf.normalizer._detect_normalizer", return_value=None), warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
-            out = normalize(df, source=src)
+            out = normalize(df, normalizer=norm)
         assert "Voltage / V" in out.columns

@@ -12,14 +12,13 @@ import polars as pl
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     PrivateAttr,
     RootModel,
 )
 
 if TYPE_CHECKING:
     import pandas as pd  # noqa: F401
-
-    from bdf.sources import Source  # noqa: F401
 
 from bdf.spec import COLUMN_ONTOLOGY, get_unit_conversion, unit_from_label
 
@@ -60,8 +59,8 @@ class DateTimeSyn(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    syn: Syn
-    fmts: tuple[str, ...]
+    syn: Syn = Field(description="Header synonym to match datetime columns.")
+    fmts: tuple[str, ...] = Field(description="Ordered list of datetime format strings to attempt parsing.")
 
 
 SynUnion = Syn | DateTimeSyn
@@ -72,10 +71,12 @@ class ResolvedColumn(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    source_header: str
-    scale: float = 1.0
-    offset: float = 0.0
-    datetime_fmts: tuple[str, ...] = ()
+    source_header: str = Field(description="The column name in the source data.")
+    scale: float = Field(default=1.0, description="Scale factor to apply to numeric values.")
+    offset: float = Field(default=0.0, description="Offset to apply to numeric values after scaling.")
+    datetime_fmts: tuple[str, ...] = Field(
+        default=(), description="Datetime format strings for parsing timestamp columns."
+    )
 
     @classmethod
     def from_column_map(cls, bdf_label_key: str, src_header: str) -> tuple[str, ResolvedColumn]:
@@ -179,7 +180,7 @@ class MetadataParser(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    start_time: str | None = None
+    start_time: str | None = Field(default=None, description="Regex pattern to extract test start time from preamble.")
 
     _compiled: dict[str, re.Pattern[str]] = PrivateAttr(default_factory=dict)
 
@@ -356,23 +357,346 @@ class Normalizer(BaseModel):
         return out
 
 
-def _detect_source(headers: list[str]) -> Source | None:
-    """Return best-matching Source for headers, or None if no match."""
-    from .sources import REGISTRY  # lazy: avoids circular import (sources → normalizer)
+# ---------------------------------------------------------------------------
+# Built-in vendor normalizers
+#
+# Each constant is a mechanics-agnostic header→BDF mapping. ``DataSource``
+# entries in ``datasources.py`` reference these by key; one normalizer can back
+# several file formats (e.g. ``"neware"`` backs both the CSV and XLSX sources).
+# ---------------------------------------------------------------------------
 
-    best: Source | None = None
+_ARBIN_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_DIGATRON_DT_FMTS = ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_MACCOR_DT_FMTS = ("%d-%b-%y %I:%M:%S %p", "%d-%b-%y %H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_NEWARE_DT_FMTS = ("%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
+
+ARBIN = Normalizer(
+    test_time_second=[Syn("test time ({unit})")],
+    voltage_volt=[Syn("voltage ({unit})")],
+    current_ampere=[Syn("current ({unit})")],
+    unix_time_second=[DateTimeSyn(syn=Syn("date time"), fmts=_ARBIN_DT_FMTS)],
+    cycle_count=[Syn("cycle index")],
+    step_count=[Syn("step index")],
+    step_index=[Syn("data point")],
+    step_time_second=[Syn("step time ({unit})")],
+    ambient_temperature_celsius=[Syn("aux_temperature_1 ({unit})")],
+    charging_capacity_ah=[Syn("charge capacity ({unit})")],
+    discharging_capacity_ah=[Syn("discharge capacity ({unit})")],
+    charging_energy_wh=[Syn("charge energy ({unit})")],
+    discharging_energy_wh=[Syn("discharge energy ({unit})")],
+    power_watt=[Syn("power ({unit})")],
+    internal_resistance_ohm=[
+        Syn("internal resistance ({unit})"),
+        Syn("acr ({unit})"),
+    ],
+)
+
+BASYTEC = Normalizer(
+    test_time_second=[
+        Syn("time[{unit}]"),
+        Syn("time"),
+        DateTimeSyn(syn=Syn("time[h:min:s]"), fmts=("%H:%M:%S.%f",)),
+    ],
+    voltage_volt=[
+        Syn("u[{unit}]"),
+        Syn("voltage[{unit}]"),
+        Syn("u"),
+        Syn("voltage"),
+    ],
+    current_ampere=[
+        Syn("i[{unit}]"),
+        Syn("current[{unit}]"),
+        Syn("i"),
+        Syn("current"),
+    ],
+    ambient_temperature_celsius=[
+        Syn("t1[{unit}]"),
+        Syn("temp[{unit}]"),
+        Syn("temperature[{unit}]"),
+    ],
+)
+
+BIOLOGIC = Normalizer(
+    test_time_second=[
+        Syn("time/{unit}"),
+        Syn("time / {unit}"),
+        Syn("t ({unit})"),
+        Syn("time [{unit}]"),
+        Syn("relative time({unit})"),
+    ],
+    voltage_volt=[
+        Syn("ewe/{unit}"),
+        Syn("ecell/{unit}"),
+        Syn("u/{unit}"),
+        Syn("u[{unit}]"),
+        Syn("ewe ({unit})"),
+        Syn("<ewe>/{unit}"),
+    ],
+    current_ampere=[
+        Syn("i[{unit}]"),
+        Syn("current / {unit}"),
+        Syn("current({unit})"),
+        Syn("i({unit})"),
+        Syn("i/{unit}"),
+        Syn("<i>/{unit}"),
+    ],
+    cycle_count=[Syn("cycle number"), Syn("z cycle")],
+    step_index=[Syn("Ns")],
+    step_time_second=[Syn("step time/{unit}")],
+    ambient_temperature_celsius=[
+        Syn("temperature/{unit}"),
+        Syn("temp/{unit}"),
+        Syn("t/{unit}"),
+        Syn("t/{unit}"),
+    ],
+    charging_capacity_ah=[
+        Syn("q charge/{unit}"),
+        Syn("q charge /{unit}"),
+    ],
+    discharging_capacity_ah=[
+        Syn("q discharge/{unit}"),
+        Syn("q discharge /{unit}"),
+    ],
+    step_capacity_ah=[Syn("dq/{unit}")],
+    cumulative_capacity_ah=[
+        Syn("(q-qo)/{unit}"),
+        Syn("capacity/{unit}"),
+    ],
+    charging_energy_wh=[Syn("energy charge/{unit}")],
+    discharging_energy_wh=[Syn("energy discharge/{unit}")],
+    cumulative_energy_wh=[Syn("|energy|/{unit}")],
+    power_watt=[Syn("p/{unit}")],
+    internal_resistance_ohm=[Syn("r/{unit}")],
+)
+
+DIGATRON = Normalizer(
+    test_time_second=[
+        Syn("program duration#{unit}"),
+        Syn("prog time"),
+        Syn("program time"),
+    ],
+    voltage_volt=[Syn("voltage#{unit}"), Syn("voltage")],
+    current_ampere=[Syn("current#{unit}"), Syn("current")],
+    unix_time_second=[DateTimeSyn(syn=Syn("timestamp"), fmts=_DIGATRON_DT_FMTS)],
+    cycle_count=[Syn("cycle")],
+    step_index=[Syn("step")],
+    step_time_second=[Syn("step time")],
+    charging_capacity_ah=[Syn("AhCha#{unit}")],
+    discharging_capacity_ah=[Syn("AhDch#{unit}")],
+    step_capacity_ah=[Syn("AhStep#{unit}")],
+    net_capacity_ah=[Syn("AhBal#{unit}")],
+    cumulative_capacity_ah=[Syn("AhAccu#{unit}"), Syn("AhAccu")],
+    charging_energy_wh=[Syn("WhCha#{unit}")],
+    discharging_energy_wh=[Syn("WhDch#{unit}")],
+    step_energy_wh=[Syn("WhStep#{unit}")],
+    cumulative_energy_wh=[Syn("WhAccu#{unit}"), Syn("WhAccu")],
+    power_watt=[Syn("watt"), Syn("power#{unit}")],
+    temperature_t1_celsius=[Syn("t1#{unit}"), Syn("logtemp001")],
+)
+
+LANDT_CSV = Normalizer(
+    test_time_second=[Syn("test_time_s")],
+    voltage_volt=[Syn("voltage_v")],
+    current_ampere=[Syn("current_a")],
+    cycle_count=[Syn("cycle_index")],
+    step_count=[Syn("step_index")],
+    step_time_second=[Syn("step_time_s")],
+)
+
+LANDT_TXT = Normalizer(
+    test_time_second=[
+        Syn("test({unit})"),
+        Syn("test ({unit})"),
+        Syn("test_time_s"),
+        Syn("test time ({unit})"),
+        Syn("test time"),
+    ],
+    voltage_volt=[
+        Syn("volts"),
+        Syn("volt"),
+        Syn("voltage"),
+        Syn("V"),
+    ],
+    current_ampere=[
+        Syn("amps"),
+        Syn("amp"),
+        Syn("current"),
+        Syn("A"),
+        Syn("i({unit})"),
+    ],
+    cycle_count=[
+        Syn("cycle"),
+        Syn("cycle#"),
+        Syn("cycle index"),
+    ],
+    step_count=[
+        Syn("step"),
+        Syn("step#"),
+        Syn("step index"),
+    ],
+    step_index=[
+        Syn("rec#"),
+        Syn("record"),
+        Syn("record#"),
+    ],
+    step_time_second=[
+        Syn("dpt-time"),
+        Syn("dpt time"),
+        Syn("step time ({unit})"),
+        Syn("step_time_s"),
+    ],
+)
+
+MACCOR = Normalizer(
+    test_time_second=[
+        Syn("test time ({unit})"),
+        Syn("test time({unit})"),
+    ],
+    voltage_volt=[Syn("voltage")],
+    current_ampere=[Syn("current")],
+    unix_time_second=[DateTimeSyn(syn=Syn("dpt time"), fmts=_MACCOR_DT_FMTS)],
+    cycle_count=[Syn("cycle c")],
+    step_count=[Syn("step")],
+    step_time_second=[Syn("step time ({unit})")],
+    ambient_temperature_celsius=[Syn("temp 1")],
+    net_capacity_ah=[Syn("capacity")],
+    net_energy_wh=[Syn("energy")],
+)
+
+NEWARE = Normalizer(
+    test_time_second=[
+        Syn("total time({unit})"),
+        Syn("test time({unit})"),
+        Syn("totaltime({unit})"),
+        Syn("totaltime_s"),
+        Syn("total time"),
+        Syn("总时间({unit})"),
+        Syn("测试时间({unit})"),
+    ],
+    voltage_volt=[
+        Syn("voltage({unit})"),
+        Syn("电压({unit})"),
+        Syn("voltage [{unit}]"),
+    ],
+    current_ampere=[
+        Syn("current({unit})"),
+        Syn("电流({unit})"),
+        Syn("current [{unit}]"),
+    ],
+    unix_time_second=[
+        DateTimeSyn(syn=Syn("date"), fmts=_NEWARE_DT_FMTS),
+        DateTimeSyn(syn=Syn("datetime"), fmts=_NEWARE_DT_FMTS),
+        DateTimeSyn(syn=Syn("date_time"), fmts=_NEWARE_DT_FMTS),
+    ],
+    cycle_count=[Syn("cycle")],
+    step_count=[Syn("step")],
+    step_index=[Syn("record")],
+    step_time_second=[
+        Syn("time({unit})"),
+        Syn("relative time({unit})"),
+        Syn("state time({unit})"),
+        Syn("steptime({unit})"),
+        Syn("step time({unit})"),
+        Syn("steptime_s"),
+        Syn("时间({unit})"),
+    ],
+    ambient_temperature_celsius=[
+        Syn("temperature(°c)"),
+        Syn("温度(°c)"),
+    ],
+    charging_capacity_ah=[
+        Syn("charge capacity({unit})"),
+        Syn("chg.capacity({unit})"),
+    ],
+    discharging_capacity_ah=[
+        Syn("discharge capacity({unit})"),
+        Syn("dchg.capacity({unit})"),
+    ],
+)
+
+NOVONIX = Normalizer(
+    test_time_second=[
+        Syn("run time ({unit})"),
+        Syn("run-time ({unit})"),
+        Syn("runtime ({unit})"),
+        Syn("test time ({unit})"),
+        Syn("testtime({unit})"),
+    ],
+    voltage_volt=[
+        Syn("potential ({unit})"),
+        Syn("voltage ({unit})"),
+        Syn("cell voltage ({unit})"),
+    ],
+    current_ampere=[
+        Syn("current ({unit})"),
+        Syn("cell current ({unit})"),
+    ],
+    unix_time_second=[
+        Syn("unix time ({unit})"),
+        Syn("unixtime ({unit})"),
+        DateTimeSyn(syn=Syn("date and time"), fmts=("%Y-%m-%d %H:%M:%S",)),
+    ],
+    cycle_count=[
+        Syn("cycle number"),
+        Syn("cycle"),
+        Syn("cycle #"),
+        Syn("cycle#"),
+    ],
+    step_count=[
+        Syn("step number"),
+        Syn("step #"),
+        Syn("step#"),
+    ],
+    step_index=[Syn("step position")],
+    step_time_second=[Syn("step time ({unit})"), Syn("steptime({unit})")],
+    ambient_temperature_celsius=[
+        Syn("temperature (°c)"),
+        Syn("ambient temperature (°c)"),
+        Syn("ambient temp (°c)"),
+    ],
+    temperature_t1_celsius=[
+        Syn("circuit temperature (°c)"),
+        Syn("circuit temp (°c)"),
+    ],
+    net_capacity_ah=[
+        Syn("capacity ({unit})"),
+        Syn("net capacity ({unit})"),
+    ],
+    net_energy_wh=[Syn("energy ({unit})"), Syn("net energy ({unit})")],
+    power_watt=[Syn("power({unit})"), Syn("power ({unit})")],
+)
+
+NORMALIZERS: dict[str, Normalizer] = {
+    "arbin": ARBIN,
+    "basytec": BASYTEC,
+    "biologic": BIOLOGIC,
+    "digatron": DIGATRON,
+    "landt_csv": LANDT_CSV,
+    "landt_txt": LANDT_TXT,
+    "maccor": MACCOR,
+    "neware": NEWARE,
+    "novonix": NOVONIX,
+}
+
+
+def _detect_normalizer(headers: list[str]) -> Normalizer | None:
+    """Return the best-matching built-in Normalizer for ``headers``, or None.
+
+    Scores every entry in :data:`NORMALIZERS` and returns the highest scorer
+    (score > 0). Header-only — no readers/sources layer involved.
+    """
+    best: Normalizer | None = None
     best_score = 0
-    for n in REGISTRY.values():
-        sc = n.score(headers)
+    for norm in NORMALIZERS.values():
+        sc = norm.score(headers)
         if sc > best_score:
-            best = n
+            best = norm
             best_score = sc
     return best
 
 
 def normalize(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
-    source: str | Source | None = None,
     *,
     include_optional: bool = True,
     normalizer: "Normalizer | dict[str, str] | None" = None,
@@ -382,11 +706,10 @@ def normalize(
 
     Accepts ``pl.DataFrame``, ``pl.LazyFrame``, or ``pandas.DataFrame``. Return type matches input.
 
-    Pass ``normalizer`` to bypass source detection entirely and use explicit normalisation
-    instructions. When omitted, the source is detected from column headers (or ``source``).
+    Pass ``normalizer`` to use explicit normalisation instructions. When omitted, a
+    built-in :class:`Normalizer` is detected from the column headers by scoring over
+    :data:`NORMALIZERS`.
     """
-    from .sources import Source, get_normalizer  # lazy: avoids circular import
-
     if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
         schema = df.collect_schema() if isinstance(df, pl.LazyFrame) else df.schema
         headers = list(schema.names())
@@ -397,18 +720,10 @@ def normalize(
     if normalizer is not None:
         norm = normalizer if isinstance(normalizer, Normalizer) else Normalizer.from_column_map(normalizer)
     else:
-        src: Source | None
-        if isinstance(source, Source):
-            src = source
-        elif isinstance(source, str):
-            src = get_normalizer(source)
-        else:
-            src = _detect_source(headers)
-
-        if src is None and not extra_columns:
+        detected = _detect_normalizer(headers)
+        if detected is None and not extra_columns:
             return df
-
-        norm = src.normalizer if src is not None else Normalizer()
+        norm = detected if detected is not None else Normalizer()
 
     return norm.normalize(
         df,
@@ -484,6 +799,7 @@ __all__ = [
     "ResolvedColumn",
     "MetadataParser",
     "Normalizer",
+    "NORMALIZERS",
     "unit_from_label",
     "get_unit_conversion",
     "normalize",
