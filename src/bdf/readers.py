@@ -91,12 +91,18 @@ class DelimTxtReader(BaseModel):
     )
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".csv", ".txt", ".tsv", ".dat"})
+    is_text: ClassVar[bool] = True
 
     @staticmethod
     def read_head(path: Path, n_bytes: int = HEAD_BYTES) -> bytes:
-        """Read up to ``n_bytes`` raw bytes from the start of ``path``."""
+        """Read up to ``n_bytes`` raw bytes from the start of ``path``.
+
+        Strips a leading UTF-8 BOM so header reconstruction, separator/skip
+        sniffing, and magic matching agree with polars, which always drops the
+        BOM from the parsed frame (under both ``utf8`` and ``utf8-lossy``).
+        """
         with open(path, "rb") as fh:
-            return fh.read(n_bytes)
+            return fh.read(n_bytes).removeprefix(b"\xef\xbb\xbf")
 
     @staticmethod
     def _decode_head(head: bytes, encoding: str = "utf-8") -> str:
@@ -212,7 +218,8 @@ class DelimTxtReader(BaseModel):
     def preamble(self, head: bytes) -> list[str]:
         """Return the preamble (skipped) lines decoded from ``head`` bytes."""
         sample = self._decode_head(head, self.encoding)
-        skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample)
+        sep = self.separator if self.separator is not None else self._detect_separator(sample)
+        skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
         return sample.splitlines()[:skip]
 
     @staticmethod
@@ -232,11 +239,12 @@ class DelimTxtReader(BaseModel):
             return {}
         return {m: p for m, p in zip(mangled_cols, proper_cols) if m != p}
 
-    def read(self, path: str | Path, head: bytes | None = None) -> pl.LazyFrame:
+    def read(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> pl.LazyFrame:
         """Parse ``path`` to a LazyFrame, honouring (and auto-sniffing) config.
 
         ``head`` is reused for separator/skip sniffing when provided; the full
-        data is still pulled lazily via :func:`polars.scan_csv`.
+        data is still pulled lazily via :func:`polars.scan_csv`. ``var_names``
+        is accepted for interface uniformity with ``MatReader`` and ignored.
         """
         path = Path(path)
         raw = head if head is not None else self.read_head(path)
@@ -260,9 +268,16 @@ class DelimTxtReader(BaseModel):
         decimal_comma = self.decimal_comma if self.decimal_comma is not None else self._sniff_decimal(lf)
         return self._coerce_decimal(lf, decimal_comma)
 
-    def headers(self, path: str | Path, head: bytes | None = None) -> list[str]:
-        """Return the column headers as parsed with this reader's config."""
-        return list(self.read(path, head).collect_schema().names())
+    def headers(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> list[str]:
+        """Return column headers derived from the in-memory head bytes."""
+        raw = head if head is not None else self.read_head(Path(path))
+        sample = self._decode_head(raw, self.encoding)
+        sep = self.separator if self.separator is not None else self._detect_separator(sample)
+        skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
+        lines = sample.splitlines()
+        if skip >= len(lines):
+            return []
+        return lines[skip].split(sep)
 
 
 class ExcelReader(BaseModel):
@@ -304,6 +319,7 @@ class ExcelReader(BaseModel):
     )
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".xlsx", ".xlsm", ".xls"})
+    is_text: ClassVar[bool] = False
 
     @model_validator(mode="after")
     def _require_header(self) -> "ExcelReader":
@@ -331,11 +347,11 @@ class ExcelReader(BaseModel):
             raise ValueError("ExcelReader expects a single sheet; specify `sheet_id` or `sheet_name` to disambiguate.")
         return df
 
-    def read(self, path: str | Path, head: bytes | None = None) -> pl.LazyFrame:
+    def read(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> pl.LazyFrame:
         """Parse the configured sheet of ``path`` to a LazyFrame.
 
-        ``head`` is accepted for interface symmetry but unused: Excel is binary
-        and must re-open the file to parse.
+        ``head`` and ``var_names`` are accepted for interface symmetry but
+        unused: Excel is binary and must re-open the file to parse.
         """
         df = self._read_sheet(
             Path(path),
@@ -344,11 +360,12 @@ class ExcelReader(BaseModel):
         )
         return df.with_columns(pl.all().cast(pl.Utf8, strict=False)).lazy()
 
-    def headers(self, path: str | Path, head: bytes | None = None) -> list[str]:
+    def headers(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> list[str]:
         """Return the header row without reading data rows (n_rows=0).
 
         Merges ``{"n_rows": 0}`` into the effective ``read_options``, overriding
-        any caller-supplied ``n_rows``.
+        any caller-supplied ``n_rows``. ``var_names`` is accepted for interface
+        uniformity and ignored.
         """
         return self._read_sheet(Path(path), read_options={**(self.read_options or {}), "n_rows": 0}).columns
 
@@ -366,6 +383,7 @@ class MatReader(BaseModel):
     name: Literal["mat"] = "mat"
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".mat"})
+    is_text: ClassVar[bool] = False
 
     def _load(self, path: Path, var_names: list[str]) -> dict[str, Any]:
         try:

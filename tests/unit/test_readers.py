@@ -455,3 +455,28 @@ def test_sample_separator(sample: tuple[dict, Path]) -> None:
     spec, path = sample
 
     assert DelimTxtReader._detect_separator(DelimTxtReader._decode_head(DelimTxtReader.read_head(path))) == spec["sep"]
+
+
+def test_excel_sheet_name_honoured_in_headers(data_dir: Path) -> None:
+    """ExcelReader.headers() reads from the configured sheet_name."""
+    pytest.importorskip("fastexcel")
+    p = data_dir / "neware/sample_data_neware.xlsx"
+    if not p.exists():
+        pytest.skip("neware xlsx sample not present")
+    headers = ExcelReader(sheet_name="record").headers(p)
+    assert "Voltage(V)" in headers and "Current(mA)" in headers
+
+
+def test_preamble_honours_explicit_separator() -> None:
+    """preamble() uses the reader's explicit separator for skip-row detection.
+
+    Preamble lines contain commas; without explicit sep=";", _detect_separator
+    could pick "," which under-counts skip rows (comma run too short) and returns
+    an empty preamble.  With sep=";" the data run is detected correctly.
+    """
+    pre = "key: a, b, c\nother: x, y, z\n"
+    header = "time;voltage;current"
+    rows = "\n".join(f"{i};{3.5 + i / 10};0.1" for i in range(6))
+    head = (pre + header + "\n" + rows + "\n").encode("utf-8")
+
+    assert DelimTxtReader(separator=";").preamble(head) == ["key: a, b, c", "other: x, y, z"]
