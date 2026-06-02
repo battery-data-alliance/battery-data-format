@@ -332,16 +332,16 @@ class TestFindRecordSheet:
         """Finds the record sheet when present."""
         p = tmp_path / "test.xlsx"
         pd.DataFrame({"A": [1]}).to_excel(p, sheet_name="record", index=False)
-        assert NewareXlsx._find_record_sheet(p) == "record"
+        assert NewareXlsx()._find_record_sheet(p) == "record"
 
     def test_returns_none_without_record_sheet(self, tmp_path):
         """Returns None when no record sheet exists."""
         p = tmp_path / "test.xlsx"
         pd.DataFrame({"A": [1]}).to_excel(p, sheet_name="data", index=False)
-        assert NewareXlsx._find_record_sheet(p) is None
+        assert NewareXlsx()._find_record_sheet(p) is None
 
     def test_returns_none_for_invalid_file(self, tmp_path):
         """Returns None for unreadable Excel files."""
         p = tmp_path / "bad.xlsx"
         p.write_bytes(b"not an excel file")
-        assert NewareXlsx._find_record_sheet(p) is None
+        assert NewareXlsx()._find_record_sheet(p) is None
