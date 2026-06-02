@@ -85,6 +85,28 @@ def test_cli_convert_and_plot(tmp_path: Path, monkeypatch):
     assert plot_path.exists()
 
 
+def test_cli_headers_parquet(tmp_path: Path):
+    src = tmp_path / "sample.bdf.parquet"
+    pd.DataFrame(
+        {
+            "Test Time / s": [0, 1, 2],
+            "Voltage / V": [3.7, 3.6, 3.5],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    ).to_parquet(src, index=False)
+
+    res = runner.invoke(app, ["headers", str(src)])
+    assert res.exit_code == 0
+    lines = [line for line in res.stdout.splitlines() if line.strip()]
+    assert "Test Time / s" in lines
+    assert "Voltage / V" in lines
+    assert "Current / A" in lines
+
+    res_one_line = runner.invoke(app, ["headers", str(src), "--one-line"])
+    assert res_one_line.exit_code == 0
+    assert "Test Time / s,Voltage / V,Current / A" in res_one_line.stdout
+
+
 def test_cli_meta_jsonld(tmp_path: Path):
     src = _make_sample_bdf(tmp_path)
     out = tmp_path / "meta.jsonld"

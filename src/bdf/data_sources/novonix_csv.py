@@ -65,9 +65,10 @@ class NovonixCSV(DelimitedTextPlugin):
         "Step ID": [
             "step number", "step", "step #", "step#"
         ],
-        "Step Index / 1": [
-            "step position"
-        ],
+        # NOTE: Novonix "Step position" is a start-of-step flag (1 on the first
+        # row of each step, 0 elsewhere).  It is NOT a sequential index, so it
+        # is not mapped here.  Step Index / 1 is computed by derive().
+        # "Step Index / 1": ["step position"],
         "Ambient Temperature / degC": [
             "temperature (°c)", "temperature (c)", "ambient temperature (c)", "ambient temp (c)"
         ],
@@ -79,9 +80,10 @@ class NovonixCSV(DelimitedTextPlugin):
         "Net Capacity / Ah": [
             "capacity (ah)", "net capacity (ah)"
         ],
-        "Net Energy / Wh": [
-            "energy (wh)", "net energy (wh)"
-        ],
+        # NOTE: Novonix "Energy (Wh)" is a signed step-level accumulator that
+        # resets to zero at each step transition.  BDF "Net Energy / Wh" is a
+        # cumulative test-level quantity.  These are different things, so no
+        # mapping is made here; Net Energy / Wh is always populated by derive().
         "Power / W": [
             "power(w)", "power (w)"
         ],

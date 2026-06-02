@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
+from .normalize.ingest_aliases import load_ingest_alias_index
 from .normalize import OPTIONAL, REQUIRED, spec
 from .ontology_labels import load_alias_index
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
@@ -26,7 +27,9 @@ def _slugify(text: str) -> str:
 
 def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
     allowed = set(REQUIRED + OPTIONAL)
-    alias_idx = load_alias_index()
+    alias_idx = dict(load_alias_index())
+    for slug, info in load_ingest_alias_index().items():
+        alias_idx.setdefault(slug, info)
     legacy_cols: List[str] = []
     notation_cols: List[str] = []
     deprecated_pref_cols: List[str] = []

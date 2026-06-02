@@ -1,6 +1,8 @@
 # src/bdf/data_sources/neware_csv.py
 from __future__ import annotations
 
+import pandas as pd
+
 from .base_delimited import DelimitedTextPlugin
 
 
@@ -18,15 +20,14 @@ class NewareCSV(DelimitedTextPlugin):
     header_token_patterns = (
         r"\bVoltage\(V\)\b|\b电压\(V\)\b",
         r"\bCurrent\(A\)\b|\b电流\(A\)\b",
-        r"\bTime\(s\)\b|\b时间\(s\)\b",                 # step time
-        r"\b(Total|Test)\s*Time\(s\)\b|\b总时间\(s\)\b|\b测试时间\(s\)\b",  # test time
+        r"\bTime\(s\)\b|\b时间\(s\)\b",
+        r"\b(Total|Test)\s*Time\(s\)\b|\b总时间\(s\)\b|\b测试时间\(s\)\b",
         r"\bDateTime\b|\bDatetime\b",
         r"\bCycle\b",
         r"\bStep\b",
         r"\bRecord\b",
     )
 
-    # Map vendor headers -> canonical BDF (case-insensitive exact text)
     column_synonyms = {
         # REQUIRED BDF
         "Test Time / s": [
@@ -36,7 +37,7 @@ class NewareCSV(DelimitedTextPlugin):
         "Voltage / V":   ["Voltage(V)", "电压(V)"],
         "Current / A":   ["Current(A)", "电流(A)"],
 
-        # STEP time (Neware 'Time(s)' is step time)
+        # STEP time (Neware 'Time(s)' is step time, not test time)
         "Step Time / s": [
             "Time(s)", "Relative Time(s)", "State Time(s)",
             "StepTime(s)", "Step Time(s)", "StepTime_S",
@@ -44,22 +45,22 @@ class NewareCSV(DelimitedTextPlugin):
         ],
 
         # Helpful optional columns
-        "Cycle Count / 1":        ["Cycle"],
-        "Step ID":            ["Step"],
-        "Record Index / 1":       ["Record"],
-        "Date Time ISO":          ["DateTime", "Datetime", "DATE_TIME"],
+        "Cycle Count / 1":  ["Cycle"],
+        "Step ID":          ["Step"],
+        "Record Index / 1": ["Record"],
+        "Date Time ISO":    ["DateTime", "Datetime", "DATE_TIME"],
 
-        # Capacity/energy (kept if present)
-        "Charge Capacity / mAh":    ["Charge Capacity(mAh)", "Chg.Capacity(mAh)"],
-        "Discharge Capacity / mAh": ["Discharge Capacity(mAh)", "DChg.Capacity(mAh)"],
-        "Charge Energy / mWh":      ["Charge Energy(mWh)"],
-        "Discharge Energy / mWh":   ["Discharge Energy(mWh)"],
+        # Capacity/energy — canonical labels with Ah/Wh units.
+        # Neware exports in mAh/mWh; fixup() scales to Ah/Wh.
+        "Charging Capacity / Ah":    ["Charge Capacity(mAh)", "Chg.Capacity(mAh)"],
+        "Discharging Capacity / Ah": ["Discharge Capacity(mAh)", "DChg.Capacity(mAh)"],
+        "Charging Energy / Wh":      ["Charge Energy(mWh)"],
+        "Discharging Energy / Wh":   ["Discharge Energy(mWh)"],
 
         # Temperature
         "Ambient Temperature / degC": ["Temperature(°C)", "温度(°C)"],
     }
 
-    # Units so base .fixup() normalizes to s, V, A, mAh/mWh, degC
     unit_column_patterns = {
         "Test Time / s": [
             (r"^(Total|Test)\s*Time\(s\)$", "s"),
@@ -89,8 +90,37 @@ class NewareCSV(DelimitedTextPlugin):
             (r"^Temperature\(°C\)$", "degC"),
             (r"^温度\(°C\)$", "degC"),
         ],
-        "Charge Capacity / mAh":    [(r"^Charge Capacity\(mAh\)$", "mAh"), (r"^Chg\.Capacity\(mAh\)$", "mAh")],
-        "Discharge Capacity / mAh": [(r"^Discharge Capacity\(mAh\)$", "mAh"), (r"^DChg\.Capacity\(mAh\)$", "mAh")],
-        "Charge Energy / mWh":      [(r"^Charge Energy\(mWh\)$", "mWh")],
-        "Discharge Energy / mWh":   [(r"^Discharge Energy\(mWh\)$", "mWh")],
+        # Unit hints for capacity/energy so fixup() knows to scale ÷1000
+        "Charging Capacity / Ah":    [
+            (r"^Charge Capacity\(mAh\)$", "mAh"),
+            (r"^Chg\.Capacity\(mAh\)$", "mAh"),
+        ],
+        "Discharging Capacity / Ah": [
+            (r"^Discharge Capacity\(mAh\)$", "mAh"),
+            (r"^DChg\.Capacity\(mAh\)$", "mAh"),
+        ],
+        "Charging Energy / Wh":      [(r"^Charge Energy\(mWh\)$", "mWh")],
+        "Discharging Energy / Wh":   [(r"^Discharge Energy\(mWh\)$", "mWh")],
     }
+
+    def fixup(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Scale Neware mAh/mWh capacity and energy columns to BDF canonical Ah/Wh."""
+        out = super().fixup(df)
+        hints = getattr(self, "_unit_hints", {})
+
+        def _scale_if_milli(col: str, milli_aliases: tuple[str, ...]) -> None:
+            if col not in out.columns:
+                return
+            unit = (hints.get(col) or "").lower()
+            if unit in milli_aliases:
+                out[col] = pd.to_numeric(out[col], errors="coerce") / 1000.0
+
+        mah = ("mah", "ma*h", "ma.h")
+        for col in ("Charging Capacity / Ah", "Discharging Capacity / Ah"):
+            _scale_if_milli(col, mah)
+
+        mwh = ("mwh", "mw*h", "mw.h")
+        for col in ("Charging Energy / Wh", "Discharging Energy / Wh"):
+            _scale_if_milli(col, mwh)
+
+        return out

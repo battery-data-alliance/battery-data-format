@@ -51,6 +51,8 @@ biologic-mpt = "bdf.data_sources.biologic_mpt:BioLogicMPT"
 neware-csv   = "bdf.data_sources.neware_csv:NewareCSV"
 neware-nda   = "bdf.data_sources.neware_nda:NewareNDA"
 neware-nda-fast = "bdf.data_sources.neware_nda:NewareNDAFast"
+arbin-csv    = "bdf.data_sources.arbin:ArbinCSV"
+arbin-xlsx   = "bdf.data_sources.arbin:ArbinExcel"
 
 [project.optional-dependencies]
 fastnda = ["fastnda"]

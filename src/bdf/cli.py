@@ -225,6 +225,37 @@ def detect(path: str):
     sr = detect_source(path)
     print(f"{sr.id} ({sr.confidence:.2f}) - {sr.reason}")
 
+
+@app.command()
+def headers(
+    path: str,
+    as_: Optional[str] = typer.Option(None, "--as", help="Force plugin id for raw input"),
+    assume_bdf: bool = typer.Option(False, help="Treat input as already-normalized BDF"),
+    one_line: bool = typer.Option(False, "--one-line/--multi-line", help="Print headers on a single CSV line"),
+):
+    """
+    Print column headers from a BDF file (or raw file after normalization).
+    """
+    p = Path(path)
+    if not p.exists():
+        raise typer.BadParameter(f"File not found: {p}")
+
+    if assume_bdf:
+        df = load_bdf(p)
+    else:
+        try:
+            df = load_bdf(p)
+        except Exception:
+            df = read_bdf(p, plugin=as_)
+
+    cols = [str(c) for c in df.columns]
+    if one_line:
+        typer.echo(",".join(cols))
+    else:
+        for col in cols:
+            typer.echo(col)
+
+
 @app.command()
 def templates(
     names: List[str] = typer.Argument(..., help="Template names (contribution, battery, excel, data_download, mapping)"),

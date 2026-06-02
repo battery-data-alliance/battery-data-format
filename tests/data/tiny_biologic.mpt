@@ -1,0 +1,10 @@
+BT-Lab ASCII FILE
+
+Nb header lines : 5
+
+time/s	Ewe/V	I/mA	cycle number	Ns	Q charge/mA.h	Q discharge/mA.h
+0,000	3,800	0,000	0	1	0,000	0,000
+1,000	4,050	500,0	0	1	0,139	0,000
+2,000	4,100	500,0	0	1	0,278	0,000
+3,000	3,700	-500,0	0	2	0,278	0,139
+4,000	3,500	-500,0	0	2	0,278	0,278

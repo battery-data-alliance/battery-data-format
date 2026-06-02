@@ -14,6 +14,7 @@ import pandas as pd
 # light imports that never cause cycles
 from .detect import detect as _detect, list_plugins as _list_plugins, load_plugin
 from .normalize import guess_plugin_by_columns, normalize_columns
+from .derive import derive               # public derivation helper
 from .repair import CleanReport, clean  # public cleaning helpers
 from .validate import BDFValidationError, validate_df  # prints report if asked; warns on non-monotonic time
 
@@ -26,6 +27,8 @@ __all__ = [
     "build_registry", "search", "sparql",
     # cleaning
     "clean", "CleanReport",
+    # derivation
+    "derive",
     # viz
     "plot", "explore", "ingest", "templates",
     # version
@@ -293,6 +296,8 @@ def read(
     validate: bool = True,
     include_optional: bool = True,
     registry_path: str | Path | None = None,
+    derive: bool = False,
+    keep_unmapped: bool = True,
 ) -> pd.DataFrame:
     """
     Universal reader -> DataFrame.
@@ -300,6 +305,12 @@ def read(
       - plugin: force a specific cycler plugin id (optional)
       - normalize: if True, normalize to BDF columns; if False, parse only
       - validate: validate BDF artifacts (or normalized output)
+      - derive: if True, compute missing derived columns (power, capacity
+                integrals, energy integrals, step quantities) from the three
+                required base columns after normalization
+      - keep_unmapped: if True (default), vendor columns with no BDF canonical
+                mapping are kept in the output (after the canonical columns) and
+                a warning lists them, rather than being silently dropped.
     """
     local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
     if _looks_like_bdf_artifact(local_path):
@@ -360,7 +371,7 @@ def read(
                 plg = alt
                 df_raw = plg.parse(local_path)
                 df_raw = plg.augment(df_raw)
-                df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
+                df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional, keep_unmapped=keep_unmapped)
             except Exception as alt_exc:
                 normalize_errors.append(
                     (
@@ -377,6 +388,9 @@ def read(
 
         if hasattr(plg, "fixup"):
             df = plg.fixup(df)
+        if derive:
+            from .derive import derive as _derive_cols
+            df = _derive_cols(df, fill_missing=True)
         if validate:
             validate_df(df)
         return df

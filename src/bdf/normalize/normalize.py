@@ -11,11 +11,69 @@ import pandas as pd
 from bdf.ontology_labels import load_alias_index
 from bdf.units import convert_series, parse_from_header
 
+from .ingest_aliases import load_ingest_alias_index
 from . import spec
 
 _SLUG = re.compile(r"[^a-z0-9]+")
 def _slugify(s: str) -> str:
     return _SLUG.sub("-", s.lower()).strip("-")
+
+# --- Robust fallback matching (applies to every plugin) -------------------
+# Token-level canonicalization: expand common, unambiguous vendor abbreviations
+# and spelling variants so headers that differ only cosmetically resolve to the
+# same slug (e.g. "Surface_Temp" -> "surface-temperature", "Chg Cap" ->
+# "charge-capacity"). Applied to BOTH the header slug and every synonym/alias
+# index key, so matching stays exact and deterministic — no fuzzy distance, no
+# silent wrong mappings. Curated and conservative: only entries with one
+# unambiguous meaning in cycler data are included.
+_TOKEN_CANON: dict[str, str] = {
+    "temp": "temperature", "temps": "temperature", "tempr": "temperature",
+    "volt": "voltage", "volts": "voltage", "voltages": "voltage",
+    "curr": "current", "currents": "current",
+    "cap": "capacity", "caps": "capacity", "capacities": "capacity",
+    "chg": "charge", "chrg": "charge", "charging": "charge",
+    "dchg": "discharge", "dch": "discharge", "discharging": "discharge",
+    "eng": "energy", "engy": "energy", "energies": "energy",
+    "pwr": "power",
+    "res": "resistance", "resist": "resistance",
+    "cyc": "cycle", "cycles": "cycle",
+    "idx": "index", "indices": "index",
+    "num": "number", "no": "number",
+}
+
+
+def _canon_slug(slug: str) -> str:
+    """Return a token-canonicalized slug (abbreviations expanded, order kept)."""
+    if not slug:
+        return slug
+    return "-".join(_TOKEN_CANON.get(t, t) for t in slug.split("-") if t)
+
+
+def _canon_index(idx: Mapping[str, object]) -> dict[str, object]:
+    """Token-canonicalized view of a slug->target index (raw keys win on clash)."""
+    out: dict[str, object] = {}
+    for k, v in idx.items():
+        out.setdefault(_canon_slug(k), v)
+    return out
+
+
+def _units_compatible(src_unit: str | None, dst_unit: str | None) -> bool:
+    """True unless both units parse to clearly different physical dimensions.
+
+    Used as a guard so a name-based match is rejected when the header's unit
+    dimension disagrees with the target quantity (e.g. an `Aux_Voltage` column
+    must never be accepted as a temperature). Permissive when a unit is missing
+    or cannot be parsed — it only blocks *clear* dimensional conflicts.
+    """
+    if not src_unit or not dst_unit:
+        return True
+    try:
+        from bdf.units.core import has_pint, ureg
+        if not has_pint:
+            return True
+        return ureg.Unit(src_unit).dimensionality == ureg.Unit(dst_unit).dimensionality
+    except Exception:
+        return True
 
 # Public constants
 REQUIRED = spec.required_labels()
@@ -112,7 +170,10 @@ def _merge_plugin_column_synonyms(plugin) -> dict[str, str]:
     return idx
 
 def _legacy_alias_index() -> dict[str, object]:
-    return load_alias_index()
+    idx = dict(load_alias_index())
+    for slug, info in load_ingest_alias_index().items():
+        idx.setdefault(slug, info)
+    return idx
 
 def _is_numeric_series(s: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(s)
@@ -172,9 +233,17 @@ def normalize_columns(
     alias_idx = _legacy_alias_index()
     decimal_hint = getattr(plugin, "decimal", None)
 
+    # Token-canonicalized views of each index, tried only after an exact-slug
+    # miss, so cosmetically different headers ("Surface_Temp", "Chg Cap") still
+    # resolve. Exact matches always take precedence.
+    base_idx_c = _canon_index(base_idx)
+    plugin_direct_c = _canon_index(plugin_direct)
+    alias_idx_c = _canon_index(alias_idx)
+
     recognized: list[str] = []
     produced: set[str] = set()  # canonical labels we've established in 'out'
     legacy_headers: list[str] = []
+    unmapped: list[str] = []  # vendor columns with no canonical home (for warning)
 
     # ---- Derive Unix Time / s from Timestamp if present (prefer derived) ----
     if "Timestamp" in out.columns and "Unix Time / s" not in out.columns:
@@ -202,12 +271,17 @@ def normalize_columns(
         base, unit_expr, source = parse_from_header(str(col))
         base_slug = _slugify(base.replace("/", " ").replace("#", " "))
         full_slug = _slugify(str(col).replace("/", " ").replace("#", " "))
+        base_slug_c = _canon_slug(base_slug)
+        full_slug_c = _canon_slug(full_slug)
 
-        # 1) plugin can force a direct canonical label
-        canon = plugin_direct.get(base_slug)
+        # 1) plugin can force a direct canonical label (exact slug, then canonical)
+        canon = plugin_direct.get(base_slug) or plugin_direct_c.get(base_slug_c)
         quantity = None
         target_unit = None
-        alias = alias_idx.get(base_slug) or alias_idx.get(full_slug)
+        alias = (
+            alias_idx.get(base_slug) or alias_idx.get(full_slug)
+            or alias_idx_c.get(base_slug_c) or alias_idx_c.get(full_slug_c)
+        )
 
         if canon:
             # find spec quantity by left label part
@@ -221,14 +295,17 @@ def normalize_columns(
             if target_unit is None:
                 # Fallback to the unit part of the plugin label
                 target_unit = canon.split(" / ", 1)[-1]
-        elif alias:
+        elif alias and _units_compatible(unit_expr, alias.unit):
             quantity = alias.quantity
             target_unit = alias.unit
             canon = alias.label
         else:
-            # 2) base-name -> quantity from spec
-            quantity = base_idx.get(base_slug)
+            # 2) base-name -> quantity from spec (exact slug, then canonical)
+            quantity = base_idx.get(base_slug) or base_idx_c.get(base_slug_c)
+            if quantity and not _units_compatible(unit_expr, spec.unit_for(quantity)):
+                quantity = None
             if not quantity:
+                unmapped.append(str(col))
                 continue
             target_unit = spec.unit_for(quantity)
             canon = _canon_label(quantity)
@@ -307,22 +384,37 @@ def normalize_columns(
             )
 
 
+    canonical_all = set(REQUIRED) | set(OPTIONAL)
     if not include_optional and not keep_unmapped:
         # only required, in the forced order
         keep_set = set(REQUIRED)
         candidate = [c for c in out.columns if c in keep_set]
     elif not keep_unmapped:
         # keep all canonical (REQUIRED + OPTIONAL we actually have)
-        canonical_all = set(REQUIRED) | set(OPTIONAL)
         candidate = [c for c in out.columns if c in canonical_all]
     else:
-        # keeping vendor columns too; just reorder, don't drop
-        candidate = list(out.columns)
+        # keeping vendor columns too: order canonical columns first, then the
+        # unmapped vendor columns (kept so nothing is silently lost).
+        canon_cols = [c for c in out.columns if c in canonical_all]
+        vendor_cols = [c for c in out.columns if c not in canonical_all]
+        candidate = canon_cols + vendor_cols
 
     # Always move required trio to the very front in the specified order
     front = [c for c in ORDERED_REQUIRED if c in candidate]
     tail  = [c for c in candidate if c not in ORDERED_REQUIRED]
     out = out[front + tail].copy()
+
+    # Surface unmapped vendor columns so missing aliases are auditable, not silent.
+    kept_unmapped = [c for c in unmapped if c in out.columns]
+    if kept_unmapped:
+        warnings.warn(
+            f"{len(kept_unmapped)} column(s) had no BDF canonical mapping and were "
+            f"kept as-is: {kept_unmapped[:20]}"
+            + (" ..." if len(kept_unmapped) > 20 else "")
+            + ". Add an alias in ingest_aliases.py / the ontology if any should map.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     out.attrs["bdf:columns"] = meta
     if legacy_headers:

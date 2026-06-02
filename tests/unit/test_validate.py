@@ -51,3 +51,15 @@ def test_validate_accepts_notation_headers(tmp_path):
     df.to_csv(csv_path, index=False)
     rep = validate(csv_path, report=False, raise_on_error=True)
     assert rep["ok"] is True
+
+
+def test_validate_accepts_package_ingest_aliases_for_required_columns():
+    df = pd.DataFrame(
+        {
+            "test_time": [0, 1, 2],
+            "potential": [3.7, 3.6, 3.5],
+            "current": [0.1, 0.1, 0.1],
+        }
+    )
+    rep = validate_df(df, report=False, raise_on_error=True)
+    assert rep["ok"] is True

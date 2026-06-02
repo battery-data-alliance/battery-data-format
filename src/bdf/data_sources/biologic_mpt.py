@@ -138,12 +138,39 @@ class BioLogicMPT(DelimitedTextPlugin):
             "Charging Capacity / Ah",
             "Discharging Capacity / Ah",
             "Cumulative Capacity / Ah",
-            "Step Capacity / Ah",
         ):
             _scale(col, 1.0 / 1000.0, mah_units)
+
+        # Step Capacity is BioLogic's dQ, which is signed (positive=charge,
+        # negative=discharge). BDF defines step_capacity_ah as unsigned — take abs().
+        step_cap = "Step Capacity / Ah"
+        if step_cap in out.columns:
+            unit = (hints.get(step_cap) or "").lower()
+            scale = 1.0 / 1000.0 if unit in mah_units else 1.0
+            out[step_cap] = pd.to_numeric(out[step_cap], errors="coerce").abs() * scale
 
         mwh_units = ("mw*h", "mwh", "mw.h")
         for col in ("Charging Energy / Wh", "Discharging Energy / Wh", "Cumulative Energy / Wh"):
             _scale(col, 1.0 / 1000.0, mwh_units)
+
+        # Sanity check: if any capacity column still has values > 1000 it likely
+        # was not scaled (unit hint missing or header not recognised). Warn so the
+        # user knows the data may still be in mAh.
+        import warnings
+        cap_cols = (
+            "Charging Capacity / Ah", "Discharging Capacity / Ah",
+            "Cumulative Capacity / Ah", "Step Capacity / Ah",
+        )
+        for col in cap_cols:
+            if col not in out.columns:
+                continue
+            vals = pd.to_numeric(out[col], errors="coerce").dropna()
+            if not vals.empty and vals.max() > 1000:
+                warnings.warn(
+                    f"BioLogicMPT: '{col}' max={vals.max():.1f} — values look like "
+                    "mAh rather than Ah. Check that the column header matched a known "
+                    "unit pattern (e.g. 'Q charge/mA.h').",
+                    stacklevel=2,
+                )
 
         return out

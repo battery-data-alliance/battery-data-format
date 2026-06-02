@@ -119,7 +119,10 @@ _STATIC_COLUMNS = {
         "mr_name": "step_index",
         "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index",
         "synonyms": [
-            "point-index", "sample-index", "step-position",
+            "point-index", "sample-index",
+            # NOTE: "step-position" deliberately excluded — Novonix uses this
+            # as a step-start flag (1 on first row, 0 elsewhere), not a
+            # sequential index.  Step Index / 1 is computed by derive().
         ],
     },
     "step_id": {
