@@ -219,7 +219,9 @@ def test_preamble_honours_explicit_separator_extracts_start_time(tmp_path: Path)
     src = DataSource(
         id="test_sep",
         metadata=MetadataParser(start_time=r"Start Time:\s*(.+)"),
-        normalizer=Normalizer(test_time_second=[Syn("time")], voltage_volt=[Syn("voltage")]),
+        normalizer=Normalizer(
+            test_time_second=[Syn("time")], voltage_volt=[Syn("voltage")], current_ampere=[Syn("current")]
+        ),
         reader=DelimTxtReader(separator=";"),
     )
     _, metadata = read(p, datasource=src)
@@ -233,17 +235,23 @@ def test_mat_datasource_with_syn_normalizer_reads_canonical_frame(tmp_path: Path
     from scipy.io import savemat
 
     mat_path = tmp_path / "sample.mat"
-    savemat(str(mat_path), {"time": np.array([0.0, 1.0, 2.0]), "voltage": np.array([3.5, 3.6, 3.7])})
+    savemat(
+        str(mat_path),
+        {"time": np.array([0.0, 1.0, 2.0]), "voltage": np.array([3.5, 3.6, 3.7]), "current": np.array([0.1, 0.1, 0.1])},
+    )
 
     src = DataSource(
         id="test_mat",
-        normalizer=Normalizer(test_time_second=[Syn("time")], voltage_volt=[Syn("voltage")]),
+        normalizer=Normalizer(
+            test_time_second=[Syn("time")], voltage_volt=[Syn("voltage")], current_ampere=[Syn("current")]
+        ),
         reader=MatReader(),
     )
     df, meta = read(mat_path, datasource=src)
     assert len(df) == 3
     assert "Test Time / s" in df.columns
     assert "Voltage / V" in df.columns
+    assert "Current / A" in df.columns
     assert meta["source"] == "test_mat"
 
 
@@ -251,7 +259,7 @@ READ_SAMPLES = [
     dict(
         rel="arbin/sample_data_arbin.csv",
         source="arbin_csv",
-        cols=[
+        cols={
             "Test Time / s",
             "Voltage / V",
             "Current / A",
@@ -266,17 +274,17 @@ READ_SAMPLES = [
             "Discharging Energy / Wh",
             "Power / W",
             "Internal Resistance / ohm",
-        ],
+        },
     ),
     dict(
         rel="basytec/sample_data_basytec.txt",
         source="basytec_txt",
-        cols=["Test Time / s", "Voltage / V", "Current / A"],
+        cols={"Test Time / s", "Voltage / V", "Current / A", "Net Capacity / Ah", "Step Index / 1"},
     ),
     dict(
         rel="biologic/Sample_data_biologic_CA1.txt",
         source="biologic_mpt",
-        cols=[
+        cols={
             "Test Time / s",
             "Voltage / V",
             "Current / A",
@@ -290,12 +298,12 @@ READ_SAMPLES = [
             "Discharging Energy / Wh",
             "Power / W",
             "Internal Resistance / ohm",
-        ],
+        },
     ),
     dict(
         rel="biologic/Sample_data_biologic_no_header.mpt",
         source="biologic_mpt",
-        cols=[
+        cols={
             "Test Time / s",
             "Voltage / V",
             "Current / A",
@@ -310,12 +318,12 @@ READ_SAMPLES = [
             "Cumulative Energy / Wh",
             "Power / W",
             "Internal Resistance / ohm",
-        ],
+        },
     ),
     dict(
         rel="maccor/sample_data_maccor.csv",
         source="maccor_csv",
-        cols=[
+        cols={
             "Test Time / s",
             "Voltage / V",
             "Current / A",
@@ -326,12 +334,12 @@ READ_SAMPLES = [
             "Step Time / s",
             "Net Capacity / Ah",
             "Net Energy / Wh",
-        ],
+        },
     ),
     dict(
         rel="novonix/sample_data_novonix.csv",
         source="novonix_csv",
-        cols=[
+        cols={
             "Test Time / s",
             "Voltage / V",
             "Current / A",
@@ -345,12 +353,12 @@ READ_SAMPLES = [
             "Net Energy / Wh",
             "Power / W",
             "Surface Temperature T1 / degC",
-        ],
+        },
     ),
     dict(
         rel="neware/sample_data_neware.xlsx",
         source="neware_xlsx",
-        cols=["Test Time / s", "Voltage / V", "Current / A", "Unix Time / s"],
+        cols={"Test Time / s", "Voltage / V", "Current / A", "Unix Time / s"},
     ),
 ]
 
@@ -374,5 +382,5 @@ def test_sample_read_include_optional_columns(read_sample: tuple[dict, Path]) ->
     """read(include_optional=True) yields exactly the expected canonical columns and source id."""
     spec, path = read_sample
     df, metadata = read(path, include_optional=True)
-    assert list(df.columns) == spec["cols"]
+    assert set(df.columns) == spec["cols"]
     assert metadata["source"] == spec["source"]

@@ -414,6 +414,8 @@ BASYTEC = Normalizer(
         Syn("temp[{unit}]"),
         Syn("temperature[{unit}]"),
     ],
+    net_capacity_ah=[Syn("ah[{unit}]")],
+    step_index=[Syn("line")],
 )
 
 BIOLOGIC = Normalizer(
