@@ -4,6 +4,7 @@ import csv
 import os
 import re
 from collections.abc import Iterable, Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -40,6 +41,10 @@ class DelimitedTextPlugin(CyclerPlugin):
     # --- INI-style preamble / sectioned files (e.g., Novonix with [Data]) ---
     data_section_marker: Optional[str] = None        # regex; if present, start from the line after this marker
     data_header_offset: int = 1                      # number of lines after marker where the header row appears
+
+    # --- header start-time extraction ---
+    start_time_line_regex: Optional[str] = None      # regex with one capture group for the datetime value
+    start_time_format: Optional[str] = None          # strftime format to parse the captured value
 
     # -------------------------------------------------------------------------
     # Public API
@@ -94,6 +99,7 @@ class DelimitedTextPlugin(CyclerPlugin):
             df = self._drop_units_row(df)
 
         self._unit_hints = self._detect_units_from_headers(df.columns)
+        self._start_time_epoch = self._extract_start_time(path, enc)
 
         if self._debug_on():
             print(f"[bdf][DelimitedTextPlugin] columns={list(df.columns)}")
@@ -114,6 +120,22 @@ class DelimitedTextPlugin(CyclerPlugin):
             except Exception:
                 pass
         return b.decode("latin-1", "ignore")
+
+    def _extract_start_time(self, path: Path, enc: str) -> float | None:
+        """Scan header lines for a start timestamp and return it as a Unix epoch float."""
+        if not self.start_time_line_regex or not self.start_time_format:
+            return None
+        pat = re.compile(self.start_time_line_regex, re.IGNORECASE)
+        for line in self._scan_prefix(path, enc):
+            m = pat.search(line)
+            if m:
+                try:
+                    ts = pd.Timestamp(datetime.strptime(m.group(1).strip(), self.start_time_format))
+                    tz = getattr(self, "assume_naive_tz", "UTC") or "UTC"
+                    return ts.tz_localize(tz).tz_convert("UTC").timestamp()
+                except Exception:
+                    return None
+        return None
 
     def _scan_prefix(self, path: Path, enc: str) -> list[str]:
         out: list[str] = []
@@ -233,18 +255,39 @@ class DelimitedTextPlugin(CyclerPlugin):
         return header_idx, sep
 
     def _read_csv(self, path: Path, sep: str, header_idx: int, enc: str) -> pd.DataFrame:
-        df = pd.read_csv(
-            path,
-            sep=sep,
-            skiprows=header_idx,
-            header=0,
-            encoding=enc,
-            engine="python",
-            dtype_backend="pyarrow",
-            decimal=getattr(self, "decimal", ".") or ".",
-        )
-        df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
-        return df
+        # Prefer the C engine for simple delimiters because it is more tolerant
+        # of malformed quoted text in skipped preambles (e.g., Novonix [Protocol]
+        # JSON). Fall back to the Python engine if needed. Regex separators
+        # require the Python engine.
+        is_regex_sep = "\\s" in sep
+        engines = ("python",) if is_regex_sep else ("c", "python")
+        last_exc: Exception | None = None
+
+        for engine in engines:
+            try:
+                df = pd.read_csv(
+                    path,
+                    sep=sep,
+                    skiprows=header_idx,
+                    header=0,
+                    encoding=enc,
+                    engine=engine,
+                    dtype_backend="pyarrow",
+                    decimal=getattr(self, "decimal", ".") or ".",
+                )
+                df.columns = [str(c).strip().lstrip("\ufeff") for c in df.columns]
+                return df
+            except Exception as exc:
+                last_exc = exc
+                if self._debug_on():
+                    print(
+                        "[bdf][DelimitedTextPlugin] read_csv failed "
+                        f"engine={engine!r} sep={sep!r}: {type(exc).__name__}: {exc}"
+                    )
+
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("CSV read failed with no captured exception.")
 
     def _split_header_fields(self, header_line: str, sep: str) -> list[str]:
         try:
@@ -383,16 +426,9 @@ class DelimitedTextPlugin(CyclerPlugin):
         return out
 
     def _looks_ok(self, df: pd.DataFrame) -> bool:
-        cols_lower = [str(c).lower().strip() for c in df.columns]
-        if any(k in cols_lower for k in ("time/s", "ewe/v", "ecell/v", "i/ma", "current / a")):
-            return True
-        for c in cols_lower:
-            if re.search(r"\btime\[[^\]]+\]", c):
-                return True
-            if re.search(r"\bu\[[^\]]+\]", c):
-                return True
-            if re.search(r"\bi\[[^\]]+\]", c):
-                return True
+        if self.header_token_patterns:
+            cols_joined = " ".join(str(c).lower().strip() for c in df.columns)
+            return any(re.search(p, cols_joined, re.I) for p in self.header_token_patterns)
         return False
 
     def _detect_units_from_headers(self, cols: Iterable[str]) -> dict[str, str]:
@@ -456,16 +492,25 @@ class DelimitedTextPlugin(CyclerPlugin):
             elif u == "ua":
                 out["Current / A"] = pd.to_numeric(out["Current / A"], errors="coerce") / 1_000_000.0
 
-        if "Test Time / s" in out.columns:
-            u = (hints.get("Test Time / s") or "").lower()
+        for time_col in ("Test Time / s", "Step Time / s"):
+            if time_col not in out.columns:
+                continue
+            u = (hints.get(time_col) or "").lower()
             if u == "h":
-                out["Test Time / s"] = pd.to_numeric(out["Test Time / s"], errors="coerce") * 3600.0
+                out[time_col] = pd.to_numeric(out[time_col], errors="coerce") * 3600.0
             elif u == "min":
-                out["Test Time / s"] = pd.to_numeric(out["Test Time / s"], errors="coerce") * 60.0
-
+                out[time_col] = pd.to_numeric(out[time_col], errors="coerce") * 60.0
         if "Voltage / V" in out.columns:
             u = (hints.get("Voltage / V") or "").lower()
             if u == "mv":
                 out["Voltage / V"] = pd.to_numeric(out["Voltage / V"], errors="coerce") / 1000.0
+
+        start = getattr(self, "_start_time_epoch", None)
+        if (
+            start is not None
+            and "Test Time / s" in out.columns
+            and "Unix Time / s" not in out.columns
+        ):
+            out["Unix Time / s"] = start + pd.to_numeric(out["Test Time / s"], errors="coerce")
 
         return out

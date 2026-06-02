@@ -14,6 +14,9 @@ from bdf.units import convert_series, parse_from_header
 from . import spec
 
 _SLUG = re.compile(r"[^a-z0-9]+")
+_HMS_DURATION = re.compile(r"^\d{1,3}:\d{2}:\d{2}(?:\.\d+)?$")
+
+
 def _slugify(s: str) -> str:
     return _SLUG.sub("-", s.lower()).strip("-")
 
@@ -117,6 +120,25 @@ def _legacy_alias_index() -> dict[str, object]:
 def _is_numeric_series(s: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(s)
 
+
+def _is_hms_duration_series(s: pd.Series) -> bool:
+    """Return True when all non-null values match HH:MM:SS(.f)."""
+    if _is_numeric_series(s):
+        return False
+
+    if pd.api.types.is_timedelta64_dtype(s):
+        return True
+
+    # Only attempt HMS regex matching for string-like/object values.
+    if not (pd.api.types.is_string_dtype(s.dtype) or pd.api.types.is_object_dtype(s.dtype)):
+        return False
+
+    s_str = s.astype("string").str.strip()
+    non_null = s_str.notna()
+    if not non_null.any():
+        return False
+    return bool(s_str[non_null].str.fullmatch(_HMS_DURATION).all())
+
 def _coerce_with_decimal(s: pd.Series, decimal_hint: str | None) -> pd.Series:
     if pd.api.types.is_numeric_dtype(s):
         return s
@@ -155,6 +177,40 @@ def _coalesce_into(target: pd.Series, incoming: pd.Series) -> pd.Series:
 
     # general 'fill holes'
     return target.where(target.notna(), incoming)
+
+
+def _enforce_normalized_dtypes(df: pd.DataFrame) -> pd.DataFrame:
+    """Enforce normalized numeric dtypes: '/ 1' -> Int64, other unit columns -> float64."""
+    out = df.copy()
+    duration_cols = {"Test Time / s", "Step Time / s"}
+    for col in out.columns:
+        if " / " not in str(col):
+            continue
+
+        unit = str(col).rsplit(" / ", 1)[-1].strip()
+        s = out[col]
+
+        # Time columns: only use duration parsing for HH:MM:SS(.f)-like values.
+        if str(col) in duration_cols:
+            if pd.api.types.is_timedelta64_dtype(s):
+                s = s.dt.total_seconds()
+            elif not _is_numeric_series(s):
+                if _is_hms_duration_series(s):
+                    s = pd.to_timedelta(s, errors="coerce").dt.total_seconds()
+                else:
+                    s = pd.to_numeric(s, errors="coerce")
+            out[col] = s.astype("float64")
+            continue
+
+        # If already numeric, use as-is; otherwise parse plain numeric values.
+        nums = s if _is_numeric_series(s) else pd.to_numeric(s, errors="coerce")
+
+        if unit == "1":
+            out[col] = nums.round().astype("Int64")
+            continue
+
+        out[col] = nums.astype("float64")
+    return out
 
 def normalize_columns(
     df: pd.DataFrame,
@@ -323,6 +379,7 @@ def normalize_columns(
     front = [c for c in ORDERED_REQUIRED if c in candidate]
     tail  = [c for c in candidate if c not in ORDERED_REQUIRED]
     out = out[front + tail].copy()
+    out = _enforce_normalized_dtypes(out)
 
     out.attrs["bdf:columns"] = meta
     if legacy_headers:

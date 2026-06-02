@@ -26,10 +26,17 @@ class BasytecTxt(DelimitedTextPlugin):
         "Current / A":   ["i[a]", "current[a]", "i", "current"],
         # Optional (kept if present)
         "Ambient Temperature / degC": ["t1[°c]", "t1[c]", "t1[degc]", "temp[°c]", "temperature[°c]"],
+        "Net Capacity / Ah": ["ah[ah]"],
+        "Step Index / 1": ["line"],
     }
+    
+
+    # Extract start time from the "~Start of Test: DD.MM.YYYY HH:MM:SS" header line
+    start_time_line_regex = r"~Start of Test:\s*(.+)"
+    start_time_format = "%d.%m.%Y %H:%M:%S"
 
     # Unit hints so the base .fixup() converts to canonical units:
-    #   Current -> A, Time -> s, Voltage -> V
+    #   Current -> A, Time -> s, Voltage -> V, Capacity -> Ah
     unit_column_patterns = {
         "Test Time / s": [
             (r"^time\[s\]$", "s"),
@@ -45,5 +52,8 @@ class BasytecTxt(DelimitedTextPlugin):
             (r"^i\[a\]$",  "A"),
             (r"^i\[ma\]$", "mA"),
             (r"^i\[ua\]$", "uA"),
+        ],
+        "Net Capacity / Ah": [
+            (r"^ah\[ah\]$", "Ah"),
         ],
     }

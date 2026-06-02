@@ -62,6 +62,8 @@ class CyclerPlugin(metaclass=_AutoRegister):
     )
     # If naive timestamps found, treat as this tz and convert to UTC; set None to treat as UTC already
     assume_naive_tz: str | None = "UTC"
+    # strftime format for timestamp candidate columns; None = let pandas infer (may warn)
+    timestamp_format: str | None = None
 
     # ----- required API -----
     def sniff(self, path: Path, head: bytes) -> SniffResult: ...
@@ -121,7 +123,7 @@ class CyclerPlugin(metaclass=_AutoRegister):
             return df
 
         try:
-            unix = parse_unix_time(df[cand], tz=self.assume_naive_tz, min_success=0.5)
+            unix = parse_unix_time(df[cand], fmt=self.timestamp_format, tz=self.assume_naive_tz, min_success=0.5)
         except Exception:
             return df
 

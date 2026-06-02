@@ -15,6 +15,10 @@ class BioLogicMPT(DelimitedTextPlugin):
     header_lines_field_regex = r"Nb\s+header\s+lines\s*:\s*(\d+)"
     header_token_patterns = (r"\btime/s\b", r"\bewe/v\b", r"\becell/v\b", r"\bi/ma\b", r"current\s*/\s*a")
 
+    # Extract start time from "Acquisition started on : MM/DD/YYYY HH:MM:SS.f" header line
+    start_time_line_regex = r"Acquisition started on\s*:\s*(.+)"
+    start_time_format = "%m/%d/%Y %H:%M:%S.%f"
+
     column_synonyms = {
         # Required
         "Test Time / s": ["time/s", "time / s", "t (s)", "time [s]", "relative time(s)"],
@@ -27,6 +31,7 @@ class BioLogicMPT(DelimitedTextPlugin):
         ],
         # Recommended
         "Cycle Count / 1": ["cycle number", "z cycle"],
+        "Step Index / 1": ["ns"],
         "Ambient Temperature / degC": [
             "temperature/c",
             "temperature/degc",
@@ -74,6 +79,9 @@ class BioLogicMPT(DelimitedTextPlugin):
         "Cycle Count / 1": [
             (r"^cycle number$", "1"),
             (r"^z cycle$", "1"),
+        ],
+        "Step Index / 1": [
+            (r"^ns$", "1"),
         ],
         "Ambient Temperature / degC": [
             (r"^temperature/c$", "degC"),
