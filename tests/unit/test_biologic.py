@@ -1,8 +1,13 @@
 """Tests for Biologic mpr/mpt files."""
 
+import pytest
 from pandas.testing import assert_series_equal
 
 import bdf
+
+# Reading .mpr requires the optional `yadg` dependency; skip the whole module
+# (rather than error) when it is not installed.
+pytest.importorskip("yadg")
 
 
 def test_parse_mpr(biologic_file_pair):

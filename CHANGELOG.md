@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [Unreleased]
 ### Added
+- BioLogic `.mpr` (binary) reader (`biologic-mpr` plugin) via the optional `yadg` dependency (`pip install batterydf[mpr]`), including EIS columns and OCV handling. The `.mpt` reader now injects a zero current column for current-free techniques (e.g. OCV). BioLogic `.mpr`/`.mpt` parsing is cross-validated against shared fixtures downloaded on demand from a pinned `yadg` commit.
 - CI pipeline with lint/type/tests/docs and build/twine checks.
 - Sphinx docs with pydata theme and converted notebook examples.
 - Unit tests for IO, registry, validation, repair, CLI, and raw conversion.

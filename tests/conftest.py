@@ -9,8 +9,10 @@ import pytest
 HERE = Path(__file__).parent
 DATA = HERE / "data"
 
-# For downloading test data from yadg repo
-YADG_BASE_URL = "https://raw.githubusercontent.com/dgbowl/yadg/main/tests/test_x_eclab"
+# For downloading test data from the yadg repo. Pinned to an immutable commit so
+# upstream renames/moves can't silently break (or change) these fixtures.
+YADG_PIN = "4d33b261dd1e87f58e5071f6c7d5f8802a547f7c"
+YADG_BASE_URL = f"https://raw.githubusercontent.com/dgbowl/yadg/{YADG_PIN}/tests/test_x_eclab"
 
 # Stems must match filenames in the yadg repo
 # The file should exist at YADG_BASE_URL/{stem}.mpr and .mpt

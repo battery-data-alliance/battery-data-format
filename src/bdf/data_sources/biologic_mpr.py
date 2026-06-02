@@ -33,7 +33,7 @@ class BioLogicMPR(CyclerPlugin):
         "Net Energy / Wh": ["Energy we", "Energy ce"],
         "Cumulative Energy / Wh": ["|Energy|"],
         "Power / W": ["Pwe"],
-        "Internal Resistance / Ohm": ["Rwe"],
+        "Internal Resistance / ohm": ["Rwe"],
         "Ambient Pressure / Pa": [],
         "Applied Pressure / Pa": [],
         "Surface Temperature T1 / degC": [],

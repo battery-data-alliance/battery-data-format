@@ -48,6 +48,7 @@ bdf = "bdf.cli:app"
 
 [project.entry-points."bdf.data_sources"]
 biologic-mpt = "bdf.data_sources.biologic_mpt:BioLogicMPT"
+biologic-mpr = "bdf.data_sources.biologic_mpr:BioLogicMPR"
 neware-csv   = "bdf.data_sources.neware_csv:NewareCSV"
 neware-nda   = "bdf.data_sources.neware_nda:NewareNDA"
 neware-nda-fast = "bdf.data_sources.neware_nda:NewareNDAFast"
@@ -57,6 +58,7 @@ fastnda = ["fastnda"]
 polars = ["polars", "fastnda"]
 hvplot = ["hvplot", "holoviews", "bokeh"]
 numpy2 = ["numpy>=2.0,<3.0"]
+mpr = ["yadg>=5.0"]
 dev = [
   "pytest",
   "pytest-cov",
@@ -65,6 +67,7 @@ dev = [
   "nbclient>=0.9",
   "nbformat>=5.9",
   "ipykernel>=6.0",
+  "yadg>=5.0",
 ]
 docs = [
   "sphinx>=7.0",
