@@ -10,7 +10,7 @@ import polars as pl
 import pytest
 from pydantic import ValidationError
 
-from bdf.normalizer import (
+from bdf.normalizers import (
     DateTimeSyn,
     MetadataParser,
     Normalizer,
@@ -760,7 +760,7 @@ class TestNormalizeFn:
     def test_no_source_no_normalizer_no_extra_returns_df(self):
         """normalize() returns input unchanged when no normalization applies."""
         df = pl.DataFrame({"unknown_col": [1.0, 2.0]})
-        with patch("bdf.normalizer._detect_normalizer", return_value=None):
+        with patch("bdf.normalizers._detect_normalizer", return_value=None):
             out = normalize(df)
         assert out is df
 
@@ -776,14 +776,14 @@ class TestNormalizeFn:
     def test_extra_columns_only_no_source(self):
         """normalize() with extra_columns passes through extra columns."""
         df = pl.DataFrame({"raw": [1.0, 2.0]})
-        with patch("bdf.normalizer._detect_normalizer", return_value=None):
+        with patch("bdf.normalizers._detect_normalizer", return_value=None):
             out = normalize(df, extra_columns={"raw": "Raw Out"})
         assert "Raw Out" in out.columns
 
     def test_lazyframe_passthrough_unchanged(self):
         """normalize() on unknown LazyFrame returns it unchanged."""
         lf = pl.LazyFrame({"unknown_xyz": [1.0]})
-        with patch("bdf.normalizer._detect_normalizer", return_value=None):
+        with patch("bdf.normalizers._detect_normalizer", return_value=None):
             out = normalize(lf)
         assert isinstance(out, pl.LazyFrame)
         assert out is lf
@@ -792,7 +792,7 @@ class TestNormalizeFn:
         """normalize() with an explicit normalizer uses that normalizer's mapping."""
         norm = Normalizer(voltage_volt=[Syn("v")])
         df = pl.DataFrame({"v": [3.5]})
-        with patch("bdf.normalizer._detect_normalizer", return_value=None), warnings.catch_warnings():
+        with patch("bdf.normalizers._detect_normalizer", return_value=None), warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             out = normalize(df, normalizer=norm)
         assert "Voltage / V" in out.columns

@@ -1,7 +1,7 @@
 """Serializable vendor data sources, the ``DATASOURCES`` registry, and detection.
 
 A :class:`DataSource` bundles vendor identity (``id`` / ``exts`` / ``magic``),
-metadata extraction, a referenced :class:`~bdf.normalizer.Normalizer`, and a
+metadata extraction, a referenced :class:`~bdf.normalizers.Normalizer`, and a
 mechanics-only ``reader`` (discriminated on ``reader.name``). One normalizer
 can back several formats — e.g. ``NEWARE_CSV`` and ``NEWARE_XLSX`` both reference
 ``NORMALIZERS["neware"]``.
@@ -12,7 +12,7 @@ Detection is a single pass over one head-byte read:
     narrowing → magic on head bytes → (tie only) per-candidate header sniff.
 
 Dependency direction: this module imports the mechanics-only readers from
-:mod:`bdf.readers` and the normalizers from :mod:`bdf.normalizer`; neither imports
+:mod:`bdf.readers` and the normalizers from :mod:`bdf.normalizers`; neither imports
 back, so there is no cycle.
 """
 
@@ -25,7 +25,7 @@ from typing import Annotated
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .normalizer import NORMALIZERS, DateTimeSyn, MetadataParser, Normalizer, ResolvedColumn, normalize
+from .normalizers import NORMALIZERS, DateTimeSyn, MetadataParser, Normalizer, ResolvedColumn, normalize
 from .readers import HEAD_BYTES, DelimTxtReader, ExcelReader, MatReader
 
 ReaderUnion = Annotated[DelimTxtReader | ExcelReader | MatReader, Field(discriminator="name")]

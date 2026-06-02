@@ -5,7 +5,7 @@ and turns bytes → :class:`polars.LazyFrame` for one file-format family, keyed 
 ``name`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``). Readers carry parse
 configuration and behaviour **only** — no vendor identity, magic, metadata, or normalizer.
 Source resolution and the normalize step live in :mod:`bdf.datasources` and
-:mod:`bdf.normalizer` respectively.
+:mod:`bdf.normalizers` respectively.
 
 A fixed-size ``head`` byte buffer (read once by ``detect()``) may be threaded
 into ``read()`` / ``headers()``. The CSV reader reuses it for preamble decoding

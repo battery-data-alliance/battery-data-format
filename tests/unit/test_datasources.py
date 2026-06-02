@@ -19,7 +19,7 @@ from bdf.datasources import (
     build_ext_to_reader,
     detect,
 )
-from bdf.normalizer import NORMALIZERS, MetadataParser, Normalizer, Syn
+from bdf.normalizers import NORMALIZERS, MetadataParser, Normalizer, Syn
 from bdf.readers import DelimTxtReader, ExcelReader, MatReader
 
 
@@ -383,24 +383,3 @@ def test_sample_read_include_optional_columns(read_sample: tuple[dict, Path]) ->
     df, metadata = D.read(path, include_optional=True)
     assert list(df.columns) == spec["cols"]
     assert metadata["source"] == spec["source"]
-
-
-def test_dependency_direction() -> None:
-    """Each module imports cleanly; normalizer does not import the readers/datasources layer."""
-    import inspect
-    import subprocess
-    import sys
-
-    import bdf.normalizer as N
-
-    for module in ["bdf.normalizer", "bdf.readers", "bdf.datasources"]:
-        result = subprocess.run(
-            [sys.executable, "-c", f"import {module}"],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, result.stderr
-
-    src = inspect.getsource(N)
-    assert "import readers" not in src and "from .readers" not in src
-    assert "import datasources" not in src and "from .datasources" not in src

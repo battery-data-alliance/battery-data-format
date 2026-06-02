@@ -1,7 +1,7 @@
 """Unit and sample-data tests for bdf.readers (mechanics-only readers).
 
 The readers carry parse configuration + behaviour only — no vendor identity,
-magic, metadata, or normalizer (that lives in bdf.datasources / bdf.normalizer).
+magic, metadata, or normalizer (that lives in bdf.datasources / bdf.normalizers).
 Synthetic tests exercise each sniffing/parsing unit in isolation. Sample-data
 tests run over the real files under ``tests/data/`` and skip when absent.
 """
