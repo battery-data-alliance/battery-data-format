@@ -11,21 +11,12 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
-# light imports that never cause cycles
-from .detect import detect as _detect, list_plugins as _list_plugins, load_plugin
-from .normalizer import canonicalize_legacy_labels, normalize as _normalize_df
 from .repair import CleanReport, clean  # public cleaning helpers
-from .sources import REGISTRY as _SOURCE_REGISTRY, Source
 from .validate import BDFValidationError, validate_df  # prints report if asked; warns on non-monotonic time
 
 __all__ = [
     # core I/O
-    "read",
-    "parse",
-    "normalize",
     "validate",
-    "detect",
-    "plugins",
     # datasets helpers
     "datasets",
     "load_registry",
@@ -153,33 +144,6 @@ def _resolve_source(
     return path, plugin_hint
 
 
-def normalize_columns(
-    df: pd.DataFrame,
-    plugin: str | Source | None = None,
-    *,
-    strict: bool = True,
-    include_optional: bool = True,
-) -> pd.DataFrame:
-    """Compatibility wrapper around the current normalizer implementation."""
-    _ = strict
-    return _normalize_df(df, source=plugin, include_optional=include_optional)
-
-
-def guess_plugin_by_columns(df: pd.DataFrame, current_id: str | None = None) -> Source | None:
-    """Return the best matching built-in source for a DataFrame header set."""
-    headers = list(df.columns)
-    best: Source | None = None
-    best_score = -1
-    for src in _SOURCE_REGISTRY.values():
-        if current_id is not None and src.id == current_id:
-            continue
-        score = src.score(headers)
-        if score > best_score:
-            best = src
-            best_score = score
-    return best
-
-
 def _default_ingest_cache_dir() -> Path:
     import os
 
@@ -284,170 +248,6 @@ def _find_collection_roots(root: Path) -> list[Path]:
     for name in ("contribution.json", "collection.json"):
         roots.update({p.parent for p in root.rglob(name)})
     return sorted(roots)
-
-
-def _candidate_plugins(path: Path, *, plugin: str | None, plugin_hint: str | None):
-    try:
-        primary = load_plugin(path, plugin_id=(plugin or plugin_hint))
-    except Exception:
-        if plugin is not None:
-            raise
-        primary = load_plugin(path, plugin_id=None)
-    if plugin is not None:
-        return [primary]
-
-    candidates = []
-    seen: set[str] = set()
-
-    def _push(plg) -> None:
-        pid = str(getattr(plg, "id", "")).strip() or plg.__class__.__name__
-        if pid in seen:
-            return
-        seen.add(pid)
-        candidates.append(plg)
-
-    _push(primary)
-
-    try:
-        from .data_sources import all_plugins  # lazy
-
-        with open(path, "rb") as f:
-            head = f.read(8192)
-
-        ranked = []
-        for cls in all_plugins():
-            try:
-                plg = cls()
-                sr = plg.sniff(path, head)
-                score = float(getattr(sr, "confidence", 0.0) or 0.0)
-                ranked.append((score, plg))
-            except Exception:
-                continue
-        for _score, plg in sorted(ranked, key=lambda x: x[0], reverse=True):
-            _push(plg)
-    except Exception:
-        pass
-
-    return candidates
-
-
-# -------------------------------
-# public API
-# -------------------------------
-def read(
-    source: str | Path,
-    plugin: str | None = None,
-    normalize: bool = True,
-    validate: bool = True,
-    include_optional: bool = True,
-    registry_path: str | Path | None = None,
-) -> pd.DataFrame:
-    """
-    Universal reader -> DataFrame.
-      - source: local path, http(s) URL, or dataset id (from datasets.json)
-      - plugin: force a specific cycler plugin id (optional)
-      - normalize: if True, normalize to BDF columns; if False, parse only
-      - validate: validate BDF artifacts (or normalized output)
-    """
-    local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
-    if _looks_like_bdf_artifact(local_path):
-        from .io import load as _load_bdf  # lazy import
-
-        df = _load_bdf(local_path)
-        df, legacy = canonicalize_legacy_labels(df)
-        if legacy:
-            warnings.warn(
-                "Legacy BDF column labels detected (skos:altLabel/notation). They were normalized to preferred labels.",
-                stacklevel=2,
-            )
-        if validate:
-            validate_df(df)
-        return df
-    if not normalize:
-        if validate:
-            raise ValueError("validate=True requires a BDF artifact or normalize=True.")
-        parse_errors: list[tuple[str, str]] = []
-        for plg in _candidate_plugins(local_path, plugin=plugin, plugin_hint=plugin_hint):
-            try:
-                return plg.parse(local_path)
-            except Exception as exc:
-                if plugin is not None:
-                    raise
-                parse_errors.append((getattr(plg, "id", "?"), f"{type(exc).__name__}: {exc}"))
-        details = "; ".join(f"{pid} -> {msg}" for pid, msg in parse_errors[:4])
-        raise RuntimeError(f"Could not parse source '{local_path}'. {details}")
-
-    normalize_errors: list[tuple[str, str]] = []
-    for plg in _candidate_plugins(local_path, plugin=plugin, plugin_hint=plugin_hint):
-        try:
-            df_raw = plg.parse(local_path)
-            df_raw = plg.augment(df_raw)
-        except Exception as exc:
-            if plugin is not None:
-                raise
-            normalize_errors.append((getattr(plg, "id", "?"), f"parse failed: {type(exc).__name__}: {exc}"))
-            continue
-
-        try:
-            df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
-        except ValueError as exc:
-            if plugin is not None:
-                raise
-            alt = guess_plugin_by_columns(df_raw, current_id=getattr(plg, "id", None))
-            if not alt or getattr(alt, "id", None) == getattr(plg, "id", None):
-                normalize_errors.append((getattr(plg, "id", "?"), f"normalize failed: {type(exc).__name__}: {exc}"))
-                continue
-            try:
-                warnings.warn(
-                    f"Normalization failed with plugin '{getattr(plg, 'id', '?')}', retrying with column-based guess '{getattr(alt, 'id', '?')}'.",
-                    stacklevel=2,
-                )
-                plg = alt
-                df_raw = plg.parse(local_path)
-                df_raw = plg.augment(df_raw)
-                df = normalize_columns(df_raw, plugin=plg, strict=True, include_optional=include_optional)
-            except Exception as alt_exc:
-                normalize_errors.append(
-                    (
-                        getattr(alt, "id", "?"),
-                        f"retry failed: {type(alt_exc).__name__}: {alt_exc}",
-                    )
-                )
-                continue
-        except Exception as exc:
-            if plugin is not None:
-                raise
-            normalize_errors.append((getattr(plg, "id", "?"), f"normalize failed: {type(exc).__name__}: {exc}"))
-            continue
-
-        if hasattr(plg, "fixup"):
-            df = plg.fixup(df)
-        if validate:
-            validate_df(df)
-        return df
-
-    details = "; ".join(f"{pid} -> {msg}" for pid, msg in normalize_errors[:6])
-    raise RuntimeError(f"Could not parse+normalize source '{local_path}'. {details}")
-
-
-def parse(source: str | Path, plugin: str | None = None, registry_path: str | Path | None = None) -> pd.DataFrame:
-    """Parse vendor file only (no normalization/validation)."""
-    return read(source, plugin=plugin, normalize=False, validate=False, registry_path=registry_path)
-
-
-def normalize(df: pd.DataFrame, plugin: str | None = None) -> pd.DataFrame:
-    """
-    Normalize a DataFrame to canonical BDF columns.
-    If plugin id is provided, the plugin's local synonyms are applied too.
-    """
-    plg = None
-    if plugin:
-        from .data_sources import get_plugin_by_id  # lazy
-
-        cls = get_plugin_by_id(plugin)
-        if cls:
-            plg = cls()
-    return normalize_columns(df, plugin=plg, strict=True)
 
 
 def _is_csv(path: Path) -> bool:
@@ -620,16 +420,6 @@ def validate(
         kind="type_error",
         detail="validate() expects a pandas DataFrame, a file path (str/Path), a URL, or a dataset id.",
     )
-
-
-def detect(path: str | Path):
-    """Return SniffResult with the best-matching plugin and confidence."""
-    return _detect(Path(path))
-
-
-def plugins() -> list[str]:
-    """List available plugin ids."""
-    return _list_plugins()
 
 
 # ----- dataset helpers (lazy to avoid cycles) -----
