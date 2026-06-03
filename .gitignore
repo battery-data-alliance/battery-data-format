@@ -12,7 +12,8 @@ dist/
 build/
 docs/_build/
 docs/_autosummary/
-*.parquet
+./*.parquet
+examples/**/*.parquet
 out/
 examples/out/
 **/.bdf.state.json
