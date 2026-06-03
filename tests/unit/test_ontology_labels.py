@@ -8,11 +8,11 @@ import pytest
 import bdf
 
 
-def test_legacy_labels_normalized_from_ontology(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_legacy_labels_normalized_from_ontology(data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ontology = Path("tests/fixtures/ontology_labels.ttl").resolve()
     monkeypatch.setenv("BDF_ONTOLOGY_PATH", str(ontology))
 
-    legacy_path = Path("data/empa__ccid000001.bdf.parquet")
+    legacy_path = data_dir / "bdf" / "legacy.bdf.parquet"
     df = pd.read_parquet(legacy_path)
     assert "test_time_millisecond" in df.columns
 
