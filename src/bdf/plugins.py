@@ -1,6 +1,6 @@
-"""Serializable vendor data sources, the ``DATASOURCES`` registry, and detection.
+"""Serializable vendor plugins, the ``PLUGINS`` registry, and detection.
 
-A :class:`DataSource` bundles vendor identity (``id`` / ``exts`` / ``magic``),
+A :class:`Plugin` bundles vendor identity (``id`` / ``exts`` / ``magic``),
 metadata extraction, a referenced :class:`~bdf.normalizers.Normalizer`, and a
 mechanics-only ``reader`` (discriminated on ``reader.name``). One normalizer
 can back several formats — e.g. ``NEWARE_CSV`` and ``NEWARE_XLSX`` both reference
@@ -29,7 +29,7 @@ from .readers import DelimTxtReader, ExcelReader, MatReader
 ReaderUnion = Annotated[DelimTxtReader | ExcelReader | MatReader, Field(discriminator="name")]
 
 
-class DataSource(BaseModel):
+class Plugin(BaseModel):
     """A serializable vendor entry: identity + metadata + normalizer + reader."""
 
     model_config = ConfigDict(frozen=True)
@@ -42,14 +42,14 @@ class DataSource(BaseModel):
     reader: ReaderUnion
 
     @model_validator(mode="after")
-    def _warn_text_only_fields_on_binary(self) -> DataSource:
+    def _warn_text_only_fields_on_binary(self) -> Plugin:
         """``magic`` / ``metadata`` are only meaningful for text readers."""
         if not self.reader.is_text:
             meta_fields = type(self.metadata).model_fields
             has_configured_pattern = any(getattr(self.metadata, f) != field.default for f, field in meta_fields.items())
             if self.magic or has_configured_pattern:
                 warnings.warn(
-                    f"DataSource {self.id!r}: `magic`/`metadata` are ignored for "
+                    f"Plugin {self.id!r}: `magic`/`metadata` are ignored for "
                     f"binary reader {self.reader.name!r} (text-only relevance)",
                     UserWarning,
                     stacklevel=2,
@@ -83,16 +83,16 @@ class DataSource(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Built-in data sources
+# Built-in plugins
 # ---------------------------------------------------------------------------
 
-ARBIN_CSV = DataSource(
+ARBIN_CSV = Plugin(
     id="arbin_csv",
     normalizer=NORMALIZERS["arbin"],
     reader=DelimTxtReader(),
 )
 
-BASYTEC_TXT = DataSource(
+BASYTEC_TXT = Plugin(
     id="basytec_txt",
     exts=(".dat",),
     magic=(
@@ -104,7 +104,7 @@ BASYTEC_TXT = DataSource(
     reader=DelimTxtReader(encoding="latin-1"),
 )
 
-BIOLOGIC_MPT = DataSource(
+BIOLOGIC_MPT = Plugin(
     id="biologic_mpt",
     exts=(".mpt",),
     magic=("bt-lab ascii file", "ec-lab ascii file"),
@@ -113,25 +113,25 @@ BIOLOGIC_MPT = DataSource(
     reader=DelimTxtReader(),
 )
 
-DIGATRON_CSV = DataSource(
+DIGATRON_CSV = Plugin(
     id="digatron_csv",
     normalizer=NORMALIZERS["digatron"],
     reader=DelimTxtReader(),
 )
 
-LANDT_CSV = DataSource(
+LANDT_CSV = Plugin(
     id="landt_csv",
     normalizer=NORMALIZERS["landt_csv"],
     reader=DelimTxtReader(),
 )
 
-LANDT_TXT = DataSource(
+LANDT_TXT = Plugin(
     id="landt_txt",
     normalizer=NORMALIZERS["landt_txt"],
     reader=DelimTxtReader(),
 )
 
-MACCOR_CSV = DataSource(
+MACCOR_CSV = Plugin(
     id="maccor_csv",
     magic=("today's date", "date of test:"),
     metadata=MetadataParser(start_time=r"Date of Test:,(.+)"),
@@ -139,19 +139,19 @@ MACCOR_CSV = DataSource(
     reader=DelimTxtReader(),
 )
 
-NEWARE_CSV = DataSource(
+NEWARE_CSV = Plugin(
     id="neware_csv",
     normalizer=NORMALIZERS["neware"],
     reader=DelimTxtReader(),
 )
 
-NEWARE_XLSX = DataSource(
+NEWARE_XLSX = Plugin(
     id="neware_xlsx",
     normalizer=NORMALIZERS["neware"],
     reader=ExcelReader(sheet_name="record"),
 )
 
-NOVONIX_CSV = DataSource(
+NOVONIX_CSV = Plugin(
     id="novonix_csv",
     magic=("[summary]", "[data]", "novonix uhpc data file", "novonix"),
     normalizer=NORMALIZERS["novonix"],
@@ -159,7 +159,7 @@ NOVONIX_CSV = DataSource(
 )
 
 
-_BUILTIN_DATASOURCES: tuple[DataSource, ...] = (
+_BUILTIN_PLUGINS: tuple[Plugin, ...] = (
     ARBIN_CSV,
     BASYTEC_TXT,
     BIOLOGIC_MPT,
@@ -172,16 +172,16 @@ _BUILTIN_DATASOURCES: tuple[DataSource, ...] = (
     NOVONIX_CSV,
 )
 
-DATASOURCES: dict[str, DataSource] = {d.id: d for d in _BUILTIN_DATASOURCES}
+PLUGINS: dict[str, Plugin] = {d.id: d for d in _BUILTIN_PLUGINS}
 
 
-def build_ext_to_reader(datasources: dict[str, DataSource]) -> dict[str, str]:
-    """Map every extension (reader base_exts ∪ DataSource.exts) to its reader name.
+def build_ext_to_reader(plugins: dict[str, Plugin]) -> dict[str, str]:
+    """Map every extension (reader base_exts ∪ Plugin.exts) to its reader name.
 
     Raises ``ValueError`` if any extension is claimed by two different readers.
     """
     ext_to_reader: dict[str, str] = {}
-    for ds in datasources.values():
+    for ds in plugins.values():
         reader_name = ds.reader.name
         exts = set(type(ds.reader).base_exts) | {e.lower() for e in ds.exts}
         for ext in exts:
@@ -191,9 +191,9 @@ def build_ext_to_reader(datasources: dict[str, DataSource]) -> dict[str, str]:
     return ext_to_reader
 
 
-EXT_TO_READER: dict[str, str] = build_ext_to_reader(DATASOURCES)
+EXT_TO_READER: dict[str, str] = build_ext_to_reader(PLUGINS)
 
 
 def list_sources() -> list[str]:
-    """Return the list of registered data source IDs."""
-    return list(DATASOURCES)
+    """Return the list of registered plugin IDs."""
+    return list(PLUGINS)

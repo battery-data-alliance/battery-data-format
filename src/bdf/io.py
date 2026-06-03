@@ -9,8 +9,8 @@ from pathlib import Path
 import pandas as pd
 import polars as pl
 
-from bdf.datasources import DATASOURCES, EXT_TO_READER, DataSource
 from bdf.normalizers import DateTimeSyn, Normalizer, ResolvedColumn, normalize
+from bdf.plugins import EXT_TO_READER, PLUGINS, Plugin
 from bdf.readers import DelimTxtReader
 
 
@@ -26,14 +26,14 @@ def _normalizer_var_names(normalizer: Normalizer) -> list[str]:
     return names
 
 
-def _score_by_headers(cands: list[DataSource], path: Path, head: bytes | None) -> DataSource:
+def _score_by_headers(cands: list[Plugin], path: Path, head: bytes | None) -> Plugin:
     """Return the highest-scoring candidate by header match.
 
     Per-candidate sniff failures score as -1 and lose to any positive score.
     Raises :exc:`ValueError` if no candidate scores above zero.
     """
 
-    def safe_score(ds: DataSource) -> int:
+    def safe_score(ds: Plugin) -> int:
         try:
             return ds.score(ds.reader.headers(path, head, var_names=_normalizer_var_names(ds.normalizer)))
         except Exception:
@@ -50,8 +50,8 @@ def _score_by_headers(cands: list[DataSource], path: Path, head: bytes | None) -
     return winners[0]
 
 
-def detect(path: str | Path, head: bytes | None = None) -> DataSource:
-    """Resolve the :class:`DataSource` for ``path`` in a single pass.
+def detect(path: str | Path, head: bytes | None = None) -> Plugin:
+    """Resolve the :class:`Plugin` for ``path`` in a single pass.
 
     Stages: ext → reader name; filter candidates to that reader; narrow to
     distinctive-ext matches if any; magic match on head bytes; on a remaining
@@ -68,7 +68,7 @@ def detect(path: str | Path, head: bytes | None = None) -> DataSource:
     reader_name = EXT_TO_READER[ext]
 
     # candidates using that reader
-    cands = [d for d in DATASOURCES.values() if d.reader.name == reader_name]
+    cands = [d for d in PLUGINS.values() if d.reader.name == reader_name]
 
     # narrow to distinctive-ext matches if any
     distinctive = [d for d in cands if d.match_ext(ext)]
@@ -89,7 +89,7 @@ def detect(path: str | Path, head: bytes | None = None) -> DataSource:
 def read(
     path: str | Path,
     *,
-    datasource: DataSource | None = None,
+    plugin: Plugin | str | None = None,
     normalizer: Normalizer | dict[str, str] | None = None,
     include_optional: bool = True,
     extra_columns: dict[str, str] | None = None,
@@ -97,13 +97,23 @@ def read(
 ) -> tuple[pl.DataFrame | pl.LazyFrame, dict]:
     """Read ``path`` to BDF-canonical form, returning ``(df, metadata)``.
 
-    Resolution: an explicit ``datasource`` bypasses :func:`detect`; otherwise the
+    Resolution: an explicit ``plugin`` bypasses :func:`detect`; otherwise the
     source is detected from one head read. An explicit ``normalizer`` overrides the
     resolved source's normalizer for the normalize step.
     """
     path = Path(path)
     head = DelimTxtReader.read_head(path)
-    ds = datasource if datasource is not None else detect(path, head)
+    if plugin is None:
+        resolved_plugin = detect(path, head)
+    elif isinstance(plugin, str):
+        if plugin not in PLUGINS:
+            available = ", ".join(sorted(PLUGINS))
+            raise ValueError(f"unknown plugin {plugin!r}. Available: {available}")
+        resolved_plugin = PLUGINS[plugin]
+    elif isinstance(plugin, Plugin):
+        resolved_plugin = plugin
+    else:
+        raise ValueError(f"invalid plugin argument: {plugin!r}")
 
     eff_normalizer: Normalizer
     if isinstance(normalizer, dict):
@@ -111,9 +121,9 @@ def read(
     elif isinstance(normalizer, Normalizer):
         eff_normalizer = normalizer
     else:
-        eff_normalizer = ds.normalizer
+        eff_normalizer = resolved_plugin.normalizer
 
-    reader = ds.reader
+    reader = resolved_plugin.reader
     lf = reader.read(path, head, var_names=_normalizer_var_names(eff_normalizer))
 
     bdf_lf = normalize(
@@ -123,11 +133,11 @@ def read(
         extra_columns=extra_columns,
     )
 
-    metadata: dict = {"source": ds.id}
+    metadata: dict = {"source": resolved_plugin.id}
     if reader.is_text:
         preamble = reader.preamble(head)
         if preamble:
-            for key, val in ds.metadata.parse(preamble).items():
+            for key, val in resolved_plugin.metadata.parse(preamble).items():
                 metadata[key] = val
 
     if lazy:

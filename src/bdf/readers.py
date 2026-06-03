@@ -4,7 +4,7 @@ Each reader wraps polars (DelimTxtReader, ExcelReader) or scipy (MatReader) file
 and turns bytes → :class:`polars.LazyFrame` for one file-format family, keyed by a
 ``name`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``). Readers carry parse
 configuration and behaviour **only** — no vendor identity, magic, metadata, or normalizer.
-Source resolution and the normalize step live in :mod:`bdf.datasources` and
+Source resolution and the normalize step live in :mod:`bdf.plugins` and
 :mod:`bdf.normalizers` respectively.
 
 A fixed-size ``head`` byte buffer (read once by ``detect()``) may be threaded

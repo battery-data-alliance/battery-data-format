@@ -6,9 +6,9 @@ import pandas as pd
 import pytest
 
 from bdf import io
-from bdf.datasources import DataSource
 from bdf.io import _score_by_headers, detect, read
 from bdf.normalizers import MetadataParser, Normalizer, Syn
+from bdf.plugins import Plugin
 from bdf.readers import DelimTxtReader, MatReader
 
 
@@ -98,17 +98,17 @@ def test_detect_tie_breaks_by_per_candidate_config(tmp_path: Path, monkeypatch: 
     Two csv candidates declare different separators; only the one whose configured
     separator parses the file yields matching headers and wins the score tie-break.
     """
-    comma_src = DataSource(
+    comma_src = Plugin(
         id="comma",
         normalizer=Normalizer(voltage_volt=[Syn("v")], current_ampere=[Syn("i")]),
         reader=DelimTxtReader(separator=","),
     )
-    semi_src = DataSource(
+    semi_src = Plugin(
         id="semi",
         normalizer=Normalizer(test_time_second=[Syn("t")], voltage_volt=[Syn("u")]),
         reader=DelimTxtReader(separator=";"),
     )
-    monkeypatch.setattr(io, "DATASOURCES", {"comma": comma_src, "semi": semi_src})
+    monkeypatch.setattr(io, "PLUGINS", {"comma": comma_src, "semi": semi_src})
     monkeypatch.setattr(io, "EXT_TO_READER", {".csv": "txt"})
 
     p = tmp_path / "tie.csv"
@@ -119,17 +119,17 @@ def test_detect_tie_breaks_by_per_candidate_config(tmp_path: Path, monkeypatch: 
 
 def test_detect_tie_break_isolates_failing_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """detect returns the surviving candidate when one tied candidate raises during sniff."""
-    good_src = DataSource(
+    good_src = Plugin(
         id="good",
         normalizer=Normalizer(voltage_volt=[Syn("v")], current_ampere=[Syn("i")]),
         reader=DelimTxtReader(separator=","),
     )
-    bad_src = DataSource(
+    bad_src = Plugin(
         id="bad",
         normalizer=Normalizer(voltage_volt=[Syn("v")]),
         reader=DelimTxtReader(separator=","),
     )
-    monkeypatch.setattr(io, "DATASOURCES", {"good": good_src, "bad": bad_src})
+    monkeypatch.setattr(io, "PLUGINS", {"good": good_src, "bad": bad_src})
     monkeypatch.setattr(io, "EXT_TO_READER", {".csv": "txt"})
 
     original_headers = DelimTxtReader.headers
@@ -150,9 +150,9 @@ def test_detect_tie_break_isolates_failing_candidate(tmp_path: Path, monkeypatch
 
 def test_detect_all_candidates_fail_raises_valueerror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """detect raises ValueError (not a reader exception) when every tied candidate fails."""
-    src_a = DataSource(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
-    src_b = DataSource(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
-    monkeypatch.setattr(io, "DATASOURCES", {"a": src_a, "b": src_b})
+    src_a = Plugin(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
+    src_b = Plugin(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
+    monkeypatch.setattr(io, "PLUGINS", {"a": src_a, "b": src_b})
     monkeypatch.setattr(io, "EXT_TO_READER", {".csv": "txt"})
 
     def always_raise(self: DelimTxtReader, path: object, head: object = None, *, var_names: object = None) -> list[str]:
@@ -168,8 +168,8 @@ def test_detect_all_candidates_fail_raises_valueerror(tmp_path: Path, monkeypatc
 
 def test_score_by_headers_all_zero_raises(tmp_path: Path) -> None:
     """_score_by_headers raises when every candidate scores zero against file headers."""
-    src_a = DataSource(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
-    src_b = DataSource(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
+    src_a = Plugin(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
+    src_b = Plugin(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
 
     p = tmp_path / "no_match.csv"
     p.write_text("x,y,z\n" + "\n".join("1,2,3" for _ in range(6)) + "\n")
@@ -180,8 +180,8 @@ def test_score_by_headers_all_zero_raises(tmp_path: Path) -> None:
 
 def test_score_by_headers_equal_score_raises(tmp_path: Path) -> None:
     """_score_by_headers raises when two candidates score equally above zero."""
-    src_a = DataSource(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
-    src_b = DataSource(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
+    src_a = Plugin(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
+    src_b = Plugin(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
 
     p = tmp_path / "ambiguous.csv"
     p.write_text("v,i\n" + "\n".join("1,2" for _ in range(6)) + "\n")
@@ -216,7 +216,7 @@ def test_preamble_honours_explicit_separator_extracts_start_time(tmp_path: Path)
     p = tmp_path / "data.csv"
     p.write_text(content)
 
-    src = DataSource(
+    src = Plugin(
         id="test_sep",
         metadata=MetadataParser(start_time=r"Start Time:\s*(.+)"),
         normalizer=Normalizer(
@@ -224,12 +224,12 @@ def test_preamble_honours_explicit_separator_extracts_start_time(tmp_path: Path)
         ),
         reader=DelimTxtReader(separator=";"),
     )
-    _, metadata = read(p, datasource=src)
+    _, metadata = read(p, plugin=src)
     assert metadata.get("start_time") == "2024-01-15 08:30:00"
 
 
 def test_mat_datasource_with_syn_normalizer_reads_canonical_frame(tmp_path: Path) -> None:
-    """User-built MatReader DataSource with Syn-based normalizer produces a non-empty BDF frame."""
+    """User-built MatReader Plugin with Syn-based normalizer produces a non-empty BDF frame."""
     pytest.importorskip("scipy")
     import numpy as np
     from scipy.io import savemat
@@ -240,14 +240,14 @@ def test_mat_datasource_with_syn_normalizer_reads_canonical_frame(tmp_path: Path
         {"time": np.array([0.0, 1.0, 2.0]), "voltage": np.array([3.5, 3.6, 3.7]), "current": np.array([0.1, 0.1, 0.1])},
     )
 
-    src = DataSource(
+    src = Plugin(
         id="test_mat",
         normalizer=Normalizer(
             test_time_second=[Syn("time")], voltage_volt=[Syn("voltage")], current_ampere=[Syn("current")]
         ),
         reader=MatReader(),
     )
-    df, meta = read(mat_path, datasource=src)
+    df, meta = read(mat_path, plugin=src)
     assert len(df) == 3
     assert "Test Time / s" in df.columns
     assert "Voltage / V" in df.columns
@@ -373,7 +373,7 @@ def read_sample(request: pytest.FixtureRequest, data_dir: Path) -> tuple[dict, P
 
 
 def test_sample_detect(read_sample: tuple[dict, Path]) -> None:
-    """detect resolves each vendor×format sample to the expected DataSource id."""
+    """detect resolves each vendor×format sample to the expected Plugin id."""
     spec, path = read_sample
     assert detect(path).id == spec["source"]
 

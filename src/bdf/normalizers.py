@@ -360,8 +360,8 @@ class Normalizer(BaseModel):
 # ---------------------------------------------------------------------------
 # Built-in vendor normalizers
 #
-# Each constant is a mechanics-agnostic header→BDF mapping. ``DataSource``
-# entries in ``datasources.py`` reference these by key; one normalizer can back
+# Each constant is a mechanics-agnostic header→BDF mapping. ``Plugin``
+# entries in ``plugins.py`` reference these by key; one normalizer can back
 # several file formats (e.g. ``"neware"`` backs both the CSV and XLSX sources).
 # ---------------------------------------------------------------------------
 
