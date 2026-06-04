@@ -1,16 +1,11 @@
-"""Mechanics-only file readers: ``DelimTxtReader``, ``ExcelReader``, ``MatReader``.
+"""Table parsers: ``TableParser``, ``DelimTxtParser``, ``ExcelParser``, ``MatParser``.
 
-Each reader wraps polars (DelimTxtReader, ExcelReader) or scipy (MatReader) file parsers
-and turns bytes → :class:`polars.LazyFrame` for one file-format family, keyed by a
-``name`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``). Readers carry parse
-configuration and behaviour **only** — no vendor identity, magic, metadata, or normalizer.
-Source resolution and the normalize step live in :mod:`bdf.plugins` and
-:mod:`bdf.normalizers` respectively.
-
-A fixed-size ``head`` byte buffer (read once by ``detect()``) may be threaded
-into ``read()`` / ``headers()``. The CSV reader reuses it for preamble decoding
-and separator/skip sniffing; binary readers (Excel/MAT) accept it for symmetry
-but re-open the file to parse.
+Each parser wraps polars (DelimTxtParser, ExcelParser) or scipy (MatParser) file parsers
+and turns a source (local path or ``http(s)://`` URL) → :class:`polars.LazyFrame` for one
+file-format family, keyed by a ``kind`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``).
+A parser carries a :class:`~bdf.normalizers.TableNormalizer` field (default empty): its
+:meth:`read` returns the normalized frame, and a MAT parser sources its variable names
+from that normalizer. A blank normalizer degrades to a raw mechanics-only read.
 
 Polars is licensed under MIT: https://github.com/pola-rs/polars/blob/main/LICENSE
 """
@@ -18,13 +13,35 @@ Polars is licensed under MIT: https://github.com/pola-rs/polars/blob/main/LICENS
 from __future__ import annotations
 
 import inspect
+import tempfile
 from pathlib import Path
 from typing import Any, ClassVar, Literal
+from urllib.parse import urlparse
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-HEAD_BYTES = 65536  # large enough for long text preambles
+from .head_utils import HEAD_BYTES, is_url, read_head
+from .normalizers import TableNormalizer
+
+# ---------------------------------------------------------------------------
+# URL utilities
+# ---------------------------------------------------------------------------
+
+
+def _ext_from_url(url: str) -> str:
+    """Return the file extension from a URL by walking path segments right-to-left."""
+    path = urlparse(url).path
+    for segment in reversed([s for s in path.split("/") if s]):
+        suffix = Path(segment).suffix
+        if suffix:
+            return suffix.lower()
+    raise ValueError(f"no extension found in URL: {url!r}")
+
+
+# ---------------------------------------------------------------------------
+# Polars docstring helper
+# ---------------------------------------------------------------------------
 
 
 def _polars_param_desc(func: Any, param: str) -> str:
@@ -56,7 +73,67 @@ def _polars_param_desc(func: Any, param: str) -> str:
     return " ".join(desc)
 
 
-class DelimTxtReader(BaseModel):
+# ---------------------------------------------------------------------------
+# TableParser
+# ---------------------------------------------------------------------------
+
+
+class TableParser(BaseModel):
+    """Abstract base for all BDF table parsers.
+
+    Concrete subclasses define :attr:`base_exts` and optionally configure
+    :attr:`unique_exts` (extensions handled exclusively by this parser variant).
+    Every parser carries a :attr:`normalizer` (default empty); :meth:`read`
+    returns ``self.normalizer.normalize(...)`` so reading and column mapping
+    live on one object. An empty normalizer degrades to a raw read.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    normalizer: TableNormalizer = TableNormalizer()
+
+    base_exts: ClassVar[frozenset[str]]
+    unique_exts: frozenset[str] = frozenset()
+
+    def matches_ext(self, ext: str) -> bool:
+        """Return True if ``ext`` (case-insensitive) is handled by this parser."""
+        return ext.lower() in (type(self).base_exts | self.unique_exts)
+
+    def normalizer_score(self, path: str | Path) -> int:
+        """Return the normalizer score for ``path``'s column headers, or 0 on any exception."""
+        try:
+            return self.normalizer.score_columns(self.read_column_headings(path))
+        except Exception:
+            return 0
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read ``path`` to a LazyFrame via the parser's mechanics (no normalization)."""
+        raise NotImplementedError
+
+    def read(
+        self,
+        path: str | Path,
+        *,
+        include_optional: bool = True,
+        extra_columns: dict[str, str] | None = None,
+    ) -> pl.LazyFrame:
+        """Read ``path`` (local or URL) and return ``self.normalizer.normalize(...)``.
+
+        An empty :attr:`normalizer` (the default) degrades to a raw read,
+        returning the underlying frame with its source column names unchanged.
+        """
+        lf = self._read_raw(path)
+        result = self.normalizer.normalize(lf, include_optional=include_optional, extra_columns=extra_columns)
+        assert isinstance(result, pl.LazyFrame)
+        return result
+
+
+# ---------------------------------------------------------------------------
+# DelimTxtParser
+# ---------------------------------------------------------------------------
+
+
+class DelimTxtParser(TableParser):
     """Wraps :func:`polars.scan_csv` for delimited text files (.csv/.tsv/.txt/.dat).
 
     Adds auto-detection and encoding handling on top of polars' CSV parser.
@@ -64,7 +141,7 @@ class DelimTxtReader(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    name: Literal["txt"] = "txt"
+    kind: Literal["txt"] = "txt"
     separator: str | None = Field(
         default=None,
         description=_polars_param_desc(pl.scan_csv, "separator"),
@@ -114,12 +191,12 @@ class DelimTxtReader(BaseModel):
         return text
 
     @model_validator(mode="after")
-    def _require_header(self) -> "DelimTxtReader":
+    def _require_header(self) -> "DelimTxtParser":
         if not self.has_header:
             raise ValueError(
                 "Reading data with bdf requires a header row to map columns to the bdf standard. "
                 "If your data has no headers, read directly with polars.scan_csv(..., has_header=False) "
-                "then normalize with the Normalizer.normalize() method."
+                "then normalize with the TableNormalizer.normalize() method."
             )
         return self
 
@@ -168,12 +245,12 @@ class DelimTxtReader(BaseModel):
         best_score = 0
         best_ratio = -1.0
         for sep in candidates:
-            start, run_len, fc = DelimTxtReader._best_run(lines, sep)
+            start, run_len, fc = DelimTxtParser._best_run(lines, sep)
             score = run_len * fc
             if score == 0:
                 continue
             data_idx = start + 1
-            ratio = DelimTxtReader._numeric_ratio(lines[data_idx], sep) if data_idx < len(lines) else 0.0
+            ratio = DelimTxtParser._numeric_ratio(lines[data_idx], sep) if data_idx < len(lines) else 0.0
             if score > best_score or (score == best_score and ratio > best_ratio):
                 best_sep, best_score, best_ratio = sep, score, ratio
         return best_sep
@@ -188,8 +265,8 @@ class DelimTxtReader(BaseModel):
         """
         lines = sample.splitlines()
         if sep is None:
-            sep = DelimTxtReader._detect_separator(sample)
-        start, run_len, _ = DelimTxtReader._best_run(lines, sep)
+            sep = DelimTxtParser._detect_separator(sample)
+        start, run_len, _ = DelimTxtParser._best_run(lines, sep)
         return start if run_len >= min_run else 0
 
     @staticmethod
@@ -233,28 +310,24 @@ class DelimTxtReader(BaseModel):
         (e.g. ASCII-only headers or ``skip`` beyond the buffered content).
         """
         try:
-            proper_cols = DelimTxtReader._decode_head(raw, encoding).splitlines()[skip].split(sep)
-            mangled_cols = DelimTxtReader._decode_head(raw, "utf-8").splitlines()[skip].split(sep)
+            proper_cols = DelimTxtParser._decode_head(raw, encoding).splitlines()[skip].split(sep)
+            mangled_cols = DelimTxtParser._decode_head(raw, "utf-8").splitlines()[skip].split(sep)
         except IndexError:
             return {}
         return {m: p for m, p in zip(mangled_cols, proper_cols) if m != p}
 
-    def read(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> pl.LazyFrame:
-        """Parse ``path`` to a LazyFrame, honouring (and auto-sniffing) config.
-
-        ``head`` is reused for separator/skip sniffing when provided; the full
-        data is still pulled lazily via :func:`polars.scan_csv`. ``var_names``
-        is accepted for interface uniformity with ``MatReader`` and ignored.
-        """
-        path = Path(path)
-        raw = head if head is not None else self.read_head(path)
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Parse ``path`` (local or URL) to a LazyFrame, honouring (and auto-sniffing) config."""
+        source_is_url = is_url(str(path))
+        raw = read_head(path) if source_is_url else self.read_head(Path(path))
         sample = self._decode_head(raw, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
         skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
         is_utf8 = self.encoding.lower() in ("utf-8", "utf8")
         encoding_arg = "utf8" if is_utf8 else "utf8-lossy"
+        source: str | Path = str(path) if source_is_url else Path(path)
         lf = pl.scan_csv(
-            path,
+            source,
             skip_rows=skip,
             separator=sep,
             has_header=self.has_header,
@@ -268,9 +341,10 @@ class DelimTxtReader(BaseModel):
         decimal_comma = self.decimal_comma if self.decimal_comma is not None else self._sniff_decimal(lf)
         return self._coerce_decimal(lf, decimal_comma)
 
-    def headers(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> list[str]:
-        """Return column headers derived from the in-memory head bytes."""
-        raw = head if head is not None else self.read_head(Path(path))
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Return column headers by reading the head bytes of ``path`` (local or URL)."""
+        source_is_url = is_url(str(path))
+        raw = read_head(path) if source_is_url else self.read_head(Path(path))
         sample = self._decode_head(raw, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
         skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
@@ -280,7 +354,12 @@ class DelimTxtReader(BaseModel):
         return lines[skip].split(sep)
 
 
-class ExcelReader(BaseModel):
+# ---------------------------------------------------------------------------
+# ExcelParser
+# ---------------------------------------------------------------------------
+
+
+class ExcelParser(TableParser):
     """Wraps :func:`polars.read_excel` for .xlsx/.xlsm/.xls files.
 
     Delegates to polars' Excel parser with configurable engines (calamine, openpyxl, xlsx2csv).
@@ -288,7 +367,7 @@ class ExcelReader(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    name: Literal["excel"] = "excel"
+    kind: Literal["excel"] = "excel"
     engine: Literal["calamine", "openpyxl", "xlsx2csv"] = Field(
         default="calamine",
         description=_polars_param_desc(pl.read_excel, "engine"),
@@ -322,16 +401,16 @@ class ExcelReader(BaseModel):
     is_text: ClassVar[bool] = False
 
     @model_validator(mode="after")
-    def _require_header(self) -> "ExcelReader":
+    def _require_header(self) -> "ExcelParser":
         if not self.has_header:
             raise ValueError(
                 "Reading data with bdf requires a header row to map columns to the bdf standard. "
                 "If your data has no headers, read directly with polars.read_excel(..., has_header=False) "
-                "then normalize with the Normalizer.normalize() method."
+                "then normalize with the TableNormalizer.normalize() method."
             )
         return self
 
-    def _read_sheet(self, path: Path, *, read_options: dict[str, Any], **extra: Any) -> pl.DataFrame:
+    def _read_sheet(self, path: str | Path, *, read_options: dict[str, Any], **extra: Any) -> pl.DataFrame:
         """Run ``pl.read_excel`` with the reader's sheet/column config and assert a single sheet."""
         kwargs: dict[str, Any] = {"engine": self.engine, "has_header": self.has_header, **extra}
         if self.sheet_id is not None:
@@ -344,43 +423,40 @@ class ExcelReader(BaseModel):
             kwargs["read_options"] = read_options
         df = pl.read_excel(path, **kwargs)
         if isinstance(df, dict):
-            raise ValueError("ExcelReader expects a single sheet; specify `sheet_id` or `sheet_name` to disambiguate.")
+            raise ValueError("ExcelParser expects a single sheet; specify `sheet_id` or `sheet_name` to disambiguate.")
         return df
 
-    def read(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> pl.LazyFrame:
-        """Parse the configured sheet of ``path`` to a LazyFrame.
-
-        ``head`` and ``var_names`` are accepted for interface symmetry but
-        unused: Excel is binary and must re-open the file to parse.
-        """
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Parse the configured sheet of ``path`` (local or URL) to a LazyFrame."""
+        source: str | Path = str(path) if is_url(str(path)) else Path(path)
         df = self._read_sheet(
-            Path(path),
+            source,
             read_options=dict(self.read_options or {}),
             drop_empty_rows=self.drop_empty_rows,
         )
         return df.with_columns(pl.all().cast(pl.Utf8, strict=False)).lazy()
 
-    def headers(self, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None) -> list[str]:
-        """Return the header row without reading data rows (n_rows=0).
-
-        Merges ``{"n_rows": 0}`` into the effective ``read_options``, overriding
-        any caller-supplied ``n_rows``. ``var_names`` is accepted for interface
-        uniformity and ignored.
-        """
-        return self._read_sheet(Path(path), read_options={**(self.read_options or {}), "n_rows": 0}).columns
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Return the header row without reading data rows (n_rows=0)."""
+        source: str | Path = str(path) if is_url(str(path)) else Path(path)
+        return self._read_sheet(source, read_options={**(self.read_options or {}), "n_rows": 0}).columns
 
 
-class MatReader(BaseModel):
+# ---------------------------------------------------------------------------
+# MatParser
+# ---------------------------------------------------------------------------
+
+
+class MatParser(TableParser):
     """Wraps :func:`scipy.io.loadmat` for .mat (MATLAB) files.
 
     Converts loaded variables into polars LazyFrames. Variable names to load are
-    supplied per call (by the resolved ``DataSource``'s normalizer), keeping the
-    reader free of vendor data.
+    supplied per call (by the resolved normalizer), keeping the reader free of vendor data.
     """
 
     model_config = ConfigDict(frozen=True)
 
-    name: Literal["mat"] = "mat"
+    kind: Literal["mat"] = "mat"
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".mat"})
     is_text: ClassVar[bool] = False
@@ -389,33 +465,52 @@ class MatReader(BaseModel):
         try:
             from scipy.io import loadmat
         except ImportError as exc:
-            raise RuntimeError("MatReader requires scipy. Install with `pip install scipy`.") from exc
+            raise RuntimeError("MatParser requires scipy. Install with `pip install scipy`.") from exc
         return loadmat(str(path), variable_names=var_names, squeeze_me=True)
 
-    def read(self, path: str | Path, head: bytes | None = None, *, var_names: list[str]) -> pl.LazyFrame:
-        """Load ``var_names`` from the .mat file into a LazyFrame.
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Load the variables named by :attr:`normalizer` from the .mat file into a LazyFrame.
 
-        ``head`` is accepted for interface symmetry but unused (binary format).
+        Variable names come from ``self.normalizer.known_header_names()`` (a .mat
+        file has no header row). When ``path`` is an ``http(s)://`` URL, the file
+        is downloaded to a temporary path first and cleaned up after loading.
         """
-        path = Path(path)
         import numpy as np
 
-        mat = self._load(path, var_names)
+        var_names = self.normalizer.known_header_names()
+        if is_url(str(path)):
+            try:
+                import requests
+            except ImportError as exc:
+                raise ImportError("URL support requires 'requests'. Install with: pip install requests") from exc
+            resp = requests.get(str(path), timeout=120)
+            if not resp.ok:
+                raise ValueError(f"HTTP {resp.status_code} downloading {path}")
+            with tempfile.NamedTemporaryFile(suffix=".mat", delete=False) as tmp:
+                tmp.write(resp.content)
+                tmp_path = Path(tmp.name)
+            try:
+                mat = self._load(tmp_path, var_names)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+        else:
+            mat = self._load(Path(path), var_names)
+
         data: dict[str, Any] = {}
         for name in var_names:
             if name not in mat:
-                raise ValueError(f"MatReader: variable {name!r} not found in {path}")
+                raise ValueError(f"MatParser: variable {name!r} not found in {path}")
             arr = np.atleast_1d(np.asarray(mat[name]).squeeze())
             if arr.ndim != 1:
-                raise ValueError(f"MatReader: variable {name!r} has shape {arr.shape} after squeeze; must be 1-D")
+                raise ValueError(f"MatParser: variable {name!r} has shape {arr.shape} after squeeze; must be 1-D")
             data[name] = arr.astype(np.float64)
         return pl.DataFrame(data).lazy()
 
-    def headers(self, path: str | Path, head: bytes | None = None, *, var_names: list[str]) -> list[str]:
-        """Return the subset of ``var_names`` actually present in the .mat file."""
-        path = Path(path)
-        mat = self._load(path, var_names)
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Return the subset of ``self.normalizer`` source headers present in the .mat file.
+
+        Variable names are sourced from :attr:`normalizer` (a .mat file has no header row).
+        """
+        var_names = self.normalizer.known_header_names()
+        mat = self._load(Path(path), var_names)
         return [name for name in var_names if name in mat]
-
-
-__all__ = ["DelimTxtReader", "ExcelReader", "MatReader", "HEAD_BYTES"]

@@ -666,14 +666,11 @@ def detect_normalizer(
     normalizers: "Sequence[TableNormalizer]",
 ) -> "TableNormalizer | None":
     """Return the highest-scoring normalizer for ``column_names``, or ``None`` if all score zero."""
-    best: TableNormalizer | None = None
-    best_score = 0
-    for n in normalizers:
-        sc = n.score_columns(column_names)
-        if sc > best_score:
-            best = n
-            best_score = sc
-    return best
+    scored = {n: n.score_columns(column_names) for n in normalizers}
+    best_score = max(scored.values(), default=0)
+    if best_score == 0:
+        return None
+    return max(scored, key=scored.__getitem__)
 
 
 def normalize(
