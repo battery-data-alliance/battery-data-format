@@ -31,6 +31,8 @@ def load_plugin(path: Path, plugin_id: Optional[str] = None) -> CyclerPlugin:
         return cls()
     sr = detect(path)
     cls = get_plugin_by_id(sr.id)
+    if cls is None:
+        raise ValueError(f"Plugin not found for detected id: {sr.id}")
     return cls()
     
 def list_plugins() -> list[str]:

@@ -7,7 +7,7 @@ from typing import Any, Iterable
 _REQUIRED = "REQUIRED"
 _OPTIONAL = "OPTIONAL"
 
-_TEMPLATES: dict[str, dict[str, Any]] = {
+_TEMPLATES: dict[str, Any] = {
     "contribution": {
         "schema_version": "1.0.0",
         "dataset_doi": _REQUIRED,

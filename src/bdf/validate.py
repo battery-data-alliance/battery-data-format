@@ -78,7 +78,7 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
     missing: List[str] = [c for c in REQUIRED if c not in canonical_present]
 
     # --- time monotonicity (warning-level) ---
-    time_stats = {"present": False, "monotonic": True, "violations": 0, "min_drop": 0.0}
+    time_stats: Dict[str, Any] = {"present": False, "monotonic": True, "violations": 0, "min_drop": 0.0}
     if "Test Time / s" in df.columns:
         s = pd.to_numeric(df["Test Time / s"], errors="coerce")
         d = s.diff()
