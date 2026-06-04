@@ -11,7 +11,7 @@ from .ontology_labels import load_alias_index
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .units import parse_from_header
 
-__all__ = ["BDFValidationError", "validate_df"]
+__all__ = ["BDFValidationError", "validate_df", "check_term_rules"]
 
 class BDFValidationError(Exception):
     """Raised when a DataFrame fails BDF validation."""
@@ -22,6 +22,110 @@ _SLUG = re.compile(r"[^a-z0-9]+")
 
 def _slugify(text: str) -> str:
     return _SLUG.sub("-", text.lower()).strip("-")
+
+
+# --- Semantic term-rule validation ------------------------------------------
+# Each canonical quantity carries definitional rules (see the ontology). Data
+# that violates them is almost always an ingestion bug — a wrong sign
+# convention, an unscaled or resetting accumulator, or a unit mix-up. These
+# checks are warning-level (they do not fail validation) because real
+# instruments occasionally violate them (e.g. schedule-driven counter resets),
+# but surfacing the violations makes such issues auditable rather than silent.
+
+# Accumulate from test start and never reset -> must be monotonic non-decreasing.
+# ('Test Time / s' is checked separately with a dedicated epsilon heuristic.)
+_RULE_MONOTONIC: tuple[str, ...] = (
+    "Charging Capacity / Ah",
+    "Discharging Capacity / Ah",
+    "Cumulative Capacity / Ah",
+    "Charging Energy / Wh",
+    "Discharging Energy / Wh",
+    "Cumulative Energy / Wh",
+    "Cycle Count / 1",
+    "Step Count / 1",
+)
+
+# Quantities defined as magnitudes / throughput -> must be non-negative.
+_RULE_NON_NEGATIVE: tuple[str, ...] = (
+    "Charging Capacity / Ah",
+    "Discharging Capacity / Ah",
+    "Cumulative Capacity / Ah",
+    "Charging Energy / Wh",
+    "Discharging Energy / Wh",
+    "Cumulative Energy / Wh",
+    "Step Capacity / Ah",
+    "Step Energy / Wh",
+    "Cycle Count / 1",
+    "Step Count / 1",
+)
+
+# Signed running integrals whose magnitude cannot exceed the throughput.
+_RULE_BOUNDED_BY: dict[str, str] = {
+    "Net Capacity / Ah": "Cumulative Capacity / Ah",
+    "Net Energy / Wh": "Cumulative Energy / Wh",
+}
+
+
+def _num(df: pd.DataFrame, col: str) -> pd.Series:
+    return pd.to_numeric(df[col], errors="coerce")
+
+
+def check_term_rules(df: pd.DataFrame, *, rtol: float = 1e-6) -> List[Dict[str, Any]]:
+    """Check that present canonical columns obey their term definitions.
+
+    Returns a list of violation records (empty when the data conforms). Each
+    record has ``column``, ``rule``, ``violations`` (row count) and a rule-
+    specific detail field. Tolerances are scaled by each column's magnitude so
+    floating-point noise is not reported.
+    """
+    violations: List[Dict[str, Any]] = []
+
+    for col in _RULE_MONOTONIC:
+        if col not in df.columns:
+            continue
+        s = _num(df, col).dropna()
+        if s.empty:
+            continue
+        d = s.diff().dropna()
+        tol = max(1e-9, rtol * float(s.abs().max()))
+        n_bad = int((d < -tol).sum())
+        if n_bad:
+            violations.append({
+                "column": col, "rule": "monotonic non-decreasing",
+                "violations": n_bad, "min_delta": float(d.min()),
+            })
+
+    for col in _RULE_NON_NEGATIVE:
+        if col not in df.columns:
+            continue
+        s = _num(df, col).dropna()
+        if s.empty:
+            continue
+        tol = max(1e-9, rtol * float(s.abs().max()))
+        n_bad = int((s < -tol).sum())
+        if n_bad:
+            violations.append({
+                "column": col, "rule": "non-negative",
+                "violations": n_bad, "min_value": float(s.min()),
+            })
+
+    for col, ref in _RULE_BOUNDED_BY.items():
+        if col not in df.columns or ref not in df.columns:
+            continue
+        s = _num(df, col)
+        r = _num(df, ref)
+        mask = s.notna() & r.notna()
+        if not mask.any():
+            continue
+        tol = max(1e-9, rtol * float(r[mask].abs().max()))
+        n_bad = int((s[mask].abs() > r[mask] + tol).sum())
+        if n_bad:
+            violations.append({
+                "column": col, "rule": f"|value| <= {ref}",
+                "violations": n_bad,
+            })
+
+    return violations
 
 
 def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
@@ -106,6 +210,7 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
         "n_rows": len(df),
         "n_cols": len(df.columns),
         "time_stats": time_stats,
+        "rule_violations": check_term_rules(df),
     }
 
 
@@ -129,6 +234,9 @@ def _print_report(rep: Dict[str, Any]) -> None:
             f"{ts['violations']} drops (min Δ = {ts['min_drop']:.6g} s, eps≈{ts['epsilon']:.6g})."
         )
         print("      Suggestion: bdf.clean(df, time_fix='segment') or bdf.repair.fix_time(df, method='auto').")
+
+    for v in rep.get("rule_violations", []):
+        print(f"   ⚠️ '{v['column']}' violates rule '{v['rule']}' in {v['violations']} row(s).")
 
 
 def validate_df(
@@ -154,6 +262,15 @@ def validate_df(
         warnings.warn(
             "Legacy BDF column labels detected (skos:altLabel/notation). "
             "They are accepted for compatibility but should be updated to preferred labels.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    for v in rep.get("rule_violations", []):
+        warnings.warn(
+            f"Term-rule violation: '{v['column']}' is not {v['rule']} "
+            f"({v['violations']} row(s)). This usually indicates a sign, scaling, "
+            "or accumulator-reset issue in ingestion.",
             UserWarning,
             stacklevel=2,
         )

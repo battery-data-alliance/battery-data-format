@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
+from .derive import derive  # public derivation helper
+
 # light imports that never cause cycles
 from .detect import detect as _detect, list_plugins as _list_plugins, load_plugin
 from .normalize import guess_plugin_by_columns, normalize_columns
@@ -26,6 +28,8 @@ __all__ = [
     "build_registry", "search", "sparql",
     # cleaning
     "clean", "CleanReport",
+    # derivation
+    "derive",
     # viz
     "plot", "explore", "ingest", "templates",
     # version
@@ -293,6 +297,7 @@ def read(
     validate: bool = True,
     include_optional: bool = True,
     registry_path: str | Path | None = None,
+    derive: bool = False,
 ) -> pd.DataFrame:
     """
     Universal reader -> DataFrame.
@@ -300,6 +305,9 @@ def read(
       - plugin: force a specific cycler plugin id (optional)
       - normalize: if True, normalize to BDF columns; if False, parse only
       - validate: validate BDF artifacts (or normalized output)
+      - derive: if True, compute missing derived columns (power, capacity
+                integrals, energy integrals, step quantities) from the three
+                required base columns after normalization
     """
     local_path, plugin_hint = _resolve_source(source, registry_path=registry_path)
     if _looks_like_bdf_artifact(local_path):
@@ -377,6 +385,9 @@ def read(
 
         if hasattr(plg, "fixup"):
             df = plg.fixup(df)
+        if derive:
+            from .derive import derive as _derive_cols  # local alias (param shadows name)
+            df = _derive_cols(df, fill_missing=True)
         if validate:
             validate_df(df)
         return df
