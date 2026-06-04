@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import warnings
 from typing import cast
-from unittest.mock import patch
 
 import polars as pl
 import pytest
@@ -12,10 +11,9 @@ from pydantic import ValidationError
 
 from bdf.normalizers import (
     DateTimeSyn,
-    MetadataParser,
-    Normalizer,
     ResolvedColumn,
     Syn,
+    TableNormalizer,
     normalize,
 )
 
@@ -290,84 +288,56 @@ class TestResolvedColumn:
         assert t0 > 1_700_000_000  # sanity: after Nov 2023
 
 
-# MetadataParser
+# TableNormalizer hashability (synonym fields are tuples)
 
 
-class TestMetadataParser:
-    def test_parse_matches_pattern(self):
-        """parse extracts first capture group from matching line."""
-        mp = MetadataParser(start_time=r"Start time:\s*(\S+)")
-        result = mp.parse(["header line", "Start time: 2024-01-01T00:00:00", "data"])
-        assert result["start_time"] == "2024-01-01T00:00:00"
-
-    def test_parse_no_match_returns_empty(self):
-        """parse returns empty dict when pattern doesn't match any line."""
-        mp = MetadataParser(start_time=r"Start time:\s*(\S+)")
-        assert mp.parse(["no match here"]) == {}
-
-    def test_parse_first_match_per_key(self):
-        """parse returns first matching line, stops searching for that key."""
-        mp = MetadataParser(start_time=r"Time:\s*(\S+)")
-        result = mp.parse(["Time: first", "Time: second"])
-        assert result["start_time"] == "first"
-
-    def test_parse_strips_whitespace(self):
-        """parse strips leading/trailing whitespace from captured value."""
-        mp = MetadataParser(start_time=r"Time:\s*(.+)")
-        result = mp.parse(["Time:   2024-01-01   "])
-        assert result["start_time"] == "2024-01-01"
-
-    def test_parse_case_insensitive(self):
-        """parse matching is case-insensitive."""
-        mp = MetadataParser(start_time=r"start time:\s*(\S+)")
-        result = mp.parse(["START TIME: 2024-01-01"])
-        assert result["start_time"] == "2024-01-01"
-
-    def test_none_pattern_not_compiled(self):
-        """parse skips patterns that are None."""
-        mp = MetadataParser(start_time=None)
-        assert mp.parse(["anything"]) == {}
-
-    def test_parse_empty_lines(self):
-        """parse returns empty dict when given empty line list."""
-        mp = MetadataParser(start_time=r"Time:\s*(\S+)")
-        assert mp.parse([]) == {}
+def test_normalizer_is_hashable() -> None:
+    """A TableNormalizer with synonym fields is hashable and can live in a frozenset."""
+    n = TableNormalizer(voltage_volt=(Syn("voltage"),), current_ampere=(Syn("current"),))
+    assert n in frozenset({n})
 
 
-# Normalizer
+def test_normalizer_synonym_field_is_tuple() -> None:
+    """Tuple input is stored as a tuple (order preserved)."""
+    n = TableNormalizer(voltage_volt=(Syn("a"), Syn("b")))
+    assert isinstance(n.voltage_volt, tuple)
+    assert [cast(Syn, s).exemplar for s in n.voltage_volt] == ["a", "b"]
+
+
+# TableNormalizer
 
 
 class TestNormalizerIter:
     def test_iter_yields_only_non_none(self):
         """__iter__ yields only non-None fields."""
-        n = Normalizer(voltage_volt=[Syn("Voltage-{unit}")])
+        n = TableNormalizer(voltage_volt=(Syn("Voltage-{unit}"),))
         items = list(n)
         assert len(items) == 1
         assert items[0][0] == "voltage_volt"
 
     def test_iter_declaration_order(self):
         """__iter__ yields fields in declaration order."""
-        n = Normalizer(
-            voltage_volt=[Syn("Voltage-{unit}")],
-            current_ampere=[Syn("Current-{unit}")],
-            test_time_second=[DateTimeSyn(syn=Syn("T"), fmts=("%H:%M:%S",))],
+        n = TableNormalizer(
+            voltage_volt=(Syn("Voltage-{unit}"),),
+            current_ampere=(Syn("Current-{unit}"),),
+            test_time_second=(DateTimeSyn(syn=Syn("T"), fmts=("%H:%M:%S",)),),
         )
         names = [mr for mr, _ in n]
         assert names.index("test_time_second") < names.index("voltage_volt")
         assert names.index("voltage_volt") < names.index("current_ampere")
 
     def test_iter_empty_normalizer(self):
-        """__iter__ on empty Normalizer yields no items."""
-        assert list(Normalizer()) == []
+        """__iter__ on empty TableNormalizer yields no items."""
+        assert list(TableNormalizer()) == []
 
 
 class TestNormalizerResolve:
     @pytest.fixture
     def basic_normalizer(self):
-        return Normalizer(
-            test_time_second=[DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",))],
-            voltage_volt=[Syn("Voltage-{unit}")],
-            current_ampere=[Syn("Current-{unit}")],
+        return TableNormalizer(
+            test_time_second=(DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            voltage_volt=(Syn("Voltage-{unit}"),),
+            current_ampere=(Syn("Current-{unit}"),),
         )
 
     def test_resolve_returns_resolved_columns(self, basic_normalizer):
@@ -389,15 +359,15 @@ class TestNormalizerResolve:
     def test_resolve_resolved_column_passthrough(self):
         """resolve passes through ResolvedColumn fields unchanged."""
         rc = ResolvedColumn(source_header="my_col", scale=0.001)
-        n = Normalizer(voltage_volt=rc)
+        n = TableNormalizer(voltage_volt=rc)
         resolved = n.resolve(["my_col"])
         assert resolved["voltage_volt"] is rc
 
     def test_resolve_first_claim_wins(self):
         """resolve assigns each header to first matching field in declaration order."""
-        n = Normalizer(
-            voltage_volt=[Syn("Col-{unit}")],
-            current_ampere=[Syn("Col-{unit}")],
+        n = TableNormalizer(
+            voltage_volt=(Syn("Col-{unit}"),),
+            current_ampere=(Syn("Col-{unit}"),),
         )
         resolved = n.resolve(["Col-V"])
         assert "voltage_volt" in resolved
@@ -405,7 +375,7 @@ class TestNormalizerResolve:
 
     def test_resolve_tilde_prefix_stripped(self):
         """resolve strips leading ~ from header during matching, keeps in source_header."""
-        n = Normalizer(test_time_second=[Syn("Time[s]")])
+        n = TableNormalizer(test_time_second=(Syn("Time[s]"),))
         resolved = n.resolve(["~Time[s]"])
         assert "test_time_second" in resolved
         assert resolved["test_time_second"].source_header == "~Time[s]"
@@ -428,7 +398,7 @@ class TestNormalizerResolve:
 
     def test_resolve_multiple_synonyms_fallback(self):
         """resolve tries each synonym in order until one matches."""
-        n = Normalizer(current_ampere=[Syn("Current-{unit}"), Syn("Amps-{unit}")])
+        n = TableNormalizer(current_ampere=(Syn("Current-{unit}"), Syn("Amps-{unit}")))
         resolved = n.resolve(["Amps-mA"])
         assert "current_ampere" in resolved
         assert resolved["current_ampere"].scale == pytest.approx(0.001)
@@ -437,47 +407,89 @@ class TestNormalizerResolve:
 class TestNormalizerScore:
     @pytest.fixture
     def normalizer(self):
-        return Normalizer(
-            test_time_second=[DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",))],
-            voltage_volt=[Syn("Voltage-{unit}")],
-            current_ampere=[Syn("Current-{unit}")],
+        return TableNormalizer(
+            test_time_second=(DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            voltage_volt=(Syn("Voltage-{unit}"),),
+            current_ampere=(Syn("Current-{unit}"),),
         )
 
     def test_score_all_match(self, normalizer):
         """score returns count of fields that match headers."""
-        assert normalizer.score(["Test-Time", "Voltage-V", "Current-mA"]) == 3
+        assert normalizer.score_columns(["Test-Time", "Voltage-V", "Current-mA"]) == 3
 
     def test_score_partial_match(self, normalizer):
         """score counts only the matching fields."""
-        assert normalizer.score(["Voltage-V"]) == 1
+        assert normalizer.score_columns(["Voltage-V"]) == 1
 
     def test_score_no_match(self, normalizer):
         """score returns 0 when no headers match."""
-        assert normalizer.score(["unknown_col"]) == 0
+        assert normalizer.score_columns(["unknown_col"]) == 0
 
     def test_score_incompatible_unit_reduces_score(self, normalizer):
         """score doesn't count matches with incompatible units."""
-        assert normalizer.score(["Voltage-V", "Current-V"]) == 1
+        assert normalizer.score_columns(["Voltage-V", "Current-V"]) == 1
 
     def test_score_extra_irrelevant_columns_ignored(self, normalizer):
         """score ignores extra columns not in the normalizer."""
-        score = normalizer.score(["Test-Time", "Voltage-V", "Current-mA", "extra_col"])
+        score = normalizer.score_columns(["Test-Time", "Voltage-V", "Current-mA", "extra_col"])
         assert score == 3
 
     def test_score_with_resolved_column(self):
         """score works with ResolvedColumn fields."""
-        n = Normalizer(voltage_volt=ResolvedColumn(source_header="my_v"))
-        assert n.score(["my_v"]) == 1
-        assert n.score(["other"]) == 0
+        n = TableNormalizer(voltage_volt=ResolvedColumn(source_header="my_v"))
+        assert n.score_columns(["my_v"]) == 1
+        assert n.score_columns(["other"]) == 0
+
+
+class TestKnownHeaderNames:
+    def test_resolved_column_only(self):
+        """known_header_names returns only ResolvedColumn source_headers, not synonyms."""
+        n = TableNormalizer(
+            test_time_second=(DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            voltage_volt=(Syn("Voltage-{unit}"), Syn("U")),
+            current_ampere=ResolvedColumn(source_header="my_current"),
+        )
+        assert n.known_header_names() == ["my_current"]
+
+    def test_multiple_resolved_columns(self):
+        """known_header_names lists all ResolvedColumn source_headers in declaration order."""
+        n = TableNormalizer(
+            test_time_second=ResolvedColumn(source_header="time"),
+            voltage_volt=ResolvedColumn(source_header="my_v"),
+            current_ampere=ResolvedColumn(source_header="my_i"),
+        )
+        assert n.known_header_names() == ["time", "my_v", "my_i"]
+
+    def test_empty_normalizer(self):
+        """known_header_names returns empty list for normalizer with no ResolvedColumns."""
+        assert TableNormalizer().known_header_names() == []
+
+    def test_synonyms_excluded(self):
+        """known_header_names excludes synonym fields entirely."""
+        n = TableNormalizer(
+            voltage_volt=(Syn("Voltage-{unit}"), Syn("U")),
+            current_ampere=(Syn("Current-{unit}"),),
+        )
+        assert n.known_header_names() == []
+
+    def test_mixed_synonyms_and_resolved(self):
+        """known_header_names includes only ResolvedColumns, skips synonym fields."""
+        n = TableNormalizer(
+            test_time_second=(Syn("Test-Time"),),
+            voltage_volt=ResolvedColumn(source_header="v_source"),
+            current_ampere=(Syn("Current-{unit}"),),
+            cycle_count=ResolvedColumn(source_header="cycle_source"),
+        )
+        assert n.known_header_names() == ["v_source", "cycle_source"]
 
 
 class TestNormalizerNormalize:
     @pytest.fixture
     def normalizer(self):
-        return Normalizer(
-            test_time_second=[DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",))],
-            voltage_volt=[Syn("Voltage-{unit}")],
-            current_ampere=[Syn("Current-{unit}")],
+        return TableNormalizer(
+            test_time_second=(DateTimeSyn(syn=Syn("Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            voltage_volt=(Syn("Voltage-{unit}"),),
+            current_ampere=(Syn("Current-{unit}"),),
         )
 
     @pytest.fixture
@@ -521,11 +533,11 @@ class TestNormalizerNormalize:
     @pytest.mark.filterwarnings("ignore::UserWarning")
     def test_normalize_include_optional_false_excludes_optional(self):
         """normalize with include_optional=False excludes optional columns."""
-        n = Normalizer(
-            test_time_second=[Syn("t")],
-            voltage_volt=[Syn("v")],
-            current_ampere=[Syn("i")],
-            cycle_count=[Syn("cycle")],
+        n = TableNormalizer(
+            test_time_second=(Syn("t"),),
+            voltage_volt=(Syn("v"),),
+            current_ampere=(Syn("i"),),
+            cycle_count=(Syn("cycle"),),
         )
         df = pl.DataFrame({"t": [1.0], "v": [3.5], "i": [0.1], "cycle": [1.0]})
         out = n.normalize(df, include_optional=False)
@@ -534,27 +546,27 @@ class TestNormalizerNormalize:
 
     def test_normalize_no_exprs_returns_df_unchanged(self):
         """normalize returns input unchanged when no columns match."""
-        n = Normalizer(voltage_volt=[Syn("Voltage-{unit}")])
+        n = TableNormalizer(voltage_volt=(Syn("Voltage-{unit}"),))
         df = pl.DataFrame({"unrelated": [1.0, 2.0]})
         out = n.normalize(df)
         assert out is df
 
     def test_normalize_extra_columns_passthrough(self, simple_df):
         """normalize includes extra_columns with specified names."""
-        n = Normalizer(voltage_volt=[Syn("Voltage-{unit}")])
+        n = TableNormalizer(voltage_volt=(Syn("Voltage-{unit}"),))
         out = n.normalize(simple_df, extra_columns={"Test-Time": "raw_time"})
         assert "raw_time" in out.columns
         assert out["raw_time"].to_list() == simple_df["Test-Time"].to_list()
 
     def test_normalize_extra_columns_missing_warns(self, simple_df):
         """normalize warns when extra_columns references missing source column."""
-        n = Normalizer(voltage_volt=[Syn("Voltage-{unit}")])
+        n = TableNormalizer(voltage_volt=(Syn("Voltage-{unit}"),))
         with pytest.warns(UserWarning, match="not in DataFrame"):
             n.normalize(simple_df, extra_columns={"ghost_col": "Out"})
 
     def test_normalize_missing_required_warns(self):
         """normalize warns when required BDF columns are missing."""
-        n = Normalizer(voltage_volt=[Syn("v")])
+        n = TableNormalizer(voltage_volt=(Syn("v"),))
         df = pl.DataFrame({"v": [3.5]})
         with pytest.warns(UserWarning, match="required BDF columns missing"):
             n.normalize(df)
@@ -574,13 +586,13 @@ class TestNormalizerNormalize:
             "A": "current_ampere",
             "s": "test_time_second",
         }
-        syn_map: dict[str, list[Syn | DateTimeSyn] | ResolvedColumn | None] = {
-            "voltage_volt": cast(list[Syn | DateTimeSyn], [Syn("Voltage-{unit}")]),
-            "current_ampere": cast(list[Syn | DateTimeSyn], [Syn("Current-{unit}")]),
-            "test_time_second": cast(list[Syn | DateTimeSyn], [Syn("Time-{unit}")]),
+        syn_map: dict[str, tuple[Syn | DateTimeSyn, ...] | ResolvedColumn | None] = {
+            "voltage_volt": (Syn("Voltage-{unit}"),),
+            "current_ampere": (Syn("Current-{unit}"),),
+            "test_time_second": (Syn("Time-{unit}"),),
         }
         mr = field_map[bdf_unit]
-        n = Normalizer(**{mr: syn_map[mr]})
+        n = TableNormalizer(**{mr: syn_map[mr]})
         df = pl.DataFrame({col: [value]})
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
@@ -589,7 +601,7 @@ class TestNormalizerNormalize:
 
     def test_normalize_int_dtype_cycle_count(self):
         """normalize casts cycle_count to Int64."""
-        n = Normalizer(cycle_count=[Syn("cycle")])
+        n = TableNormalizer(cycle_count=(Syn("cycle"),))
         df = pl.DataFrame({"cycle": [1.0, 2.0, 3.0]})
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
@@ -598,7 +610,7 @@ class TestNormalizerNormalize:
 
     def test_normalize_float_dtype_voltage(self):
         """normalize casts voltage_volt to Float64."""
-        n = Normalizer(voltage_volt=[Syn("v")])
+        n = TableNormalizer(voltage_volt=(Syn("v"),))
         df = pl.DataFrame({"v": [3.5]})
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
@@ -610,53 +622,53 @@ class TestNormalizerFromColumnMap:
     def test_empty_dict_raises(self):
         """from_column_map raises ValueError for empty dict."""
         with pytest.raises(ValueError, match="column_map must not be empty"):
-            Normalizer.from_column_map({})
+            TableNormalizer.from_column_map({})
 
     def test_single_entry_returns_normalizer(self):
-        """from_column_map with one valid entry returns a Normalizer."""
-        n = Normalizer.from_column_map({"Voltage / V": "my_v"})
-        assert isinstance(n, Normalizer)
+        """from_column_map with one valid entry returns a TableNormalizer."""
+        n = TableNormalizer.from_column_map({"Voltage / V": "my_v"})
+        assert isinstance(n, TableNormalizer)
 
     def test_resolved_column_set_on_correct_field(self):
         """from_column_map sets the ResolvedColumn on the correct mr_name field."""
-        n = Normalizer.from_column_map({"Voltage / V": "my_v"})
+        n = TableNormalizer.from_column_map({"Voltage / V": "my_v"})
         assert isinstance(n.voltage_volt, ResolvedColumn)
         assert n.voltage_volt.source_header == "my_v"
 
     def test_source_header_preserved(self):
         """from_column_map stores the original source header string."""
-        n = Normalizer.from_column_map({"Current / A": "raw_current_col"})
+        n = TableNormalizer.from_column_map({"Current / A": "raw_current_col"})
         assert isinstance(n.current_ampere, ResolvedColumn)
         assert n.current_ampere.source_header == "raw_current_col"
 
     def test_same_unit_scale_one(self):
         """from_column_map sets scale=1.0 when key unit matches BDF unit."""
-        n = Normalizer.from_column_map({"Voltage / V": "v"})
+        n = TableNormalizer.from_column_map({"Voltage / V": "v"})
         assert isinstance(n.voltage_volt, ResolvedColumn)
         assert n.voltage_volt.scale == pytest.approx(1.0)
 
     def test_unit_conversion_millivolt(self):
         """from_column_map sets scale=0.001 when key unit is mV and BDF unit is V."""
-        n = Normalizer.from_column_map({"Voltage / mV": "v_mv"})
+        n = TableNormalizer.from_column_map({"Voltage / mV": "v_mv"})
         assert isinstance(n.voltage_volt, ResolvedColumn)
         assert n.voltage_volt.scale == pytest.approx(0.001)
         assert n.voltage_volt.offset == pytest.approx(0.0)
 
     def test_unit_conversion_milliampere(self):
         """from_column_map sets scale=0.001 when key unit is mA and BDF unit is A."""
-        n = Normalizer.from_column_map({"Current / mA": "i_ma"})
+        n = TableNormalizer.from_column_map({"Current / mA": "i_ma"})
         assert isinstance(n.current_ampere, ResolvedColumn)
         assert n.current_ampere.scale == pytest.approx(0.001)
 
     def test_unit_conversion_hours_to_seconds(self):
         """from_column_map converts hours to seconds (scale=3600)."""
-        n = Normalizer.from_column_map({"Test Time / h": "t_h"})
+        n = TableNormalizer.from_column_map({"Test Time / h": "t_h"})
         assert isinstance(n.test_time_second, ResolvedColumn)
         assert n.test_time_second.scale == pytest.approx(3600.0)
 
     def test_multiple_entries(self):
         """from_column_map handles multiple entries and sets each field correctly."""
-        n = Normalizer.from_column_map(
+        n = TableNormalizer.from_column_map(
             {
                 "Voltage / mV": "col_v",
                 "Current / mA": "col_i",
@@ -672,30 +684,30 @@ class TestNormalizerFromColumnMap:
 
     def test_unset_fields_remain_none(self):
         """from_column_map leaves unspecified fields as None."""
-        n = Normalizer.from_column_map({"Voltage / V": "v"})
+        n = TableNormalizer.from_column_map({"Voltage / V": "v"})
         assert n.current_ampere is None
         assert n.test_time_second is None
 
     def test_invalid_label_raises(self):
         """from_column_map raises ValueError for unknown BDF label base."""
         with pytest.raises(ValueError, match="label base not found"):
-            Normalizer.from_column_map({"NotReal / V": "col"})
+            TableNormalizer.from_column_map({"NotReal / V": "col"})
 
     def test_incompatible_unit_warns_and_uses_scale_one(self):
         """from_column_map warns on incompatible unit and falls back to scale=1.0."""
         with pytest.warns(UserWarning, match="not compatible"):
-            n = Normalizer.from_column_map({"Voltage / A": "col_v"})
+            n = TableNormalizer.from_column_map({"Voltage / A": "col_v"})
         assert isinstance(n.voltage_volt, ResolvedColumn)
         assert n.voltage_volt.scale == pytest.approx(1.0)
 
     def test_fields_are_resolved_column_not_syn_list(self):
         """from_column_map produces ResolvedColumn fields, not synonym lists."""
-        n = Normalizer.from_column_map({"Current / A": "i"})
+        n = TableNormalizer.from_column_map({"Current / A": "i"})
         assert isinstance(n.current_ampere, ResolvedColumn)
 
     def test_can_normalize_dataframe(self):
-        """Normalizer built from from_column_map correctly normalizes a DataFrame."""
-        n = Normalizer.from_column_map(
+        """TableNormalizer built from from_column_map correctly normalizes a DataFrame."""
+        n = TableNormalizer.from_column_map(
             {
                 "Voltage / mV": "v_mv",
                 "Current / mA": "i_ma",
@@ -711,15 +723,15 @@ class TestNormalizerFromColumnMap:
         assert out["Current / A"].to_list() == pytest.approx([0.5, 1.0])
 
     def test_resolve_uses_source_header(self):
-        """Normalizer from from_column_map resolves to correct source_header in resolve()."""
-        n = Normalizer.from_column_map({"Voltage / V": "vendor_v"})
+        """TableNormalizer from from_column_map resolves to correct source_header in resolve()."""
+        n = TableNormalizer.from_column_map({"Voltage / V": "vendor_v"})
         resolved = n.resolve(["vendor_v"])
         assert "voltage_volt" in resolved
         assert resolved["voltage_volt"].source_header == "vendor_v"
 
     def test_duplicate_mr_name_last_wins(self):
         """from_column_map with two keys mapping to same mr_name: last entry wins."""
-        n = Normalizer.from_column_map(
+        n = TableNormalizer.from_column_map(
             {
                 "Voltage / V": "first_col",
                 "Voltage / mV": "second_col",
@@ -733,18 +745,18 @@ class TestNormalizerFromColumnMap:
 class TestNormalizerModelValidate:
     def test_json_validation_synonym_list(self):
         """model_validate accepts dict with Syn and DateTimeSyn data."""
-        n = Normalizer.model_validate(
+        n = TableNormalizer.model_validate(
             {
                 "test_time_second": [{"syn": "Test-Time", "fmts": ["%H:%M:%S.%f"]}],
                 "voltage_volt": ["Voltage-{unit}"],
                 "current_ampere": ["Current-{unit}"],
             }
         )
-        assert n.score(["Test-Time", "Voltage-V", "Current-mA"]) == 3
+        assert n.score_columns(["Test-Time", "Voltage-V", "Current-mA"]) == 3
 
     def test_json_validation_resolved_column(self):
         """model_validate accepts dict with ResolvedColumn data."""
-        n = Normalizer.model_validate(
+        n = TableNormalizer.model_validate(
             {
                 "voltage_volt": {"source_header": "my_v", "scale": 0.001},
             }
@@ -760,8 +772,7 @@ class TestNormalizeFn:
     def test_no_source_no_normalizer_no_extra_returns_df(self):
         """normalize() returns input unchanged when no normalization applies."""
         df = pl.DataFrame({"unknown_col": [1.0, 2.0]})
-        with patch("bdf.normalizers._detect_normalizer", return_value=None):
-            out = normalize(df)
+        out = normalize(df)
         assert out is df
 
     def test_normalizer_only_no_source(self):
@@ -776,23 +787,21 @@ class TestNormalizeFn:
     def test_extra_columns_only_no_source(self):
         """normalize() with extra_columns passes through extra columns."""
         df = pl.DataFrame({"raw": [1.0, 2.0]})
-        with patch("bdf.normalizers._detect_normalizer", return_value=None):
-            out = normalize(df, extra_columns={"raw": "Raw Out"})
+        out = normalize(df, extra_columns={"raw": "Raw Out"})
         assert "Raw Out" in out.columns
 
     def test_lazyframe_passthrough_unchanged(self):
         """normalize() on unknown LazyFrame returns it unchanged."""
         lf = pl.LazyFrame({"unknown_xyz": [1.0]})
-        with patch("bdf.normalizers._detect_normalizer", return_value=None):
-            out = normalize(lf)
+        out = normalize(lf)
         assert isinstance(out, pl.LazyFrame)
         assert out is lf
 
     def test_explicit_normalizer_uses_its_mapping(self):
         """normalize() with an explicit normalizer uses that normalizer's mapping."""
-        norm = Normalizer(voltage_volt=[Syn("v")])
+        norm = TableNormalizer(voltage_volt=(Syn("v"),))
         df = pl.DataFrame({"v": [3.5]})
-        with patch("bdf.normalizers._detect_normalizer", return_value=None), warnings.catch_warnings():
+        with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             out = normalize(df, normalizer=norm)
         assert "Voltage / V" in out.columns
