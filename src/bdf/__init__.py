@@ -1926,7 +1926,7 @@ def ingest(
 
         cell_root = _cell_meta_root()
         for battery in batteries:
-            cell_id = str(battery.id)
+            cell_id = str(battery.id).lower()
             cell_dir = cell_root / cell_id
             cell_dir.mkdir(parents=True, exist_ok=True)
             meta_out = cell_dir / "metadata.jsonld"
