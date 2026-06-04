@@ -237,7 +237,7 @@ class DelimTxtParser(TableParser):
         return best_start, best_len, best_fc
 
     @staticmethod
-    def _detect_separator(sample: str, candidates: tuple[str, ...] = (",", "\t", ";", "|")) -> str:
+    def _detect_separator(sample: str, candidates: tuple[str, ...] = (",", "\t", ";", "|", " ")) -> str:
         """Detect the field separator: the candidate giving the longest consistent
         run of equal field counts, breaking ties by data-row numeric ratio."""
         lines = sample.splitlines()
