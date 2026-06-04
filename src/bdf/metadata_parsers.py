@@ -8,7 +8,7 @@ Sources are fully orthogonal to readers: a delimited-text file may carry its
 metadata in a preamble (:class:`TxtPreambleParser`) while any file may have an
 adjacent JSON sidecar (:class:`JsonSidecarParser`). To keep that orthogonality at
 the import level too, **this module MUST NOT import from** :mod:`bdf.readers`; it
-reads the bytes it needs through the module-local :func:`_read_head` helper.
+reads the bytes it needs through :func:`read_head` from :mod:`bdf.head_utils`.
 
 :class:`MetadataSchema` is the single source of truth for BDF metadata field names
 (symmetric with :class:`~bdf.normalizers.TableNormalizer`'s mr_name fields). Frozen +
@@ -22,52 +22,12 @@ import json
 import re
 from pathlib import Path
 from typing import Generic, Iterator, Literal, TypeVar
-from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
-HEAD_BYTES = 65536  # large enough for long text preambles
+from .head_utils import read_head
 
 T = TypeVar("T")
-
-
-def _is_url(source: str) -> bool:
-    try:
-        u = urlparse(source)
-        return u.scheme in ("http", "https") and bool(u.netloc)
-    except Exception:
-        return False
-
-
-def _read_url_head(url: str, n_bytes: int = HEAD_BYTES) -> bytes:
-    """Return the first ``n_bytes`` bytes of an http(s) ``url`` via streaming GET.
-
-    Exposed as a named helper so it can be tested independently.
-    """
-    try:
-        import requests
-    except ImportError as exc:
-        raise ImportError("URL support requires 'requests'. Install with: pip install requests") from exc
-    resp = requests.get(url, stream=True, timeout=30)
-    if not resp.ok:
-        raise ValueError(f"HTTP {resp.status_code} reading head from {url}")
-    data = b""
-    for chunk in resp.iter_content(chunk_size=8192):
-        data += chunk
-        if len(data) >= n_bytes:
-            break
-    return data[:n_bytes].removeprefix(b"\xef\xbb\xbf")
-
-
-def _read_head(source: str | Path, n_bytes: int = HEAD_BYTES) -> bytes:
-    """Return the first ``n_bytes`` bytes of ``source`` (local path or http(s) URL).
-
-    Module-local on purpose: ``metadata_parsers`` does not import from ``bdf.readers``.
-    """
-    if _is_url(str(source)):
-        return _read_url_head(str(source), n_bytes)
-    with open(source, "rb") as fh:
-        return fh.read(n_bytes).removeprefix(b"\xef\xbb\xbf")
 
 
 class MetadataSchema(BaseModel, Generic[T]):
@@ -141,7 +101,7 @@ class TxtPreambleParser(MetadataParser):
         """Return True when any magic token is found in the file's head bytes."""
         if not self.magic:
             return False
-        head = _read_head(path)
+        head = read_head(path)
         text = head.decode("utf-8", errors="replace").lower()
         for m in self.magic:
             if isinstance(m, bytes):
@@ -153,7 +113,7 @@ class TxtPreambleParser(MetadataParser):
 
     def parse(self, path: str | Path) -> dict[str, str]:
         """Decode the head with ``encoding`` and apply each regex; first match per field."""
-        head = _read_head(path)
+        head = read_head(path)
         lines = head.decode(self.encoding, errors="replace").splitlines()
         result: dict[str, str] = {}
         for field_name, rx in self.regex_patterns:

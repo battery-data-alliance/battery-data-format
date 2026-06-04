@@ -14,7 +14,6 @@ from bdf.metadata_parsers import (
     MetadataParser,
     MetadataSchema,
     TxtPreambleParser,
-    _read_url_head,
 )
 
 # ---------------------------------------------------------------------------
@@ -251,27 +250,6 @@ def test_parsers_share_a_frozenset() -> None:
         }
     )
     assert len(parsers) == 3
-
-
-# ---------------------------------------------------------------------------
-# _read_url_head
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.network
-@pytest.mark.parametrize(
-    "url,expected_content",
-    [
-        (_ZENODO_BASYTEC_URL, b"Basytec"),
-        (_ZENODO_BIOLOGIC_URL, b"BT-Lab"),
-    ],
-    ids=["basytec", "biologic"],
-)
-def test_read_url_head_returns_file_start(url: str, expected_content: bytes) -> None:
-    pytest.importorskip("requests")
-    head = _read_url_head(url, n_bytes=4096)
-    assert len(head) == 4096
-    assert expected_content in head
 
 
 # ---------------------------------------------------------------------------
