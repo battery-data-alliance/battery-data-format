@@ -5,6 +5,7 @@ Shared by metadata_parsers and table_parsers to avoid duplication.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -20,35 +21,37 @@ def is_url(source: str) -> bool:
         return False
 
 
-def read_url_head(url: str, n_bytes: int = HEAD_BYTES) -> bytes:
-    """Return the first ``n_bytes`` bytes of an http(s) ``url`` via streaming GET.
+@lru_cache(maxsize=128)
+def _read_head(source: str, n_bytes: int) -> bytes:
+    """Cached core of read_head; both args must be hashable (str + int)."""
+    if is_url(source):
+        from .fetch import fetch_url
 
-    Exposed as a named helper so it can be tested independently.
-    """
-    import requests
-
-    resp = requests.get(url, stream=True, timeout=30)
-    if not resp.ok:
-        raise ValueError(f"HTTP {resp.status_code} reading head from {url}")
-    data = b""
-    for chunk in resp.iter_content(chunk_size=8192):
-        data += chunk
-        if len(data) >= n_bytes:
-            break
-    return data[:n_bytes].removeprefix(b"\xef\xbb\xbf")
+        local_path = fetch_url(source)
+        with open(local_path, "rb") as fh:
+            return fh.read(n_bytes).removeprefix(b"\xef\xbb\xbf")
+    with open(source, "rb") as fh:
+        return fh.read(n_bytes).removeprefix(b"\xef\xbb\xbf")
 
 
 def read_head(source: str | Path, n_bytes: int = HEAD_BYTES) -> bytes:
-    """Return the first ``n_bytes`` bytes of ``source`` (local path or http(s) URL)."""
-    if is_url(str(source)):
-        return read_url_head(str(source), n_bytes)
-    with open(source, "rb") as fh:
-        return fh.read(n_bytes).removeprefix(b"\xef\xbb\xbf")
+    """Return the first ``n_bytes`` bytes of ``source`` (local path or http(s) URL).
+
+    Results are cached in-process via ``lru_cache``; URL sources are resolved
+    to a local disk-cached file via ``fetch_url`` before reading.
+
+    Args:
+        source: Local file path or http(s) URL.
+        n_bytes: Maximum number of bytes to read.
+
+    Returns:
+        First ``n_bytes`` bytes of the file, BOM-stripped.
+    """
+    return _read_head(str(source), n_bytes)
 
 
 __all__ = [
     "HEAD_BYTES",
     "is_url",
-    "read_url_head",
     "read_head",
 ]

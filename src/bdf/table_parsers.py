@@ -13,7 +13,6 @@ Polars is licensed under MIT: https://github.com/pola-rs/polars/blob/main/LICENS
 from __future__ import annotations
 
 import inspect
-import tempfile
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 from urllib.parse import urlparse
@@ -99,10 +98,27 @@ class TableParser(BaseModel):
         """Return True if ``ext`` (case-insensitive) is handled by this parser."""
         return ext.lower() in (type(self).base_exts | self.unique_exts)
 
+    @staticmethod
+    def _resolve_source(path: str | Path) -> Path:
+        """Resolve URL to a local disk-cached file; return local paths unchanged.
+
+        Args:
+            path: Local file path or http(s) URL.
+
+        Returns:
+            Local ``Path`` to the file (downloaded via ``fetch_url`` if needed).
+        """
+        s = str(path)
+        if is_url(s):
+            from .fetch import fetch_url
+
+            return fetch_url(s)
+        return Path(path)
+
     def normalizer_score(self, path: str | Path) -> int:
         """Return the normalizer score for ``path``'s column headers, or 0 on any exception."""
         try:
-            return self.normalizer.score_columns(self.read_column_headings(path))
+            return self.normalizer.score_columns(self.read_column_headings(self._resolve_source(path)))
         except Exception:
             return 0
 
@@ -124,10 +140,21 @@ class TableParser(BaseModel):
         When ``normalize=False``, returns ``self._read_raw(path)`` unchanged.
         An empty :attr:`normalizer` (the default) degrades to a raw read.
         When ``validate=True``, column names are checked against the BDF ontology.
+
+        Args:
+            path: Local file path or http(s) URL.
+            normalize: Apply column normalization when True.
+            validate: Validate column names against BDF ontology when True.
+            include_optional: Include optional BDF columns in output.
+            extra_columns: Additional column rename mappings.
+
+        Returns:
+            Normalized or raw polars LazyFrame.
         """
+        resolved = self._resolve_source(path)
         if not normalize:
-            return self._read_raw(path)
-        lf = self._read_raw(path)
+            return self._read_raw(resolved)
+        lf = self._read_raw(resolved)
         result = self.normalizer.normalize(lf, include_optional=include_optional, extra_columns=extra_columns)
         assert isinstance(result, pl.LazyFrame)
 
@@ -321,16 +348,15 @@ class DelimTxtParser(TableParser):
         return {m: p for m, p in zip(mangled_cols, proper_cols) if m != p}
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
-        """Parse ``path`` (local or URL) to a LazyFrame, honouring (and auto-sniffing) config."""
+        """Parse ``path`` (local) to a LazyFrame, honouring (and auto-sniffing) config."""
         raw = read_head(path)
         sample = self._decode_head(raw, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
         skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
         is_utf8 = self.encoding.lower() in ("utf-8", "utf8")
         encoding_arg = "utf8" if is_utf8 else "utf8-lossy"
-        source: str | Path = str(path) if is_url(str(path)) else Path(path)
         lf = pl.scan_csv(
-            source,
+            Path(path),
             skip_rows=skip,
             separator=sep,
             has_header=self.has_header,
@@ -430,10 +456,9 @@ class ExcelParser(TableParser):
         return df
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
-        """Parse the configured sheet of ``path`` (local or URL) to a LazyFrame."""
-        source: str | Path = str(path) if is_url(str(path)) else Path(path)
+        """Parse the configured sheet of ``path`` (local) to a LazyFrame."""
         df = self._read_sheet(
-            source,
+            Path(path),
             read_options=dict(self.read_options or {}),
             drop_empty_rows=self.drop_empty_rows,
         )
@@ -441,8 +466,7 @@ class ExcelParser(TableParser):
 
     def read_column_headings(self, path: str | Path) -> list[str]:
         """Return the header row without reading data rows (n_rows=0)."""
-        source: str | Path = str(path) if is_url(str(path)) else Path(path)
-        return self._read_sheet(source, read_options={**(self.read_options or {}), "n_rows": 0}).columns
+        return self._read_sheet(Path(path), read_options={**(self.read_options or {}), "n_rows": 0}).columns
 
 
 # ---------------------------------------------------------------------------
@@ -557,29 +581,12 @@ class MatParser(TableParser):
         """Load the variables named by :attr:`normalizer` from the .mat file into a LazyFrame.
 
         Variable names come from ``self.normalizer.known_header_names()`` (a .mat
-        file has no header row). When ``path`` is an ``http(s)://`` URL, the file
-        is downloaded to a temporary path first and cleaned up after loading.
+        file has no header row).
         """
         import numpy as np
 
         var_names = self.normalizer.known_header_names()
-        if is_url(str(path)):
-            try:
-                import requests
-            except ImportError as exc:
-                raise ImportError("URL support requires 'requests'. Install with: pip install requests") from exc
-            resp = requests.get(str(path), timeout=120)
-            if not resp.ok:
-                raise ValueError(f"HTTP {resp.status_code} downloading {path}")
-            with tempfile.NamedTemporaryFile(suffix=".mat", delete=False) as tmp:
-                tmp.write(resp.content)
-                tmp_path = Path(tmp.name)
-            try:
-                mat = self._load(tmp_path, var_names)
-            finally:
-                tmp_path.unlink(missing_ok=True)
-        else:
-            mat = self._load(Path(path), var_names)
+        mat = self._load(Path(path), var_names)
 
         data: dict[str, Any] = {}
         for name in var_names:
