@@ -99,6 +99,7 @@ class SampleCase:
     sep: str | None = None
     expected_metadata: dict | None = None
     expected_columns: frozenset[str] | None = None
+    null_ok_columns: frozenset[str] = field(default_factory=frozenset)
     current_max_abs: float | None = None
     marks: tuple = ()
 
@@ -329,6 +330,7 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                     "Internal Resistance / ohm",
                 }
             ),
+            null_ok_columns=frozenset({"Internal Resistance / ohm"}),
         ),
     ),
     (
@@ -435,6 +437,7 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                     "Test Time / s",
                     "Voltage / V",
                     "Current / A",
+                    "Unix Time / s",
                     "Step Count / 1",
                     "Step Index / 1",
                     "Step Time / s",
@@ -449,7 +452,7 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             source="neware/sample_data_neware.xlsx",
             plugin_id="neware_xlsx",
             ext_ids=frozenset({"neware_xlsx"}),
-            meta_ids=frozenset({"neware_xlsx"}),
+            meta_ids=frozenset(PLUGINS),
             cols_id="neware_xlsx",
             detect_id="neware_xlsx",
             deciding_stage="ext",

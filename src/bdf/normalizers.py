@@ -155,9 +155,10 @@ class ResolvedColumn(BaseModel):
 
 def _datetime_unix_expr(src: str, fmts: list[str]) -> pl.Expr:
     """Parse datetimes to unix timestamp seconds."""
-    candidates = [pl.col(src).str.to_datetime(f, strict=False) for f in fmts]
+    # timestamp() per candidate avoids coalesce supertype conflict (tz-aware vs tz-naive)
+    candidates = [pl.col(src).str.to_datetime(f, strict=False).dt.timestamp("us") for f in fmts]
     parsed = pl.coalesce(candidates) if len(candidates) > 1 else candidates[0]
-    return parsed.dt.timestamp("us").cast(pl.Float64) / 1e6
+    return parsed.cast(pl.Float64) / 1e6
 
 
 def _datetime_elapsed_expr(src: str, fmts: list[str]) -> pl.Expr:
@@ -346,7 +347,13 @@ class TableNormalizer(BaseModel):
 # ---------------------------------------------------------------------------
 
 _ARBIN_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S")
-_DIGATRON_DT_FMTS = ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_DIGATRON_DT_FMTS = (
+    "%Y-%m-%d %H:%M:%S%.f%:z",
+    "%Y-%m-%d %H:%M:%S%:z",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%d %H:%M:%S",
+)
+_LANDT_DT_FMTS = ("%Y-%m-%d %H:%M:%S",)
 _MACCOR_DT_FMTS = ("%d-%b-%y %I:%M:%S %p", "%d-%b-%y %H:%M:%S", "%Y-%m-%d %H:%M:%S")
 _NEWARE_DT_FMTS = ("%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
 
@@ -532,9 +539,9 @@ LANDT_TXT = TableNormalizer(
         Syn("record"),
         Syn("record#"),
     ),
+    unix_time_second=(DateTimeSyn(syn=Syn("dpt-time"), fmts=_LANDT_DT_FMTS),),
     step_time_second=(
-        Syn("dpt-time"),
-        Syn("dpt time"),
+        Syn("step({unit})"),
         Syn("step time ({unit})"),
         Syn("step_time_s"),
     ),
@@ -562,7 +569,7 @@ NEWARE = TableNormalizer(
         Syn("test time({unit})"),
         Syn("totaltime({unit})"),
         Syn("totaltime_s"),
-        Syn("total time"),
+        DateTimeSyn(syn=Syn("total time"), fmts=_NEWARE_DT_FMTS),
         Syn("总时间({unit})"),
         Syn("测试时间({unit})"),
     ),

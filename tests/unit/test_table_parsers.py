@@ -17,7 +17,10 @@ from conftest import ALL_CASES, SampleCase, resolve_source
 from bdf.head_utils import read_head
 from bdf.normalizers import ResolvedColumn, TableNormalizer
 from bdf.plugins import PLUGINS
+from bdf.spec import COLUMN_ONTOLOGY
 from bdf.table_parsers import DelimTxtParser, ExcelParser, MatParser, TableParser
+
+_LABEL_DTYPE: dict[str, str] = {q.formatted_label: q.dtype for _, q in COLUMN_ONTOLOGY}
 
 # ---------------------------------------------------------------------------
 # TableParser.matches_ext
@@ -572,10 +575,23 @@ def test_sample_separator(cid: str, case: SampleCase, data_dir: Path) -> None:
 
 @pytest.mark.parametrize("cid,case", _COLUMN_CASES)
 def test_sample_read_includes_expected_columns(cid: str, case: SampleCase, data_dir: Path) -> None:
-    """read() via the plugin's table_parser returns the expected BDF column set."""
+    """read() returns expected BDF columns with correct dtypes and no nulls."""
     path = resolve_source(case.source, case.is_url, data_dir)
-    result = frozenset(PLUGINS[case.plugin_id].table_parser.read(path).collect_schema().names())
-    assert result == case.expected_columns
+    assert case.expected_columns is not None
+    df = PLUGINS[case.plugin_id].table_parser.read(path).collect()
+    assert frozenset(df.columns) == case.expected_columns
+
+    schema = df.schema
+    for col in case.expected_columns:
+        spec_dtype = _LABEL_DTYPE.get(col)
+        if spec_dtype == "float":
+            assert schema[col].is_float(), f"{col}: expected float dtype, got {schema[col]}"
+        elif spec_dtype == "int":
+            assert schema[col].is_integer(), f"{col}: expected int dtype, got {schema[col]}"
+
+    null_counts = df.null_count()
+    for col in case.expected_columns - case.null_ok_columns:
+        assert null_counts[col][0] == 0, f"{col}: contains nulls"
 
 
 @pytest.mark.parametrize("cid,case", _CURRENT_CASES)
