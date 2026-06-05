@@ -135,7 +135,7 @@ class TestDateTimeSyn:
 
 
 class TestResolvedColumn:
-    # --- from_column_map ---
+    # --- from_bdf_label ---
 
     @pytest.mark.parametrize(
         "bdf_label, src_col, expected_mr, expected_scale",
@@ -148,23 +148,23 @@ class TestResolvedColumn:
             ("Test Time / h", "col_t", "test_time_second", pytest.approx(3600.0)),
         ],
     )
-    def test_from_column_map_unit_conversion(self, bdf_label, src_col, expected_mr, expected_scale):
-        """from_column_map converts BDF label to mr_name and applies unit scaling."""
-        mr, rc = ResolvedColumn.from_column_map(bdf_label, src_col)
+    def test_from_bdf_label_unit_conversion(self, bdf_label, src_col, expected_mr, expected_scale):
+        """from_bdf_label converts BDF label to mr_name and applies unit scaling."""
+        mr, rc = ResolvedColumn.from_bdf_label(bdf_label, src_col)
         assert mr == expected_mr
         assert rc.source_header == src_col
         assert rc.scale == expected_scale
         assert rc.offset == pytest.approx(0.0)
 
-    def test_from_column_map_invalid_label_raises(self):
-        """from_column_map raises ValueError for unknown BDF label."""
+    def test_from_bdf_label_invalid_label_raises(self):
+        """from_bdf_label raises ValueError for unknown BDF label."""
         with pytest.raises(ValueError, match="label base not found"):
-            ResolvedColumn.from_column_map("NotReal / V", "col")
+            ResolvedColumn.from_bdf_label("NotReal / V", "col")
 
-    def test_from_column_map_incompatible_unit_warns(self):
-        """from_column_map warns on incompatible unit and uses scale 1.0."""
+    def test_from_bdf_label_incompatible_unit_warns(self):
+        """from_bdf_label warns on incompatible unit and uses scale 1.0."""
         with pytest.warns(UserWarning, match="not compatible"):
-            mr, rc = ResolvedColumn.from_column_map("Voltage / A", "col_v")
+            mr, rc = ResolvedColumn.from_bdf_label("Voltage / A", "col_v")
         assert rc.scale == 1.0
 
     # --- from_synonyms ---

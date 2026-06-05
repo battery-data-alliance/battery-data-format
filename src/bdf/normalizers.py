@@ -93,7 +93,7 @@ class ResolvedColumn(BaseModel):
     )
 
     @classmethod
-    def from_column_map(cls, bdf_label_key: str, src_header: str) -> tuple[str, ResolvedColumn]:
+    def from_bdf_label(cls, bdf_label_key: str, src_header: str) -> tuple[str, ResolvedColumn]:
         """Resolve a BDF label key (e.g. 'Voltage / mV') to (mr_name, ResolvedColumn).
 
         Args:
@@ -346,7 +346,7 @@ class TableNormalizer(BaseModel):
 
     @classmethod
     def from_column_map(cls, column_map: dict[str, str]) -> "TableNormalizer":
-        """Convert a BDF label-key dict to a TableNormalizer via ResolvedColumn.from_column_map.
+        """Convert a BDF label-key dict to a TableNormalizer via ResolvedColumn.from_bdf_label.
 
         Args:
             column_map: Dictionary mapping BDF labels (e.g. 'Voltage / mV') to source header names.
@@ -361,7 +361,7 @@ class TableNormalizer(BaseModel):
             raise ValueError("column_map must not be empty")
         kwargs: dict[str, ResolvedColumn] = {}
         for bdf_label_key, src_header in column_map.items():
-            mr_name, rc = ResolvedColumn.from_column_map(bdf_label_key, src_header)
+            mr_name, rc = ResolvedColumn.from_bdf_label(bdf_label_key, src_header)
             kwargs[mr_name] = rc
         return cls(**kwargs)
 
