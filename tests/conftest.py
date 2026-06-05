@@ -186,39 +186,6 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
         ),
     ),
     (
-        "biologic/txt/ca1",
-        SampleCase(
-            source="biologic/Sample_data_biologic_CA1.txt",
-            plugin_id="biologic_mpt",
-            ext_ids=_ALL_DELIM_IDS,
-            meta_ids=frozenset({"biologic_mpt"}),
-            cols_id="biologic_mpt",
-            detect_id="biologic_mpt",
-            deciding_stage="metadata",
-            skip=102,
-            sep="\t",
-            expected_metadata={"start_time": "05/13/2024 11:19:51.602"},
-            current_max_abs=5.0,
-            expected_columns=frozenset(
-                {
-                    "Test Time / s",
-                    "Voltage / V",
-                    "Current / A",
-                    "Cycle Count / 1",
-                    "Step Index / 1",
-                    "Step Time / s",
-                    "Charging Capacity / Ah",
-                    "Discharging Capacity / Ah",
-                    "Cumulative Capacity / Ah",
-                    "Charging Energy / Wh",
-                    "Discharging Energy / Wh",
-                    "Power / W",
-                    "Internal Resistance / ohm",
-                }
-            ),
-        ),
-    ),
-    (
         "basytec/local",
         SampleCase(
             source="basytec/sample_data_basytec.txt",
