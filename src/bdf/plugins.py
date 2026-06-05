@@ -56,6 +56,17 @@ class PluginDict(dict):
         self.cutoff = cutoff
 
     def __getitem__(self, key):
+        """Get plugin by key, suggesting close matches on KeyError.
+
+        Args:
+            key: Plugin ID to retrieve.
+
+        Returns:
+            The plugin for the given key.
+
+        Raises:
+            KeyError: If key not found, with suggestions for similar keys.
+        """
         if key in self:
             return super().__getitem__(key)
         matches = get_close_matches(str(key), map(str, self.keys()), n=3, cutoff=self.cutoff)
@@ -198,6 +209,16 @@ def detect_from_ext(
 
     Defaults to :data:`PLUGINS`. Raises :exc:`ValueError` when no candidate handles
     the extension.
+
+    Args:
+        path: Local file path or URL to check.
+        cands: Candidate plugins to filter; defaults to PLUGINS.
+
+    Returns:
+        Dictionary of plugins whose table parser matches the extension.
+
+    Raises:
+        ValueError: If no candidate handles the extension.
     """
     if cands is None:
         cands = PLUGINS
@@ -217,6 +238,13 @@ def detect_from_metadata(
 
     Defaults to :data:`PLUGINS`. When no candidate matches (file has no identifying
     preamble), returns ``cands`` unchanged so the pipeline continues to column scoring.
+
+    Args:
+        path: Local file path or URL to check.
+        cands: Candidate plugins to filter; defaults to PLUGINS.
+
+    Returns:
+        Dictionary of plugins whose metadata parser matches the file, or all cands if none match.
     """
     if cands is None:
         cands = PLUGINS
@@ -234,6 +262,16 @@ def detect_from_columns(
 
     Defaults to :data:`PLUGINS`. Raises :exc:`ValueError` if no candidate scores above
     zero, or if the top score is tied between multiple candidates.
+
+    Args:
+        path: Local file path or URL to check.
+        cands: Candidate plugins to score; defaults to PLUGINS.
+
+    Returns:
+        Tuple of (plugin_id, Plugin) for the best-scoring candidate.
+
+    Raises:
+        ValueError: If no candidate scores above zero or multiple candidates tie.
     """
     if cands is None:
         cands = PLUGINS
@@ -254,6 +292,15 @@ def detect(path: str | Path) -> tuple[str, Plugin]:
 
     Calls :func:`detect_from_ext` → :func:`detect_from_metadata` → :func:`detect_from_columns`
     in sequence, returning early after any stage that narrows candidates to exactly one.
+
+    Args:
+        path: Local file path or URL to detect plugin for.
+
+    Returns:
+        Tuple of (plugin_id, Plugin) for the detected file format.
+
+    Raises:
+        ValueError: If detection fails at any stage.
     """
     cands = detect_from_ext(path)
     if len(cands) == 1:
@@ -265,5 +312,9 @@ def detect(path: str | Path) -> tuple[str, Plugin]:
 
 
 def list_sources() -> list[str]:
-    """Return the list of registered plugin IDs."""
+    """Return the list of registered plugin IDs.
+
+    Returns:
+        List of all registered plugin identifiers.
+    """
     return list(PLUGINS)

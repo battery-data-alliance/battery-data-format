@@ -29,7 +29,17 @@ from .normalizers import TableNormalizer
 
 
 def _ext_from_url(url: str) -> str:
-    """Return the file extension from a URL by walking path segments right-to-left."""
+    """Return the file extension from a URL by walking path segments right-to-left.
+
+    Args:
+        url: HTTP(S) URL to extract extension from.
+
+    Returns:
+        File extension (e.g. '.csv') including the dot.
+
+    Raises:
+        ValueError: If no extension is found in the URL path.
+    """
     path = urlparse(url).path
     for segment in reversed([s for s in path.split("/") if s]):
         suffix = Path(segment).suffix
@@ -44,7 +54,15 @@ def _ext_from_url(url: str) -> str:
 
 
 def _polars_param_desc(func: Any, param: str) -> str:
-    """Extract first-paragraph description of ``param`` from ``func``'s docstring."""
+    """Extract first-paragraph description of ``param`` from ``func``'s docstring.
+
+    Args:
+        func: Callable object with a docstring (e.g. a polars function).
+        param: Parameter name to extract description for.
+
+    Returns:
+        First-paragraph description of the parameter, or empty string if not found.
+    """
     doc = inspect.getdoc(func) or ""
     lines = doc.splitlines()
     in_params = False
@@ -95,7 +113,14 @@ class TableParser(BaseModel):
     unique_exts: frozenset[str] = frozenset()
 
     def matches_ext(self, ext: str) -> bool:
-        """Return True if ``ext`` (case-insensitive) is handled by this parser."""
+        """Return True if ``ext`` (case-insensitive) is handled by this parser.
+
+        Args:
+            ext: File extension including dot (e.g. '.csv').
+
+        Returns:
+            True if the extension is in base_exts or unique_exts.
+        """
         return ext.lower() in (type(self).base_exts | self.unique_exts)
 
     @staticmethod
@@ -116,14 +141,31 @@ class TableParser(BaseModel):
         return Path(path)
 
     def normalizer_score(self, path: str | Path) -> int:
-        """Return the normalizer score for ``path``'s column headers, or 0 on any exception."""
+        """Return the normalizer score for ``path``'s column headers, or 0 on any exception.
+
+        Args:
+            path: Local file path or URL to score.
+
+        Returns:
+            Normalizer score (number of matching columns), or 0 if scoring fails.
+        """
         try:
             return self.normalizer.score_columns(self.read_column_headings(self._resolve_source(path)))
         except Exception:
             return 0
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
-        """Read ``path`` to a LazyFrame via the parser's mechanics (no normalization)."""
+        """Read ``path`` to a LazyFrame via the parser's mechanics (no normalization).
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            Raw polars LazyFrame with source column names.
+
+        Raises:
+            NotImplementedError: In base class; subclasses must override.
+        """
         raise NotImplementedError
 
     def read(
@@ -214,7 +256,15 @@ class DelimTxtParser(TableParser):
 
     @staticmethod
     def _decode_head(head: bytes, encoding: str = "utf-8") -> str:
-        """Decode head bytes to text, dropping any trailing partial line."""
+        """Decode head bytes to text, dropping any trailing partial line.
+
+        Args:
+            head: Head bytes from the file.
+            encoding: Character encoding to use for decoding.
+
+        Returns:
+            Decoded text with trailing partial line removed.
+        """
         text = head.decode(encoding, errors="replace")
         last_nl = text.rfind("\n")
         if last_nl >= 0:
@@ -233,7 +283,15 @@ class DelimTxtParser(TableParser):
 
     @staticmethod
     def _numeric_ratio(line: str, sep: str) -> float:
-        """Fraction of fields in ``line`` (split on ``sep``) that parse as floats."""
+        """Fraction of fields in ``line`` (split on ``sep``) that parse as floats.
+
+        Args:
+            line: Text line to analyze.
+            sep: Field separator character.
+
+        Returns:
+            Fraction of fields that parse as floats (0.0 to 1.0).
+        """
         fields = line.split(sep)
         if not fields:
             return 0.0
@@ -249,7 +307,15 @@ class DelimTxtParser(TableParser):
     @staticmethod
     def _best_run(lines: list[str], sep: str) -> tuple[int, int, int]:
         """Return (start_idx, run_len, field_count) of the longest run of consecutive
-        lines that split on ``sep`` into an equal field count >= 2."""
+        lines that split on ``sep`` into an equal field count >= 2.
+
+        Args:
+            lines: List of text lines to analyze.
+            sep: Field separator character.
+
+        Returns:
+            Tuple of (start_index, run_length, field_count) for the longest consistent run.
+        """
         field_counts = [n if (n := len(line.rstrip(sep).split(sep))) >= 2 else 0 for line in lines]
         best_start = best_len = best_fc = 0
         i = 0
@@ -270,7 +336,15 @@ class DelimTxtParser(TableParser):
     @staticmethod
     def _detect_separator(sample: str, candidates: tuple[str, ...] = (",", "\t", ";", "|", " ")) -> str:
         """Detect the field separator: the candidate giving the longest consistent
-        run of equal field counts, breaking ties by data-row numeric ratio."""
+        run of equal field counts, breaking ties by data-row numeric ratio.
+
+        Args:
+            sample: Text sample from the file.
+            candidates: Tuple of separator characters to try.
+
+        Returns:
+            The best-matching separator from candidates.
+        """
         lines = sample.splitlines()
         best_sep = ","
         best_score = 0
@@ -293,6 +367,14 @@ class DelimTxtParser(TableParser):
         Locates the start of the longest consistent delimited run on ``sep``
         (auto-detected when None). Falls back to 0 when no run of at least
         ``min_run`` lines exists.
+
+        Args:
+            sample: Text sample from the file.
+            min_run: Minimum run length to consider valid.
+            sep: Field separator; auto-detected if None.
+
+        Returns:
+            Number of lines to skip before the header row.
         """
         lines = sample.splitlines()
         if sep is None:
@@ -302,7 +384,14 @@ class DelimTxtParser(TableParser):
 
     @staticmethod
     def _sniff_decimal(df: pl.DataFrame | pl.LazyFrame) -> bool:
-        """Return True if comma-decimal strings dominate string columns, else False."""
+        """Return True if comma-decimal strings dominate string columns, else False.
+
+        Args:
+            df: DataFrame to inspect for decimal separator usage.
+
+        Returns:
+            True if comma-decimal format is more common than dot-decimal.
+        """
         sample = df.head(1000).collect() if isinstance(df, pl.LazyFrame) else df.head(1000)
         comma = dot = 0
         for col in sample.columns:
@@ -313,7 +402,15 @@ class DelimTxtParser(TableParser):
 
     @staticmethod
     def _coerce_decimal(lf: pl.LazyFrame, decimal_comma: bool) -> pl.LazyFrame:
-        """Replace comma decimal separator with dot in string columns."""
+        """Replace comma decimal separator with dot in string columns.
+
+        Args:
+            lf: Polars LazyFrame to process.
+            decimal_comma: If True, replace comma with dot in string columns.
+
+        Returns:
+            LazyFrame with decimal separator coerced if decimal_comma is True.
+        """
         if not decimal_comma:
             return lf
         schema = lf.collect_schema()
@@ -324,7 +421,14 @@ class DelimTxtParser(TableParser):
         return lf.select(exprs)
 
     def preamble(self, head: bytes) -> list[str]:
-        """Return the preamble (skipped) lines decoded from ``head`` bytes."""
+        """Return the preamble (skipped) lines decoded from ``head`` bytes.
+
+        Args:
+            head: Head bytes from the file.
+
+        Returns:
+            List of preamble lines that will be skipped during parsing.
+        """
         sample = self._decode_head(head, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
         skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
@@ -339,6 +443,15 @@ class DelimTxtParser(TableParser):
         what polars utf8-lossy produces). Returns ``{mangled: proper}`` for columns
         where the two differ.  Returns an empty dict when all names are identical
         (e.g. ASCII-only headers or ``skip`` beyond the buffered content).
+
+        Args:
+            raw: Raw bytes from the file head.
+            encoding: Proper character encoding for the file.
+            skip: Number of lines to skip before the header row.
+            sep: Field separator character.
+
+        Returns:
+            Dictionary mapping mangled column names to properly-decoded names.
         """
         try:
             proper_cols = DelimTxtParser._decode_head(raw, encoding).splitlines()[skip].split(sep)
@@ -348,7 +461,14 @@ class DelimTxtParser(TableParser):
         return {m: p for m, p in zip(mangled_cols, proper_cols) if m != p}
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
-        """Parse ``path`` (local) to a LazyFrame, honouring (and auto-sniffing) config."""
+        """Parse ``path`` (local) to a LazyFrame, honouring (and auto-sniffing) config.
+
+        Args:
+            path: Local file path to read.
+
+        Returns:
+            Polars LazyFrame with raw column names and data.
+        """
         raw = read_head(path)
         sample = self._decode_head(raw, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
@@ -372,7 +492,14 @@ class DelimTxtParser(TableParser):
         return self._coerce_decimal(lf, decimal_comma)
 
     def read_column_headings(self, path: str | Path) -> list[str]:
-        """Return column headers by reading the head bytes of ``path`` (local or URL)."""
+        """Return column headers by reading the head bytes of ``path`` (local or URL).
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            List of column header names.
+        """
         raw = read_head(path)
         sample = self._decode_head(raw, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
@@ -440,7 +567,19 @@ class ExcelParser(TableParser):
         return self
 
     def _read_sheet(self, path: str | Path, *, read_options: dict[str, Any], **extra: Any) -> pl.DataFrame:
-        """Run ``pl.read_excel`` with the reader's sheet/column config and assert a single sheet."""
+        """Run ``pl.read_excel`` with the reader's sheet/column config and assert a single sheet.
+
+        Args:
+            path: Local file path to read.
+            read_options: Polars read_options dict for pl.read_excel.
+            **extra: Additional keyword arguments to pass to pl.read_excel.
+
+        Returns:
+            Polars DataFrame from the specified sheet.
+
+        Raises:
+            ValueError: If the file contains multiple sheets and none is specified.
+        """
         kwargs: dict[str, Any] = {"engine": self.engine, "has_header": self.has_header, **extra}
         if self.sheet_id is not None:
             kwargs["sheet_id"] = self.sheet_id
@@ -456,7 +595,14 @@ class ExcelParser(TableParser):
         return df
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
-        """Parse the configured sheet of ``path`` (local) to a LazyFrame."""
+        """Parse the configured sheet of ``path`` (local) to a LazyFrame.
+
+        Args:
+            path: Local file path to read.
+
+        Returns:
+            Polars LazyFrame with raw column names and data.
+        """
         df = self._read_sheet(
             Path(path),
             read_options=dict(self.read_options or {}),
@@ -465,7 +611,14 @@ class ExcelParser(TableParser):
         return df.with_columns(pl.all().cast(pl.Utf8, strict=False)).lazy()
 
     def read_column_headings(self, path: str | Path) -> list[str]:
-        """Return the header row without reading data rows (n_rows=0)."""
+        """Return the header row without reading data rows (n_rows=0).
+
+        Args:
+            path: Local file path to read.
+
+        Returns:
+            List of column header names from the specified sheet.
+        """
         return self._read_sheet(Path(path), read_options={**(self.read_options or {}), "n_rows": 0}).columns
 
 
@@ -571,6 +724,18 @@ class MatParser(TableParser):
     is_text: ClassVar[bool] = False
 
     def _load(self, path: Path, var_names: list[str]) -> dict[str, Any]:
+        """Load variables from a MATLAB .mat file using scipy.io.loadmat.
+
+        Args:
+            path: Local file path to the .mat file.
+            var_names: List of variable names to load.
+
+        Returns:
+            Dictionary of loaded variables.
+
+        Raises:
+            RuntimeError: If scipy is not installed.
+        """
         try:
             from scipy.io import loadmat
         except ImportError as exc:

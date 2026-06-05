@@ -45,7 +45,11 @@ class MetadataSchema(BaseModel, Generic[T]):
     start_time: T | None = None
 
     def __iter__(self) -> Iterator[tuple[str, T]]:  # type: ignore[override]
-        """Yield ``(field_name, rule)`` for each set (non-None) field in declaration order."""
+        """Yield ``(field_name, rule)`` for each set (non-None) field in declaration order.
+
+        Yields:
+            Tuples of (field_name, rule) for all non-None fields in declaration order.
+        """
         for field_name in type(self).model_fields:
             val = getattr(self, field_name)
             if val is not None:
@@ -64,11 +68,25 @@ class MetadataParser(BaseModel):
     kind: Literal["base"] = "base"
 
     def matches(self, path: str | Path) -> bool:
-        """Return whether this parser recognises ``path`` as its source. Base: never."""
+        """Return whether this parser recognises ``path`` as its source. Base: never.
+
+        Args:
+            path: Local file path or URL to check.
+
+        Returns:
+            False for base class (override in subclasses).
+        """
         return False
 
     def parse(self, path: str | Path) -> dict[str, str]:
-        """Extract BDF metadata fields from ``path``. Base: nothing."""
+        """Extract BDF metadata fields from ``path``. Base: nothing.
+
+        Args:
+            path: Local file path or URL to parse.
+
+        Returns:
+            Empty dict for base class (override in subclasses).
+        """
         return {}
 
 
@@ -98,7 +116,14 @@ class TxtPreambleParser(MetadataParser):
     )
 
     def matches(self, path: str | Path) -> bool:
-        """Return True when any magic token is found in the file's head bytes."""
+        """Return True when any magic token is found in the file's head bytes.
+
+        Args:
+            path: Local file path or URL to check.
+
+        Returns:
+            True if any magic token appears in the file head.
+        """
         if not self.magic:
             return False
         head = read_head(path)
@@ -112,7 +137,14 @@ class TxtPreambleParser(MetadataParser):
         return False
 
     def parse(self, path: str | Path) -> dict[str, str]:
-        """Decode the head with ``encoding`` and apply each regex; first match per field."""
+        """Decode the head with ``encoding`` and apply each regex; first match per field.
+
+        Args:
+            path: Local file path or URL to parse.
+
+        Returns:
+            Dictionary mapping field names to extracted values (first match per regex).
+        """
         head = read_head(path)
         lines = head.decode(self.encoding, errors="replace").splitlines()
         result: dict[str, str] = {}
@@ -141,14 +173,36 @@ class JsonSidecarParser(MetadataParser):
     )
 
     def _sidecar(self, path: str | Path) -> Path:
+        """Return the sidecar JSON path for a data file.
+
+        Args:
+            path: Local file path to the data file.
+
+        Returns:
+            Path to the .json sidecar file (same name, .json suffix).
+        """
         return Path(path).with_suffix(".json")
 
     def matches(self, path: str | Path) -> bool:
-        """Return True when the ``.json`` sidecar file exists."""
+        """Return True when the ``.json`` sidecar file exists.
+
+        Args:
+            path: Local file path to the data file.
+
+        Returns:
+            True if the .json sidecar file exists.
+        """
         return self._sidecar(path).exists()
 
     def parse(self, path: str | Path) -> dict[str, str]:
-        """Load the sidecar JSON and resolve each set field's synonym keys (first match)."""
+        """Load the sidecar JSON and resolve each set field's synonym keys (first match).
+
+        Args:
+            path: Local file path to the data file.
+
+        Returns:
+            Dictionary mapping field names to extracted values from the sidecar JSON.
+        """
         sidecar = self._sidecar(path)
         if not sidecar.exists():
             return {}

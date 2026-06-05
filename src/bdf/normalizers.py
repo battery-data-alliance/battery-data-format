@@ -38,7 +38,15 @@ class Syn(RootModel[str]):
         return self.root
 
     def match(self, header: str, bdf_unit: str) -> tuple[float, float] | None:
-        """Return (scale, offset) on match, None on no match or incompatible units."""
+        """Return (scale, offset) on match, None on no match or incompatible units.
+
+        Args:
+            header: Column name to match against the synonym pattern.
+            bdf_unit: Target unit for conversion.
+
+        Returns:
+            Tuple of (scale, offset) for unit conversion, or None if no match or incompatible units.
+        """
         if "{unit}" in self.root:
             parts = self.root.split("{unit}")
             pattern = _UNIT_CAPTURE.join(re.escape(p) for p in parts)
@@ -49,7 +57,14 @@ class Syn(RootModel[str]):
         return (1.0, 0.0) if self.root.strip().lower() == header.strip().lower() else None
 
     def exact_match(self, header: str) -> bool:
-        """Test exact case-insensitive match against header."""
+        """Test exact case-insensitive match against header.
+
+        Args:
+            header: Column name to match.
+
+        Returns:
+            True if the header matches the exemplar (case-insensitive).
+        """
         return self.root.strip().lower() == header.strip().lower()
 
 
@@ -79,7 +94,18 @@ class ResolvedColumn(BaseModel):
 
     @classmethod
     def from_column_map(cls, bdf_label_key: str, src_header: str) -> tuple[str, ResolvedColumn]:
-        """Resolve a BDF label key (e.g. 'Voltage / mV') to (mr_name, ResolvedColumn)."""
+        """Resolve a BDF label key (e.g. 'Voltage / mV') to (mr_name, ResolvedColumn).
+
+        Args:
+            bdf_label_key: BDF label in format 'Base / unit' (e.g. 'Voltage / mV').
+            src_header: Source column name in the input data.
+
+        Returns:
+            Tuple of (mr_name, ResolvedColumn) mapping the source header.
+
+        Raises:
+            ValueError: If label base is not found in BDF spec.
+        """
         mr_name = COLUMN_ONTOLOGY.mr_name_from_label(bdf_label_key)
         if mr_name is None:
             raise ValueError(f"column_map key {bdf_label_key!r}: label base not found in BDF spec")
@@ -109,7 +135,17 @@ class ResolvedColumn(BaseModel):
         bdf_unit: str,
         synonyms: Sequence[SynUnion],
     ) -> ResolvedColumn | None:
-        """Try to match header against synonyms; return ResolvedColumn or None."""
+        """Try to match header against synonyms; return ResolvedColumn or None.
+
+        Args:
+            header: Original column name from the source.
+            probe: Normalized header (stripped, with leading ~ removed).
+            bdf_unit: Target BDF unit for conversion.
+            synonyms: Sequence of Syn or DateTimeSyn objects to match against.
+
+        Returns:
+            ResolvedColumn with matched scale/offset or datetime formats, or None if no match.
+        """
         for syn in synonyms:
             if isinstance(syn, DateTimeSyn):
                 if syn.syn.exact_match(probe):
@@ -129,7 +165,14 @@ class ResolvedColumn(BaseModel):
         return None
 
     def get_expr(self, mr_name: str) -> pl.Expr:
-        """Build polars expression for column transformation with unit conversion and dtype casting."""
+        """Build polars expression for column transformation with unit conversion and dtype casting.
+
+        Args:
+            mr_name: Machine-readable column name (e.g. 'voltage_volt').
+
+        Returns:
+            Polars expression that applies scale, offset, and dtype conversion.
+        """
         src = self.source_header
         label = getattr(COLUMN_ONTOLOGY, mr_name).formatted_label
         if self.datetime_fmts:
@@ -154,7 +197,15 @@ class ResolvedColumn(BaseModel):
 
 
 def _datetime_unix_expr(src: str, fmts: list[str]) -> pl.Expr:
-    """Parse datetimes to unix timestamp seconds."""
+    """Parse datetimes to unix timestamp seconds.
+
+    Args:
+        src: Source column name.
+        fmts: List of datetime format strings to try in order.
+
+    Returns:
+        Polars expression that parses datetime strings and converts to unix timestamp seconds.
+    """
     # timestamp() per candidate avoids coalesce supertype conflict (tz-aware vs tz-naive)
     candidates = [pl.col(src).str.to_datetime(f, strict=False).dt.timestamp("us") for f in fmts]
     parsed = pl.coalesce(candidates) if len(candidates) > 1 else candidates[0]
@@ -162,13 +213,28 @@ def _datetime_unix_expr(src: str, fmts: list[str]) -> pl.Expr:
 
 
 def _datetime_elapsed_expr(src: str, fmts: list[str]) -> pl.Expr:
-    """Parse datetimes to seconds elapsed since first row."""
+    """Parse datetimes to seconds elapsed since first row.
+
+    Args:
+        src: Source column name.
+        fmts: List of datetime format strings to try in order.
+
+    Returns:
+        Polars expression that calculates seconds elapsed from the first row's timestamp.
+    """
     ts = _datetime_unix_expr(src, fmts)
     return ts - ts.first()
 
 
 def _duration_str_expr(src: str) -> pl.Expr:
-    """Parse HH:MM:SS[.fff] duration string to seconds. Handles hours > 23."""
+    """Parse HH:MM:SS[.fff] duration string to seconds. Handles hours > 23.
+
+    Args:
+        src: Source column name containing duration strings.
+
+    Returns:
+        Polars expression that parses duration strings to total seconds.
+    """
     h = pl.col(src).str.extract(r"^(\d+):\d+:[\d.]+", 1).cast(pl.Float64)
     m = pl.col(src).str.extract(r"^\d+:(\d+):[\d.]+", 1).cast(pl.Float64)
     s = pl.col(src).str.extract(r"^\d+:\d+:([\d.]+)", 1).cast(pl.Float64)
@@ -227,6 +293,12 @@ class TableNormalizer(BaseModel):
 
         ResolvedColumn fields are passed through as-is. Each source header is
         claimed at most once (first match in declaration order wins).
+
+        Args:
+            headers: List of source column names to resolve.
+
+        Returns:
+            Dictionary mapping mr_name to ResolvedColumn for matched columns.
         """
         probes = {h: h.strip().lstrip("~").strip() for h in headers}
         claimed: set[str] = set()
@@ -249,12 +321,23 @@ class TableNormalizer(BaseModel):
         return result
 
     def score_columns(self, headers: list[str]) -> int:
-        """Count resolved columns whose source header is present in headers."""
+        """Count resolved columns whose source header is present in headers.
+
+        Args:
+            headers: List of source column names.
+
+        Returns:
+            Count of columns that resolve via synonyms or ResolvedColumn mappings.
+        """
         resolved = self.resolve(headers)
         return sum(1 for rc in resolved.values() if rc.source_header in headers)
 
     def known_header_names(self) -> list[str]:
-        """Source-header names from ResolvedColumn fields only (known, not synonyms)."""
+        """Source-header names from ResolvedColumn fields only (known, not synonyms).
+
+        Returns:
+            List of source header names defined via ResolvedColumn fields.
+        """
         names: list[str] = []
         for _, spec in self:
             if isinstance(spec, ResolvedColumn):
@@ -263,7 +346,17 @@ class TableNormalizer(BaseModel):
 
     @classmethod
     def from_column_map(cls, column_map: dict[str, str]) -> "TableNormalizer":
-        """Convert a BDF label-key dict to a TableNormalizer via ResolvedColumn.from_column_map."""
+        """Convert a BDF label-key dict to a TableNormalizer via ResolvedColumn.from_column_map.
+
+        Args:
+            column_map: Dictionary mapping BDF labels (e.g. 'Voltage / mV') to source header names.
+
+        Returns:
+            TableNormalizer instance with ResolvedColumn entries.
+
+        Raises:
+            ValueError: If column_map is empty or contains invalid BDF labels.
+        """
         if not column_map:
             raise ValueError("column_map must not be empty")
         kwargs: dict[str, ResolvedColumn] = {}
@@ -716,7 +809,15 @@ def detect_normalizer(
     column_names: list[str],
     normalizers: "Sequence[TableNormalizer]",
 ) -> "TableNormalizer | None":
-    """Return the highest-scoring normalizer for ``column_names``, or ``None`` if all score zero."""
+    """Return the highest-scoring normalizer for ``column_names``, or ``None`` if all score zero.
+
+    Args:
+        column_names: List of source column names to score.
+        normalizers: Sequence of TableNormalizer instances to evaluate.
+
+    Returns:
+        The normalizer with the highest score, or None if all scores are zero.
+    """
     scored = {n: n.score_columns(column_names) for n in normalizers}
     best_score = max(scored.values(), default=0)
     if best_score == 0:
@@ -735,9 +836,14 @@ def normalize(
 
     Accepts ``pl.DataFrame``, ``pl.LazyFrame``, or ``pandas.DataFrame``. Return type matches input.
 
-    Pass ``normalizer`` to use explicit normalisation instructions. When omitted, a
-    built-in :class:`TableNormalizer` is detected from the column headers by scoring over
-    :data:`NORMALIZERS`.
+    Args:
+        df: Input dataframe in any supported format.
+        include_optional: Include optional BDF columns in output.
+        normalizer: Explicit TableNormalizer, column map dict, or None for auto-detection.
+        extra_columns: Additional column rename mappings to apply.
+
+    Returns:
+        Normalized dataframe in the same format as input.
     """
     if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
         schema = df.collect_schema() if isinstance(df, pl.LazyFrame) else df.schema
@@ -764,8 +870,11 @@ def normalize(
 def canonicalize_legacy_labels(df):
     """Rename legacy BDF column labels (notation/deprecated prefLabels) to current preferred labels.
 
-    Returns (df_renamed, had_legacy) where had_legacy is True if any renaming occurred.
-    Works on pandas DataFrames (the BDF artifact loading path).
+    Args:
+        df: Pandas DataFrame with potentially legacy BDF column labels.
+
+    Returns:
+        Tuple of (df_renamed, had_legacy) where had_legacy is True if any renaming occurred.
     """
     import re
 
