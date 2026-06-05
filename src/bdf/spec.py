@@ -74,12 +74,26 @@ for _alias, _canonical in [
 
 
 def _slugify(text: str) -> str:
-    """Lowercase and collapse non-alnum runs to '-'."""
+    """Lowercase and collapse non-alnum runs to '-'.
+
+    Args:
+        text: Text to slugify.
+
+    Returns:
+        Lowercased text with non-alphanumeric runs replaced by hyphens.
+    """
     return _SLUG.sub("-", text.lower()).strip("-")
 
 
 def _normalize_unit(unit: str) -> str:
-    """Map known unit aliases (e.g. 'celsius') to canonical pint strings."""
+    """Map known unit aliases (e.g. 'celsius') to canonical pint strings.
+
+    Args:
+        unit: Unit string to normalize.
+
+    Returns:
+        Canonical pint unit string.
+    """
     key = unit.strip()
     if not key:
         return key
@@ -87,7 +101,14 @@ def _normalize_unit(unit: str) -> str:
 
 
 def parse_label(label: str) -> tuple[str, str] | None:
-    """Split 'Base / unit' into (base, normalised_unit), or None if not parseable."""
+    """Split 'Base / unit' into (base, normalised_unit), or None if not parseable.
+
+    Args:
+        label: BDF label string in format 'Base / unit'.
+
+    Returns:
+        Tuple of (base, normalized_unit) or None if not parseable.
+    """
     m = _SLASH_RE.match(str(label))
     if m is None:
         return None
@@ -99,7 +120,15 @@ def parse_label(label: str) -> tuple[str, str] | None:
 
 
 def get_unit_conversion(src_unit: str | None, dst_unit: str) -> tuple[float, float] | None:
-    """Return (scale, offset) for src→dst unit conversion, None if incompatible."""
+    """Return (scale, offset) for src→dst unit conversion, None if incompatible.
+
+    Args:
+        src_unit: Source unit string (or None for dimensionless).
+        dst_unit: Destination unit string.
+
+    Returns:
+        Tuple of (scale, offset) for conversion, or None if incompatible.
+    """
     if src_unit is None or dst_unit in ("1", "", None):
         if (src_unit is None or src_unit.strip() in ("", "1")) and dst_unit in ("1", "", None):
             return (1.0, 0.0)
@@ -123,7 +152,14 @@ def get_unit_conversion(src_unit: str | None, dst_unit: str) -> tuple[float, flo
 
 
 def unit_from_label(label: str) -> str | None:
-    """Return the unit portion of a 'Base / unit' label, or None."""
+    """Return the unit portion of a 'Base / unit' label, or None.
+
+    Args:
+        label: BDF label string in format 'Base / unit'.
+
+    Returns:
+        Unit string, or None if label is not parseable.
+    """
     parsed = parse_label(label)
     return parsed[1] if parsed else None
 
@@ -132,7 +168,16 @@ def unit_from_label(label: str) -> str | None:
 
 
 def _pick_labels(graph: Any, subject: Any, predicate: Any) -> list[str]:
-    """Extract English string literals for a given subject/predicate pair."""
+    """Extract English string literals for a given subject/predicate pair.
+
+    Args:
+        graph: RDFlib graph object.
+        subject: RDF subject node.
+        predicate: RDF predicate node.
+
+    Returns:
+        List of English string literals found for the subject/predicate pair.
+    """
     out: list[str] = []
     for lit in graph.objects(subject, predicate):
         try:
@@ -147,19 +192,36 @@ def _pick_labels(graph: Any, subject: Any, predicate: Any) -> list[str]:
 
 
 def _ontology_source() -> str:
-    """Return BDF_ONTOLOGY_PATH (or BDF_ONTOLOGY) env var, stripped."""
+    """Return BDF_ONTOLOGY_PATH (or BDF_ONTOLOGY) env var, stripped.
+
+    Returns:
+        Value of BDF_ONTOLOGY_PATH env var, or BDF_ONTOLOGY, or empty string.
+    """
     return (os.getenv("BDF_ONTOLOGY_PATH") or os.getenv("BDF_ONTOLOGY") or "").strip()
 
 
 def _warn_ontology_once(source: str, message: str) -> None:
-    """Emit a warning for a given source at most once per process."""
+    """Emit a warning for a given source at most once per process.
+
+    Args:
+        source: Unique identifier for the warning source.
+        message: Warning message to emit.
+    """
     if source not in _WARNED_ONTOLOGY_SOURCES:
         _WARNED_ONTOLOGY_SOURCES.add(source)
         warnings.warn(message, stacklevel=2)
 
 
 def _graph_from_bytes(data: bytes, format: str | None = None) -> Any:
-    """Parse bytes into an rdflib Graph; return None on failure."""
+    """Parse bytes into an rdflib Graph; return None on failure.
+
+    Args:
+        data: Bytes to parse as RDF.
+        format: RDF format (e.g. 'turtle', 'xml'). Auto-detected if None.
+
+    Returns:
+        Parsed RDFlib Graph, or None if parsing fails.
+    """
     if Graph is None:
         return None
     try:
@@ -174,7 +236,17 @@ def _graph_from_bytes(data: bytes, format: str | None = None) -> Any:
 
 
 def _synonym_slugs(base: str, mr_name: str, alt_labels: list[str], notations: list[str]) -> list[str]:
-    """Build sorted list of base-name slugs for all aliases of a quantity."""
+    """Build sorted list of base-name slugs for all aliases of a quantity.
+
+    Args:
+        base: Base name of the quantity.
+        mr_name: Machine-readable name.
+        alt_labels: Alternative labels from SKOS.
+        notations: Notation values from SKOS.
+
+    Returns:
+        Sorted list of unique slugified synonyms.
+    """
     syns = {_slugify(base), _slugify(mr_name)}
     for label in alt_labels + notations:
         base_part = label.split(" / ", 1)[0].strip()
@@ -186,7 +258,14 @@ def _synonym_slugs(base: str, mr_name: str, alt_labels: list[str], notations: li
 
 
 def _parse_graph(g: Any) -> dict[str, dict[str, Any]]:
-    """Extract quantity dicts from an rdflib OWL graph keyed by mr_name."""
+    """Extract quantity dicts from an rdflib OWL graph keyed by mr_name.
+
+    Args:
+        g: Parsed RDFlib graph object.
+
+    Returns:
+        Dictionary mapping mr_name to quantity metadata dicts.
+    """
     out: dict[str, dict[str, Any]] = {}
     for subject in g.subjects(RDF.type, OWL.Class):
         iri = str(subject)
@@ -224,7 +303,15 @@ def _merge_columns(
     base: dict[str, dict[str, Any]],
     ontology: dict[str, dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
-    """Merge ontology entries into base, preferring non-deprecated ontology values."""
+    """Merge ontology entries into base, preferring non-deprecated ontology values.
+
+    Args:
+        base: Baseline quantity definitions.
+        ontology: Ontology-loaded quantity definitions.
+
+    Returns:
+        Merged dictionary with ontology values preferred over baseline.
+    """
     for quantity, item in ontology.items():
         if quantity not in base:
             base[quantity] = {**item, "deprecated": item.get("deprecated", False)}
@@ -245,7 +332,14 @@ def _merge_columns(
 
 
 def _load_with_priority(baseline: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    """Resolve ontology: env var → live URL → snapshot → static baseline."""
+    """Resolve ontology: env var → live URL → snapshot → static baseline.
+
+    Args:
+        baseline: Static baseline quantity definitions.
+
+    Returns:
+        Quantity definitions with ontology merged in priority order.
+    """
     # Shallow copy; synonyms lists are the only mutable nested values
     base = {k: {**v, "synonyms": list(v["synonyms"])} for k, v in baseline.items()}
 
@@ -331,7 +425,14 @@ class Quantity(BaseModel):
         return self.label_template.format(unit=self.unit) if "{unit}" in self.label_template else self.label_template
 
     def unit_conversion(self, dst_unit: str) -> tuple[float, float] | None:
-        """Return (scale, offset) to convert self.unit → dst_unit, or None."""
+        """Return (scale, offset) to convert self.unit → dst_unit, or None.
+
+        Args:
+            dst_unit: Destination unit string.
+
+        Returns:
+            Tuple of (scale, offset) for conversion, or None if incompatible.
+        """
         return get_unit_conversion(self.unit, dst_unit)
 
     @property
@@ -581,7 +682,11 @@ class ColumnOntology(BaseModel):
             object.__setattr__(self, "__pydantic_extra__", coerced)
 
     def base_synonym_index(self) -> dict[str, str]:
-        """Build a mapping from base-name slug to quantity key (machine-readable name)."""
+        """Build a mapping from base-name slug to quantity key (machine-readable name).
+
+        Returns:
+            Dictionary mapping base-name slugs to mr_name keys.
+        """
         idx: dict[str, str] = {}
         for q_name, q in self:
             if q.deprecated:
@@ -600,11 +705,19 @@ class ColumnOntology(BaseModel):
         return idx
 
     def required_labels(self) -> tuple[str, ...]:
-        """Labels of all non-deprecated required quantities."""
+        """Labels of all non-deprecated required quantities.
+
+        Returns:
+            Tuple of formatted labels for required quantities.
+        """
         return tuple(q.formatted_label for _, q in self if q.required and not q.deprecated)
 
     def optional_labels(self) -> tuple[str, ...]:
-        """Labels of all non-deprecated optional quantities."""
+        """Labels of all non-deprecated optional quantities.
+
+        Returns:
+            Tuple of formatted labels for optional quantities.
+        """
         return tuple(q.formatted_label for _, q in self if not q.required and not q.deprecated)
 
     def validate(self, df: pl.DataFrame | pl.LazyFrame) -> None:
@@ -631,7 +744,14 @@ class ColumnOntology(BaseModel):
             warnings.warn(f"Non-BDF columns present: {sorted(extra)}", UserWarning, stacklevel=2)
 
     def mr_name_from_label(self, label: str) -> str | None:
-        """Return the mr_name whose label_template base matches label, or None."""
+        """Return the mr_name whose label_template base matches label, or None.
+
+        Args:
+            label: BDF label in format 'Base / unit'.
+
+        Returns:
+            Machine-readable name (mr_name) if found, None otherwise.
+        """
         parsed = parse_label(label)
         if parsed is None:
             return None
@@ -644,7 +764,11 @@ class ColumnOntology(BaseModel):
 
     @classmethod
     def build(cls) -> "ColumnOntology":
-        """Load ontology (env var → live → snapshot → static) and return a new ColumnOntology."""
+        """Load ontology (env var → live → snapshot → static) and return a new ColumnOntology.
+
+        Returns:
+            New ColumnOntology instance with ontology merged in priority order.
+        """
         baseline = {k: v.model_dump() for k, v in cls()}
         return cls(**_load_with_priority(baseline))
 
