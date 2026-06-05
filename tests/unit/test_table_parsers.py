@@ -611,3 +611,62 @@ def test_preamble_honours_explicit_separator() -> None:
     head = (pre + header + "\n" + rows + "\n").encode("utf-8")
 
     assert DelimTxtParser(separator=";").preamble(head) == ["key: a, b, c", "other: x, y, z"]
+
+
+# ---------------------------------------------------------------------------
+# TableParser.read(validate=...) tests
+# ---------------------------------------------------------------------------
+
+
+def test_tableparser_read_validate_true_passes_for_valid_frame(tmp_path: Path) -> None:
+    """TableParser.read(validate=True) does not raise for a fully normalised frame."""
+    from bdf.normalizers import Syn
+
+    p = tmp_path / "data.csv"
+    rows = "\n".join(f"{i},{3.5 + i / 10},0.1" for i in range(6))
+    p.write_text(f"time,voltage,current\n{rows}\n")
+    parser = DelimTxtParser(
+        normalizer=TableNormalizer(
+            test_time_second=(Syn("time"),),
+            voltage_volt=(Syn("voltage"),),
+            current_ampere=(Syn("current"),),
+        ),
+    )
+    df = parser.read(p, validate=True).collect()
+    assert "Test Time / s" in df.columns
+
+
+def test_tableparser_read_validate_true_raises_for_missing_required(tmp_path: Path) -> None:
+    """TableParser.read(validate=True) raises BDFValidationError when required columns are absent."""
+    from bdf.normalizers import Syn
+    from bdf.validate import BDFValidationError
+
+    p = tmp_path / "data.csv"
+    rows = "\n".join(f"{i},{3.5 + i / 10}" for i in range(6))
+    p.write_text(f"time,voltage\n{rows}\n")
+    parser = DelimTxtParser(
+        normalizer=TableNormalizer(
+            test_time_second=(Syn("time"),),
+            voltage_volt=(Syn("voltage"),),
+        ),
+    )
+    with pytest.raises(BDFValidationError, match="Missing required BDF columns"):
+        parser.read(p, validate=True).collect()
+
+
+def test_tableparser_read_validate_true_lazy_returns_lazyframe(tmp_path: Path) -> None:
+    """TableParser.read(validate=True) returns LazyFrame and validates without collecting."""
+    from bdf.normalizers import Syn
+
+    p = tmp_path / "data.csv"
+    rows = "\n".join(f"{i},{3.5 + i / 10},0.1" for i in range(6))
+    p.write_text(f"time,voltage,current\n{rows}\n")
+    parser = DelimTxtParser(
+        normalizer=TableNormalizer(
+            test_time_second=(Syn("time"),),
+            voltage_volt=(Syn("voltage"),),
+            current_ampere=(Syn("current"),),
+        ),
+    )
+    result = parser.read(p, validate=True)
+    assert isinstance(result, pl.LazyFrame)

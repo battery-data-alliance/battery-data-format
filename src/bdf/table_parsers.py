@@ -115,6 +115,7 @@ class TableParser(BaseModel):
         path: str | Path,
         *,
         normalize: bool = True,
+        validate: bool = False,
         include_optional: bool = True,
         extra_columns: dict[str, str] | None = None,
     ) -> pl.LazyFrame:
@@ -122,12 +123,19 @@ class TableParser(BaseModel):
 
         When ``normalize=False``, returns ``self._read_raw(path)`` unchanged.
         An empty :attr:`normalizer` (the default) degrades to a raw read.
+        When ``validate=True``, column names are checked against the BDF ontology.
         """
         if not normalize:
             return self._read_raw(path)
         lf = self._read_raw(path)
         result = self.normalizer.normalize(lf, include_optional=include_optional, extra_columns=extra_columns)
         assert isinstance(result, pl.LazyFrame)
+
+        if validate:
+            from bdf import spec
+
+            spec.COLUMN_ONTOLOGY.validate(result)
+
         return result
 
 

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pint
+import polars as pl
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 try:
@@ -597,6 +598,29 @@ class ColumnOntology(BaseModel):
     def optional_labels(self) -> tuple[str, ...]:
         """Labels of all non-deprecated optional quantities."""
         return tuple(q.label for _, q in self if not q.required and not q.deprecated)
+
+    def validate(self, df: pl.DataFrame | pl.LazyFrame) -> None:
+        """Check ``df`` column names against BDF canonical labels.
+
+        Raises ``BDFValidationError`` if required columns are absent.
+        Warns (``UserWarning``) if extra non-BDF columns are present.
+        Passes silently when all columns are canonical BDF labels.
+        """
+
+        cols = set(df.collect_schema().names()) if isinstance(df, pl.LazyFrame) else set(df.columns)
+
+        canonical = {q.label for _, q in self if not q.deprecated}
+        required = {q.label for _, q in self if q.required and not q.deprecated}
+
+        missing = required - cols
+        if missing:
+            from bdf.validate import BDFValidationError  # lazy — validate imports spec
+
+            raise BDFValidationError(f"Missing required BDF columns: {sorted(missing)}")
+
+        extra = cols - canonical
+        if extra:
+            warnings.warn(f"Non-BDF columns present: {sorted(extra)}", UserWarning, stacklevel=2)
 
     def mr_name_from_label(self, label: str) -> str | None:
         """Return the mr_name whose label_template base matches label, or None."""

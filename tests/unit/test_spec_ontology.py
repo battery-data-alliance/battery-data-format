@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import polars as pl
 import pytest
 from pydantic import ValidationError
 
@@ -388,3 +389,79 @@ def test_ontology_merge_deprecated_entry_preserves_canonical_unit(
 
     assert onto.voltage_volt.unit == "V"  # canonical preserved
     assert onto.voltage_volt.deprecated is True  # flag still picked up
+
+
+# ---------------------------------------------------------------------------
+# ColumnOntology.validate()
+# ---------------------------------------------------------------------------
+
+_REQUIRED_COLS = {
+    "Test Time / s": [0.0, 1.0],
+    "Voltage / V": [3.7, 3.6],
+    "Current / A": [0.1, 0.1],
+}
+
+
+def _required_df() -> pl.DataFrame:
+    return pl.DataFrame(_REQUIRED_COLS)
+
+
+def test_validate_passes_with_required_columns() -> None:
+    spec.COLUMN_ONTOLOGY.validate(_required_df())
+
+
+def test_validate_passes_with_lazyframe() -> None:
+    spec.COLUMN_ONTOLOGY.validate(_required_df().lazy())
+
+
+def test_validate_raises_when_required_column_missing() -> None:
+    from bdf.validate import BDFValidationError
+
+    df = _required_df().drop("Voltage / V")
+    with pytest.raises(BDFValidationError, match="Voltage / V"):
+        spec.COLUMN_ONTOLOGY.validate(df)
+
+
+def test_validate_raises_listing_all_missing_required_columns() -> None:
+    from bdf.validate import BDFValidationError
+
+    df = pl.DataFrame({"Test Time / s": [0.0]})
+    with pytest.raises(BDFValidationError) as exc_info:
+        spec.COLUMN_ONTOLOGY.validate(df)
+    msg = str(exc_info.value)
+    assert "Voltage / V" in msg
+    assert "Current / A" in msg
+
+
+def test_validate_warns_on_extra_non_bdf_columns() -> None:
+    df = _required_df().with_columns(pl.lit(0).alias("Unknown Column"))
+    with pytest.warns(UserWarning, match="Unknown Column"):
+        spec.COLUMN_ONTOLOGY.validate(df)
+
+
+def test_validate_no_warning_with_only_canonical_columns(recwarn: pytest.WarningsChecker) -> None:
+    spec.COLUMN_ONTOLOGY.validate(_required_df())
+    user_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning)]
+    assert len(user_warnings) == 0
+
+
+def test_validate_deprecated_quantity_not_counted_as_required() -> None:
+    q_dep = Quantity(
+        unit="V",
+        label="Old Voltage / V",
+        required=True,
+        mr_name="old_voltage_volt",
+        iri="",
+        synonyms=[],
+        deprecated=True,
+    )
+    onto = ColumnOntology(old_voltage_volt=q_dep)  # type: ignore[call-arg]
+    # Should not raise even though old_voltage_volt is absent from df
+    onto.validate(_required_df())
+
+
+def test_validate_extra_canonical_columns_do_not_warn(recwarn: pytest.WarningsChecker) -> None:
+    df = _required_df().with_columns(pl.lit(25.0).alias("Ambient Temperature / degC"))
+    spec.COLUMN_ONTOLOGY.validate(df)
+    user_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning)]
+    assert len(user_warnings) == 0
