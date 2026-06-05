@@ -209,7 +209,7 @@ def _parse_graph(g: Any) -> dict[str, dict[str, Any]]:
         notation = next((s for n in notations if (s := str(n).strip())), mr_name)
         out[mr_name] = {
             "unit": unit,
-            "label": f"{base} / {unit}",
+            "label_template": f"{base} / {{unit}}" if unit != "1" else f"{base} / 1",
             "required": mr_name in _REQUIRED_DEFAULT,
             "mr_name": mr_name,
             "notation": notation,
@@ -234,7 +234,7 @@ def _merge_columns(
         # Deprecated ontology entries are read-compat only: don't redefine canonical labels/units.
         if not incoming_deprecated:
             current["unit"] = item.get("unit", current["unit"])
-            current["label"] = item.get("label", current["label"])
+            current["label_template"] = item.get("label_template", current["label_template"])
             current["iri"] = item.get("iri", current["iri"])
         current["mr_name"] = quantity
         current["notation"] = item.get("notation", current.get("notation", quantity))
@@ -294,7 +294,7 @@ class Quantity(BaseModel):
     """One BDF physical quantity: unit, human label, and lookup metadata."""
 
     unit: str
-    label: str
+    label_template: str
     dtype: str = "float"
     required: bool = False
     mr_name: str
@@ -308,9 +308,12 @@ class Quantity(BaseModel):
     def _resolve_label_and_dtype(cls, data: Any) -> Any:
         if isinstance(data, dict):
             unit = data.get("unit", "")
-            label = data.get("label", "")
-            if "{unit}" in label:
-                data["label"] = label.format(unit=unit)
+            label_template = data.get("label_template", "")
+            if unit != "1" and "{unit}" not in label_template and " / " in label_template:
+                base = label_template.split(" / ", 1)[0]
+                data["label_template"] = f"{base} / {{unit}}"
+            elif unit == "1" and "{unit}" in label_template:
+                data["label_template"] = label_template.replace("{unit}", "1")
             if "dtype" not in data:
                 data["dtype"] = "int" if unit == "1" else "float"
         return data
@@ -321,6 +324,11 @@ class Quantity(BaseModel):
         if v not in ("int", "float"):
             raise ValueError(f"dtype must be 'int' or 'float', got {v!r}")
         return v
+
+    @property
+    def formatted_label(self) -> str:
+        """Return the label with {unit} replaced by the actual unit string."""
+        return self.label_template.format(unit=self.unit) if "{unit}" in self.label_template else self.label_template
 
     def unit_conversion(self, dst_unit: str) -> tuple[float, float] | None:
         """Return (scale, offset) to convert self.unit → dst_unit, or None."""
@@ -345,7 +353,7 @@ class ColumnOntology(BaseModel):
     # -------------------------
     test_time_second: Quantity = Quantity(
         unit="s",
-        label="Test Time / s",
+        label_template="Test Time / {unit}",
         required=True,
         mr_name="test_time_second",
         iri=f"{_IRI}test_time_second",
@@ -353,7 +361,7 @@ class ColumnOntology(BaseModel):
     )
     voltage_volt: Quantity = Quantity(
         unit="V",
-        label="Voltage / V",
+        label_template="Voltage / {unit}",
         required=True,
         mr_name="voltage_volt",
         iri=f"{_IRI}voltage_volt",
@@ -361,7 +369,7 @@ class ColumnOntology(BaseModel):
     )
     current_ampere: Quantity = Quantity(
         unit="A",
-        label="Current / A",
+        label_template="Current / {unit}",
         required=True,
         mr_name="current_ampere",
         iri=f"{_IRI}current_ampere",
@@ -372,7 +380,7 @@ class ColumnOntology(BaseModel):
     # -------------------------
     unix_time_second: Quantity = Quantity(
         unit="s",
-        label="Unix Time / s",
+        label_template="Unix Time / {unit}",
         required=False,
         mr_name="unix_time_second",
         iri=f"{_IRI}unix_time_second",
@@ -380,7 +388,7 @@ class ColumnOntology(BaseModel):
     )
     cycle_count: Quantity = Quantity(
         unit="1",
-        label="Cycle Count / {unit}",
+        label_template="Cycle Count / 1",
         required=False,
         mr_name="cycle_count",
         iri=f"{_IRI}cycle_count",
@@ -388,7 +396,7 @@ class ColumnOntology(BaseModel):
     )
     step_count: Quantity = Quantity(
         unit="1",
-        label="Step Count / {unit}",
+        label_template="Step Count / 1",
         required=False,
         mr_name="step_count",
         iri=f"{_IRI}step_count",
@@ -396,7 +404,7 @@ class ColumnOntology(BaseModel):
     )
     ambient_temperature_celsius: Quantity = Quantity(
         unit="degC",
-        label="Ambient Temperature / {unit}",
+        label_template="Ambient Temperature / {unit}",
         required=False,
         mr_name="ambient_temperature_celsius",
         iri=f"{_IRI}ambient_temperature_celsius",
@@ -407,7 +415,7 @@ class ColumnOntology(BaseModel):
     # -------------------------
     step_index: Quantity = Quantity(
         unit="1",
-        label="Step Index / {unit}",
+        label_template="Step Index / 1",
         required=False,
         mr_name="step_index",
         iri=f"{_IRI}step_index",
@@ -415,7 +423,7 @@ class ColumnOntology(BaseModel):
     )
     charging_capacity_ah: Quantity = Quantity(
         unit="Ah",
-        label="Charging Capacity / {unit}",
+        label_template="Charging Capacity / {unit}",
         required=False,
         mr_name="charging_capacity_ah",
         iri=f"{_IRI}charging_capacity_ah",
@@ -423,7 +431,7 @@ class ColumnOntology(BaseModel):
     )
     discharging_capacity_ah: Quantity = Quantity(
         unit="Ah",
-        label="Discharging Capacity / {unit}",
+        label_template="Discharging Capacity / {unit}",
         required=False,
         mr_name="discharging_capacity_ah",
         iri=f"{_IRI}discharging_capacity_ah",
@@ -431,7 +439,7 @@ class ColumnOntology(BaseModel):
     )
     step_capacity_ah: Quantity = Quantity(
         unit="Ah",
-        label="Step Capacity / {unit}",
+        label_template="Step Capacity / {unit}",
         required=False,
         mr_name="step_capacity_ah",
         iri=f"{_IRI}step_capacity_ah",
@@ -439,7 +447,7 @@ class ColumnOntology(BaseModel):
     )
     net_capacity_ah: Quantity = Quantity(
         unit="Ah",
-        label="Net Capacity / {unit}",
+        label_template="Net Capacity / {unit}",
         required=False,
         mr_name="net_capacity_ah",
         iri=f"{_IRI}net_capacity_ah",
@@ -447,7 +455,7 @@ class ColumnOntology(BaseModel):
     )
     cumulative_capacity_ah: Quantity = Quantity(
         unit="Ah",
-        label="Cumulative Capacity / {unit}",
+        label_template="Cumulative Capacity / {unit}",
         required=False,
         mr_name="cumulative_capacity_ah",
         iri=f"{_IRI}cumulative_capacity_ah",
@@ -455,7 +463,7 @@ class ColumnOntology(BaseModel):
     )
     charging_energy_wh: Quantity = Quantity(
         unit="Wh",
-        label="Charging Energy / {unit}",
+        label_template="Charging Energy / {unit}",
         required=False,
         mr_name="charging_energy_wh",
         iri=f"{_IRI}charging_energy_wh",
@@ -463,7 +471,7 @@ class ColumnOntology(BaseModel):
     )
     discharging_energy_wh: Quantity = Quantity(
         unit="Wh",
-        label="Discharging Energy / {unit}",
+        label_template="Discharging Energy / {unit}",
         required=False,
         mr_name="discharging_energy_wh",
         iri=f"{_IRI}discharging_energy_wh",
@@ -471,7 +479,7 @@ class ColumnOntology(BaseModel):
     )
     step_energy_wh: Quantity = Quantity(
         unit="Wh",
-        label="Step Energy / {unit}",
+        label_template="Step Energy / {unit}",
         required=False,
         mr_name="step_energy_wh",
         iri=f"{_IRI}step_energy_wh",
@@ -479,7 +487,7 @@ class ColumnOntology(BaseModel):
     )
     net_energy_wh: Quantity = Quantity(
         unit="Wh",
-        label="Net Energy / {unit}",
+        label_template="Net Energy / {unit}",
         required=False,
         mr_name="net_energy_wh",
         iri=f"{_IRI}net_energy_wh",
@@ -487,7 +495,7 @@ class ColumnOntology(BaseModel):
     )
     cumulative_energy_wh: Quantity = Quantity(
         unit="Wh",
-        label="Cumulative Energy / {unit}",
+        label_template="Cumulative Energy / {unit}",
         required=False,
         mr_name="cumulative_energy_wh",
         iri=f"{_IRI}cumulative_energy_wh",
@@ -495,7 +503,7 @@ class ColumnOntology(BaseModel):
     )
     power_watt: Quantity = Quantity(
         unit="W",
-        label="Power / {unit}",
+        label_template="Power / {unit}",
         required=False,
         mr_name="power_watt",
         iri=f"{_IRI}power_watt",
@@ -503,7 +511,7 @@ class ColumnOntology(BaseModel):
     )
     internal_resistance_ohm: Quantity = Quantity(
         unit="ohm",
-        label="Internal Resistance / {unit}",
+        label_template="Internal Resistance / {unit}",
         required=False,
         mr_name="internal_resistance_ohm",
         iri=f"{_IRI}internal_resistance_ohm",
@@ -511,7 +519,7 @@ class ColumnOntology(BaseModel):
     )
     ambient_pressure_pa: Quantity = Quantity(
         unit="Pa",
-        label="Ambient Pressure / {unit}",
+        label_template="Ambient Pressure / {unit}",
         required=False,
         mr_name="ambient_pressure_pa",
         iri=f"{_IRI}ambient_pressure_pa",
@@ -519,7 +527,7 @@ class ColumnOntology(BaseModel):
     )
     applied_pressure_pa: Quantity = Quantity(
         unit="Pa",
-        label="Applied Pressure / {unit}",
+        label_template="Applied Pressure / {unit}",
         required=False,
         mr_name="applied_pressure_pa",
         iri=f"{_IRI}applied_pressure_pa",
@@ -528,7 +536,7 @@ class ColumnOntology(BaseModel):
     # Surface temperatures (T1..T5)
     temperature_t1_celsius: Quantity = Quantity(
         unit="degC",
-        label="Surface Temperature T1 / {unit}",
+        label_template="Surface Temperature T1 / {unit}",
         required=False,
         mr_name="temperature_t1_celsius",
         iri=f"{_IRI}temperature_t1_celsius",
@@ -536,7 +544,7 @@ class ColumnOntology(BaseModel):
     )
     temperature_t2_celsius: Quantity = Quantity(
         unit="degC",
-        label="Surface Temperature T2 / {unit}",
+        label_template="Surface Temperature T2 / {unit}",
         required=False,
         mr_name="temperature_t2_celsius",
         iri=f"{_IRI}temperature_t2_celsius",
@@ -544,7 +552,7 @@ class ColumnOntology(BaseModel):
     )
     temperature_t3_celsius: Quantity = Quantity(
         unit="degC",
-        label="Surface Temperature T3 / {unit}",
+        label_template="Surface Temperature T3 / {unit}",
         required=False,
         mr_name="temperature_t3_celsius",
         iri=f"{_IRI}temperature_t3_celsius",
@@ -552,7 +560,7 @@ class ColumnOntology(BaseModel):
     )
     temperature_t4_celsius: Quantity = Quantity(
         unit="degC",
-        label="Surface Temperature T4 / {unit}",
+        label_template="Surface Temperature T4 / {unit}",
         required=False,
         mr_name="temperature_t4_celsius",
         iri=f"{_IRI}temperature_t4_celsius",
@@ -560,7 +568,7 @@ class ColumnOntology(BaseModel):
     )
     temperature_t5_celsius: Quantity = Quantity(
         unit="degC",
-        label="Surface Temperature T5 / {unit}",
+        label_template="Surface Temperature T5 / {unit}",
         required=False,
         mr_name="temperature_t5_celsius",
         iri=f"{_IRI}temperature_t5_celsius",
@@ -578,7 +586,7 @@ class ColumnOntology(BaseModel):
         for q_name, q in self:
             if q.deprecated:
                 continue
-            left = q.label.split(" / ", 1)[0]
+            left = q.label_template.split(" / ", 1)[0]
             left_slug = _slugify(left)
             if left_slug:
                 idx.setdefault(left_slug, q_name)
@@ -593,11 +601,11 @@ class ColumnOntology(BaseModel):
 
     def required_labels(self) -> tuple[str, ...]:
         """Labels of all non-deprecated required quantities."""
-        return tuple(q.label for _, q in self if q.required and not q.deprecated)
+        return tuple(q.formatted_label for _, q in self if q.required and not q.deprecated)
 
     def optional_labels(self) -> tuple[str, ...]:
         """Labels of all non-deprecated optional quantities."""
-        return tuple(q.label for _, q in self if not q.required and not q.deprecated)
+        return tuple(q.formatted_label for _, q in self if not q.required and not q.deprecated)
 
     def validate(self, df: pl.DataFrame | pl.LazyFrame) -> None:
         """Check ``df`` column names against BDF canonical labels.
@@ -609,8 +617,8 @@ class ColumnOntology(BaseModel):
 
         cols = set(df.collect_schema().names()) if isinstance(df, pl.LazyFrame) else set(df.columns)
 
-        canonical = {q.label for _, q in self if not q.deprecated}
-        required = {q.label for _, q in self if q.required and not q.deprecated}
+        canonical = {q.formatted_label for _, q in self if not q.deprecated}
+        required = {q.formatted_label for _, q in self if q.required and not q.deprecated}
 
         missing = required - cols
         if missing:
@@ -629,7 +637,7 @@ class ColumnOntology(BaseModel):
             return None
         query_base = parsed[0].lower()
         for mr_name, q in self:
-            tmpl_base = q.label.split(" / ")[0].strip().lower()
+            tmpl_base = q.label_template.split(" / ")[0].strip().lower()
             if tmpl_base == query_base:
                 return mr_name
         return None

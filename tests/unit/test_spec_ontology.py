@@ -115,14 +115,14 @@ def test_get_unit_conversion(src: str | None, dst: str, expected: tuple[float, f
 @pytest.mark.parametrize(
     ("label_in", "unit", "expected_label"),
     [
-        ("Voltage / {unit}", "V", "Voltage / V"),
-        ("Test Time / s", "s", "Test Time / s"),
+        ("Voltage / {unit}", "V", "Voltage / {unit}"),
+        ("Test Time / s", "s", "Test Time / {unit}"),
         ("Cycle Count / {unit}", "1", "Cycle Count / 1"),
     ],
 )
 def test_quantity_label_resolution(label_in: str, unit: str, expected_label: str) -> None:
-    q = Quantity(unit=unit, label=label_in, mr_name="x", iri="", synonyms=[])
-    assert q.label == expected_label
+    q = Quantity(unit=unit, label_template=label_in, mr_name="x", iri="", synonyms=[])
+    assert q.label_template == expected_label
 
 
 @pytest.mark.parametrize(
@@ -130,26 +130,26 @@ def test_quantity_label_resolution(label_in: str, unit: str, expected_label: str
     [("1", "int"), ("V", "float"), ("s", "float"), ("degC", "float")],
 )
 def test_quantity_dtype_inferred_from_unit(unit: str, expected_dtype: str) -> None:
-    q = Quantity(unit=unit, label="X / {unit}", mr_name="x", iri="", synonyms=[])
+    q = Quantity(unit=unit, label_template="X / {unit}", mr_name="x", iri="", synonyms=[])
     assert q.dtype == expected_dtype
 
 
 def test_quantity_dtype_explicit_overrides_inference() -> None:
-    q = Quantity(unit="1", label="X / {unit}", dtype="float", mr_name="x", iri="", synonyms=[])
+    q = Quantity(unit="1", label_template="X / {unit}", dtype="float", mr_name="x", iri="", synonyms=[])
     assert q.dtype == "float"
 
 
 @pytest.mark.parametrize("bad_dtype", ["str", "double", "", "Int"])
 def test_quantity_invalid_dtype_raises(bad_dtype: str) -> None:
     with pytest.raises(ValidationError):
-        Quantity(unit="V", label="V / {unit}", dtype=bad_dtype, mr_name="x", iri="", synonyms=[])
+        Quantity(unit="V", label_template="V / {unit}", dtype=bad_dtype, mr_name="x", iri="", synonyms=[])
 
 
 def test_quantity_invalid_field_type_raises() -> None:
     with pytest.raises(ValidationError):
         Quantity(
             unit="V",
-            label="Voltage / {unit}",
+            label_template="Voltage / {unit}",
             required="not-a-bool-or-coercible",  # type: ignore[arg-type]
             mr_name="voltage_volt",
             iri="",
@@ -158,7 +158,7 @@ def test_quantity_invalid_field_type_raises() -> None:
 
 
 def test_quantity_defaults() -> None:
-    q = Quantity(unit="V", label="V / {unit}", mr_name="v", iri="", synonyms=[])
+    q = Quantity(unit="V", label_template="V / {unit}", mr_name="v", iri="", synonyms=[])
     assert q.required is False
     assert q.deprecated is False
     assert q.notation == ""
@@ -174,7 +174,7 @@ def test_quantity_defaults() -> None:
     ],
 )
 def test_quantity_unit_conversion(src_unit: str, dst_unit: str, expected: tuple[float, float] | None) -> None:
-    q = Quantity(unit=src_unit, label=f"X / {src_unit}", mr_name="x", iri="", synonyms=[])
+    q = Quantity(unit=src_unit, label_template=f"X / {src_unit}", mr_name="x", iri="", synonyms=[])
     assert q.unit_conversion(dst_unit) == expected
 
 
@@ -188,7 +188,7 @@ def test_quantity_unit_conversion(src_unit: str, dst_unit: str, expected: tuple[
     ],
 )
 def test_quantity_effective_notation(notation: str, mr_name: str, expected: str) -> None:
-    q = Quantity(unit="V", label="X / V", mr_name=mr_name, iri="", synonyms=[], notation=notation)
+    q = Quantity(unit="V", label_template="X / V", mr_name=mr_name, iri="", synonyms=[], notation=notation)
     assert q.effective_notation == expected
 
 
@@ -201,7 +201,8 @@ def test_columns_getattr_returns_quantity() -> None:
     q = spec.COLUMN_ONTOLOGY.voltage_volt
     assert isinstance(q, Quantity)
     assert q.unit == "V"
-    assert q.label == "Voltage / V"
+    assert q.label_template == "Voltage / {unit}"
+    assert q.formatted_label == "Voltage / V"
 
 
 def test_columns_iteration_yields_mr_quantity_pairs() -> None:
@@ -215,13 +216,13 @@ def test_columns_iteration_yields_mr_quantity_pairs() -> None:
 
 def test_required_labels_match_required_flag() -> None:
     labels = spec.COLUMN_ONTOLOGY.required_labels()
-    expected = {q.label for _, q in spec.COLUMN_ONTOLOGY if q.required and not q.deprecated}
+    expected = {q.formatted_label for _, q in spec.COLUMN_ONTOLOGY if q.required and not q.deprecated}
     assert set(labels) == expected
 
 
 def test_required_labels_excludes_deprecated() -> None:
     q_dep = Quantity(
-        unit="V", label="Old / {unit}", required=True, mr_name="old_volt", iri="", synonyms=[], deprecated=True
+        unit="V", label_template="Old / {unit}", required=True, mr_name="old_volt", iri="", synonyms=[], deprecated=True
     )
     onto = ColumnOntology(old_volt=q_dep)  # type: ignore[call-arg]
     assert "Old / V" not in onto.required_labels()
@@ -240,7 +241,7 @@ def test_optional_labels_excludes_required_and_deprecated() -> None:
 def test_base_synonym_index_excludes_deprecated() -> None:
     q_dep = Quantity(
         unit="V",
-        label="Old / {unit}",
+        label_template="Old / {unit}",
         required=False,
         mr_name="old_volt",
         iri="",
@@ -254,7 +255,7 @@ def test_base_synonym_index_excludes_deprecated() -> None:
 def test_base_synonym_index_includes_label_notation_and_synonyms() -> None:
     q = Quantity(
         unit="V",
-        label="Custom Label / {unit}",
+        label_template="Custom Label / {unit}",
         mr_name="custom_q",
         iri="",
         synonyms=["alias-one", "alias-two"],
@@ -300,7 +301,8 @@ def test_build_loads_ontology_from_env_var(tmp_path: Path, monkeypatch: pytest.M
         snapshot_loader.assert_not_called()
 
     assert onto.test_time_second.unit == "ms"
-    assert onto.test_time_second.label == "Test Time / ms"
+    assert onto.test_time_second.label_template == "Test Time / {unit}"
+    assert onto.test_time_second.formatted_label == "Test Time / ms"
     assert onto.base_synonym_index()["elapsed-ms"] == "test_time_second"
 
 
@@ -448,7 +450,7 @@ def test_validate_no_warning_with_only_canonical_columns(recwarn: pytest.Warning
 def test_validate_deprecated_quantity_not_counted_as_required() -> None:
     q_dep = Quantity(
         unit="V",
-        label="Old Voltage / V",
+        label_template="Old Voltage / V",
         required=True,
         mr_name="old_voltage_volt",
         iri="",

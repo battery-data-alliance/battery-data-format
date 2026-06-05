@@ -131,7 +131,7 @@ class ResolvedColumn(BaseModel):
     def get_expr(self, mr_name: str) -> pl.Expr:
         """Build polars expression for column transformation with unit conversion and dtype casting."""
         src = self.source_header
-        label = getattr(COLUMN_ONTOLOGY, mr_name).label
+        label = getattr(COLUMN_ONTOLOGY, mr_name).formatted_label
         if self.datetime_fmts:
             dt_fmts = [f for f in self.datetime_fmts if _DATE_COMPONENT_RE.search(f)]
             dur_fmts = [f for f in self.datetime_fmts if not _DATE_COMPONENT_RE.search(f)]
@@ -328,7 +328,7 @@ class TableNormalizer(BaseModel):
 
         out = df.select(exprs)
         out_cols = set((out.collect_schema() if isinstance(out, pl.LazyFrame) else out.schema).names())
-        missing = [s.label for mr, s in COLUMN_ONTOLOGY if s.required and s.label not in out_cols]
+        missing = [s.formatted_label for mr, s in COLUMN_ONTOLOGY if s.required and s.formatted_label not in out_cols]
         if missing:
             warnings.warn(
                 f"normalize: required BDF columns missing from output: {missing}",
@@ -757,18 +757,18 @@ def canonicalize_legacy_labels(df):
     for q, s in COLUMN_ONTOLOGY:
         if s.deprecated:
             continue
-        base = s.label.split(" / ", 1)[0].strip().lower()
+        base = s.label_template.split(" / ", 1)[0].strip().lower()
         base_preferred.setdefault(base, q)
     for q, s in COLUMN_ONTOLOGY:
-        pref = s.label
+        pref = s.formatted_label
         target_q = q
         if s.deprecated:
-            base = pref.split(" / ", 1)[0].strip().lower()
+            base = s.label_template.split(" / ", 1)[0].strip().lower()
             target_q = base_preferred.get(base, q)
-            deprecated_pref_to_canonical[pref] = getattr(COLUMN_ONTOLOGY, target_q).label
-        notation_to_canonical[s.effective_notation] = getattr(COLUMN_ONTOLOGY, target_q).label
+            deprecated_pref_to_canonical[pref] = getattr(COLUMN_ONTOLOGY, target_q).formatted_label
+        notation_to_canonical[s.effective_notation] = getattr(COLUMN_ONTOLOGY, target_q).formatted_label
 
-    allowed = {s.label for _, s in COLUMN_ONTOLOGY if not s.deprecated}
+    allowed = {s.formatted_label for _, s in COLUMN_ONTOLOGY if not s.deprecated}
     renames: dict[str, str] = {}
     for col in df.columns:
         if col in allowed:
