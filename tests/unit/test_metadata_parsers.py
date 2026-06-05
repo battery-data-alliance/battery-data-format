@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import pytest
+from conftest import ALL_CASES, SampleCase, resolve_source
 from pydantic import ValidationError
 
 from bdf.metadata_parsers import (
@@ -15,56 +16,7 @@ from bdf.metadata_parsers import (
     MetadataSchema,
     TxtPreambleParser,
 )
-
-# ---------------------------------------------------------------------------
-# Zenodo URLs (record 18214281)
-# ---------------------------------------------------------------------------
-
-_ZENODO_BASE = "https://zenodo.org/api/records/18214281/files"
-_ZENODO_BASYTEC_URL = f"{_ZENODO_BASE}/DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.txt/content"
-_ZENODO_BIOLOGIC_URL = f"{_ZENODO_BASE}/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt/content"
-
-_BASYTEC_PARSER = TxtPreambleParser(
-    magic=("basytec battery test system",),
-    regex_patterns=MetadataSchema[re.Pattern[str]](start_time=re.compile(r"~Start of Test:\s*(.+)")),
-)
-_BIOLOGIC_PARSER = TxtPreambleParser(
-    magic=("bt-lab",),
-    regex_patterns=MetadataSchema[re.Pattern[str]](start_time=re.compile(r"Acquisition started on\s*:\s*(.+)")),
-)
-
-_METADATA_CASES = [
-    pytest.param(
-        "basytec/sample_data_basytec.txt",
-        False,
-        _BASYTEC_PARSER,
-        {"start_time": "19.06.2023 17:56:53"},
-        id="basytec/local",
-    ),
-    pytest.param(
-        "biologic/Sample_data_biologic_01_MB_CA1.txt",
-        False,
-        _BIOLOGIC_PARSER,
-        {"start_time": "05/13/2024 11:19:51.602"},
-        id="biologic/local",
-    ),
-    pytest.param(
-        _ZENODO_BASYTEC_URL,
-        True,
-        _BASYTEC_PARSER,
-        {"start_time": "30.11.2022 15:00:21"},
-        id="basytec/url",
-        marks=pytest.mark.network,
-    ),
-    pytest.param(
-        _ZENODO_BIOLOGIC_URL,
-        True,
-        _BIOLOGIC_PARSER,
-        {"start_time": "06/23/2025 09:17:30.015"},
-        id="biologic/url",
-        marks=pytest.mark.network,
-    ),
-]
+from bdf.plugins import PLUGINS
 
 # ---------------------------------------------------------------------------
 # MetadataSchema
@@ -257,19 +209,12 @@ def test_parsers_share_a_frozenset() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("source,is_url,parser,expected", _METADATA_CASES)
-def test_parse_metadata_from_source(
-    source: str,
-    is_url: bool,
-    parser: TxtPreambleParser,
-    expected: dict,
-    data_dir: Path,
-) -> None:
+@pytest.mark.parametrize(
+    "case",
+    [pytest.param(c, id=cid, marks=c.marks) for cid, c in ALL_CASES if c.expected_metadata],
+)
+def test_parse_metadata_from_source(case: SampleCase, data_dir: Path) -> None:
     pytest.importorskip("requests")
-    if is_url:
-        resolved: str | Path = source
-    else:
-        resolved = data_dir / source
-        if not resolved.exists():
-            pytest.skip(f"sample data not present: {source}")
-    assert parser.parse(resolved) == expected
+    resolved = resolve_source(case.source, case.is_url, data_dir)
+    parser = PLUGINS[case.plugin_id].metadata_parser
+    assert parser.parse(resolved) == case.expected_metadata

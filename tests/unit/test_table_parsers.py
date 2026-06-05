@@ -12,9 +12,12 @@ from pathlib import Path
 
 import polars as pl
 import pytest
+from conftest import ALL_CASES, SampleCase, resolve_source
 
+from bdf.head_utils import read_head
 from bdf.normalizers import ResolvedColumn, TableNormalizer
-from bdf.table_parsers import HEAD_BYTES, DelimTxtParser, ExcelParser, MatParser, TableParser
+from bdf.plugins import PLUGINS
+from bdf.table_parsers import DelimTxtParser, ExcelParser, MatParser, TableParser
 
 # ---------------------------------------------------------------------------
 # TableParser.matches_ext
@@ -165,13 +168,6 @@ def test_coerce_decimal_dot_is_noop() -> None:
 
 
 # --- head threading + read/headers/preamble ---------------------------------
-
-
-def test_read_head_caps_at_head_bytes(tmp_path: Path) -> None:
-    """_read_head returns at most HEAD_BYTES bytes."""
-    p = tmp_path / "big.csv"
-    p.write_bytes(b"x" * (HEAD_BYTES * 2))
-    assert len(DelimTxtParser.read_head(p)) == HEAD_BYTES
 
 
 def test_read_blank_normalizer_is_raw_passthrough(tmp_path: Path) -> None:
@@ -521,39 +517,43 @@ def test_latin1_encoding_ascii_only_no_rename(tmp_path: Path) -> None:
     assert lf.collect_schema().names() == ["time", "voltage", "current"]
 
 
-# --- sample-data sniffing (real files under tests/data) ----------------------
+# --- sample-data sniffing and column-output (real files under tests/data) ----
 
-SAMPLES = [
-    dict(rel="arbin/sample_data_arbin.csv", skip=0, sep=","),
-    dict(rel="basytec/sample_data_basytec.txt", skip=12, sep="\t"),
-    dict(rel="biologic/Sample_data_biologic_CA1.txt", skip=102, sep="\t"),
-    dict(rel="biologic/Sample_data_biologic_no_header.mpt", skip=0, sep="\t"),
-    dict(rel="maccor/sample_data_maccor.csv", skip=2, sep=","),
-    dict(rel="novonix/sample_data_novonix.csv", skip=20, sep=","),
-]
+_SNIFF_CASES = [pytest.param(cid, c, marks=c.marks, id=cid) for cid, c in ALL_CASES if c.skip is not None]
+_COLUMN_CASES = [pytest.param(cid, c, marks=c.marks, id=cid) for cid, c in ALL_CASES if c.expected_columns]
+_CURRENT_CASES = [pytest.param(cid, c, marks=c.marks, id=cid) for cid, c in ALL_CASES if c.current_max_abs is not None]
 
 
-@pytest.fixture(params=SAMPLES, ids=[s["rel"] for s in SAMPLES])
-def sample(request: pytest.FixtureRequest, data_dir: Path) -> tuple[dict, Path]:
-    spec = request.param
-    path = data_dir / spec["rel"]
-    if not path.exists():
-        pytest.skip(f"sample data not present: {spec['rel']}")
-    return spec, path
-
-
-def test_sample_skiprows(sample: tuple[dict, Path]) -> None:
+@pytest.mark.parametrize("cid,case", _SNIFF_CASES)
+def test_sample_skiprows(cid: str, case: SampleCase, data_dir: Path) -> None:
     """_detect_skiprows returns the expected preamble line count per vendor sample."""
-    spec, path = sample
+    path = resolve_source(case.source, case.is_url, data_dir)
+    assert DelimTxtParser._detect_skiprows(DelimTxtParser._decode_head(read_head(path))) == case.skip
 
-    assert DelimTxtParser._detect_skiprows(DelimTxtParser._decode_head(DelimTxtParser.read_head(path))) == spec["skip"]
 
-
-def test_sample_separator(sample: tuple[dict, Path]) -> None:
+@pytest.mark.parametrize("cid,case", _SNIFF_CASES)
+def test_sample_separator(cid: str, case: SampleCase, data_dir: Path) -> None:
     """_detect_separator returns the expected delimiter per vendor sample."""
-    spec, path = sample
+    path = resolve_source(case.source, case.is_url, data_dir)
+    assert DelimTxtParser._detect_separator(DelimTxtParser._decode_head(read_head(path))) == case.sep
 
-    assert DelimTxtParser._detect_separator(DelimTxtParser._decode_head(DelimTxtParser.read_head(path))) == spec["sep"]
+
+@pytest.mark.parametrize("cid,case", _COLUMN_CASES)
+def test_sample_read_includes_expected_columns(cid: str, case: SampleCase, data_dir: Path) -> None:
+    """read() via the plugin's table_parser returns the expected BDF column set."""
+    path = resolve_source(case.source, case.is_url, data_dir)
+    result = frozenset(PLUGINS[case.plugin_id].table_parser.read(path).collect_schema().names())
+    assert result == case.expected_columns
+
+
+@pytest.mark.parametrize("cid,case", _CURRENT_CASES)
+def test_sample_current_magnitude(cid: str, case: SampleCase, data_dir: Path) -> None:
+    """Current / A stays within expected range after unit conversion (catches mA→A regressions)."""
+    path = resolve_source(case.source, case.is_url, data_dir)
+    df = PLUGINS[case.plugin_id].table_parser.read(path).collect()
+    assert "Current / A" in df.columns
+    max_abs = df["Current / A"].abs().max()
+    assert max_abs <= case.current_max_abs
 
 
 def test_excel_sheet_name_honoured_in_headers(data_dir: Path) -> None:

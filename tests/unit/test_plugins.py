@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from conftest import ALL_CASES, SampleCase, resolve_source
 
 from bdf.normalizers import NORMALIZERS, TableNormalizer
 from bdf.plugins import (
@@ -191,191 +192,42 @@ def test_neware_xlsx_detects_by_extension(data_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Zenodo URLs (record 18214281) — same record as test_metadata_parsers
+# Parametrised: detection pipeline — all cases from conftest.ALL_CASES
 # ---------------------------------------------------------------------------
 
-_ZENODO_BASE = "https://zenodo.org/api/records/18214281/files"
-_ZENODO_BASYTEC_URL = f"{_ZENODO_BASE}/DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.txt/content"
-_ZENODO_BIOLOGIC_URL = f"{_ZENODO_BASE}/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt/content"
 
-# ---------------------------------------------------------------------------
-# Parameterised: detection pipeline — shared cases for all four stages
-#
-# Columns: source, is_url, ext_ids, meta_ids, cols_id, detect_id
-#   ext_ids   — frozenset expected from detect_from_ext
-#   meta_ids  — frozenset expected from detect_from_metadata;
-#               frozenset(PLUGINS) means no magic token matched (cands unchanged)
-#   cols_id   — plugin ID expected from detect_from_columns;
-#               None = preamble prevents header scan, column stage skipped
-#   detect_id — plugin ID expected from detect()
-# ---------------------------------------------------------------------------
-
-_ALL_DELIM_IDS = frozenset(
-    {
-        "arbin_csv",
-        "basytec_txt",
-        "biologic_mpt",
-        "digatron_csv",
-        "landt_csv",
-        "landt_txt",
-        "maccor_csv",
-        "neware_csv",
-        "novonix_csv",
-    }
+@pytest.mark.parametrize(
+    "cid,case",
+    [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
 )
-
-_CASES = [
-    pytest.param(
-        "biologic/Sample_data_biologic_no_header.mpt",
-        False,
-        frozenset({"biologic_mpt"}),  # unique .mpt extension
-        frozenset(PLUGINS),  # no preamble magic in this file
-        "biologic_mpt",  # columns recognisable
-        "biologic_mpt",  # exits at ext stage
-        "ext",
-        id="biologic/mpt",
-    ),
-    pytest.param(
-        "biologic/Sample_data_biologic_01_MB_CA1.txt",
-        False,
-        _ALL_DELIM_IDS,  # shared .txt extension
-        frozenset({"biologic_mpt"}),  # BT-Lab magic narrows
-        "biologic_mpt",
-        "biologic_mpt",  # exits at metadata stage
-        "metadata",
-        id="biologic/txt",
-    ),
-    pytest.param(
-        "basytec/sample_data_basytec.txt",
-        False,
-        _ALL_DELIM_IDS,
-        frozenset({"basytec_txt"}),  # Basytec magic narrows
-        "basytec_txt",
-        "basytec_txt",
-        "metadata",
-        id="basytec/local",
-    ),
-    pytest.param(
-        "maccor/sample_data_maccor.csv",
-        False,
-        _ALL_DELIM_IDS,
-        frozenset({"maccor_csv"}),  # Date-of-Test magic narrows
-        "maccor_csv",
-        "maccor_csv",
-        "metadata",
-        id="maccor/local",
-    ),
-    pytest.param(
-        "novonix/sample_data_novonix.csv",
-        False,
-        _ALL_DELIM_IDS,
-        frozenset({"novonix_csv"}),  # [Summary] magic narrows
-        "novonix_csv",
-        "novonix_csv",
-        "metadata",
-        id="novonix/local",
-    ),
-    pytest.param(
-        "arbin/sample_data_arbin.csv",
-        False,
-        _ALL_DELIM_IDS,
-        frozenset(PLUGINS),  # no preamble magic
-        "arbin_csv",  # columns decide
-        "arbin_csv",  # exits at columns stage
-        "columns",
-        id="arbin/local",
-    ),
-    pytest.param(
-        _ZENODO_BASYTEC_URL,
-        True,
-        _ALL_DELIM_IDS,  # .txt extension
-        frozenset({"basytec_txt"}),  # magic present
-        "basytec_txt",  # space-delimited; space is a detected candidate
-        "basytec_txt",  # exits at metadata stage
-        "metadata",
-        id="basytec/url",
-        marks=pytest.mark.network,
-    ),
-    pytest.param(
-        _ZENODO_BIOLOGIC_URL,
-        True,
-        frozenset({"biologic_mpt"}),  # unique .mpt extension
-        frozenset({"biologic_mpt"}),  # BT-Lab magic also present
-        "biologic_mpt",
-        "biologic_mpt",  # exits at ext stage
-        "ext",
-        id="biologic/url",
-        marks=pytest.mark.network,
-    ),
-]
+def test_detect_from_ext_candidate_set(cid: str, case: SampleCase, data_dir: Path) -> None:
+    assert set(detect_from_ext(resolve_source(case.source, case.is_url, data_dir))) == case.ext_ids
 
 
-def _resolve(source: str, is_url: bool, data_dir: Path) -> str | Path:
-    if is_url:
-        pytest.importorskip("requests")
-        return source
-    p = data_dir / source
-    if not p.exists():
-        pytest.skip(f"sample data not present: {source}")
-    return p
+@pytest.mark.parametrize(
+    "cid,case",
+    [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
+)
+def test_detect_from_metadata_candidate_set(cid: str, case: SampleCase, data_dir: Path) -> None:
+    assert set(detect_from_metadata(resolve_source(case.source, case.is_url, data_dir))) == case.meta_ids
 
 
-@pytest.mark.parametrize("source,is_url,ext_ids,meta_ids,cols_id,detect_id,deciding_stage", _CASES)
-def test_detect_from_ext_candidate_set(
-    source: str,
-    is_url: bool,
-    ext_ids: frozenset[str],
-    meta_ids: frozenset[str],
-    cols_id: str | None,
-    detect_id: str,
-    deciding_stage: str,
-    data_dir: Path,
-) -> None:
-    assert set(detect_from_ext(_resolve(source, is_url, data_dir))) == ext_ids
+@pytest.mark.parametrize(
+    "cid,case",
+    [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
+)
+def test_detect_from_columns_selects_winner(cid: str, case: SampleCase, data_dir: Path) -> None:
+    assert case.cols_id is not None
+    plugin_id, plugin = detect_from_columns(resolve_source(case.source, case.is_url, data_dir))
+    assert plugin_id == case.cols_id
+    assert plugin is PLUGINS[case.cols_id]
 
 
-@pytest.mark.parametrize("source,is_url,ext_ids,meta_ids,cols_id,detect_id,deciding_stage", _CASES)
-def test_detect_from_metadata_candidate_set(
-    source: str,
-    is_url: bool,
-    ext_ids: frozenset[str],
-    meta_ids: frozenset[str],
-    cols_id: str | None,
-    detect_id: str,
-    deciding_stage: str,
-    data_dir: Path,
-) -> None:
-    assert set(detect_from_metadata(_resolve(source, is_url, data_dir))) == meta_ids
-
-
-@pytest.mark.parametrize("source,is_url,ext_ids,meta_ids,cols_id,detect_id,deciding_stage", _CASES)
-def test_detect_from_columns_selects_winner(
-    source: str,
-    is_url: bool,
-    ext_ids: frozenset[str],
-    meta_ids: frozenset[str],
-    cols_id: str | None,
-    detect_id: str,
-    deciding_stage: str,
-    data_dir: Path,
-) -> None:
-    assert cols_id is not None
-    plugin_id, plugin = detect_from_columns(_resolve(source, is_url, data_dir))
-    assert plugin_id == cols_id
-    assert plugin is PLUGINS[cols_id]
-
-
-@pytest.mark.parametrize("source,is_url,ext_ids,meta_ids,cols_id,detect_id,deciding_stage", _CASES)
-def test_detect_pipeline_resolves_plugin(
-    source: str,
-    is_url: bool,
-    ext_ids: frozenset[str],
-    meta_ids: frozenset[str],
-    cols_id: str | None,
-    detect_id: str,
-    deciding_stage: str,
-    data_dir: Path,
-) -> None:
+@pytest.mark.parametrize(
+    "cid,case",
+    [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
+)
+def test_detect_pipeline_resolves_plugin(cid: str, case: SampleCase, data_dir: Path) -> None:
     import bdf.plugins as _mod
 
     with (
@@ -383,18 +235,18 @@ def test_detect_pipeline_resolves_plugin(
         patch.object(_mod, "detect_from_metadata", wraps=_mod.detect_from_metadata) as spy_meta,
         patch.object(_mod, "detect_from_columns", wraps=_mod.detect_from_columns) as spy_cols,
     ):
-        plugin_id, plugin = detect(_resolve(source, is_url, data_dir))
+        plugin_id, plugin = detect(resolve_source(case.source, case.is_url, data_dir))
 
-    assert plugin_id == detect_id
-    assert plugin is PLUGINS[detect_id]
+    assert plugin_id == case.detect_id
+    assert plugin is PLUGINS[case.detect_id]
 
     assert spy_ext.called, "ext stage not run"
-    if deciding_stage == "ext":
+    if case.deciding_stage == "ext":
         assert not spy_meta.called, "metadata stage ran — expected ext to be decisive"
         assert not spy_cols.called, "columns stage ran — expected ext to be decisive"
-    elif deciding_stage == "metadata":
+    elif case.deciding_stage == "metadata":
         assert spy_meta.called
         assert not spy_cols.called, "columns stage ran — expected metadata to be decisive"
-    elif deciding_stage == "columns":
+    elif case.deciding_stage == "columns":
         assert spy_meta.called
         assert spy_cols.called

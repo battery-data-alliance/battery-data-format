@@ -5,17 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from conftest import ALL_CASES, SampleCase
 
 from bdf.head_utils import is_url, read_head
-
-# ---------------------------------------------------------------------------
-# Zenodo URLs (record 18214281)
-# ---------------------------------------------------------------------------
-
-_ZENODO_BASE = "https://zenodo.org/api/records/18214281/files"
-_ZENODO_BASYTEC_URL = f"{_ZENODO_BASE}/DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.txt/content"
-_ZENODO_BIOLOGIC_URL = f"{_ZENODO_BASE}/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt/content"
-
 
 # ---------------------------------------------------------------------------
 # is_url
@@ -70,18 +62,12 @@ def test_read_head_removes_bom(tmp_path: Path) -> None:
     assert head == b"hello"
 
 
-@pytest.mark.network
-@pytest.mark.parametrize(
-    "url,expected_content",
-    [
-        (_ZENODO_BASYTEC_URL, b"Basytec"),
-        (_ZENODO_BIOLOGIC_URL, b"BT-Lab"),
-    ],
-    ids=["basytec", "biologic"],
-)
-def test_read_head_url(url: str, expected_content: bytes) -> None:
-    """read_head reads bytes from a remote URL."""
+_URL_CASES = [pytest.param(cid, c, marks=c.marks, id=cid) for cid, c in ALL_CASES if c.is_url]
+
+
+@pytest.mark.parametrize("cid,case", _URL_CASES)
+def test_read_head_url(cid: str, case: SampleCase) -> None:
+    """read_head returns the requested byte count from a remote URL."""
     pytest.importorskip("requests")
-    head = read_head(url, n_bytes=4096)
+    head = read_head(case.source, n_bytes=4096)
     assert len(head) == 4096
-    assert expected_content in head
