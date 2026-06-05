@@ -391,8 +391,11 @@ BASYTEC = TableNormalizer(
     ),
     ambient_temperature_celsius=(
         Syn("t1[{unit}]"),
+        Syn("t1[°C]"),
         Syn("temp[{unit}]"),
+        Syn("temp[°C]"),
         Syn("temperature[{unit}]"),
+        Syn("temperature[°C]"),
     ),
     net_capacity_ah=(Syn("ah[{unit}]"),),
     step_index=(Syn("line"),),
@@ -427,9 +430,17 @@ BIOLOGIC = TableNormalizer(
     step_time_second=(Syn("step time/{unit}"),),
     ambient_temperature_celsius=(
         Syn("temperature/{unit}"),
+        Syn("temperature/°C"),
+        Syn("temperature/\xf8c"),
+        Syn("temperature/c"),
         Syn("temp/{unit}"),
+        Syn("temp/°C"),
+        Syn("temp/\xf8c"),
+        Syn("temp/c"),
         Syn("t/{unit}"),
-        Syn("t/{unit}"),
+        Syn("t/°C"),
+        Syn("t/\xf8c"),
+        Syn("t/c"),
     ),
     charging_capacity_ah=(
         Syn("q charge/{unit}"),
@@ -633,12 +644,17 @@ NOVONIX = TableNormalizer(
     step_time_second=(Syn("step time ({unit})"), Syn("steptime({unit})")),
     ambient_temperature_celsius=(
         Syn("temperature (°c)"),
+        Syn("temperature (c)"),
         Syn("ambient temperature (°c)"),
+        Syn("ambient temperature (c)"),
         Syn("ambient temp (°c)"),
+        Syn("ambient temp (c)"),
     ),
     temperature_t1_celsius=(
         Syn("circuit temperature (°c)"),
+        Syn("circuit temperature (c)"),
         Syn("circuit temp (°c)"),
+        Syn("circuit temp (c)"),
     ),
     net_capacity_ah=(
         Syn("capacity ({unit})"),

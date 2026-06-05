@@ -88,6 +88,7 @@ BIOLOGIC_MPT = Plugin(
     table_parser=DelimTxtParser(
         normalizer=NORMALIZERS["biologic"],
         unique_exts=frozenset({".mpt"}),
+        encoding="latin-1",
     ),
     metadata_parser=TxtPreambleParser(
         magic=("bt-lab ascii file", "ec-lab ascii file"),
@@ -100,17 +101,17 @@ DIGATRON_CSV = Plugin(
 )
 
 LANDT_CSV = Plugin(
-    table_parser=DelimTxtParser(normalizer=NORMALIZERS["landt_csv"]),
+    table_parser=DelimTxtParser(normalizer=NORMALIZERS["landt_csv"], truncate_ragged_lines=True),
 )
 
 LANDT_TXT = Plugin(
-    table_parser=DelimTxtParser(normalizer=NORMALIZERS["landt_txt"]),
+    table_parser=DelimTxtParser(normalizer=NORMALIZERS["landt_txt"], truncate_ragged_lines=True),
 )
 
 MACCOR_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["maccor"]),
     metadata_parser=TxtPreambleParser(
-        magic=("today's date", "date of test:"),
+        magic=("today's date ,", "date of test:,"),
         regex_patterns=MetadataSchema[re.Pattern[str]](start_time=r"Date of Test:,(.+)"),
     ),
 )

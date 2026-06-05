@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .head_utils import HEAD_BYTES, is_url, read_head
+from .head_utils import is_url, read_head
 from .normalizers import TableNormalizer
 
 # ---------------------------------------------------------------------------
@@ -114,14 +114,17 @@ class TableParser(BaseModel):
         self,
         path: str | Path,
         *,
+        normalize: bool = True,
         include_optional: bool = True,
         extra_columns: dict[str, str] | None = None,
     ) -> pl.LazyFrame:
-        """Read ``path`` (local or URL) and return ``self.normalizer.normalize(...)``.
+        """Read ``path`` (local or URL) and return the normalized or raw LazyFrame.
 
-        An empty :attr:`normalizer` (the default) degrades to a raw read,
-        returning the underlying frame with its source column names unchanged.
+        When ``normalize=False``, returns ``self._read_raw(path)`` unchanged.
+        An empty :attr:`normalizer` (the default) degrades to a raw read.
         """
+        if not normalize:
+            return self._read_raw(path)
         lf = self._read_raw(path)
         result = self.normalizer.normalize(lf, include_optional=include_optional, extra_columns=extra_columns)
         assert isinstance(result, pl.LazyFrame)
@@ -158,6 +161,10 @@ class DelimTxtParser(TableParser):
         default=None,
         description=_polars_param_desc(pl.scan_csv, "decimal_comma"),
     )
+    truncate_ragged_lines: bool = Field(
+        default=False,
+        description=_polars_param_desc(pl.scan_csv, "truncate_ragged_lines"),
+    )
     encoding: str = Field(
         default="utf-8",
         description=(
@@ -169,17 +176,6 @@ class DelimTxtParser(TableParser):
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".csv", ".txt", ".tsv", ".dat"})
     is_text: ClassVar[bool] = True
-
-    @staticmethod
-    def read_head(path: Path, n_bytes: int = HEAD_BYTES) -> bytes:
-        """Read up to ``n_bytes`` raw bytes from the start of ``path``.
-
-        Strips a leading UTF-8 BOM so header reconstruction, separator/skip
-        sniffing, and magic matching agree with polars, which always drops the
-        BOM from the parsed frame (under both ``utf8`` and ``utf8-lossy``).
-        """
-        with open(path, "rb") as fh:
-            return fh.read(n_bytes).removeprefix(b"\xef\xbb\xbf")
 
     @staticmethod
     def _decode_head(head: bytes, encoding: str = "utf-8") -> str:
@@ -318,14 +314,13 @@ class DelimTxtParser(TableParser):
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
         """Parse ``path`` (local or URL) to a LazyFrame, honouring (and auto-sniffing) config."""
-        source_is_url = is_url(str(path))
-        raw = read_head(path) if source_is_url else self.read_head(Path(path))
+        raw = read_head(path)
         sample = self._decode_head(raw, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
         skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
         is_utf8 = self.encoding.lower() in ("utf-8", "utf8")
         encoding_arg = "utf8" if is_utf8 else "utf8-lossy"
-        source: str | Path = str(path) if source_is_url else Path(path)
+        source: str | Path = str(path) if is_url(str(path)) else Path(path)
         lf = pl.scan_csv(
             source,
             skip_rows=skip,
@@ -333,6 +328,7 @@ class DelimTxtParser(TableParser):
             has_header=self.has_header,
             infer_schema=False,
             encoding=encoding_arg,
+            truncate_ragged_lines=self.truncate_ragged_lines,
         )
         if not is_utf8:
             rename_map = self._build_rename_map(raw, self.encoding, skip, sep)
@@ -343,8 +339,7 @@ class DelimTxtParser(TableParser):
 
     def read_column_headings(self, path: str | Path) -> list[str]:
         """Return column headers by reading the head bytes of ``path`` (local or URL)."""
-        source_is_url = is_url(str(path))
-        raw = read_head(path) if source_is_url else self.read_head(Path(path))
+        raw = read_head(path)
         sample = self._decode_head(raw, self.encoding)
         sep = self.separator if self.separator is not None else self._detect_separator(sample)
         skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)

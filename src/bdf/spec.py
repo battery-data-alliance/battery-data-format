@@ -63,6 +63,7 @@ for _alias, _canonical in [
     ("\xf8C", "degC"),
     ("\xb0c", "degC"),
     ("\xb0C", "degC"),
+    ("Sec", "second"),
 ]:
     with contextlib.suppress(Exception):
         ureg.define(f"{_alias} = {_canonical}")

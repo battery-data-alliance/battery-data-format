@@ -490,6 +490,14 @@ def test_build_rename_map_cp1252_euro_sign() -> None:
     assert result == {"Cost[�]": "Cost[\N{EURO SIGN}]"}
 
 
+def test_build_rename_map_oslash_variant() -> None:
+    """Maps ø (0xF8 in latin-1) in a slash-unit column name; utf8-lossy replaces with U+FFFD."""
+    # ø = 0xF8 in latin-1; invalid as a standalone UTF-8 byte → utf8-lossy gives U+FFFD
+    raw = _make_raw("temperature/øc,Current", ["25.0,0.5"])
+    result = DelimTxtParser._build_rename_map(raw, "latin-1", skip=0, sep=",")
+    assert result == {"temperature/\N{REPLACEMENT CHARACTER}c": "temperature/øc"}
+
+
 # read() integration tests for encoding
 
 
@@ -500,7 +508,7 @@ def test_latin1_encoding_renames_degree_symbol_column(tmp_path: Path) -> None:
     p = tmp_path / "latin1.csv"
     p.write_bytes(content.encode("latin-1"))
 
-    lf = DelimTxtParser(encoding="latin-1").read(p)
+    lf = DelimTxtParser(encoding="latin-1")._read_raw(p)
     assert isinstance(lf, pl.LazyFrame)
     cols = lf.collect_schema().names()
     assert "T1[\N{DEGREE SIGN}C]" in cols  # ° present, not mangled
@@ -513,8 +521,32 @@ def test_latin1_encoding_ascii_only_no_rename(tmp_path: Path) -> None:
     p = tmp_path / "ascii_latin1.csv"
     p.write_bytes(content.encode("latin-1"))
 
-    lf = DelimTxtParser(encoding="latin-1").read(p)
+    lf = DelimTxtParser(encoding="latin-1")._read_raw(p)
     assert lf.collect_schema().names() == ["time", "voltage", "current"]
+
+
+def test_latin1_degree_slash_normalizes_to_ambient_temperature(tmp_path: Path) -> None:
+    """temperature/°C (slash notation) in a latin-1 file normalizes to Ambient Temperature / degC."""
+    from bdf.normalizers import NORMALIZERS
+
+    p = tmp_path / "bio_deg.csv"
+    p.write_bytes("time/s\tEwe/V\tI/mA\ttemperature/°C\n0\t3.5\t1.0\t25.0\n1\t3.6\t1.1\t25.1\n".encode("latin-1"))
+    assert "°".encode("latin-1") in p.read_bytes()
+    parser = DelimTxtParser(encoding="latin-1", normalizer=NORMALIZERS["biologic"])
+    df = parser.read(p).collect()
+    assert "Ambient Temperature / degC" in df.columns
+
+
+def test_latin1_oslash_slash_normalizes_to_ambient_temperature(tmp_path: Path) -> None:
+    """temperature/øc (slash notation, ø=0xF8) in a latin-1 file normalizes to Ambient Temperature / degC."""
+    from bdf.normalizers import NORMALIZERS
+
+    p = tmp_path / "bio_oslash.csv"
+    p.write_bytes("time/s\tEwe/V\tI/mA\ttemperature/øc\n0\t3.5\t1.0\t25.0\n1\t3.6\t1.1\t25.1\n".encode("latin-1"))
+    assert "ø".encode("latin-1") in p.read_bytes()
+    parser = DelimTxtParser(encoding="latin-1", normalizer=NORMALIZERS["biologic"])
+    df = parser.read(p).collect()
+    assert "Ambient Temperature / degC" in df.columns
 
 
 # --- sample-data sniffing and column-output (real files under tests/data) ----
