@@ -10,12 +10,16 @@ import pytest
 from pydantic import ValidationError
 
 from bdf.normalizers import (
+    BDF_NORMALIZER,
+    NDA_NORMALIZER,
     DateTimeSyn,
     ResolvedColumn,
     Syn,
     TableNormalizer,
     normalize,
 )
+from bdf.plugins import PLUGINS
+from bdf.spec import COLUMN_ONTOLOGY
 
 
 class TestSyn:
@@ -805,3 +809,73 @@ class TestNormalizeFn:
             warnings.simplefilter("ignore", UserWarning)
             out = normalize(df, normalizer=norm)
         assert "Voltage / V" in out.columns
+
+
+# ---------------------------------------------------------------------------
+# NDA_NORMALIZER
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "src_col,src_val,expected_col,expected_val",
+    [
+        ("current_mA", [1000.0], "Current / A", 1.0),
+        ("current_A", [2.0], "Current / A", 2.0),
+        ("capacity_mAh", [-500.0], "Step Capacity / Ah", -0.5),
+        ("voltage_V", [3.7], "Voltage / V", 3.7),
+        ("cycle_count", [5], "Cycle Count / 1", 5),
+    ],
+    ids=["current_mA_scale", "current_A_passthrough", "capacity_scale", "voltage_match", "cycle_int"],
+)
+def test_nda_normalizer(src_col: str, src_val: list, expected_col: str, expected_val: float) -> None:
+    """NDA_NORMALIZER maps vendor columns to BDF labels with correct scaling."""
+    lf = pl.DataFrame({src_col: src_val}).lazy()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        out = NDA_NORMALIZER.normalize(lf).collect()
+    assert expected_col in out.columns
+    assert pytest.approx(out[expected_col][0]) == expected_val
+
+
+# ---------------------------------------------------------------------------
+# BDF_NORMALIZER
+# ---------------------------------------------------------------------------
+
+
+class TestBDFNormalizer:
+    def test_all_non_deprecated_mr_names_present(self):
+        bdf_fields = {mr_name for mr_name, _ in BDF_NORMALIZER}
+        known_fields = set(TableNormalizer.model_fields)
+        ontology_non_deprecated = {mr_name for mr_name, q in COLUMN_ONTOLOGY if not q.deprecated}
+        expected = ontology_non_deprecated & known_fields
+        assert expected == bdf_fields
+
+    def test_voltage_passthrough(self):
+        lf = pl.DataFrame({"Voltage / V": [3.7]}).lazy()
+        out = BDF_NORMALIZER.normalize(lf).collect()
+        assert "Voltage / V" in out.columns
+        assert pytest.approx(out["Voltage / V"][0]) == 3.7
+
+    def test_current_mA_conversion(self):
+        lf = pl.DataFrame({"Current / mA": [500.0]}).lazy()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            out = BDF_NORMALIZER.normalize(lf).collect()
+        assert "Current / A" in out.columns
+        assert pytest.approx(out["Current / A"][0]) == 0.5
+
+    def test_bdf_normalizer_scores_highest_on_bdf_headers(self):
+        bdf_headers = [
+            "Test Time / s",
+            "Voltage / V",
+            "Current / A",
+            "Cycle Count / 1",
+        ]
+        bdf_score = BDF_NORMALIZER.score_columns(bdf_headers)
+        for name, norm in [
+            ("arbin", PLUGINS["arbin_csv"].table_parser.normalizer),
+            ("neware", PLUGINS["neware_csv"].table_parser.normalizer),
+            ("biologic", PLUGINS["biologic_mpt"].table_parser.normalizer),
+        ]:
+            vendor_score = norm.score_columns(bdf_headers)
+            assert bdf_score > vendor_score, f"BDF_NORMALIZER should outscore {name}"

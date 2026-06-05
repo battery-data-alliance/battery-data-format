@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from bdf import spec
 from bdf.spec import (
+    COLUMN_ONTOLOGY,
     ColumnOntology,
     Quantity,
     get_unit_conversion,
@@ -467,3 +468,59 @@ def test_validate_extra_canonical_columns_do_not_warn(recwarn: pytest.WarningsCh
     spec.COLUMN_ONTOLOGY.validate(df)
     user_warnings = [w for w in recwarn.list if issubclass(w.category, UserWarning)]
     assert len(user_warnings) == 0
+
+
+# ---------------------------------------------------------------------------
+# Quantity label template validator
+# ---------------------------------------------------------------------------
+
+
+class TestQuantityModelValidator:
+    def test_hard_coded_unit_auto_inserted(self) -> None:
+        """Hard-coded units in label_template are replaced with {unit} placeholder."""
+        q = Quantity(unit="V", label_template="Voltage / V", mr_name="x", iri="x", synonyms=[])
+        assert q.label_template == "Voltage / {unit}"
+
+    def test_hard_coded_unit_non_si(self) -> None:
+        """Non-SI units in label_template are also replaced with {unit} placeholder."""
+        q = Quantity(unit="mV", label_template="Voltage / mV", mr_name="x", iri="x", synonyms=[])
+        assert q.label_template == "Voltage / {unit}"
+
+    def test_dimensionless_already_correct_unchanged(self) -> None:
+        """Dimensionless label_template with hardcoded 1 is left unchanged."""
+        q = Quantity(unit="1", label_template="Cycle Count / 1", mr_name="x", iri="x", synonyms=[])
+        assert q.label_template == "Cycle Count / 1"
+
+    def test_label_without_slash_not_modified(self) -> None:
+        """Labels without slash separator are not modified."""
+        q = Quantity(unit="V", label_template="Voltage", mr_name="x", iri="x", synonyms=[])
+        assert q.label_template == "Voltage"
+
+
+# ---------------------------------------------------------------------------
+# formatted_label property
+# ---------------------------------------------------------------------------
+
+
+class TestFormattedLabel:
+    def test_template_quantity_returns_formatted(self) -> None:
+        """formatted_label substitutes {unit} placeholder with actual unit."""
+        q = Quantity(unit="V", label_template="Voltage / {unit}", mr_name="x", iri="x", synonyms=[])
+        assert q.formatted_label == "Voltage / V"
+
+    def test_dimensionless_returns_label_unchanged(self) -> None:
+        """Dimensionless quantities (unit=1) return label_template unchanged."""
+        q = Quantity(unit="1", label_template="Cycle Count / 1", mr_name="x", iri="x", synonyms=[])
+        assert q.formatted_label == "Cycle Count / 1"
+
+    def test_ontology_cycle_count(self) -> None:
+        """COLUMN_ONTOLOGY.cycle_count produces correct formatted_label."""
+        assert COLUMN_ONTOLOGY.cycle_count.formatted_label == "Cycle Count / 1"
+
+    def test_ontology_test_time(self) -> None:
+        """COLUMN_ONTOLOGY.test_time_second produces correct formatted_label."""
+        assert COLUMN_ONTOLOGY.test_time_second.formatted_label == "Test Time / s"
+
+    def test_ontology_current(self) -> None:
+        """COLUMN_ONTOLOGY.current_ampere produces correct formatted_label."""
+        assert COLUMN_ONTOLOGY.current_ampere.formatted_label == "Current / A"

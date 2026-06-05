@@ -60,6 +60,7 @@ _ALL_DELIM_IDS: frozenset[str] = frozenset(
     {
         "arbin_csv",
         "basytec_txt",
+        "bdf_csv",
         "biologic_mpt",
         "digatron_csv",
         "landt_csv",
@@ -501,6 +502,52 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 }
             ),
             marks=(pytest.mark.network,),
+        ),
+    ),
+    (
+        "bdf_csv",
+        SampleCase(
+            source="bdf/sample.bdf.csv",
+            plugin_id="bdf_csv",
+            ext_ids=frozenset({"bdf_csv"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="bdf_csv",
+            detect_id="bdf_csv",
+            deciding_stage="ext",
+            expected_columns=frozenset({"Test Time / s", "Voltage / V", "Current / A"}),
+        ),
+    ),
+    (
+        "bdf_parquet",
+        SampleCase(
+            source="bdf/sample.parquet",
+            plugin_id="bdf_parquet",
+            ext_ids=frozenset({"bdf_parquet"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="bdf_parquet",
+            detect_id="bdf_parquet",
+            deciding_stage="ext",
+            expected_columns=frozenset({"Test Time / s", "Voltage / V", "Current / A"}),
+        ),
+    ),
+    (
+        "neware_nda",
+        SampleCase(
+            source=f"{_ZENODO_BASE}/SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.nda/content",
+            is_url=True,
+            plugin_id="neware_nda",
+            ext_ids=frozenset({"neware_nda"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="neware_nda",
+            detect_id="neware_nda",
+            deciding_stage="ext",
+            marks=(
+                pytest.mark.network,
+                pytest.mark.skipif(
+                    pytest.importorskip("fastnda", reason="fastnda not installed") is None,
+                    reason="fastnda not installed",
+                ),
+            ),
         ),
     ),
 ]

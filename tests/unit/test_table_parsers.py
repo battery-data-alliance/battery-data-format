@@ -15,10 +15,10 @@ import pytest
 from conftest import ALL_CASES, SampleCase, resolve_source
 
 from bdf.head_utils import read_head
-from bdf.normalizers import ResolvedColumn, TableNormalizer
+from bdf.normalizers import ResolvedColumn, Syn, TableNormalizer
 from bdf.plugins import PLUGINS
 from bdf.spec import COLUMN_ONTOLOGY
-from bdf.table_parsers import DelimTxtParser, ExcelParser, MatParser, TableParser
+from bdf.table_parsers import DelimTxtParser, ExcelParser, MatParser, NDAParser, ParquetParser, TableParser
 
 _LABEL_DTYPE: dict[str, str] = {q.formatted_label: q.dtype for _, q in COLUMN_ONTOLOGY}
 
@@ -636,7 +636,6 @@ def test_preamble_honours_explicit_separator() -> None:
 
 def test_tableparser_read_validate_true_passes_for_valid_frame(tmp_path: Path) -> None:
     """TableParser.read(validate=True) does not raise for a fully normalised frame."""
-    from bdf.normalizers import Syn
 
     p = tmp_path / "data.csv"
     rows = "\n".join(f"{i},{3.5 + i / 10},0.1" for i in range(6))
@@ -654,7 +653,6 @@ def test_tableparser_read_validate_true_passes_for_valid_frame(tmp_path: Path) -
 
 def test_tableparser_read_validate_true_raises_for_missing_required(tmp_path: Path) -> None:
     """TableParser.read(validate=True) raises BDFValidationError when required columns are absent."""
-    from bdf.normalizers import Syn
     from bdf.validate import BDFValidationError
 
     p = tmp_path / "data.csv"
@@ -672,7 +670,6 @@ def test_tableparser_read_validate_true_raises_for_missing_required(tmp_path: Pa
 
 def test_tableparser_read_validate_true_lazy_returns_lazyframe(tmp_path: Path) -> None:
     """TableParser.read(validate=True) returns LazyFrame and validates without collecting."""
-    from bdf.normalizers import Syn
 
     p = tmp_path / "data.csv"
     rows = "\n".join(f"{i},{3.5 + i / 10},0.1" for i in range(6))
@@ -686,3 +683,60 @@ def test_tableparser_read_validate_true_lazy_returns_lazyframe(tmp_path: Path) -
     )
     result = parser.read(p, validate=True)
     assert isinstance(result, pl.LazyFrame)
+
+
+# ---------------------------------------------------------------------------
+# ParquetParser
+# ---------------------------------------------------------------------------
+
+
+class TestParquetParser:
+    def test_read_raw(self, tmp_path: Path) -> None:
+        """ParquetParser._read_raw returns LazyFrame with correct column names."""
+        p = tmp_path / "data.parquet"
+        pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_parquet(p)
+        parser = ParquetParser()
+        lf = parser._read_raw(p)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+
+    def test_read_column_headings(self, tmp_path: Path) -> None:
+        """ParquetParser.read_column_headings returns column names without data rows."""
+        p = tmp_path / "data.parquet"
+        pl.DataFrame({"x": [1], "y": [2]}).write_parquet(p)
+        parser = ParquetParser()
+        assert parser.read_column_headings(p) == ["x", "y"]
+
+    def test_read_normalized(self, tmp_path: Path) -> None:
+        """ParquetParser applies normalizer to produce BDF columns with correct scaling."""
+        p = tmp_path / "data.parquet"
+        pl.DataFrame({"voltage_V": [3.7], "current_mA": [500.0]}).write_parquet(p)
+        norm = TableNormalizer(
+            voltage_volt=(Syn("voltage_{unit}"),),
+            current_ampere=(Syn("current_{unit}"),),
+        )
+        parser = ParquetParser(normalizer=norm)
+        df = parser.read(p).collect()
+        assert "Voltage / V" in df.columns
+        assert "Current / A" in df.columns
+        assert pytest.approx(df["Current / A"][0]) == 0.5
+
+
+# ---------------------------------------------------------------------------
+# NDAParser integration (skip if fastnda unavailable)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    pytest.importorskip("fastnda", reason="fastnda not installed") is None,
+    reason="fastnda not installed",
+)
+class TestNDAParserIntegration:
+    def test_read_raw_returns_lazyframe(self, tmp_path: Path):
+        nda_fixture = Path(__file__).parent.parent / "data" / "neware" / "sample.nda"
+        if not nda_fixture.exists():
+            pytest.skip("No .nda fixture available")
+        parser = NDAParser()
+        lf = parser._read_raw(nda_fixture)
+        assert isinstance(lf, pl.LazyFrame)
+        assert len(lf.collect_schema().names()) > 0

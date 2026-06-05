@@ -671,6 +671,32 @@ NOVONIX = TableNormalizer(
     power_watt=(Syn("power({unit})"), Syn("power ({unit})")),
 )
 
+NDA_NORMALIZER = TableNormalizer(
+    test_time_second=(Syn("total_time_{unit}"),),
+    voltage_volt=(Syn("voltage_{unit}"),),
+    current_ampere=(Syn("current_{unit}"),),
+    unix_time_second=(Syn("unix_time_{unit}"),),
+    step_time_second=(Syn("step_time_{unit}"),),
+    cycle_count=(Syn("cycle_count"),),
+    step_count=(Syn("step_count"),),
+    step_index=(Syn("step_index"),),
+    step_capacity_ah=(Syn("capacity_{unit}"),),
+    step_energy_wh=(Syn("energy_{unit}"),),
+)
+
+
+def _build_bdf_normalizer() -> TableNormalizer:
+    kwargs: dict[str, tuple] = {}
+    for mr_name, q in COLUMN_ONTOLOGY:
+        if q.deprecated:
+            continue
+        kwargs[mr_name] = (Syn(q.label_template),)
+    return TableNormalizer(**kwargs)
+
+
+BDF_NORMALIZER = _build_bdf_normalizer()
+
+
 NORMALIZERS: dict[str, TableNormalizer] = {
     "arbin": ARBIN,
     "basytec": BASYTEC,
@@ -681,6 +707,8 @@ NORMALIZERS: dict[str, TableNormalizer] = {
     "maccor": MACCOR,
     "neware": NEWARE,
     "novonix": NOVONIX,
+    "neware_nda": NDA_NORMALIZER,
+    "bdf": BDF_NORMALIZER,
 }
 
 

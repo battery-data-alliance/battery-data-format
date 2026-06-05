@@ -201,6 +201,7 @@ def test_neware_xlsx_detects_by_extension(data_dir: Path) -> None:
     [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
 )
 def test_detect_from_ext_candidate_set(cid: str, case: SampleCase, data_dir: Path) -> None:
+    """detect_from_ext returns the expected candidate set per file extension."""
     assert set(detect_from_ext(resolve_source(case.source, case.is_url, data_dir))) == case.ext_ids
 
 
@@ -209,6 +210,7 @@ def test_detect_from_ext_candidate_set(cid: str, case: SampleCase, data_dir: Pat
     [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
 )
 def test_detect_from_metadata_candidate_set(cid: str, case: SampleCase, data_dir: Path) -> None:
+    """detect_from_metadata returns the expected candidate set per file magic."""
     assert set(detect_from_metadata(resolve_source(case.source, case.is_url, data_dir))) == case.meta_ids
 
 
@@ -217,6 +219,7 @@ def test_detect_from_metadata_candidate_set(cid: str, case: SampleCase, data_dir
     [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
 )
 def test_detect_from_columns_selects_winner(cid: str, case: SampleCase, data_dir: Path) -> None:
+    """detect_from_columns selects the highest-scoring normalizer for each sample."""
     assert case.cols_id is not None
     plugin_id, plugin = detect_from_columns(resolve_source(case.source, case.is_url, data_dir))
     assert plugin_id == case.cols_id
@@ -228,6 +231,7 @@ def test_detect_from_columns_selects_winner(cid: str, case: SampleCase, data_dir
     [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES],
 )
 def test_detect_pipeline_resolves_plugin(cid: str, case: SampleCase, data_dir: Path) -> None:
+    """detect pipeline stages execute in order and stop at the deciding stage."""
     import bdf.plugins as _mod
 
     with (
@@ -250,3 +254,29 @@ def test_detect_pipeline_resolves_plugin(cid: str, case: SampleCase, data_dir: P
     elif case.deciding_stage == "columns":
         assert spy_meta.called
         assert spy_cols.called
+
+
+# ---------------------------------------------------------------------------
+# detect_from_ext compound suffix
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "filename,expected_id",
+    [
+        ("cell.bdf.csv", "bdf_csv"),
+        ("cell.csv", "bdf_csv"),
+        ("cell.parquet", "bdf_parquet"),
+        ("cell.nda", "neware_nda"),
+        ("cell.ndax", "neware_nda"),
+    ],
+    ids=["bdf_csv_compound", "csv_includes_bdf", "parquet", "nda", "ndax"],
+)
+def test_detect_from_ext_compound(filename: str, expected_id: str) -> None:
+    """detect_from_ext matches compound and standard extensions to expected plugins."""
+    result = detect_from_ext(filename)
+    assert expected_id in result
+    if filename == "cell.bdf.csv":
+        assert set(result.keys()) == {"bdf_csv"}
+    elif filename == "cell.csv":
+        assert len(result) > 1

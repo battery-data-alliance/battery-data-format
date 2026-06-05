@@ -446,6 +446,88 @@ class ExcelParser(TableParser):
 
 
 # ---------------------------------------------------------------------------
+# ParquetParser
+# ---------------------------------------------------------------------------
+
+
+class ParquetParser(TableParser):
+    """Wraps :func:`polars.scan_parquet` for .parquet / .pq files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["parquet"] = "parquet"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".parquet", ".pq"})
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read parquet file to a LazyFrame.
+
+        Args:
+            path: Local file path or URL to parquet file.
+
+        Returns:
+            A polars LazyFrame containing the parquet data.
+        """
+        return pl.scan_parquet(str(path))
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from parquet file.
+
+        Args:
+            path: Local file path or URL to parquet file.
+
+        Returns:
+            List of column names.
+        """
+        return pl.scan_parquet(str(path)).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# NDAParser
+# ---------------------------------------------------------------------------
+
+
+class NDAParser(TableParser):
+    """Wraps fastnda for Neware .nda / .ndax binary files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["nda"] = "nda"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".nda", ".ndax"})
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read Neware NDA file to a LazyFrame using fastnda.
+
+        Args:
+            path: Local file path to .nda or .ndax file.
+
+        Returns:
+            A polars LazyFrame containing the NDA data.
+
+        Raises:
+            RuntimeError: If fastnda is not installed.
+        """
+        try:
+            import fastnda  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("NDAParser requires fastnda. Install with `pip install fastnda`.") from exc
+        df = fastnda.read(str(path))
+        return df.lazy()
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from Neware NDA file.
+
+        Args:
+            path: Local file path to .nda or .ndax file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
 # MatParser
 # ---------------------------------------------------------------------------
 

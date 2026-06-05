@@ -30,10 +30,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .head_utils import is_url
 from .metadata_parsers import JsonSidecarParser, MetadataParser, MetadataSchema, TxtPreambleParser
-from .normalizers import NORMALIZERS
-from .table_parsers import DelimTxtParser, ExcelParser, MatParser, _ext_from_url
+from .normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS
+from .table_parsers import DelimTxtParser, ExcelParser, MatParser, NDAParser, ParquetParser, _ext_from_url
 
-TableParserUnion = Annotated[DelimTxtParser | ExcelParser | MatParser, Field(discriminator="kind")]
+TableParserUnion = Annotated[
+    DelimTxtParser | ExcelParser | MatParser | ParquetParser | NDAParser,
+    Field(discriminator="kind"),
+]
 MetadataUnion = Annotated[
     MetadataParser | TxtPreambleParser | JsonSidecarParser,
     Field(discriminator="kind"),
@@ -129,6 +132,17 @@ NOVONIX_CSV = Plugin(
     metadata_parser=TxtPreambleParser(magic=("[summary]", "[data]", "novonix uhpc data file", "novonix")),
 )
 
+NEWARE_NDA = Plugin(table_parser=NDAParser(normalizer=NDA_NORMALIZER))
+
+BDF_CSV = Plugin(
+    table_parser=DelimTxtParser(
+        normalizer=BDF_NORMALIZER,
+        unique_exts=frozenset({".bdf.csv"}),
+    )
+)
+
+BDF_PARQUET = Plugin(table_parser=ParquetParser(normalizer=BDF_NORMALIZER))
+
 
 PLUGINS: dict[str, Plugin] = {
     "arbin_csv": ARBIN_CSV,
@@ -141,6 +155,9 @@ PLUGINS: dict[str, Plugin] = {
     "neware_csv": NEWARE_CSV,
     "neware_xlsx": NEWARE_XLSX,
     "novonix_csv": NOVONIX_CSV,
+    "neware_nda": NEWARE_NDA,
+    "bdf_csv": BDF_CSV,
+    "bdf_parquet": BDF_PARQUET,
 }
 
 
@@ -161,7 +178,7 @@ def detect_from_ext(
     if cands is None:
         cands = PLUGINS
     path_str = str(path)
-    ext = _ext_from_url(path_str) if is_url(path_str) else Path(path).suffix.lower()
+    ext = _ext_from_url(path_str) if is_url(path_str) else "".join(Path(path).suffixes).lower()
     matched = {id_: p for id_, p in cands.items() if p.table_parser.matches_ext(ext)}
     if not matched:
         raise ValueError(f"no table parser registered for extension {ext!r}")
