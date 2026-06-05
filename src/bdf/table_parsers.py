@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .fetch import URLFileExtensionError
 from .head_utils import is_url, read_head
 from .normalizers import TableNormalizer
 
@@ -151,6 +152,8 @@ class TableParser(BaseModel):
         """
         try:
             return self.normalizer.score_columns(self.read_column_headings(self._resolve_source(path)))
+        except URLFileExtensionError:
+            raise
         except Exception:
             return 0
 
