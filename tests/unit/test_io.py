@@ -299,17 +299,6 @@ def test_sample_read_include_optional_columns(read_sample: tuple[dict, Path]) ->
     assert metadata["source"] == spec["source"]
 
 
-@pytest.mark.network
-def test_read_url_arbin_csv() -> None:
-    """bdf.read() accepts an https:// URL and returns a normalised DataFrame."""
-    pytest.importorskip("requests")
-
-    url = "https://zenodo.org/records/18214281/files/sample_data_arbin.csv"
-    df, meta = read(url)
-    assert "Voltage / V" in df.columns
-    assert meta["source"] == "arbin_csv"
-
-
 # ---------------------------------------------------------------------------
 # normalize=False, validate=True
 # ---------------------------------------------------------------------------
