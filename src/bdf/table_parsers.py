@@ -285,105 +285,69 @@ class DelimTxtParser(TableParser):
         return self
 
     @staticmethod
-    def _numeric_ratio(line: str, sep: str) -> float:
-        """Fraction of fields in ``line`` (split on ``sep``) that parse as floats.
+    def _detect_structure(sample: str, min_run: int = 15) -> tuple[int, str]:
+        """Jointly detect field separator and preamble skip-row count from a text sample.
+
+        Uses per-line type signatures (int/float/str per field) to find the data run
+        and a header-validity check to eliminate false positives from structured preamble
+        content (e.g. space-delimited metadata lines). Falls back to ``(0, ",")`` when
+        no valid candidate is found.
 
         Args:
-            line: Text line to analyze.
-            sep: Field separator character.
+            sample: Text sample from the file head.
+            min_run: Minimum consecutive data rows with identical type signatures required
+                to accept a candidate separator and skip-row count.
 
         Returns:
-            Fraction of fields that parse as floats (0.0 to 1.0).
+            Tuple of ``(skiprows, separator)`` where ``skiprows`` is the number of preamble
+            lines before the header row.
         """
-        fields = line.split(sep)
-        if not fields:
-            return 0.0
-        hits = 0
-        for f in fields:
+
+        def _classify(field: str) -> str:
+            f = field.strip()
             try:
-                float(f.strip())
-                hits += 1
+                float(f)
+                return "numeric"
             except ValueError:
-                pass
-        return hits / len(fields)
+                return "str"
 
-    @staticmethod
-    def _best_run(lines: list[str], sep: str) -> tuple[int, int, int]:
-        """Return (start_idx, run_len, field_count) of the longest run of consecutive
-        lines that split on ``sep`` into an equal field count >= 2.
+        def _majority_numeric(sig: tuple[str, ...]) -> bool:
+            n = sum(1 for t in sig if t == "numeric")
+            return n > len(sig) - n
 
-        Args:
-            lines: List of text lines to analyze.
-            sep: Field separator character.
+        def _majority_str(sig: tuple[str, ...]) -> bool:
+            n = sum(1 for t in sig if t == "str")
+            return n > len(sig) - n
 
-        Returns:
-            Tuple of (start_index, run_length, field_count) for the longest consistent run.
-        """
-        field_counts = [n if (n := len(line.rstrip(sep).split(sep))) >= 2 else 0 for line in lines]
-        best_start = best_len = best_fc = 0
-        i = 0
-        while i < len(field_counts):
-            if field_counts[i] == 0:
-                i += 1
-                continue
-            fc = field_counts[i]
-            j = i
-            while j < len(field_counts) and field_counts[j] == fc:
-                j += 1
-            run_len = j - i
-            if run_len * fc > best_len * best_fc or (run_len * fc == best_len * best_fc and run_len > best_len):
-                best_start, best_len, best_fc = i, run_len, fc
-            i = j
-        return best_start, best_len, best_fc
-
-    @staticmethod
-    def _detect_separator(sample: str, candidates: tuple[str, ...] = (",", "\t", ";", "|", " ")) -> str:
-        """Detect the field separator: the candidate giving the longest consistent
-        run of equal field counts, breaking ties by data-row numeric ratio.
-
-        Args:
-            sample: Text sample from the file.
-            candidates: Tuple of separator characters to try.
-
-        Returns:
-            The best-matching separator from candidates.
-        """
         lines = sample.splitlines()
-        best_sep = ","
-        best_score = 0
-        best_ratio = -1.0
-        for sep in candidates:
-            start, run_len, fc = DelimTxtParser._best_run(lines, sep)
-            score = run_len * fc
-            if score == 0:
-                continue
-            data_idx = start + 1
-            ratio = DelimTxtParser._numeric_ratio(lines[data_idx], sep) if data_idx < len(lines) else 0.0
-            if score > best_score or (score == best_score and ratio > best_ratio):
-                best_sep, best_score, best_ratio = sep, score, ratio
-        return best_sep
+        candidates: list[tuple[int, str, int]] = []  # (skiprows, sep, run_len)
 
-    @staticmethod
-    def _detect_skiprows(sample: str, min_run: int = 5, sep: str | None = None) -> int:
-        """Return the number of preamble lines to skip (== the header-line index).
+        for sep in (",", "\t", ";", "|", " "):
+            sigs: list[tuple[str, ...] | None] = []
+            for line in lines:
+                fields = line.rstrip(sep).split(sep)
+                sigs.append(tuple(_classify(f) for f in fields) if len(fields) >= 2 else None)
 
-        Locates the start of the longest consistent delimited run on ``sep``
-        (auto-detected when None). Falls back to 0 when no run of at least
-        ``min_run`` lines exists.
+            i = 0
+            while i < len(sigs):
+                sig = sigs[i]
+                if sig is None or not _majority_numeric(sig):
+                    i += 1
+                    continue
+                j = i + 1
+                while j < len(sigs) and sigs[j] == sig:
+                    j += 1
+                run_len = j - i
+                if run_len >= min_run and i >= 1:
+                    header_sig = sigs[i - 1]
+                    if header_sig is not None and len(header_sig) == len(sig) and _majority_str(header_sig):
+                        candidates.append((i - 1, sep, run_len))
+                i = j
 
-        Args:
-            sample: Text sample from the file.
-            min_run: Minimum run length to consider valid.
-            sep: Field separator; auto-detected if None.
-
-        Returns:
-            Number of lines to skip before the header row.
-        """
-        lines = sample.splitlines()
-        if sep is None:
-            sep = DelimTxtParser._detect_separator(sample)
-        start, run_len, _ = DelimTxtParser._best_run(lines, sep)
-        return start if run_len >= min_run else 0
+        if not candidates:
+            return (0, ",")
+        best = max(candidates, key=lambda c: (c[0], c[2]))
+        return (best[0], best[1])
 
     @staticmethod
     def _sniff_decimal(df: pl.DataFrame | pl.LazyFrame) -> bool:
@@ -433,8 +397,8 @@ class DelimTxtParser(TableParser):
             List of preamble lines that will be skipped during parsing.
         """
         sample = self._decode_head(head, self.encoding)
-        sep = self.separator if self.separator is not None else self._detect_separator(sample)
-        skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
+        _skip, _ = self._detect_structure(sample)
+        skip = self.skip_rows if self.skip_rows is not None else _skip
         return sample.splitlines()[:skip]
 
     @staticmethod
@@ -474,8 +438,9 @@ class DelimTxtParser(TableParser):
         """
         raw = read_head(path)
         sample = self._decode_head(raw, self.encoding)
-        sep = self.separator if self.separator is not None else self._detect_separator(sample)
-        skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
+        _skip, _sep = self._detect_structure(sample)
+        sep = self.separator if self.separator is not None else _sep
+        skip = self.skip_rows if self.skip_rows is not None else _skip
         is_utf8 = self.encoding.lower() in ("utf-8", "utf8")
         encoding_arg = "utf8" if is_utf8 else "utf8-lossy"
         lf = pl.scan_csv(
@@ -505,8 +470,9 @@ class DelimTxtParser(TableParser):
         """
         raw = read_head(path)
         sample = self._decode_head(raw, self.encoding)
-        sep = self.separator if self.separator is not None else self._detect_separator(sample)
-        skip = self.skip_rows if self.skip_rows is not None else self._detect_skiprows(sample, sep=sep)
+        _skip, _sep = self._detect_structure(sample)
+        sep = self.separator if self.separator is not None else _sep
+        skip = self.skip_rows if self.skip_rows is not None else _skip
         lines = sample.splitlines()
         if skip >= len(lines):
             return []

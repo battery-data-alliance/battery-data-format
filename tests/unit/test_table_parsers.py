@@ -112,33 +112,56 @@ def test_excel_reader_rejects_no_header() -> None:
 # --- DelimTxtParser sniffing -------------------------------------------------
 
 
-@pytest.mark.parametrize("sep", [",", "\t", ";", "|"], ids=["comma", "tab", "semicolon", "pipe"])
-def test_detect_separator(sep: str) -> None:
-    """_detect_separator identifies the field delimiter from a sample string."""
+def test_detect_structure_no_preamble() -> None:
+    """_detect_structure returns (0, ',') when no preamble lines exist."""
+    header = "a,b,c"
+    data = "\n".join("1,2,3" for _ in range(15))
+    skip, sep = DelimTxtParser._detect_structure(f"{header}\n{data}")
+    assert skip == 0
+    assert sep == ","
+
+
+@pytest.mark.parametrize("preamble", [1, 3, 7])
+def test_detect_structure_preamble_sizes(preamble: int) -> None:
+    """_detect_structure returns correct skiprows for various preamble lengths."""
+    pre = "\n".join(f"preamble line {i}" for i in range(preamble))
+    body = "a,b,c\n" + "\n".join("1,2,3" for _ in range(15))
+    sample = pre + "\n" + body
+    skip, sep = DelimTxtParser._detect_structure(sample)
+    assert skip == preamble
+    assert sep == ","
+
+
+def test_detect_structure_structured_preamble() -> None:
+    """_detect_structure correctly detects data separator when preamble is space-delimited."""
+    pre = "\n".join(f"preamble metadata line {i}" for i in range(16))
+    body = "a,b,c\n" + "\n".join("1,2,3" for _ in range(15))
+    sample = pre + "\n" + body
+    skip, sep = DelimTxtParser._detect_structure(sample)
+    assert skip == 16
+    assert sep == ","
+
+
+@pytest.mark.parametrize("sep", ["\t", ";", "|"])
+def test_detect_structure_separator_variants(sep: str) -> None:
+    """_detect_structure detects tab, semicolon, and pipe separators."""
     header = sep.join(["alpha", "beta", "gamma"])
-    data = "\n".join(sep.join(["1", "2", "3"]) for _ in range(6))
-    assert DelimTxtParser._detect_separator(f"{header}\n{data}") == sep
+    data = "\n".join(sep.join(["1", "2", "3"]) for _ in range(15))
+    skip, detected_sep = DelimTxtParser._detect_structure(f"{header}\n{data}")
+    assert skip == 0
+    assert detected_sep == sep
 
 
-@pytest.mark.parametrize("preamble", [0, 1, 3, 7])
-def test_detect_skiprows_preamble_sizes(preamble: int) -> None:
-    """_detect_skiprows returns the number of non-data header lines."""
-    pre = "\n".join(f"preamble metadata line {i}" for i in range(preamble))
-    body = "a,b,c\n" + "\n".join("1,2,3" for _ in range(6))
-    sample = (pre + "\n" + body) if preamble else body
-    assert DelimTxtParser._detect_skiprows(sample) == preamble
+def test_detect_structure_no_run_returns_default() -> None:
+    """_detect_structure returns (0, ',') when no multi-field runs exist."""
+    sample = "\n".join("a single undelimited column line" for _ in range(20))
+    assert DelimTxtParser._detect_structure(sample) == (0, ",")
 
 
-def test_detect_skiprows_no_run_returns_zero() -> None:
-    """_detect_skiprows returns 0 when no delimited run is found."""
-    sample = "\n".join("a single undelimited column line" for _ in range(10))
-    assert DelimTxtParser._detect_skiprows(sample) == 0
-
-
-def test_detect_skiprows_short_run_below_min_returns_zero() -> None:
-    """_detect_skiprows returns 0 when the delimited run is shorter than min_run."""
-    sample = "pre\npre\na,b,c\n1,2,3\n4,5,6"
-    assert DelimTxtParser._detect_skiprows(sample) == 0
+def test_detect_structure_short_run_returns_default() -> None:
+    """_detect_structure returns (0, ',') when the data run is shorter than min_run."""
+    sample = "pre\na,b,c\n" + "\n".join("1,2,3" for _ in range(4))
+    assert DelimTxtParser._detect_structure(sample) == (0, ",")
 
 
 @pytest.mark.parametrize(
@@ -206,60 +229,9 @@ def test_headers_honour_separator_config(tmp_path: Path) -> None:
 
 def test_preamble_returns_skipped_lines() -> None:
     """preamble() decodes head bytes and returns the skipped preamble lines."""
-    text = "meta line 1\nmeta line 2\n" + "a,b,c\n" + "\n".join("1,2,3" for _ in range(6)) + "\n"
+    text = "meta line 1\nmeta line 2\n" + "a,b,c\n" + "\n".join("1,2,3" for _ in range(15)) + "\n"
     head = text.encode("utf-8")
     assert DelimTxtParser().preamble(head) == ["meta line 1", "meta line 2"]
-
-
-# --- _numeric_ratio ----------------------------------------------------------
-
-
-def test_numeric_ratio_all_numeric() -> None:
-    """_numeric_ratio returns 1.0 when all fields parse as floats."""
-    assert DelimTxtParser._numeric_ratio("1.0,2.0,3.0", ",") == 1.0
-
-
-def test_numeric_ratio_mixed() -> None:
-    """_numeric_ratio returns the fraction of float-parseable fields."""
-    assert DelimTxtParser._numeric_ratio("a,1.0,2.0", ",") == pytest.approx(2 / 3)
-
-
-def test_numeric_ratio_empty_string() -> None:
-    """_numeric_ratio returns 0.0 for an empty line."""
-    assert DelimTxtParser._numeric_ratio("", ",") == 0.0
-
-
-# --- _best_run ---------------------------------------------------------------
-
-
-def test_best_run_uniform_block() -> None:
-    """_best_run returns (0, n, fc) for a uniform block with no preamble."""
-    lines = ["a,b", "1,2", "3,4", "5,6"]
-    start, run_len, fc = DelimTxtParser._best_run(lines, ",")
-    assert (start, run_len, fc) == (0, 4, 2)
-
-
-def test_best_run_skips_preamble() -> None:
-    """_best_run returns the start index after preamble lines."""
-    pre = ["meta", "meta"]
-    body = ["a,b,c"] + ["1,2,3"] * 6
-    start, run_len, fc = DelimTxtParser._best_run(pre + body, ",")
-    assert start == 2
-    assert run_len == 7
-    assert fc == 3
-
-
-def test_best_run_empty_input() -> None:
-    """_best_run returns zeros for empty input."""
-    assert DelimTxtParser._best_run([], ",") == (0, 0, 0)
-
-
-def test_best_run_prefers_longer_run_on_tie() -> None:
-    """_best_run picks the run with more lines when score ties."""
-    # 2 lines of 4 fields == 4 lines of 2 fields; prefer the longer run
-    lines = ["a,b", "1,2", "3,4", "5,6", "x,y,z,w", "1,2,3,4"]
-    _start, run_len, _fc = DelimTxtParser._best_run(lines, ",")
-    assert run_len == 4
 
 
 # --- _decode_head ------------------------------------------------------------
@@ -533,7 +505,8 @@ def test_latin1_degree_slash_normalizes_to_ambient_temperature(tmp_path: Path) -
     from bdf.normalizers import NORMALIZERS
 
     p = tmp_path / "bio_deg.csv"
-    p.write_bytes("time/s\tEwe/V\tI/mA\ttemperature/°C\n0\t3.5\t1.0\t25.0\n1\t3.6\t1.1\t25.1\n".encode("latin-1"))
+    rows = "".join(f"{i}\t{3.5 + i / 10:.1f}\t{1.0 + i / 100:.2f}\t25.0\n" for i in range(15))
+    p.write_bytes(("time/s\tEwe/V\tI/mA\ttemperature/°C\n" + rows).encode("latin-1"))
     assert "°".encode("latin-1") in p.read_bytes()
     parser = DelimTxtParser(encoding="latin-1", normalizer=NORMALIZERS["biologic"])
     df = parser.read(p).collect()
@@ -545,7 +518,8 @@ def test_latin1_oslash_slash_normalizes_to_ambient_temperature(tmp_path: Path) -
     from bdf.normalizers import NORMALIZERS
 
     p = tmp_path / "bio_oslash.csv"
-    p.write_bytes("time/s\tEwe/V\tI/mA\ttemperature/øc\n0\t3.5\t1.0\t25.0\n1\t3.6\t1.1\t25.1\n".encode("latin-1"))
+    rows = "".join(f"{i}\t{3.5 + i / 10:.1f}\t{1.0 + i / 100:.2f}\t25.0\n" for i in range(15))
+    p.write_bytes(("time/s\tEwe/V\tI/mA\ttemperature/øc\n" + rows).encode("latin-1"))
     assert "ø".encode("latin-1") in p.read_bytes()
     parser = DelimTxtParser(encoding="latin-1", normalizer=NORMALIZERS["biologic"])
     df = parser.read(p).collect()
@@ -560,17 +534,12 @@ _CURRENT_CASES = [pytest.param(cid, c, marks=c.marks, id=cid) for cid, c in ALL_
 
 
 @pytest.mark.parametrize("cid,case", _SNIFF_CASES)
-def test_sample_skiprows(cid: str, case: SampleCase, data_dir: Path) -> None:
-    """_detect_skiprows returns the expected preamble line count per vendor sample."""
+def test_sample_detect_structure(cid: str, case: SampleCase, data_dir: Path) -> None:
+    """_detect_structure returns the line count and separator for vendor samples."""
     path = resolve_source(case.source, case.is_url, data_dir)
-    assert DelimTxtParser._detect_skiprows(DelimTxtParser._decode_head(read_head(path))) == case.skip
-
-
-@pytest.mark.parametrize("cid,case", _SNIFF_CASES)
-def test_sample_separator(cid: str, case: SampleCase, data_dir: Path) -> None:
-    """_detect_separator returns the expected delimiter per vendor sample."""
-    path = resolve_source(case.source, case.is_url, data_dir)
-    assert DelimTxtParser._detect_separator(DelimTxtParser._decode_head(read_head(path))) == case.sep
+    skip, sep = DelimTxtParser._detect_structure(DelimTxtParser._decode_head(read_head(path)))
+    assert skip == case.skip
+    assert sep == case.sep
 
 
 @pytest.mark.parametrize("cid,case", _COLUMN_CASES)
@@ -615,15 +584,10 @@ def test_excel_sheet_name_honoured_in_headers(data_dir: Path) -> None:
 
 
 def test_preamble_honours_explicit_separator() -> None:
-    """preamble() uses the reader's explicit separator for skip-row detection.
-
-    Preamble lines contain commas; without explicit sep=";", _detect_separator
-    could pick "," which under-counts skip rows (comma run too short) and returns
-    an empty preamble.  With sep=";" the data run is detected correctly.
-    """
+    """preamble() correctly identifies skip rows when preamble lines contain the data separator."""
     pre = "key: a, b, c\nother: x, y, z\n"
     header = "time;voltage;current"
-    rows = "\n".join(f"{i};{3.5 + i / 10};0.1" for i in range(6))
+    rows = "\n".join(f"{i};{3.5 + i / 10};0.1" for i in range(15))
     head = (pre + header + "\n" + rows + "\n").encode("utf-8")
 
     assert DelimTxtParser(separator=";").preamble(head) == ["key: a, b, c", "other: x, y, z"]
