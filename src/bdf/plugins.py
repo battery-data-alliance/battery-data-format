@@ -23,6 +23,7 @@ cycle.
 from __future__ import annotations
 
 import re
+from difflib import get_close_matches
 from pathlib import Path
 from typing import Annotated
 
@@ -41,6 +42,27 @@ MetadataUnion = Annotated[
     MetadataParser | TxtPreambleParser | JsonSidecarParser,
     Field(discriminator="kind"),
 ]
+
+
+class PluginDict(dict):
+    """Dict subclass for plugins that suggests close matches on KeyError.
+
+    Args:
+        cutoff: Similarity threshold for suggestions (0.0-1.0). Defaults to 0.6.
+    """
+
+    def __init__(self, *args, cutoff=0.6, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cutoff = cutoff
+
+    def __getitem__(self, key):
+        if key in self:
+            return super().__getitem__(key)
+        matches = get_close_matches(str(key), map(str, self.keys()), n=3, cutoff=self.cutoff)
+        if matches:
+            suggestions = ", ".join(f"'{m}'" for m in matches)
+            raise KeyError(f"No plugin named '{key}', did you mean: {suggestions}?")
+        raise KeyError(f"No plugin named '{key}'")
 
 
 class Plugin(BaseModel):
@@ -144,21 +166,23 @@ BDF_CSV = Plugin(
 BDF_PARQUET = Plugin(table_parser=ParquetParser(normalizer=BDF_NORMALIZER))
 
 
-PLUGINS: dict[str, Plugin] = {
-    "arbin_csv": ARBIN_CSV,
-    "basytec_txt": BASYTEC_TXT,
-    "biologic_mpt": BIOLOGIC_MPT,
-    "digatron_csv": DIGATRON_CSV,
-    "landt_csv": LANDT_CSV,
-    "landt_txt": LANDT_TXT,
-    "maccor_csv": MACCOR_CSV,
-    "neware_csv": NEWARE_CSV,
-    "neware_xlsx": NEWARE_XLSX,
-    "novonix_csv": NOVONIX_CSV,
-    "neware_nda": NEWARE_NDA,
-    "bdf_csv": BDF_CSV,
-    "bdf_parquet": BDF_PARQUET,
-}
+PLUGINS: dict[str, Plugin] = PluginDict(
+    {
+        "arbin_csv": ARBIN_CSV,
+        "basytec_txt": BASYTEC_TXT,
+        "biologic_mpt": BIOLOGIC_MPT,
+        "digatron_csv": DIGATRON_CSV,
+        "landt_csv": LANDT_CSV,
+        "landt_txt": LANDT_TXT,
+        "maccor_csv": MACCOR_CSV,
+        "neware_csv": NEWARE_CSV,
+        "neware_xlsx": NEWARE_XLSX,
+        "novonix_csv": NOVONIX_CSV,
+        "neware_nda": NEWARE_NDA,
+        "bdf_csv": BDF_CSV,
+        "bdf_parquet": BDF_PARQUET,
+    }
+)
 
 
 # ---------------------------------------------------------------------------

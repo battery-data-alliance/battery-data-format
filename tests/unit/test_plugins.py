@@ -15,12 +15,90 @@ from bdf.plugins import (
     NEWARE_CSV,
     PLUGINS,
     Plugin,
+    PluginDict,
     detect,
     detect_from_columns,
     detect_from_ext,
     detect_from_metadata,
 )
 from bdf.table_parsers import DelimTxtParser
+
+# ---------------------------------------------------------------------------
+# PluginDict
+# ---------------------------------------------------------------------------
+
+
+def test_plugin_dict_exact_match() -> None:
+    """PluginDict returns values for exact key matches."""
+    d = PluginDict({"apple": 1, "banana": 2})
+    assert d["apple"] == 1
+    assert d["banana"] == 2
+
+
+def test_plugin_dict_missing_key_exact() -> None:
+    """PluginDict raises KeyError for non-existent keys with no close matches."""
+    d = PluginDict({"apple": 1, "banana": 2})
+    with pytest.raises(KeyError, match="No plugin named"):
+        d["xyz"]
+
+
+def test_plugin_dict_close_match() -> None:
+    """PluginDict suggests close matches on KeyError."""
+    d = PluginDict({"apple": 1, "apricot": 2})
+    with pytest.raises(KeyError, match="did you mean:"):
+        d["appl"]
+
+
+def test_plugin_dict_multiple_matches() -> None:
+    """PluginDict shows up to 3 close matches."""
+    d = PluginDict({"apple": 1, "apricot": 2, "application": 3, "apply": 4})
+    with pytest.raises(KeyError) as exc_info:
+        d["appl"]
+    error_msg = str(exc_info.value)
+    assert "did you mean:" in error_msg
+    # Should suggest multiple matches
+    assert error_msg.count("'") >= 3
+
+
+def test_plugin_dict_custom_cutoff() -> None:
+    """PluginDict respects custom similarity cutoff."""
+    d = PluginDict({"apple": 1}, cutoff=0.9)
+    with pytest.raises(KeyError, match="No plugin named"):
+        d["appl"]
+
+
+def test_plugin_dict_plugins_exact() -> None:
+    """PLUGINS dict provides exact access for valid plugin IDs."""
+    assert PLUGINS["arbin_csv"] is not None
+    assert PLUGINS["neware_csv"] is not None
+    assert PLUGINS["biologic_mpt"] is not None
+
+
+def test_plugin_dict_plugins_typo() -> None:
+    """PLUGINS dict suggests close matches for typos."""
+    with pytest.raises(KeyError, match="did you mean:"):
+        PLUGINS["neware_cs"]  # Missing 'v'
+
+
+def test_plugin_dict_plugins_all_registered() -> None:
+    """All built-in plugins are accessible in PLUGINS without suggestions."""
+    expected_ids = {
+        "arbin_csv",
+        "basytec_txt",
+        "biologic_mpt",
+        "digatron_csv",
+        "landt_csv",
+        "landt_txt",
+        "maccor_csv",
+        "neware_csv",
+        "neware_xlsx",
+        "novonix_csv",
+        "neware_nda",
+        "bdf_csv",
+        "bdf_parquet",
+    }
+    for pid in expected_ids:
+        assert PLUGINS[pid] is not None
 
 
 @pytest.mark.parametrize("ds", list(PLUGINS.values()), ids=list(PLUGINS))
