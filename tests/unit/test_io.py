@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from bdf import io
-from bdf.io import _score_by_headers, detect, read
-from bdf.normalizers import MetadataParser, Normalizer, Syn
-from bdf.plugins import Plugin
-from bdf.readers import DelimTxtReader, MatReader
+from bdf.io import read
+from bdf.metadata_parsers import MetadataSchema, TxtPreambleParser
+from bdf.normalizers import Syn, TableNormalizer
+from bdf.plugins import Plugin, detect
+from bdf.table_parsers import DelimTxtParser, MatParser
 
 
 def test_detect_format_known_and_unknown(tmp_path: Path):
-    # Known formats
     assert io._detect_format(tmp_path / "file.bdf.csv") == "csv"
     assert io._detect_format(tmp_path / "file.bdf.parquet") == "parquet"
     assert io._detect_format(tmp_path / "file.bdf.json") == "json"
@@ -72,139 +73,21 @@ def test_save_defaults_to_notation_and_human_opt_in(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# detect() — extension, magic, tie-break, error cases
-# ---------------------------------------------------------------------------
+def test_neware_shared_normalizer_across_two_tables() -> None:
+    """The shared NEWARE normalizer is carried by two distinct table parsers."""
+    from bdf.plugins import NEWARE_CSV, NEWARE_XLSX, PLUGINS
 
-
-def test_detect_by_distinctive_extension(tmp_path: Path) -> None:
-    """detect resolves by distinctive extension (.mpt → biologic_mpt)."""
-    p = tmp_path / "data.mpt"
-    rows = "\n".join("\t".join([f"{i}", "0.1", f"{3.5 + i / 10}"]) for i in range(6))
-    p.write_text(f"col1\tcol2\tcol3\n{rows}\n")
-    assert detect(p).id == "biologic_mpt"
-
-
-def test_detect_by_magic(tmp_path: Path) -> None:
-    """detect falls to magic when the extension (.csv) is shared across candidates."""
-    p = tmp_path / "data.csv"
-    rows = "\n".join(f"{3.5 + i / 10},0.1,{i}" for i in range(6))
-    p.write_text(f"Today's Date,foo\nVoltage,Current,Test Time\n{rows}\n")
-    assert detect(p).id == "maccor_csv"
-
-
-def test_detect_tie_breaks_by_per_candidate_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """On a same-engine, no-magic tie, each candidate sniffs with its OWN reader config.
-
-    Two csv candidates declare different separators; only the one whose configured
-    separator parses the file yields matching headers and wins the score tie-break.
-    """
-    comma_src = Plugin(
-        id="comma",
-        normalizer=Normalizer(voltage_volt=[Syn("v")], current_ampere=[Syn("i")]),
-        reader=DelimTxtReader(separator=","),
-    )
-    semi_src = Plugin(
-        id="semi",
-        normalizer=Normalizer(test_time_second=[Syn("t")], voltage_volt=[Syn("u")]),
-        reader=DelimTxtReader(separator=";"),
-    )
-    monkeypatch.setattr(io, "PLUGINS", {"comma": comma_src, "semi": semi_src})
-    monkeypatch.setattr(io, "EXT_TO_READER", {".csv": "txt"})
-
-    p = tmp_path / "tie.csv"
-    rows = "\n".join("1;2;3" for _ in range(6))
-    p.write_text(f"t;u;x\n{rows}\n")  # only the ';' reader sees headers t,u,x
-    assert detect(p).id == "semi"
-
-
-def test_detect_tie_break_isolates_failing_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """detect returns the surviving candidate when one tied candidate raises during sniff."""
-    good_src = Plugin(
-        id="good",
-        normalizer=Normalizer(voltage_volt=[Syn("v")], current_ampere=[Syn("i")]),
-        reader=DelimTxtReader(separator=","),
-    )
-    bad_src = Plugin(
-        id="bad",
-        normalizer=Normalizer(voltage_volt=[Syn("v")]),
-        reader=DelimTxtReader(separator=","),
-    )
-    monkeypatch.setattr(io, "PLUGINS", {"good": good_src, "bad": bad_src})
-    monkeypatch.setattr(io, "EXT_TO_READER", {".csv": "txt"})
-
-    original_headers = DelimTxtReader.headers
-
-    def patched_headers(
-        self: DelimTxtReader, path: str | Path, head: bytes | None = None, *, var_names: list[str] | None = None
-    ) -> list[str]:
-        if self is bad_src.reader:
-            raise RuntimeError("simulated parse failure")
-        return original_headers(self, path, head, var_names=var_names)  # type: ignore[call-arg]
-
-    monkeypatch.setattr(DelimTxtReader, "headers", patched_headers)
-
-    p = tmp_path / "tie.csv"
-    p.write_text("v,i\n" + "\n".join("1,2" for _ in range(6)) + "\n")
-    assert detect(p).id == "good"
-
-
-def test_detect_all_candidates_fail_raises_valueerror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """detect raises ValueError (not a reader exception) when every tied candidate fails."""
-    src_a = Plugin(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
-    src_b = Plugin(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
-    monkeypatch.setattr(io, "PLUGINS", {"a": src_a, "b": src_b})
-    monkeypatch.setattr(io, "EXT_TO_READER", {".csv": "txt"})
-
-    def always_raise(self: DelimTxtReader, path: object, head: object = None, *, var_names: object = None) -> list[str]:
-        raise RuntimeError("always fails")
-
-    monkeypatch.setattr(DelimTxtReader, "headers", always_raise)
-
-    p = tmp_path / "tie.csv"
-    p.write_text("v,i\n1,2\n3,4\n")
-    with pytest.raises(ValueError, match="no data source matched"):
-        detect(p)
-
-
-def test_score_by_headers_all_zero_raises(tmp_path: Path) -> None:
-    """_score_by_headers raises when every candidate scores zero against file headers."""
-    src_a = Plugin(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
-    src_b = Plugin(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
-
-    p = tmp_path / "no_match.csv"
-    p.write_text("x,y,z\n" + "\n".join("1,2,3" for _ in range(6)) + "\n")
-
-    with pytest.raises(ValueError, match="no data source matched"):
-        _score_by_headers([src_a, src_b], p, None)
-
-
-def test_score_by_headers_equal_score_raises(tmp_path: Path) -> None:
-    """_score_by_headers raises when two candidates score equally above zero."""
-    src_a = Plugin(id="a", normalizer=Normalizer(voltage_volt=[Syn("v")]), reader=DelimTxtReader(separator=","))
-    src_b = Plugin(id="b", normalizer=Normalizer(current_ampere=[Syn("i")]), reader=DelimTxtReader(separator=","))
-
-    p = tmp_path / "ambiguous.csv"
-    p.write_text("v,i\n" + "\n".join("1,2" for _ in range(6)) + "\n")
-
-    with pytest.raises(ValueError, match="ambiguous match"):
-        _score_by_headers([src_a, src_b], p, None)
-
-
-def test_detect_unknown_extension_raises(tmp_path: Path) -> None:
-    """detect raises for an extension with no registered reader."""
-    p = tmp_path / "data.unknownext"
-    p.write_text("a,b,c\n1,2,3\n")
-    with pytest.raises(ValueError, match="no reader registered"):
-        detect(p)
+    assert NEWARE_CSV.table_parser.normalizer is NEWARE_XLSX.table_parser.normalizer
+    assert sum(1 for p in PLUGINS.values() if p.table_parser.normalizer is NEWARE_CSV.table_parser.normalizer) == 2
 
 
 # ---------------------------------------------------------------------------
-# read() — preamble metadata, mat reader, sample-data parametrize
+# read() tests
 # ---------------------------------------------------------------------------
 
 
-def test_preamble_honours_explicit_separator_extracts_start_time(tmp_path: Path) -> None:
-    """preamble() uses the reader's explicit separator so metadata is sliced from the correct lines."""
+def test_txt_preamble_parser_extracts_start_time_through_read(tmp_path: Path) -> None:
+    """read() extracts metadata via TxtPreambleParser.parse(path), regardless of separator."""
     preamble_lines = [
         "vendor: AcmeCycler",
         "Start Time: 2024-01-15 08:30:00",
@@ -217,19 +100,48 @@ def test_preamble_honours_explicit_separator_extracts_start_time(tmp_path: Path)
     p.write_text(content)
 
     src = Plugin(
-        id="test_sep",
-        metadata=MetadataParser(start_time=r"Start Time:\s*(.+)"),
-        normalizer=Normalizer(
-            test_time_second=[Syn("time")], voltage_volt=[Syn("voltage")], current_ampere=[Syn("current")]
+        table_parser=DelimTxtParser(
+            normalizer=TableNormalizer(
+                test_time_second=(Syn("time"),), voltage_volt=(Syn("voltage"),), current_ampere=(Syn("current"),)
+            ),
+            separator=";",
         ),
-        reader=DelimTxtReader(separator=";"),
+        metadata_parser=TxtPreambleParser(regex_patterns=MetadataSchema(start_time=re.compile(r"Start Time:\s*(.+)"))),
     )
     _, metadata = read(p, plugin=src)
     assert metadata.get("start_time") == "2024-01-15 08:30:00"
 
 
+def test_basytec_metadata_latin1_through_read(data_dir: Path) -> None:
+    """read() of a latin-1 Basytec sample extracts start_time via TxtPreambleParser.parse(path)."""
+    p = data_dir / "basytec/sample_data_basytec.txt"
+    if not p.exists():
+        pytest.skip("basytec sample not present")
+    _, metadata = read(p)
+    assert metadata["source"] == "basytec_txt"
+    assert metadata.get("start_time")
+
+
+def test_read_explicit_plugin_source_is_custom(tmp_path: Path) -> None:
+    """read() with a Plugin instance sets metadata['source'] = 'custom'."""
+    p = tmp_path / "data.csv"
+    rows = "\n".join(f"{i},{3.5 + i / 10},0.1" for i in range(6))
+    p.write_text(f"time,voltage,current\n{rows}\n")
+    src = Plugin(
+        table_parser=DelimTxtParser(
+            normalizer=TableNormalizer(
+                test_time_second=(Syn("time"),),
+                voltage_volt=(Syn("voltage"),),
+                current_ampere=(Syn("current"),),
+            ),
+        ),
+    )
+    _, meta = read(p, plugin=src)
+    assert meta["source"] == "custom"
+
+
 def test_mat_datasource_with_syn_normalizer_reads_canonical_frame(tmp_path: Path) -> None:
-    """User-built MatReader Plugin with Syn-based normalizer produces a non-empty BDF frame."""
+    """User-built MatParser Plugin with Syn-based normalizer produces a non-empty BDF frame."""
     pytest.importorskip("scipy")
     import numpy as np
     from scipy.io import savemat
@@ -241,18 +153,18 @@ def test_mat_datasource_with_syn_normalizer_reads_canonical_frame(tmp_path: Path
     )
 
     src = Plugin(
-        id="test_mat",
-        normalizer=Normalizer(
-            test_time_second=[Syn("time")], voltage_volt=[Syn("voltage")], current_ampere=[Syn("current")]
+        table_parser=MatParser(
+            normalizer=TableNormalizer(
+                test_time_second=(Syn("time"),), voltage_volt=(Syn("voltage"),), current_ampere=(Syn("current"),)
+            ),
         ),
-        reader=MatReader(),
     )
     df, meta = read(mat_path, plugin=src)
     assert len(df) == 3
     assert "Test Time / s" in df.columns
     assert "Voltage / V" in df.columns
     assert "Current / A" in df.columns
-    assert meta["source"] == "test_mat"
+    assert meta["source"] == "custom"
 
 
 READ_SAMPLES = [
@@ -373,9 +285,10 @@ def read_sample(request: pytest.FixtureRequest, data_dir: Path) -> tuple[dict, P
 
 
 def test_sample_detect(read_sample: tuple[dict, Path]) -> None:
-    """detect resolves each vendor×format sample to the expected Plugin id."""
+    """detect resolves each vendor×format sample to the expected plugin id."""
     spec, path = read_sample
-    assert detect(path).id == spec["source"]
+    plugin_id, _plugin = detect(path)
+    assert plugin_id == spec["source"]
 
 
 def test_sample_read_include_optional_columns(read_sample: tuple[dict, Path]) -> None:
@@ -384,3 +297,140 @@ def test_sample_read_include_optional_columns(read_sample: tuple[dict, Path]) ->
     df, metadata = read(path, include_optional=True)
     assert set(df.columns) == spec["cols"]
     assert metadata["source"] == spec["source"]
+
+
+@pytest.mark.network
+def test_read_url_arbin_csv() -> None:
+    """bdf.read() accepts an https:// URL and returns a normalised DataFrame."""
+    pytest.importorskip("requests")
+
+    url = "https://zenodo.org/records/18214281/files/sample_data_arbin.csv"
+    df, meta = read(url)
+    assert "Voltage / V" in df.columns
+    assert meta["source"] == "arbin_csv"
+
+
+# ---------------------------------------------------------------------------
+# normalize=False, validate=True
+# ---------------------------------------------------------------------------
+
+
+def _make_csv_plugin(tmp_path: Path) -> tuple[Path, Plugin]:
+    p = tmp_path / "data.csv"
+    rows = "\n".join(f"{i},{3.5 + i / 10},0.1" for i in range(6))
+    p.write_text(f"time,voltage,current\n{rows}\n")
+    plugin = Plugin(
+        table_parser=DelimTxtParser(
+            normalizer=TableNormalizer(
+                test_time_second=(Syn("time"),),
+                voltage_volt=(Syn("voltage"),),
+                current_ampere=(Syn("current"),),
+            ),
+        ),
+    )
+    return p, plugin
+
+
+def test_read_normalize_false_returns_raw_columns(tmp_path: Path) -> None:
+    """read(normalize=False) returns the raw frame with source column names."""
+    p, plugin = _make_csv_plugin(tmp_path)
+    df, _ = read(p, plugin=plugin, normalize=False)
+    assert "time" in df.columns
+    assert "Test Time / s" not in df.columns
+
+
+def test_column_ontology_validate_warns_on_extra_columns(tmp_path: Path) -> None:
+    """COLUMN_ONTOLOGY.validate warns on extra non-BDF columns."""
+    import polars as pl
+
+    from bdf.spec import COLUMN_ONTOLOGY
+
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0],
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+            "vendor_extra_col": ["a", "b"],
+        }
+    )
+    with pytest.warns(UserWarning, match="Non-BDF columns"):
+        COLUMN_ONTOLOGY.validate(df)
+
+
+# ---------------------------------------------------------------------------
+# plugin= argument variants
+# ---------------------------------------------------------------------------
+
+
+def test_read_plugin_string_valid_sets_source(tmp_path: Path) -> None:
+    """read(plugin='arbin_csv') resolves the named plugin and sets metadata['source']."""
+    p, _ = _make_csv_plugin(tmp_path)
+    _, meta = read(p, plugin="arbin_csv", normalize=False)
+    assert meta["source"] == "arbin_csv"
+
+
+def test_read_plugin_string_unknown_raises(tmp_path: Path) -> None:
+    """read(plugin='no_such_plugin') raises ValueError listing available plugins."""
+    p, _ = _make_csv_plugin(tmp_path)
+    with pytest.raises(ValueError, match="unknown plugin"):
+        read(p, plugin="no_such_plugin")
+
+
+def test_read_plugin_invalid_type_raises(tmp_path: Path) -> None:
+    """read(plugin=42) raises ValueError for unsupported plugin argument type."""
+    p, _ = _make_csv_plugin(tmp_path)
+    with pytest.raises(ValueError, match="invalid plugin argument"):
+        read(p, plugin=42)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# include_optional, extra_columns, lazy
+# ---------------------------------------------------------------------------
+
+
+def test_read_include_optional_false_omits_optional_columns(tmp_path: Path) -> None:
+    """read(include_optional=False) returns only required BDF columns."""
+    p = tmp_path / "data.csv"
+    rows = "\n".join(f"{i},{3.5 + i / 10},0.1,{i}" for i in range(6))
+    p.write_text(f"time,voltage,current,cycle\n{rows}\n")
+    plugin = Plugin(
+        table_parser=DelimTxtParser(
+            normalizer=TableNormalizer(
+                test_time_second=(Syn("time"),),
+                voltage_volt=(Syn("voltage"),),
+                current_ampere=(Syn("current"),),
+                cycle_count=(Syn("cycle"),),
+            ),
+        ),
+    )
+    df, _ = read(p, plugin=plugin, include_optional=False)
+    cols = set(df.collect_schema().names())
+    assert {"Test Time / s", "Voltage / V", "Current / A"} <= cols
+    assert "Cycle Count / 1" not in cols
+
+
+def test_read_extra_columns_passthrough(tmp_path: Path) -> None:
+    """read(extra_columns={'foo': 'my_foo'}) includes the renamed passthrough column."""
+    p = tmp_path / "data.csv"
+    rows = "\n".join(f"{i},{3.5 + i / 10},0.1,extra{i}" for i in range(6))
+    p.write_text(f"time,voltage,current,foo\n{rows}\n")
+    plugin = Plugin(
+        table_parser=DelimTxtParser(
+            normalizer=TableNormalizer(
+                test_time_second=(Syn("time"),),
+                voltage_volt=(Syn("voltage"),),
+                current_ampere=(Syn("current"),),
+            ),
+        ),
+    )
+    df, _ = read(p, plugin=plugin, extra_columns={"foo": "my_foo"})
+    assert "my_foo" in df.collect_schema().names()
+
+
+def test_read_lazy_false_returns_dataframe(tmp_path: Path) -> None:
+    """read(lazy=False) returns a collected pl.DataFrame, not a LazyFrame."""
+    import polars as pl
+
+    p, plugin = _make_csv_plugin(tmp_path)
+    result, _ = read(p, plugin=plugin, lazy=False)
+    assert isinstance(result, pl.DataFrame)

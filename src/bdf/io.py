@@ -9,136 +9,51 @@ from pathlib import Path
 import pandas as pd
 import polars as pl
 
-from bdf.normalizers import DateTimeSyn, Normalizer, ResolvedColumn, normalize
-from bdf.plugins import EXT_TO_READER, PLUGINS, Plugin
-from bdf.readers import DelimTxtReader
-
-
-def _normalizer_var_names(normalizer: Normalizer) -> list[str]:
-    """Source-header names referenced by a normalizer's mapped fields (for MAT)."""
-    names: list[str] = []
-    for _, spec in normalizer:
-        if isinstance(spec, ResolvedColumn):
-            names.append(spec.source_header)
-        elif isinstance(spec, list):
-            for s in spec:
-                names.append(s.syn.exemplar if isinstance(s, DateTimeSyn) else s.exemplar)
-    return names
-
-
-def _score_by_headers(cands: list[Plugin], path: Path, head: bytes | None) -> Plugin:
-    """Return the highest-scoring candidate by header match.
-
-    Per-candidate sniff failures score as -1 and lose to any positive score.
-    Raises :exc:`ValueError` if no candidate scores above zero.
-    """
-
-    def safe_score(ds: Plugin) -> int:
-        try:
-            return ds.score(ds.reader.headers(path, head, var_names=_normalizer_var_names(ds.normalizer)))
-        except Exception:
-            return -1
-
-    scored = [(d, safe_score(d)) for d in cands]
-    best_score = max(s for _, s in scored)
-    if best_score <= 0:
-        raise ValueError(f"no data source matched {path}")
-    winners = [d for d, s in scored if s == best_score]
-    if len(winners) > 1:
-        ids = ", ".join(d.id for d in winners)
-        raise ValueError(f"ambiguous match for {path}: {ids} all scored {best_score}")
-    return winners[0]
-
-
-def detect(path: str | Path, head: bytes | None = None) -> Plugin:
-    """Resolve the :class:`Plugin` for ``path`` in a single pass.
-
-    Stages: ext → reader name; filter candidates to that reader; narrow to
-    distinctive-ext matches if any; magic match on head bytes; on a remaining
-    tie, score each candidate against headers sniffed with its own reader config.
-    """
-    path = Path(path)
-    if head is None:
-        head = DelimTxtReader.read_head(path)
-
-    # ext → reader name
-    ext = path.suffix.lower()
-    if ext not in EXT_TO_READER:
-        raise ValueError(f"no reader registered for extension {ext!r}")
-    reader_name = EXT_TO_READER[ext]
-
-    # candidates using that reader
-    cands = [d for d in PLUGINS.values() if d.reader.name == reader_name]
-
-    # narrow to distinctive-ext matches if any
-    distinctive = [d for d in cands if d.match_ext(ext)]
-    cands = distinctive or cands
-
-    # narrow to magic matches if any
-    hits = [d for d in cands if d.match_magic(head)]
-    cands = hits or cands
-
-    if not cands:
-        raise ValueError(f"no data source matched {path}")
-    if len(cands) == 1:
-        return cands[0]
-
-    return _score_by_headers(cands, path, head)
+from bdf.plugins import PLUGINS, Plugin, detect
 
 
 def read(
     path: str | Path,
     *,
     plugin: Plugin | str | None = None,
-    normalizer: Normalizer | dict[str, str] | None = None,
+    normalize: bool = True,
+    validate: bool = False,
     include_optional: bool = True,
     extra_columns: dict[str, str] | None = None,
-    lazy: bool = False,
+    lazy: bool = True,
 ) -> tuple[pl.DataFrame | pl.LazyFrame, dict]:
-    """Read ``path`` to BDF-canonical form, returning ``(df, metadata)``.
+    """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
-    Resolution: an explicit ``plugin`` bypasses :func:`detect`; otherwise the
-    source is detected from one head read. An explicit ``normalizer`` overrides the
-    resolved source's normalizer for the normalize step.
+    An explicit ``plugin`` bypasses auto-detection. When ``normalize=False``, the raw
+    parser frame is returned with source column names unchanged. When ``validate=True``,
+    column names are checked against the BDF ontology after reading.
     """
-    path = Path(path)
-    head = DelimTxtReader.read_head(path)
+    plugin_id: str | None = None
+    resolved_plugin: Plugin
     if plugin is None:
-        resolved_plugin = detect(path, head)
+        plugin_id, resolved_plugin = detect(path)
     elif isinstance(plugin, str):
         if plugin not in PLUGINS:
             available = ", ".join(sorted(PLUGINS))
             raise ValueError(f"unknown plugin {plugin!r}. Available: {available}")
+        plugin_id = plugin
         resolved_plugin = PLUGINS[plugin]
     elif isinstance(plugin, Plugin):
         resolved_plugin = plugin
     else:
         raise ValueError(f"invalid plugin argument: {plugin!r}")
 
-    eff_normalizer: Normalizer
-    if isinstance(normalizer, dict):
-        eff_normalizer = Normalizer.from_column_map(normalizer)
-    elif isinstance(normalizer, Normalizer):
-        eff_normalizer = normalizer
-    else:
-        eff_normalizer = resolved_plugin.normalizer
-
-    reader = resolved_plugin.reader
-    lf = reader.read(path, head, var_names=_normalizer_var_names(eff_normalizer))
-
-    bdf_lf = normalize(
-        lf,
+    bdf_lf = resolved_plugin.table_parser.read(
+        path,
+        normalize=normalize,
+        validate=validate,
         include_optional=include_optional,
-        normalizer=eff_normalizer,
         extra_columns=extra_columns,
     )
 
-    metadata: dict = {"source": resolved_plugin.id}
-    if reader.is_text:
-        preamble = reader.preamble(head)
-        if preamble:
-            for key, val in resolved_plugin.metadata.parse(preamble).items():
-                metadata[key] = val
+    metadata: dict = {"source": plugin_id or "custom"}
+    for key, val in resolved_plugin.metadata_parser.parse(path).items():
+        metadata[key] = val
 
     if lazy:
         return bdf_lf, metadata
