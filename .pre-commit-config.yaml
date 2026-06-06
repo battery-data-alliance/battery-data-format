@@ -32,7 +32,6 @@ repos:
     rev: 0.9.1
     hooks:
       - id: nbstripout
-        args: ['--extra-keys="metadata.kernelspec"']
   - repo: https://github.com/astral-sh/uv-pre-commit # for checking and updating uv.lock files
     # uv version.
     rev: 0.11.8
