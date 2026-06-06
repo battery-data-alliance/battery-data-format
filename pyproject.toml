@@ -61,11 +61,10 @@ numpy2 = ["numpy>=2.0,<3.0"]
 dev = [
   "pytest",
   "pytest-cov",
-  "ruff",
-  "mypy",
   "nbclient>=0.9",
   "nbformat>=5.9",
   "ipykernel>=6.0",
+  "pre-commit>=4.6.0",
 ]
 docs = [
   "sphinx>=7.0",
