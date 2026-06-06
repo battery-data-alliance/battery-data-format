@@ -1,6 +1,7 @@
 # src/bdf/data_sources/base.py
 from __future__ import annotations
 
+import abc
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -32,8 +33,8 @@ class _CyclerRegistry:
 
 REGISTRY = _CyclerRegistry()
 
-# Metaclass must inherit from 'type'
-class _AutoRegister(type):
+# Metaclass combines ABCMeta (for abstract method enforcement) with auto-registration.
+class _AutoRegister(abc.ABCMeta):
     def __init__(cls, name, bases, ns):
         super().__init__(name, bases, ns)
         # avoid registering the abstract base itself or private helpers
@@ -64,8 +65,15 @@ class CyclerPlugin(metaclass=_AutoRegister):
     assume_naive_tz: str | None = "UTC"
 
     # ----- required API -----
-    def sniff(self, path: Path, head: bytes) -> SniffResult: ...
-    def parse(self, path: Path) -> pd.DataFrame: ...
+    @abc.abstractmethod
+    def sniff(self, path: Path, head: bytes) -> SniffResult:
+        """Inspect file header/path and return a SniffResult with match confidence."""
+        ...
+
+    @abc.abstractmethod
+    def parse(self, path: Path) -> pd.DataFrame:
+        """Parse the file at *path* and return a raw DataFrame."""
+        ...
 
     # ----- optional hooks -----
     def augment(self, df_raw: pd.DataFrame) -> pd.DataFrame:
