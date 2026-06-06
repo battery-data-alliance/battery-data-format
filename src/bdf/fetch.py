@@ -20,6 +20,7 @@ from platformdirs import user_cache_dir
 # Utilities
 # -------------------------------
 
+
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -27,18 +28,45 @@ def sha256_file(path: Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+
 def _cache_dir(subdir: str = "bdf") -> Path:
     p = Path(user_cache_dir(subdir))
     p.mkdir(parents=True, exist_ok=True)
     return p
 
+
+class URLFileExtensionError(ValueError):
+    """Raised when a file extension cannot be determined from a URL."""
+
+
 def _safe_cache_name(url: str, filename: Optional[str]) -> str:
+    """Ensure uniqueness across different URLs that share the same basename.
+
+    Walks URL path segments right-to-left to find a meaningful filename with
+    extension (handles URLs like `.../file.csv/content`). Raises
+    :exc:`URLFileExtensionError` if no extension is found and ``filename`` is
+    not provided.
     """
-    Ensure uniqueness across different URLs that share the same basename.
-    """
-    base = (filename or Path(url.split("?", 1)[0]).name) or "file"
+    if filename:
+        base = filename
+    else:
+        from urllib.parse import urlparse
+
+        url_path = urlparse(url).path
+        segments = [s for s in url_path.split("/") if s]
+        base = None
+        for segment in reversed(segments):
+            if Path(segment).suffix:
+                base = segment
+                break
+        if base is None:
+            raise URLFileExtensionError(
+                f"Cannot determine file type from URL {url!r}. "
+                "Provide the filename= parameter to fetch_url, or specify a plugin explicitly."
+            )
     h = hashlib.sha256(url.encode("utf-8")).hexdigest()[:12]
     return f"{h}__{base}"
+
 
 def _download(url: str, dest: Path, timeout: int = 120) -> None:
     with requests.get(url, stream=True, timeout=timeout) as r:
@@ -49,6 +77,7 @@ def _download(url: str, dest: Path, timeout: int = 120) -> None:
                     tmp.write(chunk)
             tmp_path = Path(tmp.name)
     tmp_path.replace(dest)
+
 
 def fetch_url(
     url: str,
@@ -109,9 +138,11 @@ def fetch_url(
         raise last_err
     raise RuntimeError("Download failed for unknown reasons.")
 
+
 # -------------------------------
 # Registry loading (accepts either {"datasets":[...]} or {"entries":[...]})
 # -------------------------------
+
 
 def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path:
     p = Path.cwd().resolve()
@@ -120,6 +151,7 @@ def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path
             return p
         p = p.parent
     return Path.cwd().resolve()
+
 
 def load_registry(path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
     """
@@ -156,9 +188,11 @@ def load_registry(path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
 
     raise FileNotFoundError("datasets.json not found. Provide path or set BDF_DATASETS.")
 
+
 # -------------------------------
 # Model & helpers
 # -------------------------------
+
 
 @dataclass
 class DatasetEntry:
@@ -180,11 +214,14 @@ class DatasetEntry:
     alt_urls: List[str] = field(default_factory=list)
     notes: Optional[str] = None
 
+
 def _ci_eq(a: Optional[str], b: Optional[str]) -> bool:
     return (a or "").lower() == (b or "").lower()
 
+
 def _set_ci(elems: Iterable[str]) -> set:
     return {str(x).lower() for x in elems}
+
 
 def _iter_dataset_dicts(reg: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
     """Yield each dataset dict from the registry."""
@@ -200,6 +237,7 @@ def _iter_dataset_dicts(reg: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
         for d in reg:
             if isinstance(d, dict):
                 yield d
+
 
 def _coerce_entry(d: Dict[str, Any]) -> DatasetEntry:
     return DatasetEntry(
@@ -219,6 +257,7 @@ def _coerce_entry(d: Dict[str, Any]) -> DatasetEntry:
         notes=d.get("notes"),
     )
 
+
 def list_registry_entries(reg: Dict[str, Any]) -> List[Tuple[str, str, str, str, str]]:
     """
     Flatten into rows:
@@ -233,6 +272,7 @@ def list_registry_entries(reg: Dict[str, Any]) -> List[Tuple[str, str, str, str,
         nm = str(d.get("name") or "")
         rows.append((eid, vendor, fmt, tags, nm))
     return rows
+
 
 def find_datasets(
     reg: Dict[str, Any],
@@ -266,6 +306,7 @@ def find_datasets(
         out.append(_coerce_entry(d))
     return out
 
+
 def get_entry(
     reg: Dict[str, Any],
     *args: str,
@@ -296,13 +337,16 @@ def get_entry(
     if not matches:
         raise ValueError("No dataset matched filters.")
     if len(matches) > 1:
-        raise ValueError(f"Multiple datasets matched; please refine filters. "
-                         f"First few ids: {[m.id for m in matches[:5]]}")
+        raise ValueError(
+            f"Multiple datasets matched; please refine filters. First few ids: {[m.id for m in matches[:5]]}"
+        )
     return matches[0]
+
 
 # -------------------------------
 # High-level loader (NEW API)
 # -------------------------------
+
 
 def load_bdf_from_entry(entry: DatasetEntry):
     """
@@ -312,6 +356,7 @@ def load_bdf_from_entry(entry: DatasetEntry):
     Returns (local_path, df_bdf).
     """
     from . import read as read_bdf  # new API
+
     path = fetch_url(
         entry.url,
         sha256=entry.sha256,
@@ -321,6 +366,7 @@ def load_bdf_from_entry(entry: DatasetEntry):
 
     if entry.is_bdf:
         from .io import load as load_bdf  # lazy import to avoid cycles
+
         df = load_bdf(path)
     else:
         df = read_bdf(path, plugin=entry.plugin, validate=True)

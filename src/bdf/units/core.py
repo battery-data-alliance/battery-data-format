@@ -9,11 +9,12 @@ import pandas as pd
 from pint import UnitRegistry
 
 # ---------- Spec (single source of truth) ----------
-from bdf.normalize import spec  # requires only spec.py (no circular import)
+from bdf import spec
 
 # ---------- Pint registry (single place) ----------
 try:
     import pint  # type: ignore
+
     _OK = True
 except Exception:
     pint = None  # type: ignore
@@ -34,30 +35,57 @@ else:
 
 # ---------- Header parser (very small, Pint-friendly) ----------
 _UNIT_ALIAS = {
-    "v": "V", "volt": "V", "volts": "V",
-    "a": "A", "amp": "A", "amps": "A", "ampere": "A", "amperes": "A",
-    "w": "W", "watt": "W", "watts": "W",
-    "s": "s", "sec": "s", "second": "s", "seconds": "s",
-    "h": "h", "hr": "h", "hrs": "h", "hour": "h", "hours": "h",
-    "degc": "degC", "°c": "degC", "celsius": "degC", "degree_celsius": "degC",
-    "wh": "W*h", "watt_hour": "W*h",
-    "ah": "A*h", "ampere_hour": "A*h",
-    "pa": "Pa", "pascal": "Pa",
+    "v": "V",
+    "volt": "V",
+    "volts": "V",
+    "a": "A",
+    "amp": "A",
+    "amps": "A",
+    "ampere": "A",
+    "amperes": "A",
+    "w": "W",
+    "watt": "W",
+    "watts": "W",
+    "s": "s",
+    "sec": "s",
+    "second": "s",
+    "seconds": "s",
+    "h": "h",
+    "hr": "h",
+    "hrs": "h",
+    "hour": "h",
+    "hours": "h",
+    "degc": "degC",
+    "°c": "degC",
+    "celsius": "degC",
+    "degree_celsius": "degC",
+    "wh": "W*h",
+    "watt_hour": "W*h",
+    "ah": "A*h",
+    "ampere_hour": "A*h",
+    "pa": "Pa",
+    "pascal": "Pa",
     "ohm": "ohm",
-    "kg": "kg", "kilogram": "kg", "kilograms": "kg",
-    "g": "g", "gram": "g", "grams": "g",
+    "kg": "kg",
+    "kilogram": "kg",
+    "kilograms": "kg",
+    "g": "g",
+    "gram": "g",
+    "grams": "g",
     "per": "/",
 }
 
 
 _SPLIT = re.compile(r"[ _\-]+")
-_HASH  = re.compile(r"^(?P<name>.+?)#(?P<unit>.+)$")
+_HASH = re.compile(r"^(?P<name>.+?)#(?P<unit>.+)$")
 _PAREN = re.compile(r"^(?P<name>.+?)\s*[\(\[]\s*(?P<unit>.+?)\s*[\)\]]\s*$")
 _LABEL_SPLIT = re.compile(r"\s*/\s*")
 _SLUG = re.compile(r"[^a-z0-9]+")
 
+
 def _slug(s: str) -> str:
     return _SLUG.sub("-", s.lower()).strip("-")
+
 
 def _norm_tokens(tokens: List[str]) -> Optional[str]:
     if not tokens:
@@ -73,6 +101,7 @@ def _norm_tokens(tokens: List[str]) -> Optional[str]:
             expr.append(tok)
     s = "".join(expr)
     return s if re.search(r"[A-Za-z]", s) else None
+
 
 def parse_from_header(header: str) -> Tuple[str, Optional[str], str]:
     """
@@ -111,6 +140,7 @@ def parse_from_header(header: str) -> Tuple[str, Optional[str], str]:
 
     return h, None, "none"
 
+
 # ---------- Unit resolution (spec -> label -> IRI -> header -> heuristic) ----------
 def _to_pint(unit_str: str, as_string: bool):
     if as_string or not has_pint:
@@ -119,17 +149,21 @@ def _to_pint(unit_str: str, as_string: bool):
         return ureg.dimensionless
     return ureg.Unit(unit_str)
 
+
 def _label_unit(label: str) -> Optional[str]:
     if " / " in label:
         return _LABEL_SPLIT.split(label, maxsplit=1)[1]
     return None
 
+
 def _heuristic_from_mr_suffix(mr_name: str) -> Optional[str]:
     """Try suffixes of MR names via Pint (e.g., ampere_hour -> A*h)."""
     alias = {
-        "celsius": "degC", "degree_celsius": "degC",
+        "celsius": "degC",
+        "degree_celsius": "degC",
         "pascal": "Pa",
-        "ampere_hour": "A*h", "watt_hour": "W*h",
+        "ampere_hour": "A*h",
+        "watt_hour": "W*h",
     }
     parts = mr_name.lower().split("_")
     for span in (4, 3, 2, 1):
@@ -149,6 +183,7 @@ def _heuristic_from_mr_suffix(mr_name: str) -> Optional[str]:
             continue
     return None
 
+
 def resolve_pint_unit(
     *,
     mr_name: Optional[str] = None,
@@ -158,12 +193,12 @@ def resolve_pint_unit(
 ):
     """Explicit resolver: prefer spec; fall back to label/IRI; then MR suffix heuristic."""
     # 1) spec by MR name
-    if mr_name and mr_name in spec.COLUMNS:
-        return _to_pint(spec.COLUMNS[mr_name]["unit"], as_string)
+    if mr_name and hasattr(spec.COLUMN_ONTOLOGY, mr_name):
+        return _to_pint(getattr(spec.COLUMN_ONTOLOGY, mr_name).unit, as_string)
 
     # 2) IRI (from spec)
     if iri:
-        u = next((s["unit"] for s in spec.COLUMNS.values() if s.get("iri") == iri), None)
+        u = next((s.unit for _, s in spec.COLUMN_ONTOLOGY if s.iri == iri), None)
         if u:
             return _to_pint(u, as_string)
 
@@ -181,6 +216,7 @@ def resolve_pint_unit(
 
     raise KeyError("Could not resolve unit with the provided parameters.")
 
+
 def resolve_unit(value: Any, *, as_string: bool = False):
     """
     One-shot resolver. Pass a Series, IRI, canonical label, MR name, or vendor header.
@@ -195,6 +231,7 @@ def resolve_unit(value: Any, *, as_string: bool = False):
     # Optional pandas support without hard dependency
     try:
         import pandas as pd  # type: ignore
+
         _HAS_PD = True
     except Exception:
         _HAS_PD = False
@@ -217,17 +254,17 @@ def resolve_unit(value: Any, *, as_string: bool = False):
     s = value.strip()
 
     # MR name (spec)
-    if s in spec.COLUMNS:
-        return _to_pint(spec.COLUMNS[s]["unit"], as_string)
+    if hasattr(spec.COLUMN_ONTOLOGY, s):
+        return _to_pint(getattr(spec.COLUMN_ONTOLOGY, s).unit, as_string)
 
     # Canonical label (exact)
-    for sc in spec.COLUMNS.values():
-        if s == sc["label_template"].format(unit=sc["unit"]):
-            return _to_pint(sc["unit"], as_string)
+    for _, sc in spec.COLUMN_ONTOLOGY:
+        if s == sc.label:
+            return _to_pint(sc.unit, as_string)
 
     # IRI (from spec)
     if s.startswith(("http://", "https://", "urn:")):
-        u = next((sc["unit"] for sc in spec.COLUMNS.values() if sc.get("iri") == s), None)
+        u = next((sc.unit for _, sc in spec.COLUMN_ONTOLOGY if sc.iri == s), None)
         if u:
             return _to_pint(u, as_string)
 
@@ -243,10 +280,10 @@ def resolve_unit(value: Any, *, as_string: bool = False):
 
     # Base-name synonym -> spec quantity -> unit
     base_slug = re.sub(r"[^a-z0-9]+", "-", base.lower()).strip("-")
-    syn_idx: Mapping[str, str] = spec.base_synonym_index()  # slug -> MR name
+    syn_idx: Mapping[str, str] = spec.COLUMN_ONTOLOGY.base_synonym_index()  # slug -> MR name
     q = syn_idx.get(base_slug)
     if q:
-        return _to_pint(spec.COLUMNS[q]["unit"], as_string)
+        return _to_pint(getattr(spec.COLUMN_ONTOLOGY, q).unit, as_string)
 
     # Last-chance: 'X / UNIT'
     u2 = _label_unit(s)
@@ -255,9 +292,11 @@ def resolve_unit(value: Any, *, as_string: bool = False):
 
     raise KeyError(f"Could not resolve unit for: {value!r}")
 
+
 # ---------- Conversions (Pint-backed) ----------
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
+
 
 def convert(x, to_unit: str, from_unit: str | None = None, *, strict: bool = False):
     """
@@ -278,15 +317,14 @@ def convert(x, to_unit: str, from_unit: str | None = None, *, strict: bool = Fal
             raise
         # best effort: coerce via pandas if available
         arr = (
-            pd.to_numeric(x, errors="coerce").to_numpy(dtype="float64")
-            if is_series
-            else np.asarray(x, dtype="float64")
+            pd.to_numeric(x, errors="coerce").to_numpy(dtype="float64") if is_series else np.asarray(x, dtype="float64")
         )
 
     # Infer from_unit if needed (use your existing resolver)
     if from_unit is None:
         try:
             from bdf.units.core import resolve_unit  # or correct import path
+
             # Prefer the column label if x is a Series; else we can't infer
             if is_series and name:
                 from_unit = resolve_unit(str(name), as_string=True)
@@ -311,18 +349,23 @@ def convert(x, to_unit: str, from_unit: str | None = None, *, strict: bool = Fal
         return pd.Series(y, index=index, name=name)
     return y
 
+
 def convert_series(series, from_unit: str, to_unit: str):
     """Shorthand for converting a pandas Series (no inference)."""
     if not has_pint:
         return getattr(series, "values", series)
     return convert(series, to_unit, from_unit=from_unit)
 
+
 def convert_dataframe_for_plot(
     df,
     *,
-    x: Optional[str] = None, xunit: Optional[str] = None,
-    y: Optional[str] = None, yunit: Optional[str] = None,
-    yy: Optional[str] = None, yyunit: Optional[str] = None,
+    x: Optional[str] = None,
+    xunit: Optional[str] = None,
+    y: Optional[str] = None,
+    yunit: Optional[str] = None,
+    yy: Optional[str] = None,
+    yyunit: Optional[str] = None,
 ):
     """
     Tiny helper for plotting: returns dict of Series (converted if a target unit is given).

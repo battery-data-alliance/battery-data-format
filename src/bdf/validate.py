@@ -6,12 +6,16 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
-from .normalize import OPTIONAL, REQUIRED, spec
+from . import spec
 from .ontology_labels import load_alias_index
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .units import parse_from_header
 
+REQUIRED = list(spec.COLUMN_ONTOLOGY.required_labels())
+OPTIONAL = list(spec.COLUMN_ONTOLOGY.optional_labels())
+
 __all__ = ["BDFValidationError", "validate_df"]
+
 
 class BDFValidationError(Exception):
     """Raised when a DataFrame fails BDF validation."""
@@ -34,20 +38,19 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
     notation_to_canonical: dict[str, str] = {}
     deprecated_pref_to_canonical: dict[str, str] = {}
     base_preferred: dict[str, str] = {}
-    for q, s in spec.COLUMNS.items():
-        if bool(s.get("deprecated")):
+    for q, s in spec.COLUMN_ONTOLOGY:
+        if s.deprecated:
             continue
-        base = spec._label_for(q).split(" / ", 1)[0].strip().lower()
+        base = s.label.split(" / ", 1)[0].strip().lower()
         base_preferred.setdefault(base, q)
-    for q in spec.COLUMNS:
-        s = spec.COLUMNS[q]
-        pref = spec._label_for(q)
+    for q, s in spec.COLUMN_ONTOLOGY:
+        pref = s.label
         target_q = q
-        if bool(s.get("deprecated")):
+        if s.deprecated:
             base = pref.split(" / ", 1)[0].strip().lower()
             target_q = base_preferred.get(base, q)
-            deprecated_pref_to_canonical[pref] = spec._label_for(target_q)
-        notation_to_canonical[spec.notation_for(q)] = spec._label_for(target_q)
+            deprecated_pref_to_canonical[pref] = getattr(spec.COLUMN_ONTOLOGY, target_q).label
+        notation_to_canonical[s.effective_notation] = getattr(spec.COLUMN_ONTOLOGY, target_q).label
 
     for col in df.columns:
         if col in allowed:
@@ -72,7 +75,8 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
             canonical_present.add(alias.label)
 
     extras: List[str] = [
-        c for c in df.columns
+        c
+        for c in df.columns
         if c not in allowed and c not in legacy_cols and c not in notation_cols and c not in deprecated_pref_cols
     ]
     missing: List[str] = [c for c in REQUIRED if c not in canonical_present]
