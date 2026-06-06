@@ -22,9 +22,19 @@ python -m pip install -e .[dev,docs]
 ```
 
 Run checks locally:
+
+Install pre-commit hooks:
 ```
-ruff check .
-mypy src/bdf
+pre-commit install
+```
+
+Then pre-commit automatically runs on `git commit`. Run manually:
+```
+pre-commit run --all-files
+```
+
+Run tests and build docs:
+```
 pytest tests/unit -q
 sphinx-build -b html docs docs/_build/html
 ```
