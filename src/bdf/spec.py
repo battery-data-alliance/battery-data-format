@@ -1,20 +1,22 @@
-# src/bdf/normalize/spec.py
+# src/bdf/spec.py
 from __future__ import annotations
 
-import copy
-import os
+import contextlib
+import hashlib
+import importlib.resources
 import re
+import tempfile
 import warnings
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-try:
-    from rdflib import Graph
-    from rdflib.namespace import OWL, RDF, SKOS
-except Exception:  # pragma: no cover - rdflib is a project dependency, keep fallback for safety
-    Graph = None
-    OWL = RDF = SKOS = None
+import pint
+import polars as pl
+from pydantic import BaseModel, field_validator, model_validator
+from rdflib import Graph
+from rdflib.namespace import OWL, RDF, SKOS
+
+from bdf._df_compat import AnyDF, coerce_dataframe
 
 """
 Single source of truth for BDF canonical columns.
@@ -32,283 +34,7 @@ Notes:
 - Synonyms are unit-agnostic ("voltage" not "voltage#v"); the normalizer parses units.
 """
 
-_STATIC_COLUMNS = {
-    # -------------------------
-    # Required quantities
-    # -------------------------
-    "test_time_second": {
-        "unit": "s",
-        "label_template": "Test Time / s",
-        "required": True,
-        "mr_name": "test_time_second",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
-        "synonyms": [
-            "test-time", "time", "program-duration", "elapsed-time",
-        ],
-    },
-    "voltage_volt": {
-        "unit": "V",
-        "label_template": "Voltage / V",
-        "required": True,
-        "mr_name": "voltage_volt",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
-        "synonyms": [
-            "voltage", "u", "cell-voltage",
-        ],
-    },
-    "current_ampere": {
-        "unit": "A",
-        "label_template": "Current / A",
-        "required": True,
-        "mr_name": "current_ampere",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
-        "synonyms": [
-            "current", "i", "cell-current",
-        ],
-    },
-
-    # -------------------------
-    # Recommended quantities
-    # -------------------------
-    "unix_time_second": {
-        "unit": "s",
-        "label_template": "Unix Time / s",
-        "required": False,
-        "mr_name": "unix_time_second",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#unix_time_second",
-        "synonyms": [
-            "unix-time", "timestamp", "date-time", "datetime",
-        ],
-    },
-    "cycle_count": {
-        "unit": "1",
-        "label_template": "Cycle Count / {unit}",
-        "required": False,
-        "mr_name": "cycle_count",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cycle_count",
-        "synonyms": [
-            "cycle", "cycle-index", "cycle-no", "cycle-number",
-        ],
-    },
-    "step_count": {
-        "unit": "1",
-        "label_template": "Step Count / {unit}",
-        "required": False,
-        "mr_name": "step_count",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_count",
-        "synonyms": [
-            "step", "step-no", "step-number", "step-id",
-        ],
-    },
-    "ambient_temperature_celsius": {
-        "unit": "degC",
-        "label_template": "Ambient Temperature / {unit}",
-        "required": False,
-        "mr_name": "ambient_temperature_celsius",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius",
-        "synonyms": [
-            "ambient-temperature", "temperature", "tenv", "env-temp", "chamber-temp",
-        ],
-    },
-
-    # -------------------------
-    # Optional quantities
-    # -------------------------
-    "step_index": {
-        "unit": "1",
-        "label_template": "Step Index / {unit}",
-        "required": False,
-        "mr_name": "step_index",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index",
-        "synonyms": [
-            "step-index", "point-index", "sample-index",
-        ],
-    },
-    "charging_capacity_ah": {
-        "unit": "Ah",
-        "label_template": "Charging Capacity / {unit}",
-        "required": False,
-        "mr_name": "charging_capacity_ah",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_capacity_ah",
-        "synonyms": [
-            "ahcha", "charge-capacity", "capacity-charge",
-        ],
-    },
-    "discharging_capacity_ah": {
-        "unit": "Ah",
-        "label_template": "Discharging Capacity / {unit}",
-        "required": False,
-        "mr_name": "discharging_capacity_ah",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_capacity_ah",
-        "synonyms": [
-            "ahdch", "discharge-capacity", "capacity-discharge",
-        ],
-    },
-    "step_capacity_ah": {
-        "unit": "Ah",
-        "label_template": "Step Capacity / {unit}",
-        "required": False,
-        "mr_name": "step_capacity_ah",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_capacity_ah",
-        "synonyms": [
-            "ahstep", "capacity-step",
-        ],
-    },
-    "net_capacity_ah": {
-        "unit": "Ah",
-        "label_template": "Net Capacity / {unit}",
-        "required": False,
-        "mr_name": "net_capacity_ah",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_capacity_ah",
-        "synonyms": [
-            "net-capacity", "capacity-net",
-        ],
-    },
-    "cumulative_capacity_ah": {
-        "unit": "Ah",
-        "label_template": "Cumulative Capacity / {unit}",
-        "required": False,
-        "mr_name": "cumulative_capacity_ah",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_capacity_ah",
-        "synonyms": [
-            "ahaccu", "ahbal", "capacity-accumulated", "accumulated-capacity", "total-capacity",
-        ],
-    },
-    "charging_energy_wh": {
-        "unit": "Wh",
-        "label_template": "Charging Energy / {unit}",
-        "required": False,
-        "mr_name": "charging_energy_wh",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#charging_energy_wh",
-        "synonyms": [
-            "whcha", "energy-charge",
-        ],
-    },
-    "discharging_energy_wh": {
-        "unit": "Wh",
-        "label_template": "Discharging Energy / {unit}",
-        "required": False,
-        "mr_name": "discharging_energy_wh",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_energy_wh",
-        "synonyms": [
-            "whdch", "energy-discharge",
-        ],
-    },
-    "step_energy_wh": {
-        "unit": "Wh",
-        "label_template": "Step Energy / {unit}",
-        "required": False,
-        "mr_name": "step_energy_wh",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_energy_wh",
-        "synonyms": [
-            "whstep", "energy-step",
-        ],
-    },
-    "net_energy_wh": {
-        "unit": "Wh",
-        "label_template": "Net Energy / {unit}",
-        "required": False,
-        "mr_name": "net_energy_wh",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#net_energy_wh",
-        "synonyms": [
-            "net-energy", "energy-net",
-        ],
-    },
-    "cumulative_energy_wh": {
-        "unit": "Wh",
-        "label_template": "Cumulative Energy / {unit}",
-        "required": False,
-        "mr_name": "cumulative_energy_wh",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#cumulative_energy_wh",
-        "synonyms": [
-            "whaccu", "energy-accumulated", "accumulated-energy", "total-energy",
-        ],
-    },
-    "power_watt": {
-        "unit": "W",
-        "label_template": "Power / {unit}",
-        "required": False,
-        "mr_name": "power_watt",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#power_watt",
-        "synonyms": [
-            "power", "pwr",
-        ],
-    },
-    "internal_resistance_ohm": {
-        "unit": "ohm",
-        "label_template": "Internal Resistance / {unit}",
-        "required": False,
-        "mr_name": "internal_resistance_ohm",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#internal_resistance_ohm",
-        "synonyms": [
-            "internal-resistance", "rint", "ir", "dcir", "ohmic-resistance", "resistance",
-        ],
-    },
-    "ambient_pressure_pa": {
-        "unit": "Pa",
-        "label_template": "Ambient Pressure / {unit}",
-        "required": False,
-        "mr_name": "ambient_pressure_pa",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_pressure_pa",
-        "synonyms": [
-            "ambient-pressure", "pamb", "baro-pressure",
-        ],
-    },
-    "applied_pressure_pa": {
-        "unit": "Pa",
-        "label_template": "Applied Pressure / {unit}",
-        "required": False,
-        "mr_name": "applied_pressure_pa",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#applied_pressure_pa",
-        "synonyms": [
-            "applied-pressure", "press", "papp",
-        ],
-    },
-
-    # Surface temperatures (T1..T5)
-    "temperature_t1_celsius": {
-        "unit": "degC",
-        "label_template": "Surface Temperature T1 / {unit}",
-        "required": False,
-        "mr_name": "temperature_t1_celsius",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t1_celsius",
-        "synonyms": ["t1", "surface-temperature-t1"],
-    },
-    "temperature_t2_celsius": {
-        "unit": "degC",
-        "label_template": "Surface Temperature T2 / {unit}",
-        "required": False,
-        "mr_name": "temperature_t2_celsius",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t2_celsius",
-        "synonyms": ["t2", "surface-temperature-t2"],
-    },
-    "temperature_t3_celsius": {
-        "unit": "degC",
-        "label_template": "Surface Temperature T3 / {unit}",
-        "required": False,
-        "mr_name": "temperature_t3_celsius",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t3_celsius",
-        "synonyms": ["t3", "surface-temperature-t3"],
-    },
-    "temperature_t4_celsius": {
-        "unit": "degC",
-        "label_template": "Surface Temperature T4 / {unit}",
-        "required": False,
-        "mr_name": "temperature_t4_celsius",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t4_celsius",
-        "synonyms": ["t4", "surface-temperature-t4"],
-    },
-    "temperature_t5_celsius": {
-        "unit": "degC",
-        "label_template": "Surface Temperature T5 / {unit}",
-        "required": False,
-        "mr_name": "temperature_t5_celsius",
-        "iri": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t5_celsius",
-        "synonyms": ["t5", "surface-temperature-t5"],
-    },
-}
-
-# --------- Ontology-backed runtime columns ----------
+# --------- Constants ----------
 
 _SLUG = re.compile(r"[^a-z0-9]+")
 _REQUIRED_DEFAULT = {"test_time_second", "voltage_volt", "current_ampere"}
@@ -319,250 +45,697 @@ _UNIT_ALIAS = {
     "deg c": "degC",
     "℃": "degC",
 }
-_CACHED_SIGNATURE: tuple[str, float | None] | None = None
-_CACHED_COLUMNS: dict[str, dict[str, Any]] | None = None
-_WARNED_ONTOLOGY_SOURCES: set[str] = set()
+_SLASH_RE = re.compile(r"^\s*(.+?)\s*/\s*(.+)\s*$")
+_BDF_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
+
+ureg = pint.UnitRegistry()
+for _alias, _canonical in [
+    ("degc", "degC"),
+    ("degreec", "degC"),
+    ("\xf8c", "degC"),
+    ("\xf8C", "degC"),
+    ("\xb0c", "degC"),
+    ("\xb0C", "degC"),
+    ("Sec", "second"),
+]:
+    with contextlib.suppress(Exception):
+        ureg.define(f"{_alias} = {_canonical}")
+
+
+# --------- Helper functions ----------
 
 
 def _slugify(text: str) -> str:
+    """Lowercase and collapse non-alnum runs to '-'.
+
+    Args:
+        text: Text to slugify.
+
+    Returns:
+        Lowercased text with non-alphanumeric runs replaced by hyphens.
+    """
     return _SLUG.sub("-", text.lower()).strip("-")
 
 
 def _normalize_unit(unit: str) -> str:
+    """Map known unit aliases (e.g. 'celsius') to canonical pint strings.
+
+    Args:
+        unit: Unit string to normalize.
+
+    Returns:
+        Canonical pint unit string.
+    """
     key = unit.strip()
     if not key:
         return key
     return _UNIT_ALIAS.get(key.lower(), key)
 
 
-def _split_pref_label(label: str) -> tuple[str, str] | None:
-    text = str(label).strip()
-    if " / " not in text:
+def parse_label(label: str) -> tuple[str, str] | None:
+    """Split 'Base / unit' into (base, normalised_unit), or None if not parseable.
+
+    Args:
+        label: BDF label string in format 'Base / unit'.
+
+    Returns:
+        Tuple of (base, normalized_unit) or None if not parseable.
+    """
+    m = _SLASH_RE.match(str(label))
+    if m is None:
         return None
-    base, unit = text.split(" / ", 1)
-    base = base.strip()
-    unit = _normalize_unit(unit.strip())
+    base = m.group(1).strip()
+    unit = _normalize_unit(m.group(2).strip())
     if not base or not unit:
         return None
     return base, unit
 
 
-def _pick_labels(graph: Graph, subject, predicate) -> list[str]:
-    out: list[str] = []
-    for lit in graph.objects(subject, predicate):
-        try:
-            text = str(lit)
-        except Exception:
-            continue
-        if getattr(lit, "language", None) not in (None, "en"):
-            continue
-        if text:
-            out.append(text)
-    return out
+def get_unit_conversion(src_unit: str | None, dst_unit: str) -> tuple[float, float] | None:
+    """Return (scale, offset) for src→dst unit conversion, None if incompatible.
 
+    Args:
+        src_unit: Source unit string (or None for dimensionless).
+        dst_unit: Destination unit string.
 
-def _ontology_source() -> str:
-    return (os.getenv("BDF_ONTOLOGY_PATH") or os.getenv("BDF_ONTOLOGY") or "").strip()
-
-
-def _source_signature(source: str) -> tuple[str, float | None]:
-    if not source:
-        return "", None
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        p = Path(source).expanduser()
-    if p.exists():
-        return str(p.resolve()), p.stat().st_mtime
-    return source, None
-
-
-def _warn_ontology_once(source: str, message: str) -> None:
-    if source in _WARNED_ONTOLOGY_SOURCES:
-        return
-    _WARNED_ONTOLOGY_SOURCES.add(source)
-    warnings.warn(message, stacklevel=2)
-
-
-def _build_from_ontology(source: str) -> dict[str, dict[str, Any]]:
-    if not source or Graph is None:
-        return {}
+    Returns:
+        Tuple of (scale, offset) for conversion, or None if incompatible.
+    """
+    src_bare = src_unit.strip() if src_unit is not None else ""
+    src_is_dim = src_bare in ("", "1")
+    dst_is_dim = dst_unit in ("1", "", None)
+    if src_is_dim or dst_is_dim:
+        return (1.0, 0.0) if src_is_dim and dst_is_dim else None
+    s = src_unit.strip()
+    t = dst_unit.strip()
+    if s.lower() == t.lower():
+        return (1.0, 0.0)
     try:
-        g = Graph()
-        g.parse(source)
-    except Exception as exc:
-        _warn_ontology_once(source, f"Failed to load ontology spec from '{source}': {exc}")
-        return {}
+        qty_t = ureg.Quantity(1, t)
+        tgt_units = qty_t.units
+        if ureg.Quantity(1, s).dimensionality != qty_t.dimensionality:
+            return None
+        at_zero = float(ureg.Quantity(0, s).to(tgt_units).magnitude)
+        at_one = float(ureg.Quantity(1, s).to(tgt_units).magnitude)
+        scale = round(at_one - at_zero, 15)
+        offset = round(at_zero, 15)
+        return (scale, offset)
+    except pint.errors.PintError:
+        return None
 
-    out: dict[str, dict[str, Any]] = {}
-    for subject in g.subjects(RDF.type, OWL.Class):
+
+def unit_from_label(label: str) -> str | None:
+    """Return the unit portion of a 'Base / unit' label, or None.
+
+    Args:
+        label: BDF label string in format 'Base / unit'.
+
+    Returns:
+        Unit string, or None if label is not parseable.
+    """
+    parsed = parse_label(label)
+    return parsed[1] if parsed else None
+
+
+# --------- Ontology loading helpers ----------
+
+
+def _graph_from_bytes(data: bytes, format: str | None = None) -> Graph:
+    """Parse bytes into an rdflib Graph; return None on failure.
+
+    Args:
+        data: Bytes to parse as RDF.
+        format: RDF format (e.g. 'turtle', 'xml'). Auto-detected if None.
+
+    Returns:
+        Parsed RDFlib Graph.
+    """
+    g = Graph()
+    return g.parse(data=data, format=format)
+
+
+def _ontology_cache_dir() -> Path:
+    """Return the user cache directory for bdf ontology files.
+
+    Returns:
+        Path to the user cache directory.
+    """
+    from platformdirs import user_cache_dir
+
+    return Path(user_cache_dir("bdf"))
+
+
+def _ontology_version_slug(g: Any, raw_bytes: bytes) -> str:
+    """Extract version slug from graph owl:versionInfo, falling back to sha256.
+
+    Args:
+        g: Parsed RDFlib graph object.
+        raw_bytes: Raw bytes of the ontology file.
+
+    Returns:
+        Version slug string.
+    """
+    try:
+        from rdflib.namespace import OWL as _OWL
+
+        for lit in g.objects(None, _OWL.versionInfo):
+            text = str(lit).strip()
+            if text:
+                return _slugify(text)
+    except Exception:
+        pass
+    return hashlib.sha256(raw_bytes).hexdigest()[:16]
+
+
+def _write_ontology_cache(cache_dir: Path, slug: str, content: bytes) -> None:
+    """Atomically write ontology bytes to the cache directory.
+
+    Args:
+        cache_dir: Directory to write to.
+        slug: Version slug used as filename suffix.
+        content: Ontology bytes to write.
+    """
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        dest = cache_dir / f"bdf-ontology-v{slug}.ttl"
+        with tempfile.NamedTemporaryFile(dir=cache_dir, delete=False, suffix=".tmp") as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(content)
+        tmp_path.replace(dest)
+    except OSError:
+        pass
+
+
+def _read_ontology_cache_latest(cache_dir: Path) -> bytes | None:
+    """Return bytes of the newest versioned ontology file in cache, or None.
+
+    Args:
+        cache_dir: Directory to search.
+
+    Returns:
+        Bytes of the newest cached ontology, or None if none found.
+    """
+    candidates = sorted(cache_dir.glob("bdf-ontology-v*.ttl"))
+    for path in reversed(candidates):
+        try:
+            return path.read_bytes()
+        except OSError:
+            continue
+    return None
+
+
+# --------- Pydantic models ----------
+
+
+class Quantity(BaseModel):
+    """One BDF physical quantity: unit, human label, and lookup metadata."""
+
+    unit: str
+    label_template: str
+    dtype: str = "float"
+    required: bool = False
+    mr_name: str
+    iri: str
+    synonyms: list[str]
+    deprecated: bool = False
+    notation: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _resolve_label_and_dtype(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            unit = data.get("unit", "")
+            label_template = data.get("label_template", "")
+            if unit != "1" and "{unit}" not in label_template and " / " in label_template:
+                base = label_template.split(" / ", 1)[0]
+                data["label_template"] = f"{base} / {{unit}}"
+            elif unit == "1" and "{unit}" in label_template:
+                data["label_template"] = label_template.replace("{unit}", "1")
+            if "dtype" not in data:
+                data["dtype"] = "int" if unit == "1" else "float"
+        return data
+
+    @field_validator("dtype")
+    @classmethod
+    def _validate_dtype(cls, v: str) -> str:
+        if v not in ("int", "float"):
+            raise ValueError(f"dtype must be 'int' or 'float', got {v!r}")
+        return v
+
+    @property
+    def formatted_label(self) -> str:
+        """Return the label with {unit} replaced by the actual unit string."""
+        return self.label_template.format(unit=self.unit) if "{unit}" in self.label_template else self.label_template
+
+    def unit_conversion(self, dst_unit: str) -> tuple[float, float] | None:
+        """Return (scale, offset) to convert self.unit → dst_unit, or None.
+
+        Args:
+            dst_unit: Destination unit string.
+
+        Returns:
+            Tuple of (scale, offset) for conversion, or None if incompatible.
+        """
+        return get_unit_conversion(self.unit, dst_unit)
+
+    def convert_from(self, src_unit: str | None) -> tuple[float, float] | None:
+        """Return (scale, offset) to convert src_unit → self.unit, or None if incompatible.
+
+        Args:
+            src_unit: Source unit string, or None for dimensionless.
+
+        Returns:
+            Tuple of (scale, offset) for conversion, or None if incompatible.
+        """
+        return get_unit_conversion(src_unit, self.unit)
+
+    @property
+    def effective_notation(self) -> str:
+        """notation field if set, otherwise mr_name."""
+        return (self.notation or self.mr_name).strip() or self.mr_name
+
+    @classmethod
+    def from_graph_subject(cls, g: Any, subject: Any, skos: Any, owl_ns: Any) -> "Quantity | None":
+        """Parse one Quantity from an RDF subject. Returns None if malformed.
+
+        Args:
+            g: RDFlib graph object.
+            subject: RDF subject node.
+            skos: SKOS namespace.
+            owl_ns: OWL namespace.
+
+        Returns:
+            Quantity instance, or None if subject cannot be parsed.
+        """
         iri = str(subject)
         if "#" not in iri:
-            continue
+            return None
         mr_name = iri.rsplit("#", 1)[-1]
-        pref_labels = _pick_labels(g, subject, SKOS.prefLabel)
-        if not pref_labels:
-            continue
-        deprecated = False
-        for lit in g.objects(subject, OWL.deprecated):
+
+        pref_labels: list[str] = []
+        for lit in g.objects(subject, skos.prefLabel):
             try:
-                deprecated = str(lit).lower() == "true"
+                text = str(lit)
             except Exception:
                 continue
-        parsed = _split_pref_label(pref_labels[0])
-        if not parsed:
-            continue
-        base, unit = parsed
-        notations = _pick_labels(g, subject, SKOS.notation)
-        notation = ""
-        for n in notations:
-            s = str(n).strip()
-            if s:
-                notation = s
-                break
-        if not notation:
-            notation = mr_name
+            if getattr(lit, "language", None) not in (None, "en"):
+                continue
+            if text:
+                pref_labels.append(text)
 
-        syns: set[str] = {_slugify(base), _slugify(mr_name)}
-        for alias in _pick_labels(g, subject, SKOS.altLabel) + _pick_labels(g, subject, SKOS.notation):
-            alias_text = alias.split(" / ", 1)[0].strip()
-            slug = _slugify(alias_text.replace("/", " ").replace("#", " ").replace("_", " "))
+        if not pref_labels:
+            return None
+        parsed = parse_label(pref_labels[0])
+        if not parsed:
+            return None
+        base, unit = parsed
+
+        deprecated = next(
+            (str(lit).lower() == "true" for lit in g.objects(subject, owl_ns.deprecated)),
+            False,
+        )
+
+        alt_labels: list[str] = []
+        for lit in g.objects(subject, skos.altLabel):
+            try:
+                text = str(lit)
+            except Exception:
+                continue
+            if getattr(lit, "language", None) not in (None, "en"):
+                continue
+            if text:
+                alt_labels.append(text)
+
+        notations: list[str] = []
+        for lit in g.objects(subject, skos.notation):
+            try:
+                text = str(lit)
+            except Exception:
+                continue
+            if text:
+                notations.append(text)
+
+        notation = next((s for n in notations if (s := str(n).strip())), mr_name)
+
+        syns = {_slugify(base), _slugify(mr_name)}
+        for label in alt_labels + notations:
+            base_part = label.split(" / ", 1)[0].strip()
+            slug = _slugify(base_part.replace("/", " ").replace("#", " ").replace("_", " "))
             if slug:
                 syns.add(slug)
+        synonyms = sorted(s for s in syns if s)
 
-        out[mr_name] = {
-            "unit": unit,
-            "label_template": f"{base} / {{unit}}",
-            "required": mr_name in _REQUIRED_DEFAULT,
-            "mr_name": mr_name,
-            "notation": notation,
-            "iri": iri,
-            "deprecated": deprecated,
-            "synonyms": sorted(s for s in syns if s),
-        }
-    return out
-
-
-def _merge_columns(
-    base: dict[str, dict[str, Any]],
-    ontology: dict[str, dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    merged = copy.deepcopy(base)
-    for _quantity, current in merged.items():
-        current.setdefault("deprecated", False)
-    for quantity, item in ontology.items():
-        if quantity in merged:
-            current = merged[quantity]
-            incoming_deprecated = bool(item.get("deprecated"))
-            # Deprecated ontology entries are read-compat only: do not let them
-            # redefine canonical labels/units for existing quantities.
-            if not incoming_deprecated:
-                current["unit"] = item.get("unit", current.get("unit"))
-                current["label_template"] = item.get("label_template", current.get("label_template"))
-                current["iri"] = item.get("iri", current.get("iri"))
-            current["mr_name"] = quantity
-            current["notation"] = item.get("notation", current.get("notation", quantity))
-            current["deprecated"] = bool(current.get("deprecated", False)) or incoming_deprecated
-            current["required"] = bool(current.get("required", False))
-            syns = set(current.get("synonyms", [])) | set(item.get("synonyms", []))
-            current["synonyms"] = sorted(s for s in syns if s)
-            continue
-        item = dict(item)
-        item.setdefault("deprecated", False)
-        merged[quantity] = item
-
-    ordered: dict[str, dict[str, Any]] = {}
-    for quantity in base:
-        ordered[quantity] = merged[quantity]
-    for quantity in sorted(q for q in merged if q not in ordered):
-        ordered[quantity] = merged[quantity]
-    return ordered
+        return cls(
+            unit=unit,
+            label_template=f"{base} / {{unit}}",
+            required=mr_name in _REQUIRED_DEFAULT,
+            mr_name=mr_name,
+            notation=notation,
+            iri=iri,
+            deprecated=deprecated,
+            synonyms=synonyms,
+        )
 
 
-def _build_columns() -> dict[str, dict[str, Any]]:
-    base = copy.deepcopy(_STATIC_COLUMNS)
-    source = _ontology_source()
-    if not source:
-        return base
-    ontology = _build_from_ontology(source)
-    if not ontology:
-        return base
-    return _merge_columns(base, ontology)
+class ColumnOntology:
+    """Registry of all BDF canonical quantities. Iterate as (mr_name, Quantity) pairs."""
 
+    def __init__(self, quantities: dict[str, Quantity]) -> None:
+        """Initialize with a dictionary of quantities.
 
-def _current_columns(*, refresh: bool = False) -> dict[str, dict[str, Any]]:
-    global _CACHED_COLUMNS, _CACHED_SIGNATURE
-    signature = _source_signature(_ontology_source())
-    if refresh or _CACHED_COLUMNS is None or signature != _CACHED_SIGNATURE:
-        _CACHED_COLUMNS = _build_columns()
-        _CACHED_SIGNATURE = signature
-    return _CACHED_COLUMNS
-
-
-def refresh_columns() -> None:
-    _current_columns(refresh=True)
-
-
-class _ColumnsProxy(Mapping[str, dict[str, Any]]):
-    def __getitem__(self, key: str) -> dict[str, Any]:
-        return _current_columns()[key]
+        Args:
+            quantities: Mapping from mr_name to Quantity.
+        """
+        self._quantities = quantities
 
     def __iter__(self):
-        return iter(_current_columns())
+        return iter(self._quantities.items())
 
-    def __len__(self) -> int:
-        return len(_current_columns())
+    def __getitem__(self, key: str) -> Quantity:
+        return self._quantities[key]
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._quantities
+
+    def __getattr__(self, name: str) -> Quantity:
+        try:
+            return self._quantities[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+    def get(self, key: str, default: Quantity | None = None) -> Quantity | None:
+        """Return quantity by key, or default if absent.
+
+        Args:
+            key: Quantity mr_name.
+            default: Value to return if key not found.
+
+        Returns:
+            Quantity or default.
+        """
+        return self._quantities.get(key, default)
+
+    def base_synonym_index(self) -> dict[str, str]:
+        """Build a mapping from base-name slug to quantity key (machine-readable name).
+
+        Returns:
+            Dictionary mapping base-name slugs to mr_name keys.
+        """
+        idx: dict[str, str] = {}
+        for q_name, q in self:
+            if q.deprecated:
+                continue
+            left = q.label_template.split(" / ", 1)[0]
+            left_slug = _slugify(left)
+            if left_slug:
+                idx.setdefault(left_slug, q_name)
+            notation_slug = _slugify(q.effective_notation)
+            if notation_slug:
+                idx.setdefault(notation_slug, q_name)
+            for base in q.synonyms:
+                slug = _slugify(str(base))
+                if slug:
+                    idx.setdefault(slug, q_name)
+        return idx
+
+    def required_labels(self) -> tuple[str, ...]:
+        """Labels of all non-deprecated required quantities.
+
+        Returns:
+            Tuple of formatted labels for required quantities.
+        """
+        return tuple(q.formatted_label for _, q in self if q.required and not q.deprecated)
+
+    def optional_labels(self) -> tuple[str, ...]:
+        """Labels of all non-deprecated optional quantities.
+
+        Returns:
+            Tuple of formatted labels for optional quantities.
+        """
+        return tuple(q.formatted_label for _, q in self if not q.required and not q.deprecated)
+
+    @coerce_dataframe
+    def validate_df(self, df: AnyDF) -> AnyDF:
+        """Check ``df`` column names against BDF canonical labels.
+
+        Accepts pandas DataFrame, polars DataFrame, or polars LazyFrame.
+        Returns the original input object unchanged (pass-through).
+        Raises ``BDFValidationError`` if required columns are absent.
+        Warns (``UserWarning``) if extra non-BDF columns are present.
+
+        Args:
+            df: DataFrame to validate (pandas or polars).
+
+        Returns:
+            The original df object unchanged.
+        """
+        lf = cast(pl.LazyFrame, df)  # guaranteed by @coerce_dataframe
+        cols = set(lf.collect_schema().names())
+
+        canonical: set[str] = set()
+        required: set[str] = set()
+        for _, q in self:
+            if q.deprecated:
+                continue
+            lbl = q.formatted_label
+            canonical.add(lbl)
+            if q.required:
+                required.add(lbl)
+
+        missing = required - cols
+        if missing:
+            from bdf.validate import BDFValidationError  # lazy — validate imports spec
+
+            raise BDFValidationError(f"Missing required BDF columns: {sorted(missing)}")
+
+        extra = cols - canonical
+        if extra:
+            warnings.warn(f"Non-BDF columns present: {sorted(extra)}", UserWarning, stacklevel=2)
+
+        return df
+
+    def quantity_from_label(self, label: str) -> tuple[Quantity, str | None] | None:
+        """Return (Quantity, unit) for the given label, or None if not found.
+
+        Parses the label once and returns both the matching non-deprecated Quantity
+        and the unit string extracted from the label. Prefers non-deprecated quantities
+        when multiple quantities share a base label.
+
+        Args:
+            label: BDF label in format 'Base / unit'.
+
+        Returns:
+            Tuple of (Quantity, unit_str) if found, None if label is unparseable or
+            no matching quantity exists.
+        """
+        parsed = parse_label(label)
+        if parsed is None:
+            return None
+        query_base, unit = parsed
+        query_base_lower = query_base.lower()
+        first_deprecated: tuple[Quantity, str | None] | None = None
+        for _, q in self:
+            tmpl_base = q.label_template.split(" / ")[0].strip().lower()
+            if tmpl_base == query_base_lower:
+                if not q.deprecated:
+                    return (q, unit)
+                if first_deprecated is None:
+                    first_deprecated = (q, unit)
+        return first_deprecated
+
+    def mr_name_from_label(self, label: str) -> str | None:
+        """Return the mr_name whose label_template base matches label, or None.
+
+        Prefers non-deprecated matches when multiple quantities share a base label.
+
+        Args:
+            label: BDF label in format 'Base / unit'.
+
+        Returns:
+            Machine-readable name (mr_name) if found, None otherwise.
+        """
+        parsed = parse_label(label)
+        if parsed is None:
+            return None
+        query_base = parsed[0].lower()
+        first_deprecated: str | None = None
+        for mr_name, q in self:
+            tmpl_base = q.label_template.split(" / ")[0].strip().lower()
+            if tmpl_base == query_base:
+                if not q.deprecated:
+                    return mr_name
+                if first_deprecated is None:
+                    first_deprecated = mr_name
+        return first_deprecated
+
+    @classmethod
+    def from_graph(cls, g: Any) -> "ColumnOntology":
+        """Build ColumnOntology from an rdflib graph.
+
+        Args:
+            g: Parsed RDFlib graph object.
+
+        Returns:
+            New ColumnOntology instance.
+        """
+        quantities: dict[str, Quantity] = {}
+        for subject in g.subjects(RDF.type, OWL.Class):
+            q = Quantity.from_graph_subject(g, subject, SKOS, OWL)
+            if q is not None:
+                quantities[q.mr_name] = q
+        return cls(quantities)
+
+    @classmethod
+    def get_snapshot(cls, dest: Path | None = None) -> Path:
+        """Fetch live ontology and write bundled snapshot.
+
+        Args:
+            dest: Path to write snapshot. Defaults to bundled package data path.
+
+        Returns:
+            Path to the written snapshot file.
+
+        Raises:
+            requests.HTTPError: If the live URL request fails.
+            RuntimeError: If the fetched ontology cannot be parsed.
+        """
+        import requests
+
+        if dest is None:
+            ref = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl")
+            dest = Path(str(ref))
+
+        resp = requests.get(_BDF_LIVE_URL, timeout=30)
+        resp.raise_for_status()
+        raw = resp.content
+        g = _graph_from_bytes(raw)
+        if g is None:
+            raise RuntimeError("Failed to parse ontology from live URL")
+
+        serialized = g.serialize(format="turtle")
+        content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False, suffix=".tmp") as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(content)
+        tmp_path.replace(dest)
+        return dest
+
+    @classmethod
+    def build(cls) -> "ColumnOntology":
+        """Load bundled ontology snapshot and return a new ColumnOntology.
+
+        Returns:
+            New ColumnOntology instance parsed from bundled snapshot.
+
+        Raises:
+            RuntimeError: If bundled snapshot is missing or cannot be parsed.
+        """
+        try:
+            ref = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl")
+            data = ref.read_bytes()
+        except Exception as exc:
+            raise RuntimeError(
+                f"Bundled ontology snapshot missing or unreadable: {exc}. "
+                "Run ColumnOntology.get_snapshot() to regenerate it."
+            ) from exc
+        g = _graph_from_bytes(data, format="turtle")
+        if g is None:
+            raise RuntimeError(
+                "Bundled ontology snapshot could not be parsed. "
+                "Run ColumnOntology.get_snapshot() to regenerate it."
+            )
+        return cls.from_graph(g)
+
+    def load_ttl(self, path: Path | str) -> None:
+        """Load ontology from a TTL file, updating quantities in place.
+
+        Args:
+            path: Path to TTL file.
+
+        Raises:
+            Exception: If file cannot be parsed.
+        """
+        if Graph is None:
+            raise RuntimeError("rdflib is required for load_ttl")
+        g = Graph()
+        g.parse(str(path))
+        self._quantities = self.__class__.from_graph(g)._quantities
+
+    def load_latest(self, *, refresh: bool = False) -> None:
+        """Load the latest available ontology, using cache or fetching live.
+
+        Args:
+            refresh: If True, always fetch from the live URL, ignoring cache.
+
+        Raises:
+            requests.HTTPError: If the live URL request fails.
+            RuntimeError: If the fetched ontology cannot be parsed.
+        """
+        cache_dir = _ontology_cache_dir()
+
+        if not refresh:
+            cached = _read_ontology_cache_latest(cache_dir)
+            if cached is not None:
+                g = _graph_from_bytes(cached, format="turtle")
+                if g is not None:
+                    self._quantities = self.__class__.from_graph(g)._quantities
+                    return
+
+        import requests
+
+        resp = requests.get(_BDF_LIVE_URL, timeout=30)
+        resp.raise_for_status()
+        raw = resp.content
+        g = _graph_from_bytes(raw)
+        if g is None:
+            raise RuntimeError("Failed to parse ontology from live URL")
+
+        slug = _ontology_version_slug(g, raw)
+        serialized = g.serialize(format="turtle")
+        content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
+        _write_ontology_cache(cache_dir, slug, content)
+        self._quantities = self.__class__.from_graph(g)._quantities
+
+    def load_version(self, version: str, *, refresh: bool = False) -> None:
+        """Load a specific versioned ontology from cache.
+
+        Args:
+            version: Version string to load (e.g. '1.0.0').
+            refresh: If True, ignore cached version.
+
+        Raises:
+            ValueError: If version not found in cache.
+        """
+        cache_dir = _ontology_cache_dir()
+        versioned = cache_dir / f"bdf-ontology-v{version}.ttl"
+
+        if not refresh and versioned.exists():
+            data = versioned.read_bytes()
+            g = _graph_from_bytes(data, format="turtle")
+            if g is not None:
+                self._quantities = self.__class__.from_graph(g)._quantities
+                return
+
+        available = sorted(p.name for p in cache_dir.glob("bdf-ontology-v*.ttl"))
+        raise ValueError(
+            f"Version '{version}' not found in cache. "
+            f"Available: {available}. Use load_latest() to fetch and cache a version."
+        )
 
 
-COLUMNS: Mapping[str, dict[str, Any]] = _ColumnsProxy()
+# --------- Module-level singleton ----------
+
+COLUMN_ONTOLOGY: ColumnOntology = ColumnOntology.build()
 
 
-# --------- Helpers consumed by the normalizer ----------
-
-def _label_for(quantity: str) -> str:
-    col = _current_columns()[quantity]
-    return col["label_template"].format(unit=col["unit"])
-
-
-def notation_for(quantity: str) -> str:
-    col = _current_columns()[quantity]
-    notation = str(col.get("notation") or col.get("mr_name") or quantity).strip()
-    return notation or quantity
-
-
-def unit_for(quantity: str) -> str:
-    return _current_columns()[quantity]["unit"]
-
-
-def required_labels() -> tuple[str, ...]:
-    return tuple(
-        _label_for(q) for q, s in _current_columns().items() if s["required"] and not bool(s.get("deprecated"))
-    )
-
-
-def optional_labels() -> tuple[str, ...]:
-    return tuple(
-        _label_for(q) for q, s in _current_columns().items() if not s["required"] and not bool(s.get("deprecated"))
-    )
-
-
-def base_synonym_index() -> dict[str, str]:
-    """
-    Build a mapping from base-name slug to quantity key (machine-readable name).
-    """
-    idx: dict[str, str] = {}
-    for q, s in _current_columns().items():
-        if bool(s.get("deprecated")):
-            continue
-        left = str(s.get("label_template", "")).split(" / ", 1)[0]
-        left_slug = _slugify(left)
-        if left_slug:
-            idx.setdefault(left_slug, q)
-        notation_slug = _slugify(notation_for(q))
-        if notation_slug:
-            idx.setdefault(notation_slug, q)
-        for base in s.get("synonyms", []):
-            slug = _slugify(str(base))
-            if slug:
-                idx.setdefault(slug, q)
-    return idx
-
+__all__ = [
+    "ColumnOntology",
+    "Quantity",
+    "COLUMN_ONTOLOGY",
+    "ureg",
+    "parse_label",
+    "unit_from_label",
+    "get_unit_conversion",
+]
