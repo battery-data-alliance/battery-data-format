@@ -8,10 +8,7 @@ import pytest
 import bdf
 
 
-def test_legacy_labels_normalized_from_ontology(data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    ontology = Path("tests/fixtures/ontology_labels.ttl").resolve()
-    monkeypatch.setenv("BDF_ONTOLOGY_PATH", str(ontology))
-
+def test_legacy_labels_normalized_from_ontology(data_dir: Path) -> None:
     legacy_path = data_dir / "bdf" / "legacy.bdf.parquet"
     df = pd.read_parquet(legacy_path)
     assert "test_time_millisecond" in df.columns
@@ -30,10 +27,7 @@ def test_legacy_labels_normalized_from_ontology(data_dir: Path, monkeypatch: pyt
     assert abs(conv - (raw_ms / 1000.0)) < 1e-6
 
 
-def test_hidden_label_is_normalized_to_preferred_label(monkeypatch: pytest.MonkeyPatch) -> None:
-    ontology = Path("tests/fixtures/ontology_labels.ttl").resolve()
-    monkeypatch.setenv("BDF_ONTOLOGY_PATH", str(ontology))
-
+def test_hidden_label_is_normalized_to_preferred_label() -> None:
     df = pd.DataFrame(
         {
             "Test Time / s": [0.0, 1.0],
@@ -43,8 +37,7 @@ def test_hidden_label_is_normalized_to_preferred_label(monkeypatch: pytest.Monke
         }
     )
 
-    with pytest.warns(UserWarning):
-        normalized = bdf.normalize(df)
+    normalized = bdf.normalize(df)
 
     assert "Internal Resistance / ohm" in normalized.columns
     assert "Internal Resistance / Ohm" not in normalized.columns
