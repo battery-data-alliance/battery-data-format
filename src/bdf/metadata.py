@@ -379,12 +379,11 @@ def _ensure_spec():
 def _spec_match_by_left(left: str) -> Optional[Dict[str, Any]]:
     """Return the spec column entry dict for a given preferred-label 'left' text."""
     _ensure_spec()
-    if not _SPEC or not hasattr(_SPEC, "COLUMNS"):
+    if not _SPEC or not hasattr(_SPEC, "COLUMN_ONTOLOGY"):
         return None
-    for _mr, meta in _SPEC.COLUMNS.items():  # type: ignore[attr-defined]
-        canon = meta.get("label_template", "")
-        if _left_of_label(canon).lower() == left.lower():
-            return meta
+    for _mr, qty in _SPEC.COLUMN_ONTOLOGY:  # type: ignore[attr-defined]
+        if _left_of_label(qty.label_template).lower() == left.lower():
+            return {"iri": qty.iri}
     return None
 
 def _required_pvs_from_spec() -> List[Dict[str, Any]]:
@@ -395,14 +394,11 @@ def _required_pvs_from_spec() -> List[Dict[str, Any]]:
     """
     _ensure_spec()
     pvs: List[Dict[str, Any]] = []
-    if _SPEC and hasattr(_SPEC, "COLUMNS"):
-        for _mr, meta in _SPEC.COLUMNS.items():  # type: ignore[attr-defined]
-            if meta.get("required"):
-                label = meta.get("label_template", "")
-                name = _left_of_label(label) if label else meta.get("mr_name", _mr)
-                unit_text = meta.get("unit")
-                iri = meta.get("iri")
-                pvs.append(PropertyValue(name=name, property_id=iri, unit_text=unit_text).to_schema_org())
+    if _SPEC and hasattr(_SPEC, "COLUMN_ONTOLOGY"):
+        for _mr, qty in _SPEC.COLUMN_ONTOLOGY:  # type: ignore[attr-defined]
+            if qty.required:
+                name = _left_of_label(qty.label_template) if qty.label_template else qty.mr_name
+                pvs.append(PropertyValue(name=name, property_id=qty.iri, unit_text=qty.unit).to_schema_org())
     return pvs
 
 def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:

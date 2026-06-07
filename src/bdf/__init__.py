@@ -419,11 +419,11 @@ def _csv_header_has_bdf_required(path: Path) -> bool:
     cols_l = {c.strip().lower() for c in header.split(",")}
     # import lazily to avoid cycles
     from . import spec
-    for q, s in spec.COLUMNS.items():
-        if not s.get("required") or bool(s.get("deprecated")):
+    for q, s in spec.COLUMN_ONTOLOGY:
+        if not s.required or s.deprecated:
             continue
-        pref = spec._label_for(q).lower()
-        notation = spec.notation_for(q).lower()
+        pref = s.formatted_label.lower()
+        notation = s.effective_notation.lower()
         if pref not in cols_l and notation not in cols_l:
             return False
     return True
@@ -511,11 +511,11 @@ def validate(
                     header_line = head.splitlines()[0] if head else ""
                     cols_l = {c.strip().lower() for c in header_line.split(",")}
                     from . import spec
-                    for q, s in spec.COLUMNS.items():
-                        if not s.get("required") or bool(s.get("deprecated")):
+                    for q, s in spec.COLUMN_ONTOLOGY:
+                        if not s.required or s.deprecated:
                             continue
-                        pref = spec._label_for(q).lower()
-                        notation = spec.notation_for(q).lower()
+                        pref = s.formatted_label.lower()
+                        notation = s.effective_notation.lower()
                         if pref not in cols_l and notation not in cols_l:
                             return False
                     return True

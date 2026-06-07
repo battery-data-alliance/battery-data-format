@@ -23,14 +23,21 @@ class LandtCSV(DelimitedTextPlugin):
     )
 
     column_synonyms = {
-        "Test Time / s": ["test_time_s"],
-        "Voltage / V":   ["voltage_v"],
-        "Current / A":   ["current_a"],
-        "Step Time / s": ["step_time_s"],
-        "Cycle Index":   ["cycle_index"],
-        "Step Index":    ["step_index"],
-        "Channel Index": ["channel_index"],
-        "Date Time ISO": ["date_time_iso_string"],
+        "Test Time / s":          ["test_time_s"],
+        "Voltage / V":            ["voltage_v"],
+        "Current / A":            ["current_a"],
+        "Step Time / s":          ["step_time_s"],
+        "Cycle Index":            ["cycle_index"],
+        "Step Index":             ["step_index"],
+        "Channel Index":          ["channel_index"],
+        "Date Time ISO":          ["date_time_iso_string"],
+        "Charging Capacity / Ah": ["charge_capacity_Ah"],
+        "Discharging Capacity / Ah": ["discharge_capacity_Ah"],
+        "Charging Energy / Wh":   ["charge_energy_Wh"],
+        "Discharging Energy / Wh": ["discharge_energy_Wh"],
+        "Ambient Temperature / degC": ["temperature_1_C"],
+        "Surface Temperature T2 / degC": ["temperature_2_C"],
+        "Surface Temperature T3 / degC": ["temperature_3_C"],
     }
 
     unit_column_patterns = {

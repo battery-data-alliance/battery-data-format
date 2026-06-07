@@ -316,12 +316,12 @@ def _normalize_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
             return True
         try:
             from bdf import spec
-            if text in spec.COLUMNS:
+            if text in spec.COLUMN_ONTOLOGY:
                 return True
-            for q in spec.COLUMNS:
-                if text == spec._label_for(q):
+            for q, qty in spec.COLUMN_ONTOLOGY:
+                if text == qty.formatted_label:
                     return True
-                if text == spec.notation_for(q):
+                if text == qty.effective_notation:
                     return True
         except Exception:
             pass

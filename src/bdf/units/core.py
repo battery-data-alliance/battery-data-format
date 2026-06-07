@@ -158,12 +158,12 @@ def resolve_pint_unit(
 ):
     """Explicit resolver: prefer spec; fall back to label/IRI; then MR suffix heuristic."""
     # 1) spec by MR name
-    if mr_name and mr_name in spec.COLUMNS:
-        return _to_pint(spec.COLUMNS[mr_name]["unit"], as_string)
+    if mr_name and mr_name in spec.COLUMN_ONTOLOGY:
+        return _to_pint(spec.COLUMN_ONTOLOGY[mr_name].unit, as_string)
 
     # 2) IRI (from spec)
     if iri:
-        u = next((s["unit"] for s in spec.COLUMNS.values() if s.get("iri") == iri), None)
+        u = next((qty.unit for _, qty in spec.COLUMN_ONTOLOGY if qty.iri == iri), None)
         if u:
             return _to_pint(u, as_string)
 
@@ -217,17 +217,17 @@ def resolve_unit(value: Any, *, as_string: bool = False):
     s = value.strip()
 
     # MR name (spec)
-    if s in spec.COLUMNS:
-        return _to_pint(spec.COLUMNS[s]["unit"], as_string)
+    if s in spec.COLUMN_ONTOLOGY:
+        return _to_pint(spec.COLUMN_ONTOLOGY[s].unit, as_string)
 
     # Canonical label (exact)
-    for sc in spec.COLUMNS.values():
-        if s == sc["label_template"].format(unit=sc["unit"]):
-            return _to_pint(sc["unit"], as_string)
+    for _, qty in spec.COLUMN_ONTOLOGY:
+        if s == qty.formatted_label:
+            return _to_pint(qty.unit, as_string)
 
     # IRI (from spec)
     if s.startswith(("http://", "https://", "urn:")):
-        u = next((sc["unit"] for sc in spec.COLUMNS.values() if sc.get("iri") == s), None)
+        u = next((qty.unit for _, qty in spec.COLUMN_ONTOLOGY if qty.iri == s), None)
         if u:
             return _to_pint(u, as_string)
 
@@ -243,10 +243,10 @@ def resolve_unit(value: Any, *, as_string: bool = False):
 
     # Base-name synonym -> spec quantity -> unit
     base_slug = re.sub(r"[^a-z0-9]+", "-", base.lower()).strip("-")
-    syn_idx: Mapping[str, str] = spec.base_synonym_index()  # slug -> MR name
+    syn_idx: Mapping[str, str] = spec.COLUMN_ONTOLOGY.base_synonym_index()
     q = syn_idx.get(base_slug)
     if q:
-        return _to_pint(spec.COLUMNS[q]["unit"], as_string)
+        return _to_pint(spec.COLUMN_ONTOLOGY[q].unit, as_string)
 
     # Last-chance: 'X / UNIT'
     u2 = _label_unit(s)
