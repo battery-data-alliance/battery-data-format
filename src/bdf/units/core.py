@@ -9,7 +9,7 @@ import pandas as pd
 from pint import UnitRegistry
 
 # ---------- Spec (single source of truth) ----------
-from bdf.normalize import spec  # requires only spec.py (no circular import)
+from bdf import spec  # requires only spec.py (no circular import)
 
 # ---------- Pint registry (single place) ----------
 try:

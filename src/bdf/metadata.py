@@ -371,7 +371,7 @@ def _ensure_spec():
     global _SPEC
     if _SPEC is None:
         try:
-            from bdf.normalize import spec as _loaded  # type: ignore
+            from bdf import spec as _loaded  # type: ignore
             _SPEC = _loaded
         except Exception:
             _SPEC = None

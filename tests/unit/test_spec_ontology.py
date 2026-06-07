@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from bdf.normalize import spec
+from bdf import spec
 
 
 def test_spec_uses_ontology_labels_units_and_aliases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

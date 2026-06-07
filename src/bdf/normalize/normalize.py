@@ -11,7 +11,7 @@ import pandas as pd
 from bdf.ontology_labels import load_alias_index
 from bdf.units import convert_series, parse_from_header
 
-from . import spec
+from bdf import spec
 
 _SLUG = re.compile(r"[^a-z0-9]+")
 def _slugify(s: str) -> str:

@@ -315,7 +315,7 @@ def _normalize_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
         }:
             return True
         try:
-            from bdf.normalize import spec
+            from bdf import spec
             if text in spec.COLUMNS:
                 return True
             for q in spec.COLUMNS:

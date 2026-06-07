@@ -12,7 +12,7 @@ from typing import Iterable, Optional
 from rdflib import Graph
 from rdflib.namespace import OWL, RDF, SKOS
 
-from .normalize import spec
+from . import spec
 
 _SLUG = re.compile(r"[^a-z0-9]+")
 

@@ -47,7 +47,7 @@ def _label_maps() -> tuple[dict[str, str], dict[str, str]]:
       - pref_label -> machine label (notation), using non-deprecated canonical targets.
       - machine label (notation) -> human pref_label, using non-deprecated canonical targets.
     """
-    from .normalize import spec
+    from . import spec
 
     base_preferred: dict[str, str] = {}
     for q, s in spec.COLUMNS.items():
