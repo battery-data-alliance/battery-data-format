@@ -384,7 +384,7 @@ def test_load_ttl_invalid_file_raises(tmp_path: Path) -> None:
     bad.write_text("this is not valid turtle syntax !! @@@", encoding="utf-8")
 
     onto = ColumnOntology.build()
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         onto.load_ttl(bad)
 
 
@@ -558,8 +558,8 @@ def test_validate_df_deprecated_quantity_not_counted_as_required(required_df: pl
         deprecated=True,
     )
     onto = ColumnOntology({"old_voltage_volt": q_dep})
-    # Should not raise even though old_voltage_volt is absent from df
-    onto.validate_df(required_df)
+    with pytest.warns(UserWarning, match="Non-BDF columns"):
+        onto.validate_df(required_df)
 
 
 def test_validate_df_extra_canonical_columns_do_not_warn(required_df: pl.DataFrame, recwarn) -> None:

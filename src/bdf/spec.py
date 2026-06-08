@@ -659,7 +659,10 @@ class ColumnOntology:
         if Graph is None:
             raise RuntimeError("rdflib is required for load_ttl")
         g = Graph()
-        g.parse(str(path))
+        try:
+            g.parse(str(path))
+        except Exception as exc:
+            raise ValueError(f"Failed to parse TTL file {path}: {exc}") from exc
         self._quantities = self.__class__.from_graph(g)._quantities
 
     def load_latest(self, *, refresh: bool = False) -> None:
