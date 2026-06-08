@@ -1,0 +1,39 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: pretty-format-json
+        args: [--autofix] # automatically fix formatting issues
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.15.12
+    hooks:
+      # Run the linter.
+      - id: ruff-check
+        types_or: [ python, pyi, jupyter ]
+        args: [ --fix ]
+        exclude: ^examples/
+      # Run the formatter.
+      - id: ruff-format
+        types_or: [ python, pyi, jupyter ]
+        exclude: ^examples/
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.20.2
+    hooks:
+      - id: mypy
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.48.0
+    hooks:
+      - id: markdownlint
+        args: ["--disable", "MD013"]
+  - repo: https://github.com/kynan/nbstripout # for stripping output from Jupyter notebooks
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+  - repo: https://github.com/astral-sh/uv-pre-commit # for checking and updating uv.lock files
+    # uv version.
+    rev: 0.11.8
+    hooks:
+      - id: uv-lock

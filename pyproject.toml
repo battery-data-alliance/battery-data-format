@@ -61,11 +61,14 @@ numpy2 = ["numpy>=2.0,<3.0"]
 dev = [
   "pytest",
   "pytest-cov",
-  "ruff",
-  "mypy",
+  # ruff and mypy are also run via pre-commit; pinned here to the same versions
+  # so CI (which invokes `python -m ruff`/`python -m mypy`) matches local hooks.
+  "ruff==0.15.12",
+  "mypy==1.20.2",
   "nbclient>=0.9",
   "nbformat>=5.9",
   "ipykernel>=6.0",
+  "pre-commit>=4.6.0",
 ]
 docs = [
   "sphinx>=7.0",

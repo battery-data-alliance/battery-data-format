@@ -8,19 +8,36 @@ Thanks for helping improve BDF!
 - Add/extend cycler plugins and tests.
 
 ## Setup
-1. Create a venv and install dev deps:
-   ```
-   python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   python -m pip install -e .[dev,docs]
-   ```
-2. Run checks locally:
-   ```
-   ruff check .
-   mypy src/bdf
-   pytest tests/unit -q
-   sphinx-build -b html docs docs/_build/html
-   ```
+
+Install with [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended):
+```
+uv sync --all-extras
+```
+
+Or with venv and pip:
+```
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+python -m pip install -e .[dev,docs]
+```
+
+Run checks locally:
+
+Install pre-commit hooks:
+```
+pre-commit install
+```
+
+Then pre-commit automatically runs on `git commit`. Run manually:
+```
+pre-commit run --all-files
+```
+
+Run tests and build docs:
+```
+pytest tests/unit -q
+sphinx-build -b html docs docs/_build/html
+```
 
 ## Pull requests
 - Keep PRs focused and include tests for new behavior.

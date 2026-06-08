@@ -1,17 +1,66 @@
+# Python environment
 .venv
 
+# Byte-compiled / optimized / DLL files
 __pycache__/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
 *.pyc
 *.pyo
-*.DS_Store
-*.ipynb_checkpoints
+*.pyd
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
 dist/
 build/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment and secrets
+.env
+.envrc
+
+# Testing and coverage
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+htmlcov/
+coverage.xml
+*.cover
+*.py.cover
+*.lcov
+.hypothesis/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# Build and tooling
+cython_debug/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation
+*.DS_Store
+*.ipynb_checkpoints
 docs/_build/
 docs/_autosummary/
+
+# Logging
+*.log
+
+# Project-specific data files
 ./*.parquet
 examples/**/*.parquet
 out/
@@ -20,3 +69,15 @@ examples/out/
 examples/in/raw_data_collection/g20m7/**
 examples/in/raw_data_collection/nacr32140mp10/**
 **/metadata.jsonld
+
+# Coding agents
+*claude*
+*gemini*
+*agents*
+*codex*
+openspec
+
+# Git/GitHub
+.worktrees
+.github/*
+!.github/workflows
