@@ -479,7 +479,6 @@ class ColumnOntology:
         """Check ``df`` column names against BDF canonical labels.
 
         Accepts pandas DataFrame, polars DataFrame, or polars LazyFrame.
-        Returns the original input object unchanged (pass-through).
         Raises ``BDFValidationError`` if required columns are absent.
         Warns (``UserWarning``) if extra non-BDF columns are present.
 
@@ -487,7 +486,7 @@ class ColumnOntology:
             df: DataFrame to validate (pandas or polars).
 
         Returns:
-            The original df object unchanged.
+            Validated DataFrame coerced back to the original input type.
         """
         lf = cast(pl.LazyFrame, df)  # guaranteed by @coerce_dataframe
         cols = set(lf.collect_schema().names())
@@ -512,7 +511,7 @@ class ColumnOntology:
         if extra:
             warnings.warn(f"Non-BDF columns present: {sorted(extra)}", UserWarning, stacklevel=2)
 
-        return df
+        return lf
 
     def quantity_from_label(self, label: str) -> tuple[Quantity, str | None] | None:
         """Return (Quantity, unit) for the given label, or None if not found.
