@@ -37,7 +37,8 @@ dependencies = [
   "pydantic>=2.6",
   "requests>=2.31",
   "pint>=0.22",
-  "NewareNDA"
+  "NewareNDA",
+  "platformdirs>=4.10.0",
 ]
 
 [project.urls]
