@@ -726,6 +726,12 @@ class ColumnOntology:
         )
 
 
+def _update_snapshot_cli() -> None:
+    """Entry point: fetch live ontology and update bundled snapshot."""
+    path = ColumnOntology.get_snapshot()
+    print(f"Snapshot updated: {path}")
+
+
 # --------- Module-level singleton ----------
 
 COLUMN_ONTOLOGY: ColumnOntology = ColumnOntology.build()

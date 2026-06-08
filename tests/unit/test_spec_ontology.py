@@ -475,6 +475,24 @@ def test_get_snapshot_writes_to_dest(tmp_path: Path) -> None:
     assert dest.stat().st_size > 0
 
 
+@pytest.mark.network
+def test_bundled_snapshot_is_up_to_date(tmp_path: Path) -> None:
+    """Bundled snapshot matches live ontology. Run `bdf-update-snapshot` if this fails."""
+    fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl")
+
+    fresh = ColumnOntology({})
+    fresh.load_ttl(fresh_path)
+
+    bundled = ColumnOntology.build()
+
+    fresh_quantities = {name: (q.unit, q.label_template) for name, q in fresh}
+    bundled_quantities = {name: (q.unit, q.label_template) for name, q in bundled}
+
+    assert fresh_quantities == bundled_quantities, (
+        "Bundled snapshot is stale. Run `bdf-update-snapshot` to regenerate."
+    )
+
+
 # ---------------------------------------------------------------------------
 # ColumnOntology container protocol
 # ---------------------------------------------------------------------------

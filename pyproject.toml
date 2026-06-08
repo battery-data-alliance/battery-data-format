@@ -47,6 +47,7 @@ Issues   = "https://github.com/battery-data-alliance/battery-data-format/issues"
 
 [project.scripts]
 bdf = "bdf.cli:app"
+bdf-update-snapshot = "bdf.spec:_update_snapshot_cli"
 
 [project.entry-points."bdf.data_sources"]
 biologic-mpt = "bdf.data_sources.biologic_mpt:BioLogicMPT"
