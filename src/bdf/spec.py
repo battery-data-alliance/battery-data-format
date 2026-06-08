@@ -16,7 +16,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from rdflib import Graph
 from rdflib.namespace import OWL, RDF, SKOS
 
-from bdf._df_compat import AnyDF, coerce_dataframe
+from bdf._df_compat import coerce_dataframe
 
 """
 Single source of truth for BDF canonical columns.
@@ -474,7 +474,7 @@ class ColumnOntology:
         return tuple(q.formatted_label for _, q in self if not q.required and not q.deprecated)
 
     @coerce_dataframe
-    def validate_df(self, df: AnyDF) -> AnyDF:
+    def validate_df(self, df: pl.LazyFrame) -> pl.LazyFrame:
         """Check ``df`` column names against BDF canonical labels.
 
         Accepts pandas DataFrame, polars DataFrame, or polars LazyFrame.
