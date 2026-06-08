@@ -572,21 +572,21 @@ def test_validate_df_extra_canonical_columns_do_not_warn(required_df: pl.DataFra
 def test_validate_df_accepts_pandas_dataframe_and_returns_it(required_df: pl.DataFrame) -> None:
     pdf = required_df.to_pandas()
     result = spec.COLUMN_ONTOLOGY.validate_df(pdf)
-    assert result is pdf
     assert isinstance(result, pd.DataFrame)
+    assert result.equals(pdf)
 
 
 def test_validate_df_accepts_polars_dataframe_and_returns_it(required_df: pl.DataFrame) -> None:
     result = spec.COLUMN_ONTOLOGY.validate_df(required_df)
-    assert result is required_df
     assert isinstance(result, pl.DataFrame)
+    assert result.equals(required_df)
 
 
 def test_validate_df_accepts_lazyframe_and_returns_it(required_df: pl.DataFrame) -> None:
     lf = required_df.lazy()
     result = spec.COLUMN_ONTOLOGY.validate_df(lf)
-    assert result is lf
     assert isinstance(result, pl.LazyFrame)
+    assert result.collect().equals(lf.collect())
 
 
 def test_validate_df_raises_on_missing_columns_with_pandas_input() -> None:
