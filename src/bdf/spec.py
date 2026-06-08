@@ -48,7 +48,7 @@ _UNIT_ALIAS = {
 _SLASH_RE = re.compile(r"^\s*(.+?)\s*/\s*(.+)\s*$")
 _BDF_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
 
-ureg = pint.UnitRegistry()
+ureg: pint.UnitRegistry = pint.UnitRegistry()
 for _alias, _canonical in [
     ("degc", "degC"),
     ("degreec", "degC"),
