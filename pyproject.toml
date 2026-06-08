@@ -39,6 +39,7 @@ dependencies = [
   "pint>=0.22",
   "NewareNDA",
   "platformdirs>=4.10.0",
+  "polars>=1.41.2",
 ]
 
 [project.urls]
