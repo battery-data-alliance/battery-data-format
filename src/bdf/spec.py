@@ -121,22 +121,21 @@ def get_unit_conversion(src_unit: str | None, dst_unit: str) -> tuple[float, flo
     Returns:
         Tuple of (scale, offset) for conversion, or None if incompatible.
     """
-    src_bare = src_unit.strip() if src_unit is not None else ""
+    src_bare = (src_unit or "").strip()
+    dst_bare = dst_unit.strip()
     src_is_dim = src_bare in ("", "1")
-    dst_is_dim = dst_unit in ("1", "", None)
+    dst_is_dim = dst_bare in ("1", "", None)
     if src_is_dim or dst_is_dim:
         return (1.0, 0.0) if src_is_dim and dst_is_dim else None
-    s = src_unit.strip()
-    t = dst_unit.strip()
-    if s.lower() == t.lower():
+    if src_bare.lower() == dst_bare.lower():
         return (1.0, 0.0)
     try:
-        qty_t = ureg.Quantity(1, t)
-        tgt_units = qty_t.units
-        if ureg.Quantity(1, s).dimensionality != qty_t.dimensionality:
+        qty_dst = ureg.Quantity(1, dst_bare)
+        tgt_units = qty_dst.units
+        if ureg.Quantity(1, src_bare).dimensionality != qty_dst.dimensionality:
             return None
-        at_zero = float(ureg.Quantity(0, s).to(tgt_units).magnitude)
-        at_one = float(ureg.Quantity(1, s).to(tgt_units).magnitude)
+        at_zero = float(ureg.Quantity(0, src_bare).to(tgt_units).magnitude)
+        at_one = float(ureg.Quantity(1, src_bare).to(tgt_units).magnitude)
         scale = round(at_one - at_zero, 15)
         offset = round(at_zero, 15)
         return (scale, offset)
