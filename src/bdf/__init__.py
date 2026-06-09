@@ -418,12 +418,12 @@ def _csv_header_has_bdf_required(path: Path) -> bool:
         return False
     cols_l = {c.strip().lower() for c in header.split(",")}
     # import lazily to avoid cycles
-    from .normalize import spec
-    for q, s in spec.COLUMNS.items():
-        if not s.get("required") or bool(s.get("deprecated")):
+    from . import spec
+    for _, quantity_spec in spec.COLUMN_ONTOLOGY:
+        if not quantity_spec.required or quantity_spec.deprecated:
             continue
-        pref = spec._label_for(q).lower()
-        notation = spec.notation_for(q).lower()
+        pref = quantity_spec.formatted_label.lower()
+        notation = quantity_spec.effective_notation.lower()
         if pref not in cols_l and notation not in cols_l:
             return False
     return True
@@ -510,12 +510,12 @@ def validate(
                         head = "".join([f.readline() for _ in range(2)]).lower()
                     header_line = head.splitlines()[0] if head else ""
                     cols_l = {c.strip().lower() for c in header_line.split(",")}
-                    from .normalize import spec
-                    for q, s in spec.COLUMNS.items():
-                        if not s.get("required") or bool(s.get("deprecated")):
+                    from . import spec
+                    for _, quantity_spec in spec.COLUMN_ONTOLOGY:
+                        if not quantity_spec.required or quantity_spec.deprecated:
                             continue
-                        pref = spec._label_for(q).lower()
-                        notation = spec.notation_for(q).lower()
+                        pref = quantity_spec.formatted_label.lower()
+                        notation = quantity_spec.effective_notation.lower()
                         if pref not in cols_l and notation not in cols_l:
                             return False
                     return True
