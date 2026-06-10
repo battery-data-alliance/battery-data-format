@@ -1,0 +1,78 @@
+name: Sync ontology snapshot
+
+# Daily check: is there a newer ontology release than the bundled snapshot?
+# If so, update the snapshot, regenerate the ontology-derived docs, and open
+# a PR with a human-readable summary of the term-level changes.
+#
+# NOTE: PRs created with the default GITHUB_TOKEN do not trigger CI runs
+# (GitHub safeguard). Add a fine-grained PAT as the SYNC_PAT secret (contents:
+# write, pull-requests: write) so the sync PR runs CI; without it the PR is
+# still created but CI must be triggered by closing/reopening or pushing.
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Resolve versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api repos/battery-data-alliance/battery-data-format-ontology/releases/latest --jq .tag_name)
+          current=$(python -c "from bdf.spec import COLUMN_ONTOLOGY; print(COLUMN_ONTOLOGY.ontology_version)")
+          echo "latest=$latest"   >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "Ontology release: $latest | bundled snapshot: $current"
+
+      - name: Update snapshot and regenerate docs
+        if: steps.versions.outputs.latest != steps.versions.outputs.current
+        run: |
+          cp src/bdf/data/bdf-ontology-snapshot.ttl /tmp/old-snapshot.ttl
+          bdf-update-snapshot "${{ steps.versions.outputs.latest }}"
+          python scripts/generate_docs.py
+          python scripts/ontology_sync_summary.py /tmp/old-snapshot.ttl \
+            src/bdf/data/bdf-ontology-snapshot.ttl > /tmp/pr-body.md
+          cat /tmp/pr-body.md
+
+      - name: Open or update sync PR
+        if: steps.versions.outputs.latest != steps.versions.outputs.current
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          branch: chore/ontology-sync
+          delete-branch: true
+          signoff: true
+          commit-message: |
+            chore: sync ontology snapshot to ${{ steps.versions.outputs.latest }}
+
+            Automated update from the battery-data-format-ontology release
+            ${{ steps.versions.outputs.latest }}; regenerates the
+            ontology-derived documentation tables.
+          title: "chore: sync ontology snapshot to ${{ steps.versions.outputs.latest }}"
+          body-path: /tmp/pr-body.md
+          labels: ontology-sync
+
+      - name: Up to date
+        if: steps.versions.outputs.latest == steps.versions.outputs.current
+        run: echo "Snapshot already at latest release (${{ steps.versions.outputs.current }}); nothing to do."
