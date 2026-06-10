@@ -29,10 +29,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install package
+      - name: Install package (editable, so bdf-update-snapshot writes into the repo tree)
         run: |
           python -m pip install --upgrade pip
-          pip install .
+          pip install -e .
 
       - name: Resolve versions
         id: versions
