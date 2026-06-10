@@ -28,6 +28,17 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 1. **Each file contains time-series data for one and only one cell.**  
    - Multiple files can be provided for the same cell.
 
+### AI-ready by design
+
+A BDF column header is not just a text label — it is a globally unique identifier that machines can look up. Every quantity in the tables below links to a term in the [BDF application ontology](https://github.com/battery-data-alliance/battery-data-format-ontology), which resolves to its full machine-readable definition: physical meaning, canonical unit, mathematical relationship to other quantities, and conformance level (required / recommended / optional). The vocabulary extends the [BattINFO](https://github.com/BIG-MAP/BattINFO) battery domain ontology and is built on established web standards: [RDF](https://www.w3.org/RDF/)/[OWL](https://www.w3.org/OWL/) for formal semantics, [SKOS](https://www.w3.org/2004/02/skos/) for labels and vocabulary mapping, [schema.org](https://schema.org/) annotations for search-engine discoverability, [QUDT](https://qudt.org/) and UCUM for units, [PROV-O](https://www.w3.org/TR/prov-o/) for how derived quantities are computed, and [SOSA](https://www.w3.org/TR/vocab-ssn/)/[CSVW](https://www.w3.org/TR/tabular-data-primer/) for observations and tabular structure.
+
+What that buys you in practice:
+
+- **No vendor ambiguity** — "capacity" from different cyclers maps to explicitly distinct terms (charging, discharging, net, cumulative) with formal definitions, instead of guesswork.
+- **Semantic web & FAIR data** — BDF files can be lifted to linked data (a JSON-LD context is published with the ontology), queried with SPARQL, indexed by search engines via the schema.org annotations, and integrated with other EMMO/BattINFO-aligned resources.
+- **Agentic & automated workflows** — software agents and LLM-based tools can resolve a column's meaning, units, and relationships at runtime, enabling automated validation, unit conversion, and cross-dataset harmonization without human interpretation.
+- **No documentation drift** — the tables below, and this package's validation logic, are generated from the same ontology release (the bundled snapshot), so documentation, code, and semantics cannot disagree.
+
 2. **Required quantities**  
 
 <!-- BEGIN GENERATED: bdf-terms-required -->
