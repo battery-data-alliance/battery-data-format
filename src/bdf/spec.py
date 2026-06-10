@@ -47,6 +47,10 @@ _UNIT_ALIAS = {
 }
 _SLASH_RE = re.compile(r"^\s*(.+?)\s*/\s*(.+)\s*$")
 _BDF_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
+_BDF_RELEASE_URL_TMPL = (
+    "https://raw.githubusercontent.com/battery-data-alliance/"
+    "battery-data-format-ontology/{version}/battery-data-format.ttl"
+)
 
 ureg: pint.UnitRegistry = pint.UnitRegistry()
 for _alias, _canonical in [
@@ -626,18 +630,23 @@ class ColumnOntology:
         return cls(quantities, ontology_version=version)
 
     @classmethod
-    def get_snapshot(cls, dest: Path | None = None) -> Path:
-        """Fetch live ontology and write bundled snapshot.
+    def get_snapshot(cls, dest: Path | None = None, version: str | None = None) -> Path:
+        """Fetch the ontology and write the bundled snapshot.
 
         Args:
             dest: Path to write snapshot. Defaults to bundled package data path.
+            version: Ontology release tag to pin (e.g. '1.1.0'). When given, the
+                TTL is fetched from that release tag and the fetched
+                owl:versionInfo must match. When None, the live (latest
+                deployed) ontology is fetched.
 
         Returns:
             Path to the written snapshot file.
 
         Raises:
-            requests.HTTPError: If the live URL request fails.
-            RuntimeError: If the fetched ontology cannot be parsed.
+            requests.HTTPError: If the URL request fails.
+            RuntimeError: If the fetched ontology cannot be parsed, or its
+                versionInfo does not match the requested release.
         """
         import requests
 
@@ -645,12 +654,20 @@ class ColumnOntology:
             ref = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl")
             dest = Path(str(ref))
 
-        resp = requests.get(_BDF_LIVE_URL, timeout=30)
+        url = _BDF_RELEASE_URL_TMPL.format(version=version) if version else _BDF_LIVE_URL
+        resp = requests.get(url, timeout=30)
         resp.raise_for_status()
         raw = resp.content
         g = _graph_from_bytes(raw)
         if g is None:
-            raise RuntimeError("Failed to parse ontology from live URL")
+            raise RuntimeError(f"Failed to parse ontology from {url}")
+        if version is not None:
+            fetched = cls.from_graph(g).ontology_version
+            if fetched != version:
+                raise RuntimeError(
+                    f"Requested ontology release {version!r} but fetched TTL declares "
+                    f"owl:versionInfo {fetched!r}; tag and content disagree."
+                )
 
         serialized = g.serialize(format="turtle")
         content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
@@ -769,9 +786,19 @@ class ColumnOntology:
 
 
 def _update_snapshot_cli() -> None:
-    """Entry point: fetch live ontology and update bundled snapshot."""
-    path = ColumnOntology.get_snapshot()
-    print(f"Snapshot updated: {path}")
+    """Entry point: fetch ontology and update bundled snapshot.
+
+    Usage: bdf-update-snapshot [VERSION]
+
+    With VERSION (e.g. '1.1.0'), fetches that release tag and verifies the
+    fetched owl:versionInfo matches. Without, fetches the live ontology.
+    """
+    import sys
+
+    version = sys.argv[1] if len(sys.argv) > 1 else None
+    path = ColumnOntology.get_snapshot(version=version)
+    pinned = f" (pinned to release {version})" if version else ""
+    print(f"Snapshot updated: {path}{pinned}")
 
 
 # --------- Module-level singleton ----------
