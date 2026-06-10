@@ -13,7 +13,7 @@ from typing import Any, cast
 import pint
 import polars as pl
 from pydantic import BaseModel, field_validator, model_validator
-from rdflib import Graph
+from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDF, SKOS
 
 from bdf._df_compat import coerce_dataframe
@@ -243,6 +243,21 @@ def _read_ontology_cache_latest(cache_dir: Path) -> bytes | None:
     return None
 
 
+def _english_literals(g: Any, subject: Any, predicate: Any) -> list[str]:
+    """Collect non-empty literal values for *predicate*, keeping untagged or English ones."""
+    values: list[str] = []
+    for lit in g.objects(subject, predicate):
+        try:
+            text = str(lit)
+        except Exception:
+            continue
+        if getattr(lit, "language", None) not in (None, "en"):
+            continue
+        if text:
+            values.append(text)
+    return values
+
+
 # --------- Pydantic models ----------
 
 
@@ -258,6 +273,12 @@ class Quantity(BaseModel):
     synonyms: list[str]
     deprecated: bool = False
     notation: str = ""
+    obligation: str = ""
+    definition: str = ""
+    description: str = ""
+    latex_symbol: str = ""
+    latex_formula: str = ""
+    derived_from: tuple[str, ...] = ()
 
     @model_validator(mode="before")
     @classmethod
@@ -330,18 +351,9 @@ class Quantity(BaseModel):
         if "#" not in iri:
             return None
         mr_name = iri.rsplit("#", 1)[-1]
+        ns = iri.rsplit("#", 1)[0] + "#"
 
-        pref_labels: list[str] = []
-        for lit in g.objects(subject, skos.prefLabel):
-            try:
-                text = str(lit)
-            except Exception:
-                continue
-            if getattr(lit, "language", None) not in (None, "en"):
-                continue
-            if text:
-                pref_labels.append(text)
-
+        pref_labels = _english_literals(g, subject, skos.prefLabel)
         if not pref_labels:
             return None
         parsed = parse_label(pref_labels[0])
@@ -354,26 +366,8 @@ class Quantity(BaseModel):
             False,
         )
 
-        alt_labels: list[str] = []
-        for lit in g.objects(subject, skos.altLabel):
-            try:
-                text = str(lit)
-            except Exception:
-                continue
-            if getattr(lit, "language", None) not in (None, "en"):
-                continue
-            if text:
-                alt_labels.append(text)
-
-        notations: list[str] = []
-        for lit in g.objects(subject, skos.notation):
-            try:
-                text = str(lit)
-            except Exception:
-                continue
-            if text:
-                notations.append(text)
-
+        alt_labels = _english_literals(g, subject, skos.altLabel)
+        notations = _english_literals(g, subject, skos.notation)
         notation = next((s for n in notations if (s := str(n).strip())), mr_name)
 
         syns = {_slugify(base), _slugify(mr_name)}
@@ -384,6 +378,26 @@ class Quantity(BaseModel):
                 syns.add(slug)
         synonyms = sorted(s for s in syns if s)
 
+        # Ontology-sourced documentation/conformance metadata (absent in pre-1.1.0
+        # snapshots, in which case these stay empty and `required` falls back to
+        # the static default in from_graph()).
+        def _first(predicate: Any) -> str:
+            vals = _english_literals(g, subject, predicate)
+            return vals[0].strip() if vals else ""
+
+        obligation = _first(URIRef(ns + "obligation")).lower()
+        definition = _first(skos.definition)
+        description = _first(URIRef("https://schema.org/description"))
+        latex_symbol = _first(URIRef(ns + "latexSymbol"))
+        latex_formula = _first(URIRef(ns + "latexFormula"))
+
+        derived = {
+            str(obj).rsplit("#", 1)[-1]
+            for obj in g.objects(subject, URIRef("http://www.w3.org/ns/prov#wasDerivedFrom"))
+            if isinstance(obj, URIRef) and str(obj).startswith(ns)
+        }
+        derived_from = tuple(sorted(derived))
+
         return cls(
             unit=unit,
             label_template=f"{base} / {{unit}}",
@@ -393,6 +407,12 @@ class Quantity(BaseModel):
             iri=iri,
             deprecated=deprecated,
             synonyms=synonyms,
+            obligation=obligation,
+            definition=definition,
+            description=description,
+            latex_symbol=latex_symbol,
+            latex_formula=latex_formula,
+            derived_from=derived_from,
         )
 
 
@@ -581,6 +601,16 @@ class ColumnOntology:
             q = Quantity.from_graph_subject(g, subject, SKOS, OWL)
             if q is not None:
                 quantities[q.mr_name] = q
+
+        # The ontology's :obligation annotation is the source of truth for
+        # requiredness. Pre-1.1.0 ontologies carry no obligations; only then
+        # does the static _REQUIRED_DEFAULT fallback (set per-subject above)
+        # remain in effect.
+        if any(q.obligation for q in quantities.values()):
+            quantities = {
+                name: q.model_copy(update={"required": q.obligation == "required"})
+                for name, q in quantities.items()
+            }
         return cls(quantities)
 
     @classmethod
