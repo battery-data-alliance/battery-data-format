@@ -66,13 +66,34 @@ def _table_for_level(level: str) -> str:
     return "\n".join(lines)
 
 
+def _region_content(level: str, stamp: str) -> str:
+    table = _table_for_level(level)
+    if level != "optional":
+        return f"{stamp}\n{table}"
+    # The optional table is by far the largest; keep the README scannable by
+    # rendering it collapsed (blank lines around the table are required for
+    # GitHub to render Markdown inside <details>).
+    count = sum(
+        1 for _, q in COLUMN_ONTOLOGY if q.obligation == "optional" and not q.deprecated
+    )
+    return (
+        f"{stamp}\n"
+        "<details>\n"
+        f"<summary><b>{count} optional quantities</b> &mdash; click to expand</summary>\n"
+        "\n"
+        f"{table}\n"
+        "\n"
+        "</details>"
+    )
+
+
 def _generated_regions() -> dict[str, str]:
     stamp = (
         f"<!-- Generated from BDF ontology {COLUMN_ONTOLOGY.ontology_version} "
         "by scripts/generate_docs.py - do not edit by hand. -->"
     )
     return {
-        f"bdf-terms-{level}": f"{stamp}\n{_table_for_level(level)}"
+        f"bdf-terms-{level}": _region_content(level, stamp)
         for level in OBLIGATION_LEVELS
     }
 

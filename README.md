@@ -57,6 +57,9 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 
 <!-- BEGIN GENERATED: bdf-terms-optional -->
 <!-- Generated from BDF ontology 1.1.0 by scripts/generate_docs.py - do not edit by hand. -->
+<details>
+<summary><b>35 optional quantities</b> &mdash; click to expand</summary>
+
 | Preferred Label | Machine-readable name | IRI | Description |
 |---|---|---|---|
 | Absolute Impedance / ohm | `absolute_impedance_ohm` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#absolute_impedance_ohm](https://w3id.org/battery-data-alliance/ontology/battery-data-format#absolute_impedance_ohm) | the magnitude of the complex impedance, expressed in ohms. |
@@ -94,6 +97,8 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 | Surface Temperature T3 / degC | `temperature_t3_celsius` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t3_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t3_celsius) | For tests with multiple temperature measurements, the measured temperature of the test object (e.g., surface or internal), in degrees Celsius. |
 | Surface Temperature T4 / degC | `temperature_t4_celsius` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t4_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t4_celsius) | For tests with multiple temperature measurements, the measured temperature of the test object (e.g., surface or internal), in degrees Celsius. |
 | Surface Temperature T5 / degC | `temperature_t5_celsius` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t5_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#temperature_t5_celsius) | For tests with multiple temperature measurements, the measured temperature of the test object (e.g., surface or internal), in degrees Celsius. |
+
+</details>
 <!-- END GENERATED: bdf-terms-optional -->
 
 
