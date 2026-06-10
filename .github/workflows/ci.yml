@@ -32,6 +32,9 @@ jobs:
           MPLBACKEND: Agg
         run: |
           pytest tests/unit -q
+      - name: Check generated docs are in sync with ontology snapshot
+        run: |
+          python scripts/generate_docs.py --check
       - name: Build docs (link check skipped)
         run: |
           python -m pip install .[docs]

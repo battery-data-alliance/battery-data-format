@@ -419,13 +419,20 @@ class Quantity(BaseModel):
 class ColumnOntology:
     """Registry of all BDF canonical quantities. Iterate as (mr_name, Quantity) pairs."""
 
-    def __init__(self, quantities: dict[str, Quantity]) -> None:
+    def __init__(self, quantities: dict[str, Quantity], ontology_version: str = "") -> None:
         """Initialize with a dictionary of quantities.
 
         Args:
             quantities: Mapping from mr_name to Quantity.
+            ontology_version: owl:versionInfo of the source ontology, if known.
         """
         self._quantities = quantities
+        self.ontology_version = ontology_version
+
+    def _adopt(self, other: "ColumnOntology") -> None:
+        """Take over quantities and version from another instance (in-place reload)."""
+        self._quantities = other._quantities
+        self.ontology_version = other.ontology_version
 
     def __iter__(self):
         return iter(self._quantities.items())
@@ -611,7 +618,12 @@ class ColumnOntology:
                 name: q.model_copy(update={"required": q.obligation == "required"})
                 for name, q in quantities.items()
             }
-        return cls(quantities)
+
+        version = next(
+            (str(o) for s in g.subjects(RDF.type, OWL.Ontology) for o in g.objects(s, OWL.versionInfo)),
+            "",
+        )
+        return cls(quantities, ontology_version=version)
 
     @classmethod
     def get_snapshot(cls, dest: Path | None = None) -> Path:
@@ -692,7 +704,7 @@ class ColumnOntology:
             g.parse(str(path))
         except Exception as exc:
             raise ValueError(f"Failed to parse TTL file {path}: {exc}") from exc
-        self._quantities = self.__class__.from_graph(g)._quantities
+        self._adopt(self.__class__.from_graph(g))
 
     def load_latest(self, *, refresh: bool = False) -> None:
         """Load the latest available ontology, using cache or fetching live.
@@ -711,7 +723,7 @@ class ColumnOntology:
             if cached is not None:
                 g = _graph_from_bytes(cached, format="turtle")
                 if g is not None:
-                    self._quantities = self.__class__.from_graph(g)._quantities
+                    self._adopt(self.__class__.from_graph(g))
                     return
 
         import requests
@@ -727,7 +739,7 @@ class ColumnOntology:
         serialized = g.serialize(format="turtle")
         content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
         _write_ontology_cache(cache_dir, slug, content)
-        self._quantities = self.__class__.from_graph(g)._quantities
+        self._adopt(self.__class__.from_graph(g))
 
     def load_version(self, version: str, *, refresh: bool = False) -> None:
         """Load a specific versioned ontology from cache.
@@ -746,7 +758,7 @@ class ColumnOntology:
             data = versioned.read_bytes()
             g = _graph_from_bytes(data, format="turtle")
             if g is not None:
-                self._quantities = self.__class__.from_graph(g)._quantities
+                self._adopt(self.__class__.from_graph(g))
                 return
 
         available = sorted(p.name for p in cache_dir.glob("bdf-ontology-v*.ttl"))
