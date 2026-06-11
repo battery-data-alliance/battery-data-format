@@ -98,6 +98,9 @@ def test_required_falls_back_to_default_without_obligations() -> None:
     g = Graph()
     g.parse(data=_MINIMAL_PRE_OBLIGATION_TTL, format="turtle")
     onto = ColumnOntology.from_graph(g)
+    # Without :obligation annotations the level is synthesized from the
+    # static fallback set; `required` is derived from it.
+    assert onto["test_time_second"].obligation == "required"
     assert onto["test_time_second"].required
+    assert onto["power_watt"].obligation == "optional"
     assert not onto["power_watt"].required
-    assert onto["test_time_second"].obligation == ""

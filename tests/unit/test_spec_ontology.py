@@ -141,7 +141,7 @@ def test_quantity_invalid_field_type_raises() -> None:
         Quantity(
             unit="V",
             label_template="Voltage / {unit}",
-            required="not-a-bool-or-coercible",  # type: ignore[arg-type]
+            deprecated="not-a-bool-or-coercible",  # type: ignore[arg-type]
             mr_name="voltage_volt",
             iri="",
             synonyms=[],
@@ -235,7 +235,7 @@ def test_required_labels_match_required_flag() -> None:
 
 def test_required_labels_excludes_deprecated() -> None:
     q_dep = Quantity(
-        unit="V", label_template="Old / {unit}", required=True, mr_name="old_volt", iri="", synonyms=[], deprecated=True
+        unit="V", label_template="Old / {unit}", obligation="required", mr_name="old_volt", iri="", synonyms=[], deprecated=True
     )
     onto = ColumnOntology({"old_volt": q_dep})
     assert "Old / V" not in onto.required_labels()
@@ -255,7 +255,6 @@ def test_base_synonym_index_excludes_deprecated() -> None:
     q_dep = Quantity(
         unit="V",
         label_template="Old / {unit}",
-        required=False,
         mr_name="old_volt",
         iri="",
         synonyms=["old-voltage"],
@@ -569,7 +568,7 @@ def test_validate_df_deprecated_quantity_not_counted_as_required(required_df: pl
     q_dep = Quantity(
         unit="V",
         label_template="Old Voltage / V",
-        required=True,
+        obligation="required",
         mr_name="old_voltage_volt",
         iri="",
         synonyms=[],

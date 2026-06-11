@@ -271,7 +271,6 @@ class Quantity(BaseModel):
     unit: str
     label_template: str
     dtype: str = "float"
-    required: bool = False
     mr_name: str
     iri: str
     synonyms: list[str]
@@ -305,6 +304,17 @@ class Quantity(BaseModel):
         if v not in ("int", "float"):
             raise ValueError(f"dtype must be 'int' or 'float', got {v!r}")
         return v
+
+    @property
+    def required(self) -> bool:
+        """True when the term's obligation level is 'required'.
+
+        Derived from `obligation` rather than stored, so the two can never
+        disagree. For pre-1.1.0 ontologies without obligation annotations,
+        `from_graph_subject` synthesizes the obligation from the static
+        fallback set, which this property then reflects.
+        """
+        return self.obligation == "required"
 
     @property
     def formatted_label(self) -> str:
@@ -390,6 +400,11 @@ class Quantity(BaseModel):
             return vals[0].strip() if vals else ""
 
         obligation = _first(URIRef(ns + "obligation")).lower()
+        if not obligation and not deprecated:
+            # Pre-1.1.0 ontologies carry no :obligation annotations; synthesize
+            # the level from the static fallback set so requiredness survives
+            # on old snapshots. Deprecated terms never carry an obligation.
+            obligation = "required" if mr_name in _REQUIRED_DEFAULT else "optional"
         definition = _first(skos.definition)
         description = _first(URIRef("https://schema.org/description"))
         latex_symbol = _first(URIRef(ns + "latexSymbol"))
@@ -405,7 +420,6 @@ class Quantity(BaseModel):
         return cls(
             unit=unit,
             label_template=f"{base} / {{unit}}",
-            required=mr_name in _REQUIRED_DEFAULT,
             mr_name=mr_name,
             notation=notation,
             iri=iri,
@@ -612,16 +626,6 @@ class ColumnOntology:
             q = Quantity.from_graph_subject(g, subject, SKOS, OWL)
             if q is not None:
                 quantities[q.mr_name] = q
-
-        # The ontology's :obligation annotation is the source of truth for
-        # requiredness. Pre-1.1.0 ontologies carry no obligations; only then
-        # does the static _REQUIRED_DEFAULT fallback (set per-subject above)
-        # remain in effect.
-        if any(q.obligation for q in quantities.values()):
-            quantities = {
-                name: q.model_copy(update={"required": q.obligation == "required"})
-                for name, q in quantities.items()
-            }
 
         version = next(
             (str(o) for s in g.subjects(RDF.type, OWL.Ontology) for o in g.objects(s, OWL.versionInfo)),
