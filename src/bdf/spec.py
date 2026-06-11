@@ -13,7 +13,7 @@ from typing import Any, cast
 import pint
 import polars as pl
 from pydantic import BaseModel, field_validator, model_validator
-from rdflib import Graph
+from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDF, SKOS
 
 from bdf._df_compat import coerce_dataframe
@@ -47,6 +47,10 @@ _UNIT_ALIAS = {
 }
 _SLASH_RE = re.compile(r"^\s*(.+?)\s*/\s*(.+)\s*$")
 _BDF_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
+_BDF_RELEASE_URL_TMPL = (
+    "https://raw.githubusercontent.com/battery-data-alliance/"
+    "battery-data-format-ontology/{version}/battery-data-format.ttl"
+)
 
 ureg: pint.UnitRegistry = pint.UnitRegistry()
 for _alias, _canonical in [
@@ -243,6 +247,21 @@ def _read_ontology_cache_latest(cache_dir: Path) -> bytes | None:
     return None
 
 
+def _english_literals(g: Any, subject: Any, predicate: Any) -> list[str]:
+    """Collect non-empty literal values for *predicate*, keeping untagged or English ones."""
+    values: list[str] = []
+    for lit in g.objects(subject, predicate):
+        try:
+            text = str(lit)
+        except Exception:
+            continue
+        if getattr(lit, "language", None) not in (None, "en"):
+            continue
+        if text:
+            values.append(text)
+    return values
+
+
 # --------- Pydantic models ----------
 
 
@@ -252,12 +271,17 @@ class Quantity(BaseModel):
     unit: str
     label_template: str
     dtype: str = "float"
-    required: bool = False
     mr_name: str
     iri: str
     synonyms: list[str]
     deprecated: bool = False
     notation: str = ""
+    obligation: str = ""
+    definition: str = ""
+    description: str = ""
+    latex_symbol: str = ""
+    latex_formula: str = ""
+    derived_from: tuple[str, ...] = ()
 
     @model_validator(mode="before")
     @classmethod
@@ -280,6 +304,17 @@ class Quantity(BaseModel):
         if v not in ("int", "float"):
             raise ValueError(f"dtype must be 'int' or 'float', got {v!r}")
         return v
+
+    @property
+    def required(self) -> bool:
+        """True when the term's obligation level is 'required'.
+
+        Derived from `obligation` rather than stored, so the two can never
+        disagree. For pre-1.1.0 ontologies without obligation annotations,
+        `from_graph_subject` synthesizes the obligation from the static
+        fallback set, which this property then reflects.
+        """
+        return self.obligation == "required"
 
     @property
     def formatted_label(self) -> str:
@@ -330,18 +365,9 @@ class Quantity(BaseModel):
         if "#" not in iri:
             return None
         mr_name = iri.rsplit("#", 1)[-1]
+        ns = iri.rsplit("#", 1)[0] + "#"
 
-        pref_labels: list[str] = []
-        for lit in g.objects(subject, skos.prefLabel):
-            try:
-                text = str(lit)
-            except Exception:
-                continue
-            if getattr(lit, "language", None) not in (None, "en"):
-                continue
-            if text:
-                pref_labels.append(text)
-
+        pref_labels = _english_literals(g, subject, skos.prefLabel)
         if not pref_labels:
             return None
         parsed = parse_label(pref_labels[0])
@@ -354,26 +380,8 @@ class Quantity(BaseModel):
             False,
         )
 
-        alt_labels: list[str] = []
-        for lit in g.objects(subject, skos.altLabel):
-            try:
-                text = str(lit)
-            except Exception:
-                continue
-            if getattr(lit, "language", None) not in (None, "en"):
-                continue
-            if text:
-                alt_labels.append(text)
-
-        notations: list[str] = []
-        for lit in g.objects(subject, skos.notation):
-            try:
-                text = str(lit)
-            except Exception:
-                continue
-            if text:
-                notations.append(text)
-
+        alt_labels = _english_literals(g, subject, skos.altLabel)
+        notations = _english_literals(g, subject, skos.notation)
         notation = next((s for n in notations if (s := str(n).strip())), mr_name)
 
         syns = {_slugify(base), _slugify(mr_name)}
@@ -384,28 +392,65 @@ class Quantity(BaseModel):
                 syns.add(slug)
         synonyms = sorted(s for s in syns if s)
 
+        # Ontology-sourced documentation/conformance metadata (absent in pre-1.1.0
+        # snapshots, in which case these stay empty and `required` falls back to
+        # the static default in from_graph()).
+        def _first(predicate: Any) -> str:
+            vals = _english_literals(g, subject, predicate)
+            return vals[0].strip() if vals else ""
+
+        obligation = _first(URIRef(ns + "obligation")).lower()
+        if not obligation and not deprecated:
+            # Pre-1.1.0 ontologies carry no :obligation annotations; synthesize
+            # the level from the static fallback set so requiredness survives
+            # on old snapshots. Deprecated terms never carry an obligation.
+            obligation = "required" if mr_name in _REQUIRED_DEFAULT else "optional"
+        definition = _first(skos.definition)
+        description = _first(URIRef("https://schema.org/description"))
+        latex_symbol = _first(URIRef(ns + "latexSymbol"))
+        latex_formula = _first(URIRef(ns + "latexFormula"))
+
+        derived = {
+            str(obj).rsplit("#", 1)[-1]
+            for obj in g.objects(subject, URIRef("http://www.w3.org/ns/prov#wasDerivedFrom"))
+            if isinstance(obj, URIRef) and str(obj).startswith(ns)
+        }
+        derived_from = tuple(sorted(derived))
+
         return cls(
             unit=unit,
             label_template=f"{base} / {{unit}}",
-            required=mr_name in _REQUIRED_DEFAULT,
             mr_name=mr_name,
             notation=notation,
             iri=iri,
             deprecated=deprecated,
             synonyms=synonyms,
+            obligation=obligation,
+            definition=definition,
+            description=description,
+            latex_symbol=latex_symbol,
+            latex_formula=latex_formula,
+            derived_from=derived_from,
         )
 
 
 class ColumnOntology:
     """Registry of all BDF canonical quantities. Iterate as (mr_name, Quantity) pairs."""
 
-    def __init__(self, quantities: dict[str, Quantity]) -> None:
+    def __init__(self, quantities: dict[str, Quantity], ontology_version: str = "") -> None:
         """Initialize with a dictionary of quantities.
 
         Args:
             quantities: Mapping from mr_name to Quantity.
+            ontology_version: owl:versionInfo of the source ontology, if known.
         """
         self._quantities = quantities
+        self.ontology_version = ontology_version
+
+    def _adopt(self, other: "ColumnOntology") -> None:
+        """Take over quantities and version from another instance (in-place reload)."""
+        self._quantities = other._quantities
+        self.ontology_version = other.ontology_version
 
     def __iter__(self):
         return iter(self._quantities.items())
@@ -581,21 +626,31 @@ class ColumnOntology:
             q = Quantity.from_graph_subject(g, subject, SKOS, OWL)
             if q is not None:
                 quantities[q.mr_name] = q
-        return cls(quantities)
+
+        version = next(
+            (str(o) for s in g.subjects(RDF.type, OWL.Ontology) for o in g.objects(s, OWL.versionInfo)),
+            "",
+        )
+        return cls(quantities, ontology_version=version)
 
     @classmethod
-    def get_snapshot(cls, dest: Path | None = None) -> Path:
-        """Fetch live ontology and write bundled snapshot.
+    def get_snapshot(cls, dest: Path | None = None, version: str | None = None) -> Path:
+        """Fetch the ontology and write the bundled snapshot.
 
         Args:
             dest: Path to write snapshot. Defaults to bundled package data path.
+            version: Ontology release tag to pin (e.g. '1.1.0'). When given, the
+                TTL is fetched from that release tag and the fetched
+                owl:versionInfo must match. When None, the live (latest
+                deployed) ontology is fetched.
 
         Returns:
             Path to the written snapshot file.
 
         Raises:
-            requests.HTTPError: If the live URL request fails.
-            RuntimeError: If the fetched ontology cannot be parsed.
+            requests.HTTPError: If the URL request fails.
+            RuntimeError: If the fetched ontology cannot be parsed, or its
+                versionInfo does not match the requested release.
         """
         import requests
 
@@ -603,12 +658,20 @@ class ColumnOntology:
             ref = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl")
             dest = Path(str(ref))
 
-        resp = requests.get(_BDF_LIVE_URL, timeout=30)
+        url = _BDF_RELEASE_URL_TMPL.format(version=version) if version else _BDF_LIVE_URL
+        resp = requests.get(url, timeout=30)
         resp.raise_for_status()
         raw = resp.content
         g = _graph_from_bytes(raw)
         if g is None:
-            raise RuntimeError("Failed to parse ontology from live URL")
+            raise RuntimeError(f"Failed to parse ontology from {url}")
+        if version is not None:
+            fetched = cls.from_graph(g).ontology_version
+            if fetched != version:
+                raise RuntimeError(
+                    f"Requested ontology release {version!r} but fetched TTL declares "
+                    f"owl:versionInfo {fetched!r}; tag and content disagree."
+                )
 
         serialized = g.serialize(format="turtle")
         content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
@@ -662,7 +725,7 @@ class ColumnOntology:
             g.parse(str(path))
         except Exception as exc:
             raise ValueError(f"Failed to parse TTL file {path}: {exc}") from exc
-        self._quantities = self.__class__.from_graph(g)._quantities
+        self._adopt(self.__class__.from_graph(g))
 
     def load_latest(self, *, refresh: bool = False) -> None:
         """Load the latest available ontology, using cache or fetching live.
@@ -681,7 +744,7 @@ class ColumnOntology:
             if cached is not None:
                 g = _graph_from_bytes(cached, format="turtle")
                 if g is not None:
-                    self._quantities = self.__class__.from_graph(g)._quantities
+                    self._adopt(self.__class__.from_graph(g))
                     return
 
         import requests
@@ -697,7 +760,7 @@ class ColumnOntology:
         serialized = g.serialize(format="turtle")
         content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
         _write_ontology_cache(cache_dir, slug, content)
-        self._quantities = self.__class__.from_graph(g)._quantities
+        self._adopt(self.__class__.from_graph(g))
 
     def load_version(self, version: str, *, refresh: bool = False) -> None:
         """Load a specific versioned ontology from cache.
@@ -716,7 +779,7 @@ class ColumnOntology:
             data = versioned.read_bytes()
             g = _graph_from_bytes(data, format="turtle")
             if g is not None:
-                self._quantities = self.__class__.from_graph(g)._quantities
+                self._adopt(self.__class__.from_graph(g))
                 return
 
         available = sorted(p.name for p in cache_dir.glob("bdf-ontology-v*.ttl"))
@@ -727,9 +790,19 @@ class ColumnOntology:
 
 
 def _update_snapshot_cli() -> None:
-    """Entry point: fetch live ontology and update bundled snapshot."""
-    path = ColumnOntology.get_snapshot()
-    print(f"Snapshot updated: {path}")
+    """Entry point: fetch ontology and update bundled snapshot.
+
+    Usage: bdf-update-snapshot [VERSION]
+
+    With VERSION (e.g. '1.1.0'), fetches that release tag and verifies the
+    fetched owl:versionInfo matches. Without, fetches the live ontology.
+    """
+    import sys
+
+    version = sys.argv[1] if len(sys.argv) > 1 else None
+    path = ColumnOntology.get_snapshot(version=version)
+    pinned = f" (pinned to release {version})" if version else ""
+    print(f"Snapshot updated: {path}{pinned}")
 
 
 # --------- Module-level singleton ----------

@@ -22,6 +22,28 @@ from .visualize import plot as line_plot
 app = typer.Typer(help="Battery Data Format utilities")
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        from . import __version__
+        from .spec import COLUMN_ONTOLOGY
+
+        typer.echo(f"bdf {__version__} (ontology snapshot {COLUMN_ONTOLOGY.ontology_version})")
+        raise typer.Exit()
+
+
+@app.callback()
+def _main(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        help="Show the package version and bundled ontology snapshot version.",
+        callback=_version_callback,
+        is_eager=True,
+    ),
+) -> None:
+    """Battery Data Format utilities."""
+
+
 @app.command()
 def ingest(
     source: str = typer.Argument(".", help="Path, URL, or directory to ingest"),
