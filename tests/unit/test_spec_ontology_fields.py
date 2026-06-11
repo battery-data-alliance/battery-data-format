@@ -58,8 +58,13 @@ def test_deprecated_terms_carry_no_obligation_and_are_never_required() -> None:
 
 
 def test_description_and_definition_extracted() -> None:
+    # Assert structure, not exact prose: wording evolves with ontology
+    # releases, and pinning it here would couple every snapshot sync to a
+    # test edit. Behavioural contracts (obligations, required set) are the
+    # ones pinned exactly.
     q = COLUMN_ONTOLOGY["current_ampere"]
-    assert q.description == "Instantaneous current recorded in ampere."
+    assert q.description
+    assert "current" in q.description.lower()
     assert q.definition
     # description is the short, table-friendly text
     assert len(q.description) <= len(q.definition)
