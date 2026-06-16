@@ -40,14 +40,21 @@ _SLUG = re.compile(r"[^a-z0-9]+")
 _REQUIRED_DEFAULT = {"test_time_second", "voltage_volt", "current_ampere"}
 _UNIT_ALIAS = {
     "celsius": "degC",
-    "degree celsius": "degC",
     "degree_celsius": "degC",
-    "deg c": "degC",
     "℃": "degC",
-    # UCUM codes used in schema:unitCode annotations
-    "cel": "degC",
-    "a.h": "Ah",
-    "w.h": "Wh",
+    "degc": "degC",
+    "degreec": "degC",
+    "\xf8c": "degC",
+    "\xf8C": "degC",
+    "\xb0c": "degC",
+    "\xb0C": "degC",
+    "Sec": "second",
+    # UCUM codes used in schema:unitCode annotations (case-sensitive, exact
+    # casing as it appears in the ontology's schema:unitCode literals)
+    "Cel": "degC",
+    "A.h": "Ah",
+    "W.h": "Wh",
+    "Ohm": "ohm",
 }
 
 # Bare "C" or "c" is ambiguous (Celsius vs Coulombs). This set lists the BDF
@@ -63,17 +70,38 @@ _BDF_RELEASE_URL_TMPL = (
 )
 
 ureg: pint.UnitRegistry = pint.UnitRegistry()
-for _alias, _canonical in [
-    ("degc", "degC"),
-    ("degreec", "degC"),
-    ("\xf8c", "degC"),
-    ("\xf8C", "degC"),
-    ("\xb0c", "degC"),
-    ("\xb0C", "degC"),
-    ("Sec", "second"),
-]:
+
+
+def _pint_understands(alias: str, canonical: str) -> bool:
+    """True if pint already parses `alias` to the same value as `canonical`.
+
+    Args:
+        alias: Candidate unit string (e.g. a UCUM code).
+        canonical: Known-good pint unit string to compare against.
+
+    Returns:
+        True if pint resolves `alias` to the same quantity as `canonical`
+        both at 0 and 1 (catching offset units, not just dimensionality).
+    """
+    try:
+        a0, c0 = ureg.Quantity(0, alias), ureg.Quantity(0, canonical)
+        a1, c1 = ureg.Quantity(1, alias), ureg.Quantity(1, canonical)
+        return (
+            abs(a0.to(c0.units).magnitude - c0.magnitude) < 1e-9
+            and abs(a1.to(c1.units).magnitude - c1.magnitude) < 1e-9
+        )
+    except pint.errors.UndefinedUnitError:
+        return False
+
+
+for _alias, _canonical in _UNIT_ALIAS.items():
+    if _pint_understands(_alias, _canonical):
+        continue
+    # @alias adds another name to the existing unit (preserving offset
+    # behavior for affine units like degC), unlike `name = degC`, which
+    # would silently define a new non-offset unit.
     with contextlib.suppress(Exception):
-        ureg.define(f"{_alias} = {_canonical}")
+        ureg.define(f"@alias {_canonical} = {_alias}")
 
 
 # --------- Helper functions ----------
@@ -103,7 +131,7 @@ def _normalize_unit(unit: str) -> str:
     key = unit.strip()
     if not key:
         return key
-    return _UNIT_ALIAS.get(key.lower(), key)
+    return _UNIT_ALIAS.get(key, key)
 
 
 def parse_label(label: str) -> tuple[str, str] | None:

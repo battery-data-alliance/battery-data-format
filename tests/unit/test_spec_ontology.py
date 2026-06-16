@@ -51,6 +51,10 @@ _UCUM_TTL = """\
     skos:prefLabel "Energy / W.h"@en ;
     schema:unitCode "W.h" .
 
+:internal_resistance_ohm rdf:type owl:Class ;
+    skos:prefLabel "Internal Resistance / Ohm"@en ;
+    schema:unitCode "Ohm" .
+
 :step_label rdf:type owl:Class ;
     skos:prefLabel "Step Label"@en ;
     schema:description "A free-text string identifier for the step."@en .
@@ -95,6 +99,47 @@ def test_unit_from_label(label: str, expected: str | None) -> None:
 
 
 @pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Ohm", "ohm"),
+        ("Cel", "degC"),
+        ("A.h", "Ah"),
+        ("W.h", "Wh"),
+    ],
+)
+def test_normalize_unit_ucum_codes_are_case_sensitive(raw: str, expected: str) -> None:
+    """schema:unitCode UCUM codes normalize to BDF's canonical pint-valid unit string.
+
+    Lookup is case-sensitive: "Ohm" maps to lowercase "ohm" (pint doesn't
+    recognize capitalized "Ohm"), while "Cel"/"A.h"/"W.h" map to their
+    spelled-out canonical forms.
+    """
+    assert spec._normalize_unit(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("alias", "canonical", "expected"),
+    [
+        # Identical unit string
+        ("V", "V", True),
+        # UCUM dotted form pint already parses as a product of two units,
+        # equal in value to the canonical spelling
+        ("A.h", "Ah", True),
+        # Already a built-in pint alias for degree_Celsius
+        ("celsius", "degC", True),
+        # Same dimensionality as degC (both temperature) but not the same
+        # value at a given magnitude, since kelvin has no offset
+        ("kelvin", "degC", False),
+        # Not a unit pint knows at all
+        ("nonexistentunit123", "V", False),
+    ],
+)
+def test_pint_understands(alias: str, canonical: str, expected: bool) -> None:
+    """_pint_understands compares actual conversion values at 0 and 1, not just dimensionality."""
+    assert spec._pint_understands(alias, canonical) is expected
+
+
+@pytest.mark.parametrize(
     ("src", "dst", "expected"),
     [
         # Identity
@@ -129,6 +174,20 @@ def test_unit_from_label(label: str, expected: str | None) -> None:
         # Bare "C" as the dst is not special-cased (only src is); falls through
         # to pint, which treats it as coulombs, an incompatible dimension here
         ("degC", "C", None),
+        # degC alt-spelling aliases registered with pint via "@alias" must
+        # preserve the +273.15 offset, not just the dimensionality
+        ("degc", "K", (1.0, 273.15)),
+        ("degreec", "K", (1.0, 273.15)),
+        ("\xf8c", "K", (1.0, 273.15)),
+        ("\xb0c", "K", (1.0, 273.15)),
+        # "Ohm" (UCUM unitCode casing) is registered as a real pint alias, so
+        # conversions to a *different* resistance unit work too -- not just
+        # the case-insensitive identity short-circuit above
+        ("Ohm", "kohm", (0.001, 0.0)),
+        ("Ohm", "milliohm", (1000.0, 0.0)),
+        # "Cel" (UCUM unitCode casing) converts with the correct offset
+        ("Cel", "K", (1.0, 273.15)),
+        ("Cel", "degC", (1.0, 0.0)),
     ],
 )
 def test_get_unit_conversion(src: str | None, dst: str, expected: tuple[float, float] | None) -> None:
@@ -272,6 +331,13 @@ def test_columns_getattr_returns_quantity() -> None:
     assert q.unit == "V"
     assert q.label_template == "Voltage / {unit}"
     assert q.formatted_label == "Voltage / V"
+
+
+def test_internal_resistance_ohm_unit_is_lowercase_ohm() -> None:
+    """internal_resistance_ohm's schema:unitCode 'Ohm' resolves to lowercase, pint-valid 'ohm'."""
+    q = spec.COLUMN_ONTOLOGY.internal_resistance_ohm
+    assert q.unit == "ohm"
+    assert q.formatted_label == "Internal Resistance / ohm"
 
 
 def test_step_id_unit_none_dtype_int_label() -> None:
@@ -516,47 +582,32 @@ def test_load_ttl_invalid_file_raises(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# UCUM unit code aliases (schema:unitCode "Cel" / "A.h" / "W.h")
+# UCUM unit code aliases (schema:unitCode "Cel" / "A.h" / "W.h" / "Ohm")
 # ---------------------------------------------------------------------------
 
 
-def test_load_ttl_ucum_celsius_alias(tmp_path: Path) -> None:
-    """schema:unitCode 'Cel' is normalized to 'degC'."""
+@pytest.mark.parametrize(
+    ("attr", "expected_unit", "expected_label"),
+    [
+        ("ambient_temperature_celsius", "degC", "Ambient Temperature / degC"),
+        ("charge_capacity_amp_hour", "Ah", "Charge Capacity / Ah"),
+        ("energy_watt_hour", "Wh", "Energy / Wh"),
+        ("internal_resistance_ohm", "ohm", "Internal Resistance / ohm"),
+    ],
+)
+def test_load_ttl_ucum_unit_code_aliases(tmp_path: Path, attr: str, expected_unit: str, expected_label: str) -> None:
+    """schema:unitCode UCUM codes ('Cel'/'A.h'/'W.h'/'Ohm') normalize to BDF's
+    canonical, pint-valid casing ('degC'/'Ah'/'Wh'/'ohm').
+    """
     ttl = tmp_path / "ucum.ttl"
     ttl.write_text(_UCUM_TTL, encoding="utf-8")
 
     onto = ColumnOntology({})
     onto.load_ttl(ttl)
 
-    q = onto.ambient_temperature_celsius
-    assert q.unit == "degC"
-    assert q.formatted_label == "Ambient Temperature / degC"
-
-
-def test_load_ttl_ucum_amp_hour_alias(tmp_path: Path) -> None:
-    """schema:unitCode 'A.h' is normalized to 'Ah'."""
-    ttl = tmp_path / "ucum.ttl"
-    ttl.write_text(_UCUM_TTL, encoding="utf-8")
-
-    onto = ColumnOntology({})
-    onto.load_ttl(ttl)
-
-    q = onto.charge_capacity_amp_hour
-    assert q.unit == "Ah"
-    assert q.formatted_label == "Charge Capacity / Ah"
-
-
-def test_load_ttl_ucum_watt_hour_alias(tmp_path: Path) -> None:
-    """schema:unitCode 'W.h' is normalized to 'Wh'."""
-    ttl = tmp_path / "ucum.ttl"
-    ttl.write_text(_UCUM_TTL, encoding="utf-8")
-
-    onto = ColumnOntology({})
-    onto.load_ttl(ttl)
-
-    q = onto.energy_watt_hour
-    assert q.unit == "Wh"
-    assert q.formatted_label == "Energy / Wh"
+    q = getattr(onto, attr)
+    assert q.unit == expected_unit
+    assert q.formatted_label == expected_label
 
 
 def test_load_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) -> None:
