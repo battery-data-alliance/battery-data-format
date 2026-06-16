@@ -61,6 +61,9 @@ fastnda = ["fastnda"]
 polars = ["polars", "fastnda"]
 hvplot = ["hvplot", "holoviews", "bokeh"]
 numpy2 = ["numpy>=2.0,<3.0"]
+yaml = [
+    "pyyaml>=6.0.3",
+]
 dev = [
   "pytest",
   "pytest-cov",
@@ -79,6 +82,7 @@ docs = [
   "sphinx-autobuild>=2024.4.16",
   "sphinx-design>=0.6",
 ]
+
 
 [project.readme]
 file = "README.md"
