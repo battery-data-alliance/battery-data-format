@@ -9,35 +9,59 @@ Thanks for helping improve BDF!
 
 ## Setup
 
-Install with [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended):
-```
+Choose one workflow. **uv** is recommended as this project includes a uv.lock file which
+fixes all dependencies; venv/pip is standard if you prefer traditional tooling.
+
+### With uv (recommended)
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then sync dependencies:
+```bash
 uv sync --all-extras
 ```
 
-Or with venv and pip:
-```
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-python -m pip install -e .[dev,docs]
-```
-
-Run checks locally:
-
-Install pre-commit hooks:
-```
-pre-commit install
-```
-
-Then pre-commit automatically runs on `git commit`. Run manually:
-```
-pre-commit run --all-files
+Install and run pre-commit:
+```bash
+uv run pre-commit install
+uv run pre-commit run --all-files  # Manual run; auto-runs on git commit
 ```
 
 Run tests and build docs:
+```bash
+uv run --all-extras pytest
+# --all-extras will ensure your test runs in an environment with all optional dependencies
+uv run sphinx-build -b html docs docs/_build/html
 ```
-pytest tests/unit -q
+
+### With venv and pip
+
+Create and activate virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+.venv\Scripts\activate      # Windows
+```
+
+Install dependencies:
+```bash
+python -m pip install -e ".[dev,docs]"
+```
+
+Install and run pre-commit:
+```bash
+pre-commit install
+pre-commit run --all-files  # Manual run; auto-runs on git commit
+```
+
+Run tests and build docs:
+```bash
+pytest
 sphinx-build -b html docs docs/_build/html
 ```
+
+### Key difference
+
+- **uv**: Environment auto-managed; `uv run CMD` executes CMD within it.
+- **venv/pip**: Manually activate `.venv/` each session; run commands normally.
 
 ## Pull requests
 - Keep PRs focused and include tests for new behavior.
