@@ -84,6 +84,12 @@ docs = [
   "sphinx-autobuild>=2024.4.16",
   "sphinx-design>=0.6",
 ]
+excel = [
+    "fastexcel>=0.20.2",
+]
+mat = [
+    "scipy>=1.15.3",
+]
 
 
 [project.readme]
