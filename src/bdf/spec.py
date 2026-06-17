@@ -90,7 +90,10 @@ def _pint_understands(alias: str, canonical: str) -> bool:
             abs(a0.to(c0.units).magnitude - c0.magnitude) < 1e-9
             and abs(a1.to(c1.units).magnitude - c1.magnitude) < 1e-9
         )
-    except pint.errors.UndefinedUnitError:
+    except (pint.errors.PintError, AssertionError):
+        # PintError covers undefined/incompatible units; AssertionError covers
+        # strings pint's parser chokes on internally (e.g. "℃" / ℃), which
+        # would otherwise escape and crash module import on pint >= 0.25.
         return False
 
 

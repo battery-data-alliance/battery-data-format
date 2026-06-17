@@ -132,6 +132,9 @@ def test_normalize_unit_ucum_codes_are_case_sensitive(raw: str, expected: str) -
         ("kelvin", "degC", False),
         # Not a unit pint knows at all
         ("nonexistentunit123", "V", False),
+        # U+2103 (℃): pint's parser raises a bare AssertionError, not
+        # UndefinedUnitError -- must be caught so module import never crashes.
+        ("℃", "degC", False),
     ],
 )
 def test_pint_understands(alias: str, canonical: str, expected: bool) -> None:
