@@ -7,6 +7,56 @@ import warnings
 from pathlib import Path
 
 import pandas as pd
+import polars as pl
+
+from bdf.plugins import PLUGINS, Plugin, detect
+
+
+def read(
+    path: str | Path,
+    *,
+    plugin: Plugin | str | None = None,
+    normalize: bool = True,
+    validate: bool = True,
+    include_optional: bool = True,
+    extra_columns: dict[str, str] | None = None,
+    lazy: bool = True,
+) -> tuple[pl.DataFrame | pl.LazyFrame, dict]:
+    """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
+
+    An explicit ``plugin`` bypasses auto-detection. When ``normalize=False``, the raw
+    parser frame is returned with source column names unchanged. ``validate`` defaults to
+    True: column names are checked against the BDF ontology after reading; pass
+    ``validate=False`` to skip the check and only warn.
+    """
+    plugin_id: str | None = None
+    resolved_plugin: Plugin
+    if plugin is None:
+        plugin_id, resolved_plugin = detect(path)
+    elif isinstance(plugin, str):
+        plugin_id = plugin
+        resolved_plugin = PLUGINS[plugin]
+    elif isinstance(plugin, Plugin):
+        resolved_plugin = plugin
+    else:
+        raise ValueError(f"invalid plugin argument: {plugin!r}")
+
+    bdf_df = resolved_plugin.table_parser.read(
+        path,
+        normalize=normalize,
+        validate=validate,
+        include_optional=include_optional,
+        extra_columns=extra_columns,
+        lazy=lazy,
+    )
+
+    metadata: dict = {
+        "source": plugin_id or "custom",
+        **resolved_plugin.metadata_parser.parse(path),
+    }
+
+    return bdf_df, metadata
+
 
 _FMT_EXTS = {
     "csv": {".csv", ".bdf.csv"},
@@ -14,7 +64,8 @@ _FMT_EXTS = {
     "feather": {".feather", ".bdf.feather"},
     "json": {".json", ".bdf.json"},
 }
-_COMPRESS = {".gz":"gzip", ".bz2":"bz2", ".xz":"xz", ".zst":"zstd"}
+_COMPRESS = {".gz": "gzip", ".bz2": "bz2", ".xz": "xz", ".zst": "zstd"}
+
 
 def _detect_format(path: Path) -> str:
     sfx = "".join(path.suffixes).lower()
@@ -26,12 +77,14 @@ def _detect_format(path: Path) -> str:
         return last.lstrip(".")
     raise ValueError(f"Unknown BDF artifact format: {path.name}")
 
+
 def _detect_compression(path: Path) -> str | None:
     s = str(path).lower()
     for ext, comp in _COMPRESS.items():
         if s.endswith(ext):
             return comp
     return None
+
 
 def _meta_sidecar(path: Path) -> Path:
     return path.with_name(path.name + ".metadata.json")
@@ -53,7 +106,7 @@ def _label_maps() -> tuple[dict[str, str], dict[str, str]]:
     for q, s in spec.COLUMN_ONTOLOGY:
         if s.deprecated:
             continue
-        base = s.formatted_label.split(" / ", 1)[0].strip().lower()
+        base = s.label_template.split(" / ", 1)[0].strip().lower()
         base_preferred.setdefault(base, q)
 
     pref_to_machine: dict[str, str] = {}
@@ -68,8 +121,9 @@ def _label_maps() -> tuple[dict[str, str], dict[str, str]]:
             base = source_pref.split(" / ", 1)[0].strip().lower()
             target_q = base_preferred.get(base, q)
 
-        target_pref = spec.COLUMN_ONTOLOGY[target_q].formatted_label
-        target_notation = spec.COLUMN_ONTOLOGY[target_q].effective_notation
+        target = getattr(spec.COLUMN_ONTOLOGY, target_q)
+        target_pref = target.formatted_label
+        target_notation = target.effective_notation
 
         pref_to_machine.setdefault(source_pref, target_notation)
         machine_to_pref.setdefault(source_notation, target_pref)
@@ -106,6 +160,7 @@ def _serialize_labels(df: pd.DataFrame, *, human: bool) -> pd.DataFrame:
             out.rename(columns={source: target}, inplace=True)
     return out
 
+
 def load(pathlike) -> pd.DataFrame:
     p = Path(pathlike)
     if not p.exists():
@@ -119,7 +174,7 @@ def load(pathlike) -> pd.DataFrame:
             # strict CSV: no banner rows, uniform columns
             df = pd.read_csv(
                 p,
-                engine="python",   # better error messages for malformed rows
+                engine="python",  # better error messages for malformed rows
                 sep=",",
                 quoting=csv.QUOTE_MINIMAL,
                 on_bad_lines="error",
@@ -137,11 +192,11 @@ def load(pathlike) -> pd.DataFrame:
 
         # Always expose human canonical labels in-memory.
         from .normalize import canonicalize_legacy_labels
+
         df, legacy = canonicalize_legacy_labels(df)
         if legacy:
             warnings.warn(
-                "Legacy BDF column labels detected (skos:altLabel/notation). "
-                "They were normalized to preferred labels.",
+                "Legacy BDF column labels detected (skos:altLabel/notation). They were normalized to preferred labels.",
                 stacklevel=2,
             )
         return _serialize_labels(df, human=True)
@@ -149,6 +204,7 @@ def load(pathlike) -> pd.DataFrame:
         # Re-raise with a short, path-sanitized message
         emsg = str(e)
         raise ValueError(f"Failed to parse BDF {fmt.upper()} file: {p.name}: {emsg}") from e
+
 
 def save(
     df: pd.DataFrame,
@@ -166,6 +222,7 @@ def save(
 
     try:
         from .normalize import canonicalize_legacy_labels
+
         df, _legacy = canonicalize_legacy_labels(df)
     except Exception:
         pass
