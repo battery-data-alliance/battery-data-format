@@ -84,6 +84,18 @@ docs = [
 file = "README.md"
 content-type = "text/markdown"
 
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --disable-warnings"
+testpaths = ["tests"]
+markers = [
+  "slow: may be slow or large I/O",
+  "network: requires internet access",
+  "registry: uses remote registry on Zenodo",
+  "golden: compares against golden files",
+  "perf: performance/smoke thresholds",
+  "notebooks: executes example notebooks",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = [
   "src/bdf",
