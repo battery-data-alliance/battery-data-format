@@ -71,6 +71,8 @@ dev = [
   # so CI (which invokes `python -m ruff`/`python -m mypy`) matches local hooks.
   "ruff==0.15.12",
   "mypy==1.20.2",
+  "types-requests",
+  "types-PyYAML",
   "nbclient>=0.9",
   "nbformat>=5.9",
   "ipykernel>=6.0",
