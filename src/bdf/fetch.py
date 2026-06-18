@@ -31,9 +31,11 @@ def sha256_file(path: Path) -> str:
 
 
 def _cache_dir(subdir: str = "bdf") -> Path:
-    p = Path(user_cache_dir(subdir))
+    base = os.getenv("BDF_CACHE_DIR")
+    p = Path(base) if base else Path(user_cache_dir(subdir))
     p.mkdir(parents=True, exist_ok=True)
     return p
+
 
 def _safe_cache_name(url: str, filename: Optional[str]) -> str:
     """Ensure uniqueness across different URLs that share the same basename.
