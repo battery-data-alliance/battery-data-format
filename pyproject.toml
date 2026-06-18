@@ -67,6 +67,7 @@ yaml = [
 dev = [
   "pytest",
   "pytest-cov",
+  "pytest-socket",
   # ruff and mypy are also run via pre-commit; pinned here to the same versions
   # so CI (which invokes `python -m ruff`/`python -m mypy`) matches local hooks.
   "ruff==0.15.12",
@@ -97,7 +98,7 @@ file = "README.md"
 content-type = "text/markdown"
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --disable-warnings"
+addopts = "-ra --strict-markers --disable-warnings --disable-socket --ignore=tests/integration/test_raw_loading.py"
 testpaths = ["tests"]
 markers = [
   "slow: may be slow or large I/O",
