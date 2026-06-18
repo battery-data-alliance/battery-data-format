@@ -40,30 +40,71 @@ _SLUG = re.compile(r"[^a-z0-9]+")
 _REQUIRED_DEFAULT = {"test_time_second", "voltage_volt", "current_ampere"}
 _UNIT_ALIAS = {
     "celsius": "degC",
-    "degree celsius": "degC",
     "degree_celsius": "degC",
-    "deg c": "degC",
     "℃": "degC",
+    "degc": "degC",
+    "degreec": "degC",
+    "\xf8c": "degC",
+    "\xf8C": "degC",
+    "\xb0c": "degC",
+    "\xb0C": "degC",
+    "Sec": "second",
+    # UCUM codes used in schema:unitCode annotations (case-sensitive, exact
+    # casing as it appears in the ontology's schema:unitCode literals)
+    "Cel": "degC",
+    "A.h": "Ah",
+    "W.h": "Wh",
+    "Ohm": "ohm",
 }
+
+# Bare "C" or "c" is ambiguous (Celsius vs Coulombs). This set lists the BDF
+# destination units that unambiguously identify a temperature quantity, allowing
+# bare "C"/"c" to be treated as Celsius in get_unit_conversion.
+_TEMPERATURE_DST_UNITS: frozenset[str] = frozenset({"degC", "°C", "K", "degF"})
 _SLASH_RE = re.compile(r"^\s*(.+?)\s*/\s*(.+)\s*$")
 _BDF_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
+_SCHEMA_UNIT_CODE = URIRef("https://schema.org/unitCode")
 _BDF_RELEASE_URL_TMPL = (
     "https://raw.githubusercontent.com/battery-data-alliance/"
     "battery-data-format-ontology/{version}/battery-data-format.ttl"
 )
 
 ureg: pint.UnitRegistry = pint.UnitRegistry()
-for _alias, _canonical in [
-    ("degc", "degC"),
-    ("degreec", "degC"),
-    ("\xf8c", "degC"),
-    ("\xf8C", "degC"),
-    ("\xb0c", "degC"),
-    ("\xb0C", "degC"),
-    ("Sec", "second"),
-]:
+
+
+def _pint_understands(alias: str, canonical: str) -> bool:
+    """True if pint already parses `alias` to the same value as `canonical`.
+
+    Args:
+        alias: Candidate unit string (e.g. a UCUM code).
+        canonical: Known-good pint unit string to compare against.
+
+    Returns:
+        True if pint resolves `alias` to the same quantity as `canonical`
+        both at 0 and 1 (catching offset units, not just dimensionality).
+    """
+    try:
+        a0, c0 = ureg.Quantity(0, alias), ureg.Quantity(0, canonical)
+        a1, c1 = ureg.Quantity(1, alias), ureg.Quantity(1, canonical)
+        return (
+            abs(a0.to(c0.units).magnitude - c0.magnitude) < 1e-9
+            and abs(a1.to(c1.units).magnitude - c1.magnitude) < 1e-9
+        )
+    except (pint.errors.PintError, AssertionError):
+        # PintError covers undefined/incompatible units; AssertionError covers
+        # strings pint's parser chokes on internally (e.g. "℃" / ℃), which
+        # would otherwise escape and crash module import on pint >= 0.25.
+        return False
+
+
+for _alias, _canonical in _UNIT_ALIAS.items():
+    if _pint_understands(_alias, _canonical):
+        continue
+    # @alias adds another name to the existing unit (preserving offset
+    # behavior for affine units like degC), unlike `name = degC`, which
+    # would silently define a new non-offset unit.
     with contextlib.suppress(Exception):
-        ureg.define(f"{_alias} = {_canonical}")
+        ureg.define(f"@alias {_canonical} = {_alias}")
 
 
 # --------- Helper functions ----------
@@ -93,7 +134,7 @@ def _normalize_unit(unit: str) -> str:
     key = unit.strip()
     if not key:
         return key
-    return _UNIT_ALIAS.get(key.lower(), key)
+    return _UNIT_ALIAS.get(key, key)
 
 
 def parse_label(label: str) -> tuple[str, str] | None:
@@ -115,24 +156,26 @@ def parse_label(label: str) -> tuple[str, str] | None:
     return base, unit
 
 
-def get_unit_conversion(src_unit: str | None, dst_unit: str) -> tuple[float, float] | None:
+def get_unit_conversion(src_unit: str | None, dst_unit: str | None) -> tuple[float, float] | None:
     """Return (scale, offset) for src→dst unit conversion, None if incompatible.
 
     Args:
         src_unit: Source unit string (or None for dimensionless).
-        dst_unit: Destination unit string.
+        dst_unit: Destination unit string (or None for dimensionless).
 
     Returns:
         Tuple of (scale, offset) for conversion, or None if incompatible.
     """
     src_bare = (src_unit or "").strip()
-    dst_bare = dst_unit.strip()
+    dst_bare = (dst_unit or "").strip()
     src_is_dim = src_bare in ("", "1")
-    dst_is_dim = dst_bare in ("1", "", None)
+    dst_is_dim = dst_bare in ("1", "")
     if src_is_dim or dst_is_dim:
         return (1.0, 0.0) if src_is_dim and dst_is_dim else None
     if src_bare.lower() == dst_bare.lower():
         return (1.0, 0.0)
+    if src_bare in ("C", "c") and dst_bare in _TEMPERATURE_DST_UNITS:
+        src_bare = "degC"
     try:
         qty_dst = ureg.Quantity(1, dst_bare)
         tgt_units = qty_dst.units
@@ -268,7 +311,7 @@ def _english_literals(g: Any, subject: Any, predicate: Any) -> list[str]:
 class Quantity(BaseModel):
     """One BDF physical quantity: unit, human label, and lookup metadata."""
 
-    unit: str
+    unit: str | None
     label_template: str
     dtype: str = "float"
     mr_name: str
@@ -287,22 +330,28 @@ class Quantity(BaseModel):
     @classmethod
     def _resolve_label_and_dtype(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            unit = data.get("unit", "")
+            unit = data.get("unit")
             label_template = data.get("label_template", "")
-            if unit != "1" and "{unit}" not in label_template and " / " in label_template:
+            if unit is not None and unit != "1" and "{unit}" not in label_template and " / " in label_template:
                 base = label_template.split(" / ", 1)[0]
                 data["label_template"] = f"{base} / {{unit}}"
             elif unit == "1" and "{unit}" in label_template:
                 data["label_template"] = label_template.replace("{unit}", "1")
             if "dtype" not in data:
-                data["dtype"] = "int" if unit == "1" else "float"
+                if unit == "1":
+                    data["dtype"] = "int"
+                elif unit is None:
+                    desc = (data.get("description") or "").lower()
+                    data["dtype"] = "str" if "string" in desc else "int"
+                else:
+                    data["dtype"] = "float"
         return data
 
     @field_validator("dtype")
     @classmethod
     def _validate_dtype(cls, v: str) -> str:
-        if v not in ("int", "float"):
-            raise ValueError(f"dtype must be 'int' or 'float', got {v!r}")
+        if v not in ("int", "float", "str"):
+            raise ValueError(f"dtype must be 'int', 'float', or 'str', got {v!r}")
         return v
 
     @property
@@ -319,13 +368,15 @@ class Quantity(BaseModel):
     @property
     def formatted_label(self) -> str:
         """Return the label with {unit} replaced by the actual unit string."""
-        return self.label_template.format(unit=self.unit) if "{unit}" in self.label_template else self.label_template
+        if "{unit}" in self.label_template and self.unit is not None:
+            return self.label_template.format(unit=self.unit)
+        return self.label_template
 
-    def unit_conversion(self, dst_unit: str) -> tuple[float, float] | None:
+    def unit_conversion(self, dst_unit: str | None) -> tuple[float, float] | None:
         """Return (scale, offset) to convert self.unit → dst_unit, or None.
 
         Args:
-            dst_unit: Destination unit string.
+            dst_unit: Destination unit string, or None for dimensionless.
 
         Returns:
             Tuple of (scale, offset) for conversion, or None if incompatible.
@@ -370,10 +421,21 @@ class Quantity(BaseModel):
         pref_labels = _english_literals(g, subject, skos.prefLabel)
         if not pref_labels:
             return None
-        parsed = parse_label(pref_labels[0])
-        if not parsed:
-            return None
-        base, unit = parsed
+
+        # Read unit from schema:unitCode (authoritative) rather than parsing skos:prefLabel
+        unit_codes = _english_literals(g, subject, _SCHEMA_UNIT_CODE)
+        if unit_codes:
+            unit: str | None = _normalize_unit(unit_codes[0])
+        else:
+            unit = None
+
+        if unit is not None:
+            parsed = parse_label(pref_labels[0])
+            base = parsed[0] if parsed else pref_labels[0]
+            label_template = f"{base} / {{unit}}"
+        else:
+            base = pref_labels[0]
+            label_template = base
 
         deprecated = next(
             (str(lit).lower() == "true" for lit in g.objects(subject, owl_ns.deprecated)),
@@ -419,7 +481,7 @@ class Quantity(BaseModel):
 
         return cls(
             unit=unit,
-            label_template=f"{base} / {{unit}}",
+            label_template=label_template,
             mr_name=mr_name,
             notation=notation,
             iri=iri,
@@ -572,11 +634,18 @@ class ColumnOntology:
             no matching quantity exists.
         """
         parsed = parse_label(label)
+        first_deprecated: tuple[Quantity, str | None] | None = None
         if parsed is None:
-            return None
+            label_lower = label.lower()
+            for _, q in self:
+                if "{unit}" not in q.label_template and q.label_template.lower() == label_lower:
+                    if not q.deprecated:
+                        return (q, None)
+                    if first_deprecated is None:
+                        first_deprecated = (q, None)
+            return first_deprecated
         query_base, unit = parsed
         query_base_lower = query_base.lower()
-        first_deprecated: tuple[Quantity, str | None] | None = None
         for _, q in self:
             tmpl_base = q.label_template.split(" / ")[0].strip().lower()
             if tmpl_base == query_base_lower:
@@ -598,10 +667,17 @@ class ColumnOntology:
             Machine-readable name (mr_name) if found, None otherwise.
         """
         parsed = parse_label(label)
-        if parsed is None:
-            return None
-        query_base = parsed[0].lower()
         first_deprecated: str | None = None
+        if parsed is None:
+            label_lower = label.lower()
+            for mr_name, q in self:
+                if "{unit}" not in q.label_template and q.label_template.lower() == label_lower:
+                    if not q.deprecated:
+                        return mr_name
+                    if first_deprecated is None:
+                        first_deprecated = mr_name
+            return first_deprecated
+        query_base = parsed[0].lower()
         for mr_name, q in self:
             tmpl_base = q.label_template.split(" / ")[0].strip().lower()
             if tmpl_base == query_base:
@@ -704,8 +780,7 @@ class ColumnOntology:
         g = _graph_from_bytes(data, format="turtle")
         if g is None:
             raise RuntimeError(
-                "Bundled ontology snapshot could not be parsed. "
-                "Run ColumnOntology.get_snapshot() to regenerate it."
+                "Bundled ontology snapshot could not be parsed. Run ColumnOntology.get_snapshot() to regenerate it."
             )
         return cls.from_graph(g)
 

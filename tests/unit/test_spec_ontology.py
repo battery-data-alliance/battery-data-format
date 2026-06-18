@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -23,10 +24,40 @@ _MINI_TTL = """\
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <https://schema.org/> .
 
 :test_time_second rdf:type owl:Class ;
     skos:prefLabel "Test Time / ms"@en ;
-    skos:altLabel "elapsed_ms"@en .
+    skos:altLabel "elapsed_ms"@en ;
+    schema:unitCode "ms" .
+"""
+
+_UCUM_TTL = """\
+@prefix : <https://w3id.org/battery-data-alliance/ontology/battery-data-format#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <https://schema.org/> .
+
+:ambient_temperature_celsius rdf:type owl:Class ;
+    skos:prefLabel "Ambient Temperature / Cel"@en ;
+    schema:unitCode "Cel" .
+
+:charge_capacity_amp_hour rdf:type owl:Class ;
+    skos:prefLabel "Charge Capacity / A.h"@en ;
+    schema:unitCode "A.h" .
+
+:energy_watt_hour rdf:type owl:Class ;
+    skos:prefLabel "Energy / W.h"@en ;
+    schema:unitCode "W.h" .
+
+:internal_resistance_ohm rdf:type owl:Class ;
+    skos:prefLabel "Internal Resistance / Ohm"@en ;
+    schema:unitCode "Ohm" .
+
+:step_label rdf:type owl:Class ;
+    skos:prefLabel "Step Label"@en ;
+    schema:description "A free-text string identifier for the step."@en .
 """
 
 
@@ -68,6 +99,59 @@ def test_unit_from_label(label: str, expected: str | None) -> None:
 
 
 @pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Ohm", "ohm"),
+        ("Cel", "degC"),
+        ("A.h", "Ah"),
+        ("W.h", "Wh"),
+    ],
+)
+def test_normalize_unit_ucum_codes_are_case_sensitive(raw: str, expected: str) -> None:
+    """schema:unitCode UCUM codes normalize to BDF's canonical pint-valid unit string.
+
+    Lookup is case-sensitive: "Ohm" maps to lowercase "ohm" (pint doesn't
+    recognize capitalized "Ohm"), while "Cel"/"A.h"/"W.h" map to their
+    spelled-out canonical forms.
+    """
+    assert spec._normalize_unit(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("alias", "canonical", "expected"),
+    [
+        # Identical unit string
+        ("V", "V", True),
+        # UCUM dotted form pint already parses as a product of two units,
+        # equal in value to the canonical spelling
+        ("A.h", "Ah", True),
+        # Already a built-in pint alias for degree_Celsius
+        ("celsius", "degC", True),
+        # Same dimensionality as degC (both temperature) but not the same
+        # value at a given magnitude, since kelvin has no offset
+        ("kelvin", "degC", False),
+        # Not a unit pint knows at all
+        ("nonexistentunit123", "V", False),
+    ],
+)
+def test_pint_understands(alias: str, canonical: str, expected: bool) -> None:
+    """_pint_understands compares actual conversion values at 0 and 1, not just dimensionality."""
+    assert spec._pint_understands(alias, canonical) is expected
+
+
+def test_pint_understands_never_propagates_on_pathological_alias() -> None:
+    """U+2103 (℃) must yield a bool, never raise -- so module import can't crash.
+
+    pint's parser handles this character inconsistently across platforms: on
+    some it parses ℃ natively as degree_Celsius (returning True), on others it
+    raises a bare AssertionError rather than UndefinedUnitError. The truth value
+    is therefore platform-dependent; what matters is that _pint_understands
+    swallows the failure and returns a bool instead of letting it escape.
+    """
+    assert isinstance(spec._pint_understands("℃", "degC"), bool)
+
+
+@pytest.mark.parametrize(
     ("src", "dst", "expected"),
     [
         # Identity
@@ -92,10 +176,38 @@ def test_unit_from_label(label: str, expected: str | None) -> None:
         ("1", "1", (1.0, 0.0)),
         (None, "V", None),
         ("V", "1", None),
+        # Bare "C"/"c" disambiguated as Celsius only against a temperature dst
+        ("C", "degC", (1.0, 0.0)),
+        ("c", "degC", (1.0, 0.0)),
+        ("C", "K", (1.0, 273.15)),
+        ("C", "degF", (Fraction(9, 5), 32)),
+        # Bare "C" against a non-temperature dst is interpreted as coulombs
+        ("C", "A", None),
+        # Bare "C" as the dst is not special-cased (only src is); falls through
+        # to pint, which treats it as coulombs, an incompatible dimension here
+        ("degC", "C", None),
+        # degC alt-spelling aliases registered with pint via "@alias" must
+        # preserve the +273.15 offset, not just the dimensionality
+        ("degc", "K", (1.0, 273.15)),
+        ("degreec", "K", (1.0, 273.15)),
+        ("\xf8c", "K", (1.0, 273.15)),
+        ("\xb0c", "K", (1.0, 273.15)),
+        # "Ohm" (UCUM unitCode casing) is registered as a real pint alias, so
+        # conversions to a *different* resistance unit work too -- not just
+        # the case-insensitive identity short-circuit above
+        ("Ohm", "kohm", (0.001, 0.0)),
+        ("Ohm", "milliohm", (1000.0, 0.0)),
+        # "Cel" (UCUM unitCode casing) converts with the correct offset
+        ("Cel", "K", (1.0, 273.15)),
+        ("Cel", "degC", (1.0, 0.0)),
     ],
 )
 def test_get_unit_conversion(src: str | None, dst: str, expected: tuple[float, float] | None) -> None:
-    assert get_unit_conversion(src, dst) == expected
+    result = get_unit_conversion(src, dst)
+    if expected is None:
+        assert result is None
+    else:
+        assert result == pytest.approx((float(expected[0]), float(expected[1])))
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +242,24 @@ def test_quantity_dtype_explicit_overrides_inference() -> None:
     assert q.dtype == "float"
 
 
-@pytest.mark.parametrize("bad_dtype", ["str", "double", "", "Int"])
+def test_quantity_unit_none_dtype_defaults_to_int() -> None:
+    q = Quantity(unit=None, label_template="X", mr_name="x", iri="", synonyms=[])
+    assert q.dtype == "int"
+
+
+def test_quantity_unit_none_dtype_str_when_description_mentions_string() -> None:
+    q = Quantity(
+        unit=None, label_template="X", mr_name="x", iri="", synonyms=[], description="A free-text string value."
+    )
+    assert q.dtype == "str"
+
+
+def test_quantity_unit_none_dtype_explicit_overrides_inference() -> None:
+    q = Quantity(unit=None, label_template="X", dtype="str", mr_name="x", iri="", synonyms=[])
+    assert q.dtype == "str"
+
+
+@pytest.mark.parametrize("bad_dtype", ["double", "", "Int"])
 def test_quantity_invalid_dtype_raises(bad_dtype: str) -> None:
     with pytest.raises(ValidationError):
         Quantity(unit="V", label_template="V / {unit}", dtype=bad_dtype, mr_name="x", iri="", synonyms=[])
@@ -184,9 +313,7 @@ def test_quantity_unit_conversion(src_unit: str, dst_unit: str, expected: tuple[
         ("V", None, None),
     ],
 )
-def test_quantity_convert_from(
-    quantity_unit: str, src_unit: str | None, expected: tuple[float, float] | None
-) -> None:
+def test_quantity_convert_from(quantity_unit: str, src_unit: str | None, expected: tuple[float, float] | None) -> None:
     q = Quantity(unit=quantity_unit, label_template=f"X / {quantity_unit}", mr_name="x", iri="", synonyms=[])
     assert q.convert_from(src_unit) == expected
 
@@ -218,6 +345,39 @@ def test_columns_getattr_returns_quantity() -> None:
     assert q.formatted_label == "Voltage / V"
 
 
+def test_internal_resistance_ohm_unit_is_lowercase_ohm() -> None:
+    """internal_resistance_ohm's schema:unitCode 'Ohm' resolves to lowercase, pint-valid 'ohm'."""
+    q = spec.COLUMN_ONTOLOGY.internal_resistance_ohm
+    assert q.unit == "ohm"
+    assert q.formatted_label == "Internal Resistance / ohm"
+
+
+def test_step_id_unit_none_dtype_int_label() -> None:
+    """step_id loaded with unit=None, dtype='int', formatted_label='Step ID'."""
+    q = spec.COLUMN_ONTOLOGY.step_id
+    assert q.unit is None
+    assert q.dtype == "int"
+    assert q.formatted_label == "Step ID"
+
+
+def test_step_type_unit_none_dtype_str_label() -> None:
+    """step_type loaded with unit=None, dtype='str', formatted_label='Step Type'."""
+    q = spec.COLUMN_ONTOLOGY.step_type
+    assert q.unit is None
+    assert q.dtype == "str"
+    assert q.formatted_label == "Step Type"
+
+
+def test_get_unit_conversion_none_dst_none_src() -> None:
+    """get_unit_conversion(None, None) returns (1.0, 0.0)."""
+    assert get_unit_conversion(None, None) == (1.0, 0.0)
+
+
+def test_get_unit_conversion_physical_src_none_dst() -> None:
+    """get_unit_conversion('V', None) returns None."""
+    assert get_unit_conversion("V", None) is None
+
+
 def test_columns_iteration_yields_mr_quantity_pairs() -> None:
     pairs = list(spec.COLUMN_ONTOLOGY)
     assert pairs, "expected at least one quantity"
@@ -235,7 +395,13 @@ def test_required_labels_match_required_flag() -> None:
 
 def test_required_labels_excludes_deprecated() -> None:
     q_dep = Quantity(
-        unit="V", label_template="Old / {unit}", obligation="required", mr_name="old_volt", iri="", synonyms=[], deprecated=True
+        unit="V",
+        label_template="Old / {unit}",
+        obligation="required",
+        mr_name="old_volt",
+        iri="",
+        synonyms=[],
+        deprecated=True,
     )
     onto = ColumnOntology({"old_volt": q_dep})
     assert "Old / V" not in onto.required_labels()
@@ -316,6 +482,46 @@ def test_quantity_from_label_unparseable_returns_none() -> None:
     assert spec.COLUMN_ONTOLOGY.quantity_from_label("not_a_label") is None
 
 
+def test_quantity_from_label_no_slash_matches_unitless_quantity() -> None:
+    """Mirrors mr_name_from_label's fallback for unit=None terms like 'Step ID'."""
+    result = spec.COLUMN_ONTOLOGY.quantity_from_label("Step ID")
+    assert result is not None
+    quantity, unit = result
+    assert quantity.mr_name == "step_id"
+    assert unit is None
+
+
+def test_mr_name_from_label_and_quantity_from_label_agree_on_no_slash_label() -> None:
+    mr_name = spec.COLUMN_ONTOLOGY.mr_name_from_label("Step ID")
+    result = spec.COLUMN_ONTOLOGY.quantity_from_label("Step ID")
+    assert result is not None
+    assert mr_name == result[0].mr_name
+
+
+def test_mr_name_from_label_no_slash_prefers_non_deprecated() -> None:
+    q_dep = Quantity(
+        unit=None, label_template="Old Step ID", mr_name="old_step_id", iri="", synonyms=[], deprecated=True
+    )
+    q_pref = Quantity(
+        unit=None, label_template="Old Step ID", mr_name="step_id_v2", iri="", synonyms=[], deprecated=False
+    )
+    onto = ColumnOntology({"old_step_id": q_dep, "step_id_v2": q_pref})
+    assert onto.mr_name_from_label("Old Step ID") == "step_id_v2"
+
+
+def test_quantity_from_label_no_slash_prefers_non_deprecated() -> None:
+    q_dep = Quantity(
+        unit=None, label_template="Old Step ID", mr_name="old_step_id", iri="", synonyms=[], deprecated=True
+    )
+    q_pref = Quantity(
+        unit=None, label_template="Old Step ID", mr_name="step_id_v2", iri="", synonyms=[], deprecated=False
+    )
+    onto = ColumnOntology({"old_step_id": q_dep, "step_id_v2": q_pref})
+    result = onto.quantity_from_label("Old Step ID")
+    assert result is not None
+    assert result[0].mr_name == "step_id_v2"
+
+
 def test_quantity_from_label_unknown_base_returns_none() -> None:
     assert spec.COLUMN_ONTOLOGY.quantity_from_label("Unknown Quantity / kg") is None
 
@@ -385,6 +591,49 @@ def test_load_ttl_invalid_file_raises(tmp_path: Path) -> None:
     onto = ColumnOntology.build()
     with pytest.raises(ValueError):
         onto.load_ttl(bad)
+
+
+# ---------------------------------------------------------------------------
+# UCUM unit code aliases (schema:unitCode "Cel" / "A.h" / "W.h" / "Ohm")
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("attr", "expected_unit", "expected_label"),
+    [
+        ("ambient_temperature_celsius", "degC", "Ambient Temperature / degC"),
+        ("charge_capacity_amp_hour", "Ah", "Charge Capacity / Ah"),
+        ("energy_watt_hour", "Wh", "Energy / Wh"),
+        ("internal_resistance_ohm", "ohm", "Internal Resistance / ohm"),
+    ],
+)
+def test_load_ttl_ucum_unit_code_aliases(tmp_path: Path, attr: str, expected_unit: str, expected_label: str) -> None:
+    """schema:unitCode UCUM codes ('Cel'/'A.h'/'W.h'/'Ohm') normalize to BDF's
+    canonical, pint-valid casing ('degC'/'Ah'/'Wh'/'ohm').
+    """
+    ttl = tmp_path / "ucum.ttl"
+    ttl.write_text(_UCUM_TTL, encoding="utf-8")
+
+    onto = ColumnOntology({})
+    onto.load_ttl(ttl)
+
+    q = getattr(onto, attr)
+    assert q.unit == expected_unit
+    assert q.formatted_label == expected_label
+
+
+def test_load_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) -> None:
+    """Terms with no schema:unitCode load with unit=None; 'string' in description infers dtype='str'."""
+    ttl = tmp_path / "ucum.ttl"
+    ttl.write_text(_UCUM_TTL, encoding="utf-8")
+
+    onto = ColumnOntology({})
+    onto.load_ttl(ttl)
+
+    q = onto.step_label
+    assert q.unit is None
+    assert q.dtype == "str"
+    assert q.formatted_label == "Step Label"
 
 
 # ---------------------------------------------------------------------------
@@ -487,9 +736,7 @@ def test_bundled_snapshot_is_up_to_date(tmp_path: Path) -> None:
     fresh_quantities = {name: (q.unit, q.label_template) for name, q in fresh}
     bundled_quantities = {name: (q.unit, q.label_template) for name, q in bundled}
 
-    assert fresh_quantities == bundled_quantities, (
-        "Bundled snapshot is stale. Run `bdf-update-snapshot` to regenerate."
-    )
+    assert fresh_quantities == bundled_quantities, "Bundled snapshot is stale. Run `bdf-update-snapshot` to regenerate."
 
 
 # ---------------------------------------------------------------------------
@@ -518,11 +765,13 @@ def test_iteration_yields_str_quantity_pairs() -> None:
 
 @pytest.fixture
 def required_df() -> pl.DataFrame:
-    return pl.DataFrame({
-        "Test Time / s": [0.0, 1.0],
-        "Voltage / V": [3.7, 3.6],
-        "Current / A": [0.1, 0.1],
-    })
+    return pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0],
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+        }
+    )
 
 
 def test_validate_df_passes_with_required_columns(required_df: pl.DataFrame) -> None:
@@ -615,12 +864,14 @@ def test_validate_df_raises_on_missing_columns_with_pandas_input() -> None:
 
 
 def test_validate_df_warns_on_extra_columns_with_pandas_input() -> None:
-    pdf = pd.DataFrame({
-        "Test Time / s": [0.0],
-        "Voltage / V": [3.7],
-        "Current / A": [0.1],
-        "Unknown Column": [99],
-    })
+    pdf = pd.DataFrame(
+        {
+            "Test Time / s": [0.0],
+            "Voltage / V": [3.7],
+            "Current / A": [0.1],
+            "Unknown Column": [99],
+        }
+    )
     with pytest.warns(UserWarning, match="Unknown Column"):
         spec.COLUMN_ONTOLOGY.validate_df(pdf)
 
@@ -679,3 +930,13 @@ class TestFormattedLabel:
     def test_ontology_current(self) -> None:
         """COLUMN_ONTOLOGY.current_ampere produces correct formatted_label."""
         assert COLUMN_ONTOLOGY.current_ampere.formatted_label == "Current / A"
+
+    def test_unit_none_no_slash_returns_label_unchanged(self) -> None:
+        """Unitless quantities (e.g. step_id) return label_template unchanged."""
+        q = Quantity(unit=None, label_template="Step ID", mr_name="x", iri="x", synonyms=[])
+        assert q.formatted_label == "Step ID"
+
+    def test_unit_none_with_literal_placeholder_left_unsubstituted(self) -> None:
+        """A literal {unit} placeholder is not substituted when unit is None."""
+        q = Quantity(unit=None, label_template="X / {unit}", mr_name="x", iri="x", synonyms=[])
+        assert q.formatted_label == "X / {unit}"
