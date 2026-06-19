@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from bdf.fetch import _safe_cache_name
+import bdf.fetch as fetch
+from bdf.fetch import _cache_dir, _safe_cache_name, fetch_url
 
 
 class TestSafeCacheName:
@@ -49,3 +52,43 @@ class TestSafeCacheName:
     def test_no_extension_warning_message_mentions_filename_param(self) -> None:
         with pytest.warns(UserWarning, match="filename="):
             _safe_cache_name("https://example.com/api/v1/resource", None)
+
+
+class TestCacheDir:
+    """Tests for _cache_dir's BDF_CACHE_DIR override."""
+
+    def test_override_honoured_when_set(self, tmp_path: Path, monkeypatch) -> None:
+        override = tmp_path / "cache"
+        monkeypatch.setenv("BDF_CACHE_DIR", str(override))
+        assert _cache_dir() == override
+        assert override.is_dir()
+
+    def test_fallback_when_unset(self, monkeypatch) -> None:
+        monkeypatch.delenv("BDF_CACHE_DIR", raising=False)
+        monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: "/tmp/bdf-fallback-xyz")
+        assert _cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
+
+    def test_fallback_when_empty(self, monkeypatch) -> None:
+        monkeypatch.setenv("BDF_CACHE_DIR", "")
+        monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: "/tmp/bdf-fallback-xyz")
+        assert _cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
+
+    def test_cache_reuse_no_redownload(self, tmp_path: Path, monkeypatch) -> None:
+        monkeypatch.setenv("BDF_CACHE_DIR", str(tmp_path))
+        url = "https://example.com/data.csv"
+
+        calls: list[str] = []
+
+        def fake_download(u: str, dest: Path, timeout: int = 120) -> None:
+            calls.append(u)
+            dest.write_bytes(b"col\n1\n")
+
+        monkeypatch.setattr(fetch, "_download", fake_download)
+
+        first = fetch_url(url)
+        assert first.exists()
+        assert calls == [url]
+
+        second = fetch_url(url)
+        assert second == first
+        assert calls == [url]  # cache hit -> _download not called again

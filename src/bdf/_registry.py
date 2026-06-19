@@ -10,6 +10,7 @@ from typing import Any
 # Registry loading (accepts either {"datasets":[...]} or {"entries":[...]})
 # -------------------------------
 
+
 def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path:
     p = Path.cwd().resolve()
     for _ in range(max_up):
@@ -17,6 +18,7 @@ def _find_repo_root(markers=("pyproject.toml", ".git"), max_up: int = 8) -> Path
             return p
         p = p.parent
     return Path.cwd().resolve()
+
 
 def load_registry(path: str | Path | None = None) -> dict[str, Any]:
     """
@@ -51,9 +53,11 @@ def load_registry(path: str | Path | None = None) -> dict[str, Any]:
 
     raise FileNotFoundError("datasets.json not found. Provide path or set BDF_DATASETS.")
 
+
 # -------------------------------
 # Helpers
 # -------------------------------
+
 
 def _iter_dataset_dicts(reg: dict[str, Any]) -> Iterable[dict[str, Any]]:
     if isinstance(reg, dict):
@@ -68,6 +72,7 @@ def _iter_dataset_dicts(reg: dict[str, Any]) -> Iterable[dict[str, Any]]:
             if isinstance(d, dict):
                 yield d
 
+
 def list_datasets(path: str | Path | None = None) -> list[str]:
     """Return list of dataset IDs from the registry."""
     reg = load_registry(path)
@@ -77,6 +82,7 @@ def list_datasets(path: str | Path | None = None) -> list[str]:
             out.append(str(d["id"]))
     return out
 
+
 def get_entry(registry: dict[str, Any], entry_id: str) -> dict[str, Any]:
     """Return the entry dict with matching id (case-insensitive)."""
     key = (entry_id or "").lower()
@@ -84,5 +90,6 @@ def get_entry(registry: dict[str, Any], entry_id: str) -> dict[str, Any]:
         if str(d.get("id", "")).lower() == key:
             return d
     raise KeyError(f"Dataset id not found: {entry_id}")
+
 
 __all__ = ["load_registry", "list_datasets", "get_entry"]

@@ -11,6 +11,7 @@ def _head(path: Path, n: int = 8192) -> bytes:
     with open(path, "rb") as f:
         return f.read(n)
 
+
 def detect(path: Path) -> SniffResult:
     h = _head(path)
     best: Optional[SniffResult] = None
@@ -21,6 +22,7 @@ def detect(path: Path) -> SniffResult:
     if best is None:
         raise ValueError("No plugin matched this file.")
     return best
+
 
 def load_plugin(path: Path, plugin_id: Optional[str] = None) -> CyclerPlugin:
     if plugin_id:
@@ -34,6 +36,7 @@ def load_plugin(path: Path, plugin_id: Optional[str] = None) -> CyclerPlugin:
     if cls is None:
         raise ValueError(f"Plugin not found for detected id: {sr.id}")
     return cls()
-    
+
+
 def list_plugins() -> list[str]:
     return [c.id for c in all_plugins()]

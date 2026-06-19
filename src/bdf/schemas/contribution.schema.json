@@ -1,149 +1,258 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/contribution.schema.json",
-  "title": "BDF contribution.json",
-  "description": "Dataset-level contribution metadata for BDF ingest.",
-  "type": "object",
-  "required": ["dataset_doi", "license"],
-  "properties": {
-    "schema_version": {
-      "type": "string",
-      "default": "1.0.0"
-    },
-    "dataset_doi": { "$ref": "#/$defs/DoiString" },
-    "citation_doi": {
-      "anyOf": [
-        { "$ref": "#/$defs/DoiString" },
-        { "type": "array", "items": { "$ref": "#/$defs/DoiString" } }
-      ]
-    },
-    "license": { "type": "string", "minLength": 1 },
-    "title": { "type": "string" },
-    "description": { "type": "string" },
-    "creators": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/CreatorRef" }
-    },
-    "creator": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/CreatorRef" }
-    },
-    "keywords": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "version": { "type": "string" },
-    "publication_date": { "type": "string" },
-    "language": { "type": "string" },
-    "same_as": {
-      "type": "array",
-      "items": { "type": "string", "format": "uri" }
-    },
-    "identifiers": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "doi": { "$ref": "#/$defs/DoiString" },
-    "citation": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/DoiString"
-      }
-    },
-    "is_based_on": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "variable_measured": {
-      "type": "array",
-      "items": {
-        "anyOf": [
-          { "type": "string" },
-          { "$ref": "#/$defs/VariableMeasured" }
-        ]
-      }
-    },
-    "measurement_technique": {
-      "anyOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string" } }
-      ]
-    },
-    "spatial_coverage": { "type": "string" },
-    "temporal_coverage": { "type": "string" },
-    "included_in_data_catalog": {
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "url": { "type": "string", "format": "uri" }
-      },
-      "additionalProperties": true
-    },
-    "is_accessible_for_free": { "type": "boolean" },
-    "publisher": { "$ref": "#/$defs/Creator" },
-    "funder": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/Creator" }
-    },
-    "access_right": { "type": "string" },
-    "communities": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "related_identifiers": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/RelatedIdentifier" }
-    },
-    "excel": { "$ref": "excel.schema.json" }
-  },
-  "additionalProperties": true,
   "$defs": {
-    "DoiString": {
-      "type": "string",
-      "description": "Accepts DOI identifier or https://doi.org/<identifier>.",
-      "pattern": "^(?:https://doi\\.org/)?10\\.\\d{4,9}/\\S+$"
+    "Creator": {
+      "additionalProperties": true,
+      "properties": {
+        "affiliation": {
+          "type": "string"
+        },
+        "family_name": {
+          "type": "string"
+        },
+        "given_name": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "orcid": {
+          "type": "string"
+        },
+        "ror": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "Person",
+            "Organization"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
     },
     "CreatorRef": {
       "anyOf": [
-        { "type": "string" },
-        { "$ref": "#/$defs/Creator" }
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/Creator"
+        }
       ]
     },
-    "Creator": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": { "type": "string" },
-        "type": {
-          "type": "string",
-          "enum": ["Person", "Organization"]
-        },
-        "orcid": { "type": "string" },
-        "ror": { "type": "string" },
-        "given_name": { "type": "string" },
-        "family_name": { "type": "string" },
-        "affiliation": { "type": "string" }
-      },
-      "additionalProperties": true
+    "DoiString": {
+      "description": "Accepts DOI identifier or https://doi.org/<identifier>.",
+      "pattern": "^(?:https://doi\\.org/)?10\\.\\d{4,9}/\\S+$",
+      "type": "string"
     },
     "RelatedIdentifier": {
-      "type": "object",
-      "required": ["identifier"],
+      "additionalProperties": true,
       "properties": {
-        "identifier": { "type": "string" },
-        "relation": { "type": "string" },
-        "scheme": { "type": "string" }
+        "identifier": {
+          "type": "string"
+        },
+        "relation": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        }
       },
-      "additionalProperties": true
+      "required": [
+        "identifier"
+      ],
+      "type": "object"
     },
     "VariableMeasured": {
-      "type": "object",
+      "additionalProperties": true,
       "properties": {
-        "name": { "type": "string" },
-        "property_id": { "type": "string" },
-        "unit_text": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "property_id": {
+          "type": "string"
+        },
+        "unit_text": {
+          "type": "string"
+        }
       },
-      "additionalProperties": true
+      "type": "object"
     }
-  }
+  },
+  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/contribution.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Dataset-level contribution metadata for BDF ingest.",
+  "properties": {
+    "access_right": {
+      "type": "string"
+    },
+    "citation": {
+      "items": {
+        "$ref": "#/$defs/DoiString"
+      },
+      "type": "array"
+    },
+    "citation_doi": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DoiString"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/DoiString"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "communities": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "creator": {
+      "items": {
+        "$ref": "#/$defs/CreatorRef"
+      },
+      "type": "array"
+    },
+    "creators": {
+      "items": {
+        "$ref": "#/$defs/CreatorRef"
+      },
+      "type": "array"
+    },
+    "dataset_doi": {
+      "$ref": "#/$defs/DoiString"
+    },
+    "description": {
+      "type": "string"
+    },
+    "doi": {
+      "$ref": "#/$defs/DoiString"
+    },
+    "excel": {
+      "$ref": "excel.schema.json"
+    },
+    "funder": {
+      "items": {
+        "$ref": "#/$defs/Creator"
+      },
+      "type": "array"
+    },
+    "identifiers": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "included_in_data_catalog": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "is_accessible_for_free": {
+      "type": "boolean"
+    },
+    "is_based_on": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "keywords": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "language": {
+      "type": "string"
+    },
+    "license": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "measurement_technique": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "publication_date": {
+      "type": "string"
+    },
+    "publisher": {
+      "$ref": "#/$defs/Creator"
+    },
+    "related_identifiers": {
+      "items": {
+        "$ref": "#/$defs/RelatedIdentifier"
+      },
+      "type": "array"
+    },
+    "same_as": {
+      "items": {
+        "format": "uri",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.0.0",
+      "type": "string"
+    },
+    "spatial_coverage": {
+      "type": "string"
+    },
+    "temporal_coverage": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "variable_measured": {
+      "items": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/VariableMeasured"
+          }
+        ]
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "dataset_doi",
+    "license"
+  ],
+  "title": "BDF contribution.json",
+  "type": "object"
 }

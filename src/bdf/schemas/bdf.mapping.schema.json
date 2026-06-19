@@ -1,137 +1,255 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/bdf.mapping.schema.json",
-  "title": "BDF mapping sidecar",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
   "description": "Mapping file for source files. Target BDF quantities should be used as keys.",
-  "type": "object",
   "properties": {
-    "schema_version": { "type": "string" },
-    "fields": {
-      "type": "object",
-      "description": "Target quantity -> source binding.",
+    "columns": {
       "additionalProperties": {
         "anyOf": [
-          { "type": "string" },
-          { "type": "array", "items": { "type": "string" } },
           {
-            "type": "object",
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ]
+      },
+      "type": "object"
+    },
+    "data_path": {
+      "type": "string"
+    },
+    "datetime": {
+      "additionalProperties": true,
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "tz": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "datetime_format": {
+      "type": "string"
+    },
+    "datetime_source": {
+      "type": "string"
+    },
+    "datetime_target": {
+      "type": "string"
+    },
+    "datetime_timezone": {
+      "type": "string"
+    },
+    "datetime_tz": {
+      "type": "string"
+    },
+    "fields": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "additionalProperties": true,
             "properties": {
               "source": {
                 "anyOf": [
-                  { "type": "string" },
-                  { "type": "array", "items": { "type": "string" } }
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
                 ]
               },
-              "source_unit": { "type": "string" },
-              "unit": { "type": "string" }
+              "source_unit": {
+                "type": "string"
+              },
+              "unit": {
+                "type": "string"
+              }
             },
-            "required": ["source"],
-            "additionalProperties": true
+            "required": [
+              "source"
+            ],
+            "type": "object"
           }
         ]
-      }
+      },
+      "description": "Target quantity -> source binding.",
+      "type": "object"
+    },
+    "map": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ]
+      },
+      "type": "object"
+    },
+    "offset": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "type": "object"
+    },
+    "scale": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "type": "object"
+    },
+    "schema_version": {
+      "type": "string"
     },
     "source_locator": {
-      "type": "object",
-      "description": "Optional source table selector, mainly for tabular formats like Excel.",
-      "properties": {
-        "sheet_name": { "type": "string" },
-        "sheet_index": { "type": "integer", "minimum": 1 },
-        "header_row": { "type": "integer", "minimum": 1 },
-        "usecols": { "type": "string" },
-        "skiprows": {
-          "anyOf": [
-            { "type": "integer", "minimum": 0 },
-            { "type": "array", "items": { "type": "integer", "minimum": 0 } }
-          ]
-        },
-        "nrows": { "type": "integer", "minimum": 1 }
-      },
+      "additionalProperties": true,
       "allOf": [
         {
           "not": {
-            "required": ["sheet_name", "sheet_index"]
+            "required": [
+              "sheet_name",
+              "sheet_index"
+            ]
           }
         }
       ],
-      "additionalProperties": true
+      "description": "Optional source table selector, mainly for tabular formats like Excel.",
+      "properties": {
+        "header_row": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "nrows": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sheet_index": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sheet_name": {
+          "type": "string"
+        },
+        "skiprows": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "usecols": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "source_units": {
-      "type": "object",
-      "additionalProperties": { "type": "string" }
-    },
-    "variables": {
-      "type": "object",
       "additionalProperties": {
-        "anyOf": [
-          { "type": "string" },
-          { "type": "array", "items": { "type": "string" } }
-        ]
-      }
-    },
-    "columns": {
-      "type": "object",
-      "additionalProperties": {
-        "anyOf": [
-          { "type": "string" },
-          { "type": "array", "items": { "type": "string" } }
-        ]
-      }
-    },
-    "map": {
-      "type": "object",
-      "additionalProperties": {
-        "anyOf": [
-          { "type": "string" },
-          { "type": "array", "items": { "type": "string" } }
-        ]
-      }
-    },
-    "units": {
-      "type": "object",
-      "additionalProperties": { "type": "string" }
-    },
-    "scale": {
-      "type": "object",
-      "additionalProperties": { "type": "number" }
-    },
-    "offset": {
-      "type": "object",
-      "additionalProperties": { "type": "number" }
-    },
-    "data_path": { "type": "string" },
-    "datetime": {
-      "type": "object",
-      "properties": {
-        "source": { "type": "string" },
-        "target": { "type": "string" },
-        "format": { "type": "string" },
-        "timezone": { "type": "string" },
-        "tz": { "type": "string" }
+        "type": "string"
       },
-      "additionalProperties": true
+      "type": "object"
     },
     "timestamp": {
-      "type": "object",
+      "additionalProperties": true,
       "properties": {
-        "source": { "type": "string" },
-        "target": { "type": "string" },
-        "format": { "type": "string" },
-        "timezone": { "type": "string" },
-        "tz": { "type": "string" }
+        "format": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "tz": {
+          "type": "string"
+        }
       },
-      "additionalProperties": true
+      "type": "object"
     },
-    "datetime_source": { "type": "string" },
-    "datetime_target": { "type": "string" },
-    "datetime_format": { "type": "string" },
-    "datetime_timezone": { "type": "string" },
-    "datetime_tz": { "type": "string" },
-    "timestamp_source": { "type": "string" },
-    "timestamp_target": { "type": "string" },
-    "timestamp_format": { "type": "string" },
-    "timestamp_timezone": { "type": "string" },
-    "timestamp_tz": { "type": "string" }
+    "timestamp_format": {
+      "type": "string"
+    },
+    "timestamp_source": {
+      "type": "string"
+    },
+    "timestamp_target": {
+      "type": "string"
+    },
+    "timestamp_timezone": {
+      "type": "string"
+    },
+    "timestamp_tz": {
+      "type": "string"
+    },
+    "units": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "variables": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ]
+      },
+      "type": "object"
+    }
   },
-  "additionalProperties": true
+  "title": "BDF mapping sidecar",
+  "type": "object"
 }

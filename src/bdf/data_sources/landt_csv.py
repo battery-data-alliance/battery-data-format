@@ -6,10 +6,11 @@ from .base_delimited import DelimitedTextPlugin
 
 class LandtCSV(DelimitedTextPlugin):
     """Landt modern CSV export (snake_case headers, SI units)."""
+
     id = "landt-csv"
     exts = (".csv",)
     default_encoding = "utf-8-sig"
-    ragged_row_policy = "fold_last"   # <- handle extra delimiters/trailing commas
+    ragged_row_policy = "fold_last"  # <- handle extra delimiters/trailing commas
 
     header_token_patterns = (
         r"\bchannel_index\b",
@@ -23,17 +24,17 @@ class LandtCSV(DelimitedTextPlugin):
     )
 
     column_synonyms = {
-        "Test Time / s":          ["test_time_s"],
-        "Voltage / V":            ["voltage_v"],
-        "Current / A":            ["current_a"],
-        "Step Time / s":          ["step_time_s"],
-        "Cycle Index":            ["cycle_index"],
-        "Step Index":             ["step_index"],
-        "Channel Index":          ["channel_index"],
-        "Date Time ISO":          ["date_time_iso_string"],
+        "Test Time / s": ["test_time_s"],
+        "Voltage / V": ["voltage_v"],
+        "Current / A": ["current_a"],
+        "Step Time / s": ["step_time_s"],
+        "Cycle Index": ["cycle_index"],
+        "Step Index": ["step_index"],
+        "Channel Index": ["channel_index"],
+        "Date Time ISO": ["date_time_iso_string"],
         "Charging Capacity / Ah": ["charge_capacity_Ah"],
         "Discharging Capacity / Ah": ["discharge_capacity_Ah"],
-        "Charging Energy / Wh":   ["charge_energy_Wh"],
+        "Charging Energy / Wh": ["charge_energy_Wh"],
         "Discharging Energy / Wh": ["discharge_energy_Wh"],
         "Ambient Temperature / degC": ["temperature_1_C"],
         "Surface Temperature T2 / degC": ["temperature_2_C"],
@@ -41,8 +42,8 @@ class LandtCSV(DelimitedTextPlugin):
     }
 
     unit_column_patterns = {
-        "Test Time / s": [ (r"^test_time_s$", "s") ],
-        "Voltage / V":   [ (r"^voltage_v$",   "V") ],
-        "Current / A":   [ (r"^current_a$",   "A") ],
-        "Step Time / s": [ (r"^step_time_s$", "s") ],
+        "Test Time / s": [(r"^test_time_s$", "s")],
+        "Voltage / V": [(r"^voltage_v$", "V")],
+        "Current / A": [(r"^current_a$", "A")],
+        "Step Time / s": [(r"^step_time_s$", "s")],
     }

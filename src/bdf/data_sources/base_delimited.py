@@ -20,26 +20,26 @@ class DelimitedTextPlugin(CyclerPlugin):
     """
 
     # --- basic CSV/TXT settings ---
-    decimal: str = "."                             # decimal separator for numeric fields
+    decimal: str = "."  # decimal separator for numeric fields
     default_encoding: str = "utf-8"
     max_header_scan_lines: int = 600
-    header_lines_field_regex: Optional[str] = None   # e.g., r"^Header\s*Lines:\s*(\d+)"
-    header_token_patterns: Sequence[str] = ()        # regexes that indicate a header row
-    magic: Sequence[str] = ()                        # quick sniff magic strings in head
+    header_lines_field_regex: Optional[str] = None  # e.g., r"^Header\s*Lines:\s*(\d+)"
+    header_token_patterns: Sequence[str] = ()  # regexes that indicate a header row
+    magic: Sequence[str] = ()  # quick sniff magic strings in head
 
     # --- normalization helpers ---
     unit_column_patterns: Dict[str, Sequence[Tuple[str, str]]] = {}
-    header_prefix_to_strip: Optional[str] = None     # strip prefix from each header, if present
+    header_prefix_to_strip: Optional[str] = None  # strip prefix from each header, if present
 
     # --- robustness knobs ---
-    ragged_row_policy: Optional[str] = None          # None | "fold_last" | "skip"
-    strip_headers: bool = True                       # strip whitespace/BOM in headers
-    drop_units_row: bool = False                     # drop a unit annotation row after the header
-    unit_row_min_ratio: float = 0.6                  # fraction of bracketed/empty cells to treat as unit row
+    ragged_row_policy: Optional[str] = None  # None | "fold_last" | "skip"
+    strip_headers: bool = True  # strip whitespace/BOM in headers
+    drop_units_row: bool = False  # drop a unit annotation row after the header
+    unit_row_min_ratio: float = 0.6  # fraction of bracketed/empty cells to treat as unit row
 
     # --- INI-style preamble / sectioned files (e.g., Novonix with [Data]) ---
-    data_section_marker: Optional[str] = None        # regex; if present, start from the line after this marker
-    data_header_offset: int = 1                      # number of lines after marker where the header row appears
+    data_section_marker: Optional[str] = None  # regex; if present, start from the line after this marker
+    data_header_offset: int = 1  # number of lines after marker where the header row appears
 
     # -------------------------------------------------------------------------
     # Public API
@@ -67,7 +67,9 @@ class DelimitedTextPlugin(CyclerPlugin):
 
         used_marker = False
         if getattr(self, "data_section_marker", None):
-            header_idx, sep = self._find_header_from_marker(path, enc, self.data_section_marker, getattr(self, "data_header_offset", 1))
+            header_idx, sep = self._find_header_from_marker(
+                path, enc, self.data_section_marker, getattr(self, "data_header_offset", 1)
+            )
             used_marker = True
         else:
             header_idx, sep = self._find_header_and_sep(path, enc)
@@ -80,7 +82,7 @@ class DelimitedTextPlugin(CyclerPlugin):
             # with a marker, the off-by-one is our bug, not the file's.
             if not used_marker and not self._looks_ok(df) and header_idx > 0:
                 if self._debug_on():
-                    print(f"[bdf][DelimitedTextPlugin] retry one line up: header_idx={header_idx-1}")
+                    print(f"[bdf][DelimitedTextPlugin] retry one line up: header_idx={header_idx - 1}")
                 df = self._read_csv(path, sep, header_idx - 1, enc)
 
         if self.header_prefix_to_strip:
@@ -105,7 +107,6 @@ class DelimitedTextPlugin(CyclerPlugin):
     # -------------------------------------------------------------------------
     def _debug_on(self) -> bool:
         return os.environ.get("BDF_DEBUG", "").strip() not in ("", "0", "false", "False")
-
 
     def _safe_decode(self, b: bytes) -> str:
         for enc in ("utf-8", "latin-1", "cp1252"):
@@ -186,7 +187,9 @@ class DelimitedTextPlugin(CyclerPlugin):
         sep = self._detect_sep_from_line(header_line)
 
         if self._debug_on():
-            print(f"[bdf][DelimitedTextPlugin] marker={marker_regex!r} header_idx={header_idx} sep={sep!r} header_line={header_line!r}")
+            print(
+                f"[bdf][DelimitedTextPlugin] marker={marker_regex!r} header_idx={header_idx} sep={sep!r} header_line={header_line!r}"
+            )
 
         return header_idx, sep
 
@@ -201,7 +204,6 @@ class DelimitedTextPlugin(CyclerPlugin):
         if "\t" in header_line:
             return "\t"
         return r"\s+"
-
 
     def _find_header_and_sep(self, path: Path, enc: str) -> tuple[int, str]:
         prefix = self._scan_prefix(path, enc)
@@ -274,7 +276,7 @@ class DelimitedTextPlugin(CyclerPlugin):
             parts.pop()
         if len(parts) > ncols:
             head = parts[: ncols - 1]
-            tail = " ".join(parts[ncols - 1:]).strip()
+            tail = " ".join(parts[ncols - 1 :]).strip()
             parts = head + [tail]
         elif len(parts) < ncols:
             parts += [""] * (ncols - len(parts))
@@ -317,6 +319,7 @@ class DelimitedTextPlugin(CyclerPlugin):
             fields = self._split_ws_header_fields(header_line)
         else:
             import csv as _csv
+
             try:
                 fields = next(_csv.reader([header_line], delimiter=sep, quotechar='"'))
             except Exception:
@@ -338,13 +341,14 @@ class DelimitedTextPlugin(CyclerPlugin):
                     parts = self._split_ws_row(raw, ncols)
                 else:
                     import csv as _csv
+
                     try:
                         parts = next(_csv.reader([raw.rstrip("\r\n")], delimiter=sep, quotechar='"'))
                     except Exception:
                         parts = raw.rstrip("\r\n").split(sep)
                     if len(parts) > ncols:
                         head = parts[: ncols - 1]
-                        tail = sep.join(parts[ncols - 1:]).rstrip(sep).rstrip()
+                        tail = sep.join(parts[ncols - 1 :]).rstrip(sep).rstrip()
                         parts = head + [tail]
                     elif len(parts) == ncols + 1 and parts[-1] == "":
                         parts = parts[:-1]

@@ -51,8 +51,7 @@ def _plot_bokeh(
         import hvplot.pandas  # noqa: F401
     except Exception as e:
         raise RuntimeError(
-            "bdf.explore(..., backend='bokeh') requires hvplot. Install with "
-            "`pip install batterydf[hvplot]`."
+            "bdf.explore(..., backend='bokeh') requires hvplot. Install with `pip install batterydf[hvplot]`."
         ) from e
 
     hvplot.extension("bokeh")
@@ -113,8 +112,7 @@ def _plot_plotly(
         import plotly.graph_objects as go  # type: ignore
     except Exception as e:
         raise RuntimeError(
-            "bdf.explore(..., backend='plotly') requires plotly. Install with "
-            "`pip install batterydf[plotly]`."
+            "bdf.explore(..., backend='plotly') requires plotly. Install with `pip install batterydf[plotly]`."
         ) from e
 
     mode = "lines"

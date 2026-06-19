@@ -33,6 +33,7 @@ def test_clean_reports_and_fixes_time(tmp_path):
 # Repair edge-case tests
 # -----------------------------------------------------------
 
+
 def test_fix_time_all_zero_timestamps():
     """All-zero timestamps should remain zero (already monotonic non-decreasing)."""
     df = pd.DataFrame(

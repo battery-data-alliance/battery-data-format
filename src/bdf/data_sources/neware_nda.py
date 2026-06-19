@@ -122,6 +122,5 @@ class NewareNDAFast(_NewareNDABase):
             return _read_fastnda(path)
         except Exception as exc:
             raise ImportError(
-                "Reading .nda/.ndax with the fast backend requires fastnda "
-                "(Python>=3.10, numpy>=2.2)."
+                "Reading .nda/.ndax with the fast backend requires fastnda (Python>=3.10, numpy>=2.2)."
             ) from exc

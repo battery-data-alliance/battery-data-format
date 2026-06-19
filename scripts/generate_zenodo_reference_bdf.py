@@ -128,9 +128,7 @@ def _download_file(
     filename_hint: str | None = None,
 ) -> Path:
     destination = (
-        cache_dir / f"{_hash(url)}__{filename_hint}"
-        if filename_hint
-        else _cached_path_for_url(cache_dir, url)
+        cache_dir / f"{_hash(url)}__{filename_hint}" if filename_hint else _cached_path_for_url(cache_dir, url)
     )
     if destination.exists() and destination.stat().st_size > 0:
         return destination
@@ -139,9 +137,7 @@ def _download_file(
 
     size_bytes = _http_head_content_length(url, timeout=timeout)
     if size_bytes is not None and size_bytes / (1024 * 1024) > max_download_mib:
-        raise RuntimeError(
-            f"Download exceeds size cap ({size_bytes / (1024 * 1024):.1f} MiB > {max_download_mib} MiB)"
-        )
+        raise RuntimeError(f"Download exceeds size cap ({size_bytes / (1024 * 1024):.1f} MiB > {max_download_mib} MiB)")
 
     with _http_get(url, timeout=timeout, stream=True) as response:
         destination.parent.mkdir(parents=True, exist_ok=True)

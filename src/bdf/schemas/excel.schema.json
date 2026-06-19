@@ -1,56 +1,114 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/excel.schema.json",
-  "title": "BDF Excel config",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
   "description": "Configuration for Excel parsing.",
-  "type": "object",
   "properties": {
-    "sheet": {
-      "anyOf": [
-        { "type": "string" },
-        { "type": "integer", "minimum": 0 }
-      ]
+    "drop_empty_rows": {
+      "type": "boolean"
     },
-    "sheet_name": {
-      "anyOf": [
-        { "type": "string" },
-        { "type": "integer", "minimum": 0 }
-      ]
-    },
-    "worksheet": {
-      "anyOf": [
-        { "type": "string" },
-        { "type": "integer", "minimum": 0 }
-      ]
-    },
-    "sheet_index": { "type": "integer", "minimum": 1 },
-    "header_row": {
-      "anyOf": [
-        { "type": "integer", "minimum": 1 },
-        { "type": "array", "items": { "type": "integer", "minimum": 1 } }
-      ]
+    "engine": {
+      "type": "string"
     },
     "header": {
       "anyOf": [
-        { "type": "integer", "minimum": 0 },
-        { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
       ]
     },
-    "usecols": { "type": "string" },
+    "header_row": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "items": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "nrows": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "rename": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "sheet": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "minimum": 0,
+          "type": "integer"
+        }
+      ]
+    },
+    "sheet_index": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sheet_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "minimum": 0,
+          "type": "integer"
+        }
+      ]
+    },
     "skiprows": {
       "anyOf": [
-        { "type": "integer", "minimum": 0 },
-        { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        }
       ]
     },
-    "nrows": { "type": "integer", "minimum": 1 },
-    "engine": { "type": "string" },
-    "rename": {
-      "type": "object",
-      "additionalProperties": { "type": "string" }
+    "strip_headers": {
+      "type": "boolean"
     },
-    "drop_empty_rows": { "type": "boolean" },
-    "strip_headers": { "type": "boolean" }
+    "usecols": {
+      "type": "string"
+    },
+    "worksheet": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "minimum": 0,
+          "type": "integer"
+        }
+      ]
+    }
   },
-  "additionalProperties": true
+  "title": "BDF Excel config",
+  "type": "object"
 }

@@ -1,194 +1,369 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/battery.schema.json",
-  "title": "BDF battery.json",
-  "description": "Battery metadata sidecar for BDF ingest.",
-  "type": ["object", "array"],
-  "oneOf": [
-    {
-      "type": "object",
-      "required": ["cells"],
+  "$defs": {
+    "BatteryIdEntry": {
+      "additionalProperties": true,
+      "anyOf": [
+        {
+          "required": [
+            "id"
+          ]
+        },
+        {
+          "required": [
+            "short_id"
+          ]
+        }
+      ],
       "properties": {
-        "schema_version": {
-          "type": "string",
-          "default": "1.0.0"
+        "full_id": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "iri": {
+          "format": "uri",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "short_id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "BatteryItem": {
+      "additionalProperties": true,
+      "properties": {
+        "batch": {
+          "type": "string"
         },
         "battery_model": {
-          "type": "string",
-          "format": "uri"
+          "format": "uri",
+          "type": "string"
         },
-        "spec": { "$ref": "#/$defs/BatterySpecV1" },
-        "cells": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/CellEntry" }
-        }
-      },
-      "additionalProperties": true
-    },
-    {
-      "type": "array",
-      "items": { "$ref": "#/$defs/BatteryItem" }
-    },
-    {
-      "type": "object",
-      "required": ["ids"],
-      "properties": {
-        "spec": { "$ref": "#/$defs/BatterySpec" },
-        "ids": {
-          "type": "array",
-          "minItems": 1,
+        "chemistry": {
+          "type": "string"
+        },
+        "form_factor": {
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "iec_code": {
+          "type": "string"
+        },
+        "iri": {
+          "format": "uri",
+          "type": "string"
+        },
+        "iri_template": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "mass_g": {
+          "type": "number"
+        },
+        "model": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "name_template": {
+          "type": "string"
+        },
+        "namespace": {
+          "format": "uri",
+          "type": "string"
+        },
+        "ne_materials": {
           "items": {
-            "anyOf": [
-              { "type": "string", "minLength": 1 },
-              { "$ref": "#/$defs/BatteryIdEntry" }
-            ]
-          }
-        }
-      },
-      "additionalProperties": true
-    },
-    {
-      "type": "object",
-      "required": ["id"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": true
-    }
-  ],
-  "$defs": {
-    "ManufacturerRef": {
-      "anyOf": [
-        { "type": "string" },
-        {
-          "type": "object",
-          "properties": {
-            "@id": { "type": "string", "format": "uri" },
-            "name": { "type": "string" }
+            "type": "string"
           },
-          "additionalProperties": true
+          "type": "array"
+        },
+        "nominal_voltage_v": {
+          "type": "number"
+        },
+        "pe_materials": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "productID": {
+          "type": "string"
+        },
+        "rated_capacity_ah": {
+          "type": "number"
+        },
+        "rated_energy_wh": {
+          "type": "number"
+        },
+        "volume_l": {
+          "type": "number"
         }
-      ]
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "BatterySpec": {
+      "additionalProperties": true,
+      "properties": {
+        "batch": {
+          "type": "string"
+        },
+        "chemistry": {
+          "type": "string"
+        },
+        "form_factor": {
+          "type": "string"
+        },
+        "iec_code": {
+          "type": "string"
+        },
+        "iri_template": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "mass_g": {
+          "type": "number"
+        },
+        "model": {
+          "type": "string"
+        },
+        "name_template": {
+          "type": "string"
+        },
+        "namespace": {
+          "format": "uri",
+          "type": "string"
+        },
+        "ne_materials": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nominal_voltage_v": {
+          "type": "number"
+        },
+        "pe_materials": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rated_capacity_ah": {
+          "type": "number"
+        },
+        "rated_energy_wh": {
+          "type": "number"
+        },
+        "volume_l": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "BatterySpecV1": {
+      "additionalProperties": true,
+      "properties": {
+        "chemistry": {
+          "type": "string"
+        },
+        "form_factor": {
+          "type": "string"
+        },
+        "iec_code": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "$ref": "#/$defs/ManufacturerRef"
+        },
+        "mass_g": {
+          "type": "number"
+        },
+        "model": {
+          "type": "string"
+        },
+        "ne_materials": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nominal_voltage_v": {
+          "type": "number"
+        },
+        "pe_materials": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "productID": {
+          "type": "string"
+        },
+        "rated_capacity_ah": {
+          "type": "number"
+        },
+        "rated_energy_wh": {
+          "type": "number"
+        },
+        "volume_l": {
+          "type": "number"
+        },
+        "year": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
     },
     "CellEntry": {
       "anyOf": [
-        { "type": "string", "minLength": 1 },
         {
-          "type": "object",
-          "required": ["name"],
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "additionalProperties": true,
           "properties": {
-            "name": { "type": "string", "minLength": 1 },
-            "cell_id": { "type": "string" },
-            "id": { "type": "string" },
-            "iri": { "type": "string", "format": "uri" }
+            "cell_id": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "iri": {
+              "format": "uri",
+              "type": "string"
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            }
           },
-          "additionalProperties": true
+          "required": [
+            "name"
+          ],
+          "type": "object"
         }
       ]
     },
-    "BatterySpecV1": {
-      "type": "object",
-      "properties": {
-        "manufacturer": { "$ref": "#/$defs/ManufacturerRef" },
-        "productID": { "type": "string" },
-        "model": { "type": "string" },
-        "year": { "type": "integer" },
-        "iec_code": { "type": "string" },
-        "chemistry": { "type": "string" },
-        "form_factor": { "type": "string" },
-        "nominal_voltage_v": { "type": "number" },
-        "rated_capacity_ah": { "type": "number" },
-        "rated_energy_wh": { "type": "number" },
-        "mass_g": { "type": "number" },
-        "volume_l": { "type": "number" },
-        "pe_materials": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "ne_materials": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      },
-      "additionalProperties": true
-    },
-    "BatterySpec": {
-      "type": "object",
-      "properties": {
-        "manufacturer": { "type": "string" },
-        "model": { "type": "string" },
-        "batch": { "type": "string" },
-        "namespace": { "type": "string", "format": "uri" },
-        "name_template": { "type": "string" },
-        "iri_template": { "type": "string" },
-        "iec_code": { "type": "string" },
-        "chemistry": { "type": "string" },
-        "form_factor": { "type": "string" },
-        "nominal_voltage_v": { "type": "number" },
-        "rated_capacity_ah": { "type": "number" },
-        "rated_energy_wh": { "type": "number" },
-        "mass_g": { "type": "number" },
-        "volume_l": { "type": "number" },
-        "pe_materials": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "ne_materials": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      },
-      "additionalProperties": true
-    },
-    "BatteryIdEntry": {
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "short_id": { "type": "string" },
-        "full_id": { "type": "string" },
-        "name": { "type": "string" },
-        "iri": { "type": "string", "format": "uri" }
-      },
+    "ManufacturerRef": {
       "anyOf": [
-        { "required": ["id"] },
-        { "required": ["short_id"] }
-      ],
-      "additionalProperties": true
-    },
-    "BatteryItem": {
-      "type": "object",
-      "required": ["id"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "iri": { "type": "string", "format": "uri" },
-        "battery_model": { "type": "string", "format": "uri" },
-        "productID": { "type": "string" },
-        "model": { "type": "string" },
-        "name": { "type": "string" },
-        "manufacturer": { "type": "string" },
-        "chemistry": { "type": "string" },
-        "iec_code": { "type": "string" },
-        "form_factor": { "type": "string" },
-        "nominal_voltage_v": { "type": "number" },
-        "rated_capacity_ah": { "type": "number" },
-        "rated_energy_wh": { "type": "number" },
-        "mass_g": { "type": "number" },
-        "volume_l": { "type": "number" },
-        "pe_materials": {
-          "type": "array",
-          "items": { "type": "string" }
+        {
+          "type": "string"
         },
-        "ne_materials": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "batch": { "type": "string" },
-        "namespace": { "type": "string", "format": "uri" },
-        "name_template": { "type": "string" },
-        "iri_template": { "type": "string" }
-      },
-      "additionalProperties": true
+        {
+          "additionalProperties": true,
+          "properties": {
+            "@id": {
+              "format": "uri",
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      ]
     }
-  }
+  },
+  "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/battery.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Battery metadata sidecar for BDF ingest.",
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "properties": {
+        "battery_model": {
+          "format": "uri",
+          "type": "string"
+        },
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/CellEntry"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.0.0",
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/$defs/BatterySpecV1"
+        }
+      },
+      "required": [
+        "cells"
+      ],
+      "type": "object"
+    },
+    {
+      "items": {
+        "$ref": "#/$defs/BatteryItem"
+      },
+      "type": "array"
+    },
+    {
+      "additionalProperties": true,
+      "properties": {
+        "ids": {
+          "items": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/BatteryIdEntry"
+              }
+            ]
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "spec": {
+          "$ref": "#/$defs/BatterySpec"
+        }
+      },
+      "required": [
+        "ids"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "BDF battery.json",
+  "type": [
+    "object",
+    "array"
+  ]
 }

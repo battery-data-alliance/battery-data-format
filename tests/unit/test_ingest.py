@@ -17,17 +17,13 @@ def test_ingest_converts_raw_and_validates_bdf(tmp_path: Path) -> None:
     raw_csv = tmp_path / "raw.csv"
     _write_text(
         raw_csv,
-        "Voltage(V),Current(A),Time(s),Total Time(s)\n"
-        "4.0,0.1,1,1\n"
-        "4.1,0.1,2,2\n",
+        "Voltage(V),Current(A),Time(s),Total Time(s)\n4.0,0.1,1,1\n4.1,0.1,2,2\n",
     )
 
     bdf_csv = tmp_path / "sample.bdf.csv"
     _write_text(
         bdf_csv,
-        "Test Time / s,Voltage / V,Current / A\n"
-        "1,4.0,0.1\n"
-        "2,4.1,0.1\n",
+        "Test Time / s,Voltage / V,Current / A\n1,4.0,0.1\n2,4.1,0.1\n",
     )
 
     out_dir = tmp_path / "out"
@@ -106,9 +102,7 @@ def test_ingest_existing_bdf_does_not_delete_source(tmp_path: Path) -> None:
     src_bdf = root / "cell1.bdf.csv"
     _write_text(
         src_bdf,
-        "Test Time / s,Voltage / V,Current / A\n"
-        "1,4.0,0.1\n"
-        "2,4.1,0.1\n",
+        "Test Time / s,Voltage / V,Current / A\n1,4.0,0.1\n2,4.1,0.1\n",
     )
 
     # existing output in data/ to force conflict
@@ -117,8 +111,7 @@ def test_ingest_existing_bdf_does_not_delete_source(tmp_path: Path) -> None:
     out_bdf = data_dir / "cell1.bdf.csv"
     _write_text(
         out_bdf,
-        "Test Time / s,Voltage / V,Current / A\n"
-        "1,4.0,0.1\n",
+        "Test Time / s,Voltage / V,Current / A\n1,4.0,0.1\n",
     )
 
     summary = bdf.ingest(
@@ -146,9 +139,7 @@ def test_ingest_accepts_minimal_contribution_metadata(tmp_path: Path) -> None:
     raw_dir.mkdir(parents=True)
     _write_text(
         raw_dir / "sample.csv",
-        "Voltage(V),Current(A),Time(s)\n"
-        "4.0,0.1,1\n"
-        "4.1,0.1,2\n",
+        "Voltage(V),Current(A),Time(s)\n4.0,0.1,1\n4.1,0.1,2\n",
     )
     (root / "contribution.json").write_text(
         '{"dataset_doi": "10.1234/example.dataset", "license": "CC-BY-4.0"}',
@@ -167,9 +158,7 @@ def test_ingest_per_file_metadata_does_not_require_battery(tmp_path: Path) -> No
     root.mkdir()
     _write_text(
         root / "raw.csv",
-        "Voltage(V),Current(A),Time(s)\n"
-        "4.0,0.1,1\n"
-        "4.1,0.1,2\n",
+        "Voltage(V),Current(A),Time(s)\n4.0,0.1,1\n4.1,0.1,2\n",
     )
     (root / "dataset.json").write_text(
         '{"dataset_doi": "10.1234/per-file.dataset", "license": "CC-BY-4.0"}',
@@ -200,14 +189,14 @@ def test_ingest_nested_supports_v1_battery_cells(tmp_path: Path) -> None:
     (root / "battery.json").write_text(
         (
             "{"
-            "\"battery_model\": \"https://example.org/battery/anr26650m1-b\","
-            "\"spec\": {"
-            "\"manufacturer\": {\"@id\": \"https://ror.org/02y7qqd86\", \"name\": \"A123\"},"
-            "\"productID\": \"ANR26650M1-B\""
+            '"battery_model": "https://example.org/battery/anr26650m1-b",'
+            '"spec": {'
+            '"manufacturer": {"@id": "https://ror.org/02y7qqd86", "name": "A123"},'
+            '"productID": "ANR26650M1-B"'
             "},"
-            "\"cells\": ["
-            "{\"name\": \"lfp_k1\"},"
-            "{\"name\": \"lfp_k2\", \"cell_id\": \"lfp_k2_cell\"}"
+            '"cells": ['
+            '{"name": "lfp_k1"},'
+            '{"name": "lfp_k2", "cell_id": "lfp_k2_cell"}'
             "]"
             "}"
         ),
@@ -215,9 +204,7 @@ def test_ingest_nested_supports_v1_battery_cells(tmp_path: Path) -> None:
     )
     _write_text(
         root / "Inst__lfp_k1__20240101__CC__25C.bdf.csv",
-        "Test Time / s,Voltage / V,Current / A\n"
-        "1,4.0,0.1\n"
-        "2,4.1,0.1\n",
+        "Test Time / s,Voltage / V,Current / A\n1,4.0,0.1\n2,4.1,0.1\n",
     )
 
     summary = bdf.ingest(

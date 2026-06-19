@@ -29,18 +29,12 @@ def test_required_set_matches_ontology_obligations() -> None:
 
 
 def test_recommended_set_matches_ontology_obligations() -> None:
-    actual = {
-        name
-        for name, q in COLUMN_ONTOLOGY
-        if q.obligation == "recommended" and not q.deprecated
-    }
+    actual = {name for name, q in COLUMN_ONTOLOGY if q.obligation == "recommended" and not q.deprecated}
     assert actual == EXPECTED_RECOMMENDED
 
 
 def test_every_active_quantity_has_an_obligation() -> None:
-    missing = [
-        name for name, q in COLUMN_ONTOLOGY if not q.deprecated and not q.obligation
-    ]
+    missing = [name for name, q in COLUMN_ONTOLOGY if not q.deprecated and not q.obligation]
     assert missing == []
 
 

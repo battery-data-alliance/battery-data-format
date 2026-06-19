@@ -31,10 +31,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from bdf.spec import COLUMN_ONTOLOGY, Quantity  # noqa: E402
 
 OBLIGATION_LEVELS = ("required", "recommended", "optional")
-TABLE_HEADER = (
-    "| Preferred Label | Machine-readable name | IRI | Description |\n"
-    "|---|---|---|---|"
-)
+TABLE_HEADER = "| Preferred Label | Machine-readable name | IRI | Description |\n|---|---|---|---|"
 
 
 def _escape_cell(text: str) -> str:
@@ -73,9 +70,7 @@ def _region_content(level: str, stamp: str) -> str:
     # The optional table is by far the largest; keep the README scannable by
     # rendering it collapsed (blank lines around the table are required for
     # GitHub to render Markdown inside <details>).
-    count = sum(
-        1 for _, q in COLUMN_ONTOLOGY if q.obligation == "optional" and not q.deprecated
-    )
+    count = sum(1 for _, q in COLUMN_ONTOLOGY if q.obligation == "optional" and not q.deprecated)
     return (
         f"{stamp}\n"
         "<details>\n"
@@ -92,10 +87,7 @@ def _generated_regions() -> dict[str, str]:
         f"<!-- Generated from BDF ontology {COLUMN_ONTOLOGY.ontology_version} "
         "by scripts/generate_docs.py - do not edit by hand. -->"
     )
-    return {
-        f"bdf-terms-{level}": _region_content(level, stamp)
-        for level in OBLIGATION_LEVELS
-    }
+    return {f"bdf-terms-{level}": _region_content(level, stamp) for level in OBLIGATION_LEVELS}
 
 
 def _inject(text: str, region: str, content: str, path: Path) -> str:
@@ -105,8 +97,7 @@ def _inject(text: str, region: str, content: str, path: Path) -> str:
     )
     if not pattern.search(text):
         raise SystemExit(
-            f"ERROR: marker region '{region}' not found in {path}. "
-            "Add BEGIN/END GENERATED comments before running."
+            f"ERROR: marker region '{region}' not found in {path}. Add BEGIN/END GENERATED comments before running."
         )
     return pattern.sub(lambda m: f"{m.group(1)}\n{content}\n{m.group(2)}", text)
 

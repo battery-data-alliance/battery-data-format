@@ -46,7 +46,7 @@ class ExcelXlsx(CyclerPlugin):
         if head.startswith(b"PK"):
             score += 0.4
             reasons.append("zip")
-        if head.startswith(b"\xD0\xCF\x11\xE0"):
+        if head.startswith(b"\xd0\xcf\x11\xe0"):
             score += 0.4
             reasons.append("ole")
         return SniffResult(self.id, min(score, 1.0), "+".join(reasons), {})
@@ -77,10 +77,7 @@ class ExcelXlsx(CyclerPlugin):
             ) from exc
 
         if isinstance(df, dict):
-            raise ValueError(
-                "Excel reader expects a single sheet. "
-                "Specify a sheet name or index in the excel config."
-            )
+            raise ValueError("Excel reader expects a single sheet. Specify a sheet name or index in the excel config.")
 
         rename = cfg.get("rename")
         if isinstance(rename, dict) and rename:

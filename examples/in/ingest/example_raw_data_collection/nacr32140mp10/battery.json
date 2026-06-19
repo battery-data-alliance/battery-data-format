@@ -1,22 +1,4 @@
 {
-  "spec": {
-    "manufacturer": "Hina",
-    "model": "NaCR32140MP10",
-    "batch": "202410",
-    "namespace": "https://w3id.org/digibatt/battery-data/",
-    "name_template": "{manufacturer}-{model}-{batch}-{id}",
-    "iri_template": "{namespace}{manufacturer}/{model}/{batch}/{id}",
-    "iec_code": "ICP42/127/10",
-    "form_factor": "cylindrical",
-    "chemistry": "na-ion",
-    "nominal_voltage_v": 3.00,
-    "rated_capacity_ah": 10.0,
-    "rated_energy_wh": 30.0,
-    "mass_g": 270.0,
-    "volume_l": 0.121198,
-    "pe_materials": [],
-    "ne_materials": ["carbon"]
-  },
   "ids": [
     "wv5jgv",
     "r30yqg",
@@ -26,6 +8,25 @@
     "z1nxja",
     "3gvjz6",
     "v0pygf"
-  ]
+  ],
+  "spec": {
+    "batch": "202410",
+    "chemistry": "na-ion",
+    "form_factor": "cylindrical",
+    "iec_code": "ICP42/127/10",
+    "iri_template": "{namespace}{manufacturer}/{model}/{batch}/{id}",
+    "manufacturer": "Hina",
+    "mass_g": 270.0,
+    "model": "NaCR32140MP10",
+    "name_template": "{manufacturer}-{model}-{batch}-{id}",
+    "namespace": "https://w3id.org/digibatt/battery-data/",
+    "ne_materials": [
+      "carbon"
+    ],
+    "nominal_voltage_v": 3.0,
+    "pe_materials": [],
+    "rated_capacity_ah": 10.0,
+    "rated_energy_wh": 30.0,
+    "volume_l": 0.121198
+  }
 }
-
