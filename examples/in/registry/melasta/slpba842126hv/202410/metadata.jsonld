@@ -1,0 +1,1558 @@
+{
+  "@context": [
+    "https://schema.org/",
+    "http://www.w3.org/ns/csvw"
+  ],
+  "@type": "schema:Dataset",
+  "schema:creator": [
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "SINTEF"
+      },
+      "schema:familyName": "Clark",
+      "schema:givenName": "Simon",
+      "schema:name": "Simon Clark",
+      "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "SINTEF"
+      },
+      "schema:familyName": "Guldahl",
+      "schema:givenName": "Julie Cathrine",
+      "schema:name": "Julie Cathrine Guldahl",
+      "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "SINTEF"
+      },
+      "schema:familyName": "Tolchard",
+      "schema:givenName": "Julian",
+      "schema:name": "Julian Tolchard",
+      "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+    }
+  ],
+  "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery.",
+  "schema:hasPart": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/aampje"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__35degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/aampje"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__35degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__35degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__35degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__35degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__45degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/aampje"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__45degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__45degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__45degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-aampje__20241011__DCIR__C10__45degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/hqmg7h"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__35degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/hqmg7h"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__35degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__35degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__35degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__35degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__45degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/hqmg7h"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__45degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__45degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__45degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__45degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__Rate__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/hqmg7h"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: Rate.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__Rate__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__Rate__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__Rate__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__Rate__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Rate",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - Rate",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/p0jqc2"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__35degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/p0jqc2"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__35degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__35degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__35degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__35degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__45degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/p0jqc2"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__45degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__45degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__45degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-p0jqc2__20241011__DCIR__C20__45degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/qv8zn1"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__35degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/qv8zn1"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__35degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__35degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__35degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__35degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__45degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/qv8zn1"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__45degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__45degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__45degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__DCIR__C10__45degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__Rate__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/qv8zn1"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: Rate.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__Rate__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__Rate__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__Rate__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-qv8zn1__20241011__Rate__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Rate",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - Rate",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/tfscsy"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__35degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/tfscsy"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__35degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__35degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__35degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__35degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__45degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/tfscsy"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Guldahl",
+          "schema:givenName": "Julie Cathrine",
+          "schema:name": "Julie Cathrine Guldahl",
+          "schema:sameAs": "https://orcid.org/0009-0005-4059-7715"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the Melasta SLPBA842126HV lithium-ion battery. Measurement technique: DCIR.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__45degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__45degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__45degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__melasta-slpba842126hv-202410-tfscsy__20241011__DCIR__C20__45degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "SLPBA842126HV",
+        "battery",
+        "ICP42/127/10",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "DCIR",
+      "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data - DCIR",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    }
+  ],
+  "schema:inLanguage": "en",
+  "schema:keywords": [
+    "li-ion",
+    "SLPBA842126HV",
+    "battery",
+    "ICP42/127/10",
+    "dcir",
+    "rate",
+    "thermal"
+  ],
+  "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+  "schema:name": "Melasta SLPBA842126HV Lithium-Ion Cell Test Data",
+  "schema:url": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410",
+  "schema:variableMeasured": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Test Time",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+      "schema:unitText": "s"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Voltage",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+      "schema:unitText": "V"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Current",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+      "schema:unitText": "A"
+    }
+  ],
+  "schema:version": "1.0.0"
+}

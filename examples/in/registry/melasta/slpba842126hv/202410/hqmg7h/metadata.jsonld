@@ -1,0 +1,148 @@
+{
+  "@context": [
+    "https://w3id.org/emmo/domain/battery/context",
+    {
+      "bdf": "https://w3id.org/bdf/",
+      "csvw": "http://www.w3.org/ns/csvw#",
+      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@id": "https://w3id.org/digibatt/battery-data/melasta/slpba842126hv/202410/hqmg7h",
+  "@type": [
+    "schema:Product",
+    "Battery"
+  ],
+  "hasNegativeElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "Graphite",
+        "rdfs:label": "Graphite"
+      }
+    ],
+    "rdfs:label": "negative electrode"
+  },
+  "hasPositiveElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "LithiumCobaltOxide",
+        "rdfs:label": "LithiumCobaltOxide"
+      }
+    ],
+    "rdfs:label": "positive electrode"
+  },
+  "hasProperty": [
+    {
+      "@type": "NominalVoltage",
+      "hasMeasurementUnit": "emmo:Volt",
+      "hasNumberValue": 3.7,
+      "rdfs:label": "nominal voltage"
+    },
+    {
+      "@type": "RatedCapacity",
+      "hasMeasurementUnit": "emmo:AmpereHour",
+      "hasNumberValue": 6.55,
+      "rdfs:label": "rated capacity"
+    },
+    {
+      "@type": "RatedEnergy",
+      "hasMeasurementUnit": "emmo:WattHour",
+      "hasNumberValue": 24.235,
+      "rdfs:label": "rated energy"
+    },
+    {
+      "@type": "Mass",
+      "hasMeasurementUnit": "emmo:Gram",
+      "hasNumberValue": 126,
+      "rdfs:label": "mass"
+    },
+    {
+      "@type": "Volume",
+      "hasMeasurementUnit": "emmo:Litre",
+      "hasNumberValue": 0.0544,
+      "rdfs:label": "volume"
+    }
+  ],
+  "schema:additionalProperty": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "IEC code",
+      "schema:propertyID": "bdf:iec_code",
+      "schema:value": "ICP42/127/10"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Chemistry",
+      "schema:propertyID": "bdf:chemistry",
+      "schema:value": "li-ion"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Form factor",
+      "schema:propertyID": "bdf:form_factor",
+      "schema:value": "pouch"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Nominal voltage",
+      "schema:propertyID": "bdf:nominal_voltage_v",
+      "schema:unitText": "V",
+      "schema:value": 3.7
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated capacity",
+      "schema:propertyID": "bdf:rated_capacity_ah",
+      "schema:unitText": "Ah",
+      "schema:value": 6.55
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated energy",
+      "schema:propertyID": "bdf:rated_energy_wh",
+      "schema:unitText": "Wh",
+      "schema:value": 24.235
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Mass",
+      "schema:propertyID": "bdf:mass_g",
+      "schema:unitText": "g",
+      "schema:value": 126
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Volume",
+      "schema:propertyID": "bdf:volume_l",
+      "schema:unitText": "L",
+      "schema:value": 0.0544
+    }
+  ],
+  "schema:category": "li-ion",
+  "schema:identifier": [
+    "hqmg7h",
+    "ICP42/127/10"
+  ],
+  "schema:manufacturer": {
+    "@type": "schema:Organization",
+    "schema:name": "Melasta"
+  },
+  "schema:model": "SLPBA842126HV",
+  "schema:name": "melasta-slpba842126hv-202410-hqmg7h",
+  "schema:subjectOf": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__35degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__DCIR__C10__45degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__melasta-slpba842126hv-202410-hqmg7h__20241011__Rate__25degC.bdf.parquet#dataset"
+    }
+  ]
+}

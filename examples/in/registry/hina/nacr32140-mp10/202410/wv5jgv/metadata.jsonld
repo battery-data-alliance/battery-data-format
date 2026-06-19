@@ -1,0 +1,138 @@
+{
+  "@context": [
+    "https://w3id.org/emmo/domain/battery/context",
+    {
+      "bdf": "https://w3id.org/bdf/",
+      "csvw": "http://www.w3.org/ns/csvw#",
+      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@id": "https://w3id.org/digibatt/battery-data/hina/nacr32140mp10/202410/wv5jgv",
+  "@type": [
+    "schema:Product",
+    "Battery"
+  ],
+  "hasNegativeElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "Material",
+        "rdfs:label": "carbon"
+      }
+    ],
+    "rdfs:label": "negative electrode"
+  },
+  "hasProperty": [
+    {
+      "@type": "NominalVoltage",
+      "hasMeasurementUnit": "emmo:Volt",
+      "hasNumberValue": 3.0,
+      "rdfs:label": "nominal voltage"
+    },
+    {
+      "@type": "RatedCapacity",
+      "hasMeasurementUnit": "emmo:AmpereHour",
+      "hasNumberValue": 10.0,
+      "rdfs:label": "rated capacity"
+    },
+    {
+      "@type": "RatedEnergy",
+      "hasMeasurementUnit": "emmo:WattHour",
+      "hasNumberValue": 30.0,
+      "rdfs:label": "rated energy"
+    },
+    {
+      "@type": "Mass",
+      "hasMeasurementUnit": "emmo:Gram",
+      "hasNumberValue": 270.0,
+      "rdfs:label": "mass"
+    },
+    {
+      "@type": "Volume",
+      "hasMeasurementUnit": "emmo:Litre",
+      "hasNumberValue": 0.121198,
+      "rdfs:label": "volume"
+    }
+  ],
+  "schema:additionalProperty": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "IEC code",
+      "schema:propertyID": "bdf:iec_code",
+      "schema:value": "ICP42/127/10"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Chemistry",
+      "schema:propertyID": "bdf:chemistry",
+      "schema:value": "na-ion"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Form factor",
+      "schema:propertyID": "bdf:form_factor",
+      "schema:value": "cylindrical"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Nominal voltage",
+      "schema:propertyID": "bdf:nominal_voltage_v",
+      "schema:unitText": "V",
+      "schema:value": 3.0
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated capacity",
+      "schema:propertyID": "bdf:rated_capacity_ah",
+      "schema:unitText": "Ah",
+      "schema:value": 10.0
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated energy",
+      "schema:propertyID": "bdf:rated_energy_wh",
+      "schema:unitText": "Wh",
+      "schema:value": 30.0
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Mass",
+      "schema:propertyID": "bdf:mass_g",
+      "schema:unitText": "g",
+      "schema:value": 270.0
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Volume",
+      "schema:propertyID": "bdf:volume_l",
+      "schema:unitText": "L",
+      "schema:value": 0.121198
+    }
+  ],
+  "schema:category": "na-ion",
+  "schema:identifier": [
+    "wv5jgv",
+    "ICP42/127/10"
+  ],
+  "schema:manufacturer": {
+    "@type": "schema:Organization",
+    "schema:name": "Hina"
+  },
+  "schema:model": "NaCR32140MP10",
+  "schema:name": "hina-nacr32140mp10-202410-wv5jgv",
+  "schema:subjectOf": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__hina-nacr32140mp10-202410-wv5jgv__20250609__C20__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__hina-nacr32140mp10-202410-wv5jgv__20250611__C20__45degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__hina-nacr32140mp10-202410-wv5jgv__20250612__C20__15degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/melasta/slpba842126hv/202410/data/SINTEF__hina-nacr32140mp10-202410-wv5jgv__20250616__C20__25degC.bdf.parquet#dataset"
+    }
+  ]
+}

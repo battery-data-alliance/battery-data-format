@@ -1,0 +1,514 @@
+{
+  "@context": [
+    "https://schema.org/",
+    "http://www.w3.org/ns/csvw"
+  ],
+  "@type": "schema:Dataset",
+  "schema:creator": [
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "SINTEF"
+      },
+      "schema:familyName": "Clark",
+      "schema:givenName": "Simon",
+      "schema:name": "Simon Clark",
+      "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "SINTEF"
+      },
+      "schema:familyName": "Martinsen",
+      "schema:givenName": "Stig Yngve",
+      "schema:name": "Stig Yngve Martinsen",
+      "schema:sameAs": "https://orcid.org/0009-0004-8522-9900"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "SINTEF"
+      },
+      "schema:familyName": "Tolchard",
+      "schema:givenName": "Julian",
+      "schema:name": "Julian Tolchard",
+      "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+    }
+  ],
+  "schema:description": "Performance data for the G20M7 lithium-ion battery used in Google Pixel 10 mobile phones.",
+  "schema:hasPart": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-c5hnd9__20260109__C30__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/google/g20m7/202512/c5hnd9"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Martinsen",
+          "schema:givenName": "Stig Yngve",
+          "schema:name": "Stig Yngve Martinsen",
+          "schema:sameAs": "https://orcid.org/0009-0004-8522-9900"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the G20M7 lithium-ion battery used in Google Pixel 10 mobile phones. Measurement technique: C30.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-c5hnd9__20260109__C30__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-c5hnd9__20260109__C30__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__google-g20m7-202512-c5hnd9__20260109__C30__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__google-g20m7-202512-c5hnd9__20260109__C30__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "g20m7",
+        "battery",
+        "icp6/65/75",
+        "hppc",
+        "ici",
+        "gitt"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "C30",
+      "schema:name": "Google Pixel 10 Battery \u2013 G20M7 Lithium-Ion Cell Test Data - C30",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "0.1.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-c5hnd9__20260112__HPPC__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/google/g20m7/202512/c5hnd9"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Martinsen",
+          "schema:givenName": "Stig Yngve",
+          "schema:name": "Stig Yngve Martinsen",
+          "schema:sameAs": "https://orcid.org/0009-0004-8522-9900"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the G20M7 lithium-ion battery used in Google Pixel 10 mobile phones. Measurement technique: HPPC.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-c5hnd9__20260112__HPPC__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-c5hnd9__20260112__HPPC__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__google-g20m7-202512-c5hnd9__20260112__HPPC__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__google-g20m7-202512-c5hnd9__20260112__HPPC__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "g20m7",
+        "battery",
+        "icp6/65/75",
+        "hppc",
+        "ici",
+        "gitt"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "HPPC",
+      "schema:name": "Google Pixel 10 Battery \u2013 G20M7 Lithium-Ion Cell Test Data - HPPC",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "0.1.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-gru6mv__20260109__HPPC__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/google/g20m7/202512/gru6mv"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Martinsen",
+          "schema:givenName": "Stig Yngve",
+          "schema:name": "Stig Yngve Martinsen",
+          "schema:sameAs": "https://orcid.org/0009-0004-8522-9900"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the G20M7 lithium-ion battery used in Google Pixel 10 mobile phones. Measurement technique: HPPC.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-gru6mv__20260109__HPPC__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-gru6mv__20260109__HPPC__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__google-g20m7-202512-gru6mv__20260109__HPPC__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__google-g20m7-202512-gru6mv__20260109__HPPC__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "g20m7",
+        "battery",
+        "icp6/65/75",
+        "hppc",
+        "ici",
+        "gitt"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "HPPC",
+      "schema:name": "Google Pixel 10 Battery \u2013 G20M7 Lithium-Ion Cell Test Data - HPPC",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "0.1.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__C5__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/google/g20m7/202512/kcsb0s"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Martinsen",
+          "schema:givenName": "Stig Yngve",
+          "schema:name": "Stig Yngve Martinsen",
+          "schema:sameAs": "https://orcid.org/0009-0004-8522-9900"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the G20M7 lithium-ion battery used in Google Pixel 10 mobile phones. Measurement technique: C5.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__C5__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__C5__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__google-g20m7-202512-kcsb0s__20260109__C5__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__google-g20m7-202512-kcsb0s__20260109__C5__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "g20m7",
+        "battery",
+        "icp6/65/75",
+        "hppc",
+        "ici",
+        "gitt"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "C5",
+      "schema:name": "Google Pixel 10 Battery \u2013 G20M7 Lithium-Ion Cell Test Data - C5",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "0.1.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__ICI__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/google/g20m7/202512/kcsb0s"
+      },
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Clark",
+          "schema:givenName": "Simon",
+          "schema:name": "Simon Clark",
+          "schema:sameAs": "https://orcid.org/0000-0002-8758-6109"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Martinsen",
+          "schema:givenName": "Stig Yngve",
+          "schema:name": "Stig Yngve Martinsen",
+          "schema:sameAs": "https://orcid.org/0009-0004-8522-9900"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "SINTEF"
+          },
+          "schema:familyName": "Tolchard",
+          "schema:givenName": "Julian",
+          "schema:name": "Julian Tolchard",
+          "schema:sameAs": "https://orcid.org/0000-0003-0934-4515"
+        }
+      ],
+      "schema:description": "Performance data for the G20M7 lithium-ion battery used in Google Pixel 10 mobile phones. Measurement technique: ICI.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__ICI__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__ICI__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "SINTEF__google-g20m7-202512-kcsb0s__20260109__ICI__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": "data/SINTEF__google-g20m7-202512-kcsb0s__20260109__ICI__25degC.bdf.parquet",
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "g20m7",
+        "battery",
+        "icp6/65/75",
+        "hppc",
+        "ici",
+        "gitt"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "ICI",
+      "schema:name": "Google Pixel 10 Battery \u2013 G20M7 Lithium-Ion Cell Test Data - ICI",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "0.1.0"
+    }
+  ],
+  "schema:inLanguage": "en",
+  "schema:keywords": [
+    "li-ion",
+    "g20m7",
+    "battery",
+    "icp6/65/75",
+    "hppc",
+    "ici",
+    "gitt"
+  ],
+  "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+  "schema:name": "Google Pixel 10 Battery \u2013 G20M7 Lithium-Ion Cell Test Data",
+  "schema:url": "https://github.com/digibatt/battery-data/google/g20m7/202512",
+  "schema:variableMeasured": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Test Time",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+      "schema:unitText": "s"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Voltage",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+      "schema:unitText": "V"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Current",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+      "schema:unitText": "A"
+    }
+  ],
+  "schema:version": "0.1.0"
+}

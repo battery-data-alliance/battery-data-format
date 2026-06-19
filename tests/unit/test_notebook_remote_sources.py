@@ -98,13 +98,13 @@ def _notebook_urls() -> set[str]:
 def test_notebook_url_extraction_count() -> None:
     """Canary on the extractor: the notebooks reference a known number of URLs.
 
-    Currently 11: 5 fetched data files (all in ``REMOTE_DATA_SOURCES``, 2 of which
-    also appear in ``ALL_CASES``) plus 6 non-data references (``NON_DATA_URLS``).
+    Currently 10: 5 fetched data files (all in ``REMOTE_DATA_SOURCES``, 2 of which
+    also appear in ``ALL_CASES``) plus 5 non-data references (``NON_DATA_URLS``).
     Bump this when a notebook adds or removes a URL — a silent drop means the
     nbformat/IPython-transformer/AST extraction has regressed.
     """
     urls = _notebook_urls()
-    assert len(urls) == 11, f"expected 11 notebook URLs, extracted {len(urls)}:\n" + "\n".join(
+    assert len(urls) == 10, f"expected 10 notebook URLs, extracted {len(urls)}:\n" + "\n".join(
         f"  - {u}" for u in sorted(urls)
     )
 

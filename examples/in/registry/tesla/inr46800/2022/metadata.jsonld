@@ -1,0 +1,2857 @@
+{
+  "@context": [
+    "https://schema.org/",
+    "http://www.w3.org/ns/csvw"
+  ],
+  "@type": "schema:Dataset",
+  "schema:citation": [
+    "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+  ],
+  "schema:creator": [
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Ank",
+      "schema:givenName": "Manuel",
+      "schema:name": "Manuel Ank",
+      "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+      },
+      "schema:familyName": "Sommer",
+      "schema:givenName": "Alessandro",
+      "schema:name": "Alessandro Sommer",
+      "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Abo Gamra",
+      "schema:givenName": "Kareem",
+      "schema:name": "Kareem Abo Gamra",
+      "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Sch\u00f6berl",
+      "schema:givenName": "Jan",
+      "schema:name": "Jan Sch\u00f6berl",
+      "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+      },
+      "schema:familyName": "Leeb",
+      "schema:givenName": "Matthias",
+      "schema:name": "Matthias Leeb",
+      "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+      },
+      "schema:familyName": "Schachtl",
+      "schema:givenName": "Johannes",
+      "schema:name": "Johannes Schachtl",
+      "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+      },
+      "schema:familyName": "Streidel",
+      "schema:givenName": "Noah",
+      "schema:name": "Noah Streidel",
+      "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+      },
+      "schema:familyName": "Stock",
+      "schema:givenName": "Sandro",
+      "schema:name": "Sandro Stock",
+      "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Schreiber",
+      "schema:givenName": "Markus",
+      "schema:name": "Markus Schreiber",
+      "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Bilfinger",
+      "schema:givenName": "Philip",
+      "schema:name": "Philip Bilfinger",
+      "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Allg\u00e4uer",
+      "schema:givenName": "Christian",
+      "schema:name": "Christian Allg\u00e4uer",
+      "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Rosner",
+      "schema:givenName": "Philipp",
+      "schema:name": "Philipp Rosner",
+      "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+      },
+      "schema:familyName": "Hagemeister",
+      "schema:givenName": "Jan",
+      "schema:name": "Jan Hagemeister",
+      "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "R\u00f6\u00dfle",
+      "schema:givenName": "Matti",
+      "schema:name": "Matti R\u00f6\u00dfle",
+      "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+      },
+      "schema:familyName": "Daub",
+      "schema:givenName": "R\u00fcdiger",
+      "schema:name": "R\u00fcdiger Daub",
+      "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+      },
+      "schema:familyName": "Lienkamp",
+      "schema:givenName": "Markus",
+      "schema:name": "Markus Lienkamp",
+      "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+    }
+  ],
+  "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry.",
+  "schema:hasPart": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-186828__2022__HPPC__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: HPPC.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-186828__2022__HPPC__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-186828__2022__HPPC__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-186828__2022__HPPC__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-186828__2022__HPPC__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "HPPC",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - HPPC",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-083828__2022__Capacity_25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-083828__2022__Capacity_25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-083828__2022__Capacity_25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-083828__2022__Capacity_25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-083828__2022__Capacity_25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - TUM__tesla-inr46800-2022-083828__2022__Capacity_25degC.bdf.parquet",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-131828__2022__Capacity__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/131828"
+      },
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: Capacity.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-131828__2022__Capacity__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-131828__2022__Capacity__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-131828__2022__Capacity__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-131828__2022__Capacity__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Capacity",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - Capacity",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-186828__2022__Capacity__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/186828"
+      },
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: Capacity.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-186828__2022__Capacity__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-186828__2022__Capacity__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-186828__2022__Capacity__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-186828__2022__Capacity__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Capacity",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - Capacity",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-444828__2022__Capacity__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/444828"
+      },
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: Capacity.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-444828__2022__Capacity__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-444828__2022__Capacity__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-444828__2022__Capacity__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-444828__2022__Capacity__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Capacity",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - Capacity",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-536828__2022__2C__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/536828"
+      },
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: 2C.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-536828__2022__2C__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-536828__2022__2C__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-536828__2022__2C__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-536828__2022__2C__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "2C",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - 2C",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-536828__2022__Capacity__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/536828"
+      },
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: Capacity.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-536828__2022__Capacity__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-536828__2022__Capacity__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-536828__2022__Capacity__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-536828__2022__Capacity__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Capacity",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - Capacity",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-549828__2022__Capacity__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/549828"
+      },
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: Capacity.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-549828__2022__Capacity__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-549828__2022__Capacity__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-549828__2022__Capacity__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-549828__2022__Capacity__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Capacity",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - Capacity",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-601828__2022__Capacity__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/601828"
+      },
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: Capacity.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-601828__2022__Capacity__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-2022-601828__2022__Capacity__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-2022-601828__2022__Capacity__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-2022-601828__2022__Capacity__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Capacity",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - Capacity",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-536828__2022__1C__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: 1C.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-536828__2022__1C__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__tesla-inr46800-536828__2022__1C__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__tesla-inr46800-536828__2022__1C__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__tesla-inr46800-536828__2022__1C__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "1C",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - 1C",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__teslta-inr46800-2022-550828__2022__Capacity__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:citation": [
+        "Manuel Ank et al 2023 J. Electrochem. Soc. 170 120536"
+      ],
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Ank",
+          "schema:givenName": "Manuel",
+          "schema:name": "Manuel Ank",
+          "schema:sameAs": "https://orcid.org/0000-0002-2060-9521"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Sommer",
+          "schema:givenName": "Alessandro",
+          "schema:name": "Alessandro Sommer",
+          "schema:sameAs": "https://orcid.org/0000-0002-2390-1528"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Abo Gamra",
+          "schema:givenName": "Kareem",
+          "schema:name": "Kareem Abo Gamra",
+          "schema:sameAs": "https://orcid.org/0000-0001-9739-8710"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Sch\u00f6berl",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Sch\u00f6berl",
+          "schema:sameAs": "https://orcid.org/0009-0004-7601-0325"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Leeb",
+          "schema:givenName": "Matthias",
+          "schema:name": "Matthias Leeb",
+          "schema:sameAs": "https://orcid.org/0000-0003-1156-9078"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Schachtl",
+          "schema:givenName": "Johannes",
+          "schema:name": "Johannes Schachtl",
+          "schema:sameAs": "https://orcid.org/0009-0007-9108-5327"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Streidel",
+          "schema:givenName": "Noah",
+          "schema:name": "Noah Streidel",
+          "schema:sameAs": "https://orcid.org/0009-0004-2515-2059"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Stock",
+          "schema:givenName": "Sandro",
+          "schema:name": "Sandro Stock",
+          "schema:sameAs": "https://orcid.org/0000-0003-2107-6031"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Schreiber",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Schreiber",
+          "schema:sameAs": "https://orcid.org/0000-0002-6530-0077"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Bilfinger",
+          "schema:givenName": "Philip",
+          "schema:name": "Philip Bilfinger",
+          "schema:sameAs": "https://orcid.org/0000-0002-9100-9689"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Allg\u00e4uer",
+          "schema:givenName": "Christian",
+          "schema:name": "Christian Allg\u00e4uer",
+          "schema:sameAs": "https://orcid.org/0009-0007-8037-895X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Rosner",
+          "schema:givenName": "Philipp",
+          "schema:name": "Philipp Rosner",
+          "schema:sameAs": "https://orcid.org/0000-0001-6481-532X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Hagemeister",
+          "schema:givenName": "Jan",
+          "schema:name": "Jan Hagemeister",
+          "schema:sameAs": "https://orcid.org/0000-0001-8307-6614"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "R\u00f6\u00dfle",
+          "schema:givenName": "Matti",
+          "schema:name": "Matti R\u00f6\u00dfle",
+          "schema:sameAs": "https://orcid.org/0009-0007-5407-6798"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute for Machine Tools and Industrial Management"
+          },
+          "schema:familyName": "Daub",
+          "schema:givenName": "R\u00fcdiger",
+          "schema:name": "R\u00fcdiger Daub",
+          "schema:sameAs": "https://orcid.org/0000-0002-5120-4228"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "Technical University of Munich (TUM), Institute of Automotive Technology"
+          },
+          "schema:familyName": "Lienkamp",
+          "schema:givenName": "Markus",
+          "schema:name": "Markus Lienkamp",
+          "schema:sameAs": "https://orcid.org/0000-0002-9263-5323"
+        }
+      ],
+      "schema:description": "A collection of raw data from the publication by Ank et al (doi: 10.1149/1945-7111/ad14d0) curated for integration into the BDF registry. Measurement technique: Capacity.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__teslta-inr46800-2022-550828__2022__Capacity__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/tesla/inr46800/2022/data/TUM__teslta-inr46800-2022-550828__2022__Capacity__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "TUM__teslta-inr46800-2022-550828__2022__Capacity__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/TUM__teslta-inr46800-2022-550828__2022__Capacity__25degC.bdf.parquet",
+        "10.1149/1945-7111/ad14d0"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "li-ion",
+        "inr46800",
+        "4680",
+        "tesla",
+        "tum",
+        "ank2023",
+        "battery",
+        "INR46/800",
+        "dcir",
+        "rate",
+        "thermal"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "Capacity",
+      "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization - Capacity",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    }
+  ],
+  "schema:identifier": "10.1149/1945-7111/ad14d0",
+  "schema:inLanguage": "en",
+  "schema:keywords": [
+    "li-ion",
+    "inr46800",
+    "4680",
+    "tesla",
+    "tum",
+    "ank2023",
+    "battery",
+    "INR46/800",
+    "dcir",
+    "rate",
+    "thermal"
+  ],
+  "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+  "schema:name": "Raw Data from Lithium-Ion Cells in Automotive Applications: Tesla 4680 Cylindrical Cell Teardown and Characterization",
+  "schema:url": "https://github.com/digibatt/battery-data/tesla/inr46800/2022",
+  "schema:variableMeasured": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Test Time",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+      "schema:unitText": "s"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Voltage",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+      "schema:unitText": "V"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Current",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+      "schema:unitText": "A"
+    }
+  ],
+  "schema:version": "1.0.0"
+}

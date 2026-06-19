@@ -1,0 +1,134 @@
+{
+  "@context": [
+    "https://w3id.org/emmo/domain/battery/context",
+    {
+      "bdf": "https://w3id.org/bdf/",
+      "csvw": "http://www.w3.org/ns/csvw#",
+      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@id": "https://w3id.org/digibatt/battery-data/tesla/inr46800/2022/550828",
+  "@type": [
+    "schema:Product",
+    "Battery"
+  ],
+  "hasNegativeElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "Graphite",
+        "rdfs:label": "Graphite"
+      }
+    ],
+    "rdfs:label": "negative electrode"
+  },
+  "hasPositiveElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "LithiumNickelManganeseCobaltOxide811",
+        "rdfs:label": "LithiumNickelManganeseCobaltOxide811"
+      }
+    ],
+    "rdfs:label": "positive electrode"
+  },
+  "hasProperty": [
+    {
+      "@type": "NominalVoltage",
+      "hasMeasurementUnit": "emmo:Volt",
+      "hasNumberValue": 3.7,
+      "rdfs:label": "nominal voltage"
+    },
+    {
+      "@type": "RatedCapacity",
+      "hasMeasurementUnit": "emmo:AmpereHour",
+      "hasNumberValue": 22.078,
+      "rdfs:label": "rated capacity"
+    },
+    {
+      "@type": "RatedEnergy",
+      "hasMeasurementUnit": "emmo:WattHour",
+      "hasNumberValue": 82.75,
+      "rdfs:label": "rated energy"
+    },
+    {
+      "@type": "Mass",
+      "hasMeasurementUnit": "emmo:Gram",
+      "hasNumberValue": 355.9,
+      "rdfs:label": "mass"
+    },
+    {
+      "@type": "Volume",
+      "hasMeasurementUnit": "emmo:Litre",
+      "hasNumberValue": 0.036,
+      "rdfs:label": "volume"
+    }
+  ],
+  "schema:additionalProperty": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "IEC code",
+      "schema:propertyID": "bdf:iec_code",
+      "schema:value": "INR46/800"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Chemistry",
+      "schema:propertyID": "bdf:chemistry",
+      "schema:value": "li-ion"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Form factor",
+      "schema:propertyID": "bdf:form_factor",
+      "schema:value": "cylindrical"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Nominal voltage",
+      "schema:propertyID": "bdf:nominal_voltage_v",
+      "schema:unitText": "V",
+      "schema:value": 3.7
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated capacity",
+      "schema:propertyID": "bdf:rated_capacity_ah",
+      "schema:unitText": "Ah",
+      "schema:value": 22.078
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated energy",
+      "schema:propertyID": "bdf:rated_energy_wh",
+      "schema:unitText": "Wh",
+      "schema:value": 82.75
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Mass",
+      "schema:propertyID": "bdf:mass_g",
+      "schema:unitText": "g",
+      "schema:value": 355.9
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Volume",
+      "schema:propertyID": "bdf:volume_l",
+      "schema:unitText": "L",
+      "schema:value": 0.036
+    }
+  ],
+  "schema:category": "li-ion",
+  "schema:identifier": [
+    "550828",
+    "INR46/800"
+  ],
+  "schema:manufacturer": {
+    "@type": "schema:Organization",
+    "schema:name": "Tesla"
+  },
+  "schema:model": "INR46800",
+  "schema:name": "tesla-inr46800-2022-550828"
+}
