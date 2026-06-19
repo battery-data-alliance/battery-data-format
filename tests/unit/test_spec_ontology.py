@@ -139,6 +139,18 @@ def test_pint_understands(alias: str, canonical: str, expected: bool) -> None:
     assert spec._pint_understands(alias, canonical) is expected
 
 
+def test_pint_understands_never_propagates_on_pathological_alias() -> None:
+    """U+2103 (℃) must yield a bool, never raise -- so module import can't crash.
+
+    pint's parser handles this character inconsistently across platforms: on
+    some it parses ℃ natively as degree_Celsius (returning True), on others it
+    raises a bare AssertionError rather than UndefinedUnitError. The truth value
+    is therefore platform-dependent; what matters is that _pint_understands
+    swallows the failure and returns a bool instead of letting it escape.
+    """
+    assert isinstance(spec._pint_understands("℃", "degC"), bool)
+
+
 @pytest.mark.parametrize(
     ("src", "dst", "expected"),
     [
