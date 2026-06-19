@@ -27,7 +27,7 @@ class TestMetadataSchema:
 
     def test_schema_is_hashable(self) -> None:
         """A MetadataSchema instance can be placed in a frozenset."""
-        s = MetadataSchema(start_time="x")
+        s: MetadataSchema[str] = MetadataSchema(start_time="x")
         assert s in frozenset({s})
 
     def test_schema_iter_yields_only_set_fields(self) -> None:
