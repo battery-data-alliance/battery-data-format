@@ -82,7 +82,7 @@ jobs:
       - name: Warm cache
         run: uv run python scripts/warm_cache.py
 
-  network-testa:
+  network-tests:
     needs: warm-cache
     runs-on: ubuntu-latest
     strategy:
@@ -104,5 +104,5 @@ jobs:
         with:
           path: ${{ github.workspace }}/.bdf-cache
           key: ${{ needs.warm-cache.outputs.cache-key }}
-      - name: Run tests (network)
-        run: uv run --all-extras pytest -q -m network
+      - name: Run tests (network, cache-backed sockets blocked)
+        run: uv run --all-extras pytest -q -m network --block-cached-sockets
