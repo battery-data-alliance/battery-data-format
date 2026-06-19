@@ -14,25 +14,30 @@ Y_DEFAULT = "Voltage / V"
 
 # ---------- helpers ----------
 
+
 def _ensure_numeric(df: pd.DataFrame, col: str) -> pd.Series:
     if col not in df.columns:
         raise KeyError(f"Column not found: {col}")
     # Let convert() handle dtype; here just ensure the column exists.
     return df[col]
 
+
 def _to_list(val: Union[str, Iterable[str], None]) -> list[str]:
     if val is None:
         return []
     return [val] if isinstance(val, str) else list(val)
+
 
 def _unit_for_each(cols: list[str], unit: Optional[Union[str, Dict[str, str]]]) -> Dict[str, Optional[str]]:
     if unit is None or isinstance(unit, str):
         return {c: unit for c in cols}
     return {c: unit.get(c) for c in cols}
 
+
 def _left_of_label(label: str) -> str:
     # Works with canonical "Name / UNIT" labels and arbitrary strings.
     return label.split("/", 1)[0].strip()
+
 
 def _effective_unit_for_series(s: pd.Series) -> Optional[str]:
     try:
@@ -82,7 +87,9 @@ def _apply_bdf_style(ax, ax2=None, *, title=None, primary_color="#1f77b4", secon
         ax2.tick_params(axis="y", labelsize=13, width=1.2, colors=secondary_color)
         ax2.spines["right"].set_color(secondary_color)
 
+
 # ---------- main API ----------
+
 
 def plot(
     df: pd.DataFrame,
@@ -111,8 +118,8 @@ def plot(
         raise ValueError("Provide at least one series in ydata or yydata.")
 
     # Colors & line widths
-    primary_color = "#1f77b4"   # blue
-    secondary_color = "#4d4d4d" # dark grey
+    primary_color = "#1f77b4"  # blue
+    secondary_color = "#4d4d4d"  # dark grey
     lw_primary = 2.8
     lw_secondary = 3.2
 
@@ -154,7 +161,8 @@ def plot(
             label = y_left if not y_unit_label else f"{y_left} / {y_unit_label}"
             color = secondary_color if j == 0 else None
             ax2.plot(
-                x_conv, y_conv,
+                x_conv,
+                y_conv,
                 label=label,
                 color=color,
                 linewidth=lw_secondary,
@@ -175,7 +183,8 @@ def plot(
         label = y_left if not y_unit_label else f"{y_left} / {y_unit_label}"
         color = primary_color if i == 0 else None
         ax.plot(
-            x_conv, y_conv,
+            x_conv,
+            y_conv,
             label=label,
             color=color,
             linewidth=lw_primary,
@@ -208,7 +217,7 @@ def plot(
 
     # Legend (merge both axes)
     h1, l1 = ax.get_legend_handles_labels()
-    h2, l2 = (ax2.get_legend_handles_labels() if ax2 else ([], []))
+    h2, l2 = ax2.get_legend_handles_labels() if ax2 else ([], [])
     if h1 or h2:
         leg = ax.legend(h1 + h2, l1 + l2, loc="upper left", frameon=True)
         leg.get_frame().set_facecolor("white")

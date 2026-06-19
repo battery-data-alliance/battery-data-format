@@ -40,8 +40,7 @@ def main(old_path: str, new_path: str) -> int:
     common = old_names & new_names
 
     lines = [
-        f"## Ontology snapshot update: {old.ontology_version or '?'} → "
-        f"{new.ontology_version or '?'}",
+        f"## Ontology snapshot update: {old.ontology_version or '?'} → {new.ontology_version or '?'}",
         "",
     ]
 
@@ -75,21 +74,16 @@ def main(old_path: str, new_path: str) -> int:
         lines += [f"- `{n}`" for n in newly_deprecated]
         lines.append("")
 
-    obligation_changes = sorted(
-        n for n in common if old[n].obligation != new[n].obligation
-    )
+    obligation_changes = sorted(n for n in common if old[n].obligation != new[n].obligation)
     if obligation_changes:
         lines.append("### Obligation changes")
         lines += [
-            f"- `{n}`: {old[n].obligation or '(none)'} → {new[n].obligation or '(none)'}"
-            for n in obligation_changes
+            f"- `{n}`: {old[n].obligation or '(none)'} → {new[n].obligation or '(none)'}" for n in obligation_changes
         ]
         lines.append("")
 
     wording = sorted(
-        n
-        for n in common
-        if (old[n].definition, old[n].description) != (new[n].definition, new[n].description)
+        n for n in common if (old[n].definition, old[n].description) != (new[n].definition, new[n].description)
     )
     if wording:
         lines.append("### Definition/description wording changed")

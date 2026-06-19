@@ -18,6 +18,7 @@ DEFAULT_OUTLIER_COLS = ("Voltage / V", "Current / A")
 
 __all__ = ["fix_time", "clean", "CleanReport"]
 
+
 # -----------------------------
 # Reporting
 # -----------------------------
@@ -39,10 +40,7 @@ class CleanReport:
             f"Outliers: {self.outlier_method} (z>{self.z_thresh:g})",
         ]
         if self.per_column_outliers:
-            lines.append(
-                "Per-column outliers: "
-                + ", ".join(f"{k}={v}" for k, v in self.per_column_outliers.items())
-            )
+            lines.append("Per-column outliers: " + ", ".join(f"{k}={v}" for k, v in self.per_column_outliers.items()))
         if self.notes:
             lines.append("Notes:")
             lines += [f"  - {n}" for n in self.notes]
@@ -67,9 +65,7 @@ def _median_positive_dt(ts: np.ndarray) -> float:
     return float(np.nanmedian(pos))
 
 
-def _fix_time_between_neighbors(
-    t: pd.Series, eps: float | str = "auto"
-) -> Tuple[pd.Series, int]:
+def _fix_time_between_neighbors(t: pd.Series, eps: float | str = "auto") -> Tuple[pd.Series, int]:
     """
     Make time monotonic by placing each non-monotonic block strictly between its
     two monotonic neighbors. Keeps all rows and preserves ordering.
@@ -175,9 +171,7 @@ def _global_huber_z(x: np.ndarray, c: float = 1.345) -> tuple[np.ndarray, float,
     return (x - loc) / scale, loc, scale
 
 
-def _local_robust_z(
-    s: pd.Series, *, time_s: pd.Series, seconds: float, z: float
-) -> pd.Series:
+def _local_robust_z(s: pd.Series, *, time_s: pd.Series, seconds: float, z: float) -> pd.Series:
     """
     Local robust z using rolling IQR (σ ≈ IQR/1.349).
     Flags |z_local| > z within the window.
@@ -192,9 +186,7 @@ def _local_robust_z(
     return (rz.abs() > z).fillna(False)
 
 
-def _hampel_mask(
-    s: pd.Series, *, time_s: pd.Series, seconds: float, k: float = 6.0
-) -> pd.Series:
+def _hampel_mask(s: pd.Series, *, time_s: pd.Series, seconds: float, k: float = 6.0) -> pd.Series:
     """
     Hampel filter: rolling median ± k * MADN.
     Flags samples deviating more than k scaled MAD from rolling median.
@@ -208,9 +200,7 @@ def _hampel_mask(
     return ((x - med).abs() / madn.replace(0, np.nan) > k).fillna(False)
 
 
-def _slope_mask(
-    s: pd.Series, *, time_s: pd.Series, z: float = 8.0
-) -> pd.Series:
+def _slope_mask(s: pd.Series, *, time_s: pd.Series, z: float = 8.0) -> pd.Series:
     """
     Slope gate: robust z on derivative ds/dt using global MAD.
     Catches single-sample spikes that might pass level-based gates.
@@ -232,13 +222,13 @@ def _robust_outlier_mask(
     *,
     z_mad: float = 8.0,
     z_huber: float = 6.0,
-    local_seconds: float | None = 600.0,   # default ON (10 min)
+    local_seconds: float | None = 600.0,  # default ON (10 min)
     local_z: float = 6.0,
     hampel_seconds: float | None = 300.0,  # default ON (5 min)
     hampel_k: float = 6.0,
     slope_gate: bool = True,
     slope_z: float = 8.0,
-    method: str = "hybrid",                # 'mad' | 'huber' | 'hybrid'
+    method: str = "hybrid",  # 'mad' | 'huber' | 'hybrid'
     min_n: int = 30,
     time_s: pd.Series | None = None,
 ) -> pd.Series:
@@ -272,16 +262,8 @@ def _robust_outlier_mask(
     # neighborhood gates
     m_neigh = None
     if time_s is not None:
-        m_local = (
-            _local_robust_z(s, time_s=time_s, seconds=local_seconds, z=local_z)
-            if local_seconds
-            else None
-        )
-        m_hampel = (
-            _hampel_mask(s, time_s=time_s, seconds=hampel_seconds, k=hampel_k)
-            if hampel_seconds
-            else None
-        )
+        m_local = _local_robust_z(s, time_s=time_s, seconds=local_seconds, z=local_z) if local_seconds else None
+        m_hampel = _hampel_mask(s, time_s=time_s, seconds=hampel_seconds, k=hampel_k) if hampel_seconds else None
         if m_local is not None and m_hampel is not None:
             m_neigh = m_local | m_hampel
         elif m_local is not None:
@@ -312,7 +294,7 @@ def _interp_inplace(y: pd.Series, x: Optional[pd.Series]) -> pd.Series:
 def fix_time(
     df: pd.DataFrame,
     *,
-    method: str = "auto",               # 'auto'|'segment'|'sort'|'drop'|'recompute'
+    method: str = "auto",  # 'auto'|'segment'|'sort'|'drop'|'recompute'
     time_col: str = TIME_COL,
     date_col: str = "Date Time ISO",
     eps: float | str = "auto",
@@ -372,13 +354,13 @@ def clean(
     df: pd.DataFrame,
     *,
     time_fix: str = "segment",  # 'segment' | 'sort' | 'drop' | 'none'
-    outlier: str = "none",      # 'none' | 'drop' | 'clip' | 'interp'
-    z_thresh: float = 8.0,      # used for MAD/global & clip bounds
-    columns: Optional[List[str]] = None,   # columns to outlier-clean
-    time_eps: float | str = "auto",        # threshold for detecting time drops
+    outlier: str = "none",  # 'none' | 'drop' | 'clip' | 'interp'
+    z_thresh: float = 8.0,  # used for MAD/global & clip bounds
+    columns: Optional[List[str]] = None,  # columns to outlier-clean
+    time_eps: float | str = "auto",  # threshold for detecting time drops
     # robust detection knobs
-    outlier_detect: str = "hybrid",        # 'mad' | 'huber' | 'hybrid'
-    local_seconds: Optional[float] = 600.0, # local window (sec) for neighborhood z (None to disable)
+    outlier_detect: str = "hybrid",  # 'mad' | 'huber' | 'hybrid'
+    local_seconds: Optional[float] = 600.0,  # local window (sec) for neighborhood z (None to disable)
     local_z: float = 6.0,
     z_huber: float = 6.0,
     hampel_seconds: Optional[float] = 300.0,
@@ -467,7 +449,9 @@ def clean(
             per_col[c] = int(masks[c].sum())
 
         if outlier == "drop":
-            any_bad = np.logical_or.reduce([m.values for m in masks.values()]) if masks else np.zeros(len(d), dtype=bool)
+            any_bad = (
+                np.logical_or.reduce([m.values for m in masks.values()]) if masks else np.zeros(len(d), dtype=bool)
+            )
             d = d.loc[~any_bad].reset_index(drop=True)
             notes.append(f"Dropped {int(any_bad.sum())} rows due to outliers in {', '.join(cols)}.")
         elif outlier == "clip":
@@ -513,5 +497,3 @@ def clean(
         notes=notes,
     )
     return d, rep
-
-

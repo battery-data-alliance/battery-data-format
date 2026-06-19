@@ -11,6 +11,7 @@ class DigatronCSV(DelimitedTextPlugin):
     Example header:
     Step,Status,Timestamp,Program Duration#s,Step Duration#s,...,Voltage#V,Current#A,Tenv#degC,T1#degC
     """
+
     id = "digatron-csv"
     exts = (".csv",)
     default_encoding = "utf-8-sig"
@@ -20,7 +21,7 @@ class DigatronCSV(DelimitedTextPlugin):
     # Enable auto "Unix Time / s" derivation from a timestamp column via base augment()
     # (The base patterns already include ^timestamp$, but we add a second alias to be safe.)
     timestamp_candidate_patterns = (r"^timestamp$", r"^date[_\s-]*time$")
-    assume_naive_tz = "UTC"   # if timestamps are naive, treat as UTC then convert to Unix seconds
+    assume_naive_tz = "UTC"  # if timestamps are naive, treat as UTC then convert to Unix seconds
 
     # Help the base sniff() recognize the file
     header_token_patterns = (
@@ -36,30 +37,26 @@ class DigatronCSV(DelimitedTextPlugin):
     column_synonyms = {
         # --- Required ---
         "Test Time / s": ["program duration#s", "prog time", "program time"],
-        "Voltage / V":   ["voltage#v", "voltage"],
-        "Current / A":   ["current#a", "current"],
-
+        "Voltage / V": ["voltage#v", "voltage"],
+        "Current / A": ["current#a", "current"],
         # --- Recommended ---
-        "Unix Time / s":      ["timestamp"],
-        "Cycle Count / 1":    ["cycle"],
-        "Step Index / 1":     ["step"],
-        "Step Time / s":      ["step time"],
+        "Unix Time / s": ["timestamp"],
+        "Cycle Count / 1": ["cycle"],
+        "Step Index / 1": ["step"],
+        "Step Time / s": ["step time"],
         "Ambient Temperature / degC": ["tenv#degc"],
-
         # --- Optional (capacities) ---
-        "Charging Capacity / Ah":      ["ahcha#ah"],
-        "Discharging Capacity / Ah":   ["ahdch#ah"],
-        "Step Capacity / Ah":          ["ahstep#ah"],
-        "Net Capacity / Ah":           ["ahbal#ah"],
-        "Cumulative Capacity / Ah":    ["ahaccu#ah", "ahaccu"],
-
+        "Charging Capacity / Ah": ["ahcha#ah"],
+        "Discharging Capacity / Ah": ["ahdch#ah"],
+        "Step Capacity / Ah": ["ahstep#ah"],
+        "Net Capacity / Ah": ["ahbal#ah"],
+        "Cumulative Capacity / Ah": ["ahaccu#ah", "ahaccu"],
         # --- Optional (energies) ---
-        "Charging Energy / Wh":        ["whcha#wh"],
-        "Discharging Energy / Wh":     ["whdch#wh"],
-        "Step Energy / Wh":            ["whstep#wh"],
-        "Cumulative Energy / Wh":      ["whaccu#wh", "whaccu"],
-        "Power / W":                   ["watt", "power#w"],
-
+        "Charging Energy / Wh": ["whcha#wh"],
+        "Discharging Energy / Wh": ["whdch#wh"],
+        "Step Energy / Wh": ["whstep#wh"],
+        "Cumulative Energy / Wh": ["whaccu#wh", "whaccu"],
+        "Power / W": ["watt", "power#w"],
         # --- Optional (temps) ---
         "Surface Temperature T1 / degC": ["t1#degc", "logtemp001"],
     }

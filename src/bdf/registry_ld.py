@@ -19,10 +19,7 @@ def _require_rdflib():
     try:
         import rdflib  # type: ignore
     except Exception as exc:  # pragma: no cover - import guard
-        raise RuntimeError(
-            "Linked-data registry requires rdflib. "
-            "Install with `pip install batterydf`."
-        ) from exc
+        raise RuntimeError("Linked-data registry requires rdflib. Install with `pip install batterydf`.") from exc
     return rdflib
 
 
@@ -35,7 +32,7 @@ def _normalize_schema_org(graph: Any) -> Any:
         if isinstance(term, rdflib.URIRef):
             value = str(term)
             if value.startswith(schema_http):
-                return rdflib.URIRef(schema_https + value[len(schema_http):])
+                return rdflib.URIRef(schema_https + value[len(schema_http) :])
         return term
 
     normalized = rdflib.Graph()
@@ -121,9 +118,7 @@ def _parse_github_tree(url: str) -> Optional[tuple[str, str, str, str]]:
     return org, repo, branch, subpath
 
 
-def _download_github_repo(
-    url: str, cache_dir: Path, refresh: bool
-) -> Path:
+def _download_github_repo(url: str, cache_dir: Path, refresh: bool) -> Path:
     parsed = _parse_github_tree(url)
     if not parsed:
         raise ValueError(f"Unsupported GitHub URL: {url}")
@@ -322,9 +317,7 @@ def _parse_search_query(query: str) -> tuple[list[str], list[tuple[str, str, flo
     text = query or ""
     numeric_filters: list[tuple[str, str, float]] = []
 
-    numeric_pattern = re.compile(
-        r"(>=|<=|=|<|>)\s*([0-9]*\.?[0-9]+)\s*([a-zA-Z]+)?"
-    )
+    numeric_pattern = re.compile(r"(>=|<=|=|<|>)\s*([0-9]*\.?[0-9]+)\s*([a-zA-Z]+)?")
     unit_map = {
         "ah": "rated_capacity_ah",
         "wh": "rated_energy_wh",
@@ -549,8 +542,12 @@ def _extract_dataset_row(graph: Any, node: Any, schema: Any, schema_http: Any, r
     methods = _literal_list(
         graph,
         node,
-        [schema.measurementTechnique, schema_http.measurementTechnique,
-         schema.measurementMethod, schema_http.measurementMethod],
+        [
+            schema.measurementTechnique,
+            schema_http.measurementTechnique,
+            schema.measurementMethod,
+            schema_http.measurementMethod,
+        ],
     )
     keywords = _literal_list(graph, node, [schema.keywords, schema_http.keywords])
 

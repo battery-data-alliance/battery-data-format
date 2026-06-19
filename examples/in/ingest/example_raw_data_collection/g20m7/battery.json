@@ -1,23 +1,27 @@
 {
-  "spec": {
-    "manufacturer": "Google",
-    "model": "G20M7",
-    "batch": "202512",
-    "namespace": "https://w3id.org/digibatt/battery-data/",
-    "name_template": "{manufacturer}-{model}-{batch}-{id}",
-    "iri_template": "{namespace}{manufacturer}/{model}/{batch}/{id}",
-    "iec_code": "ICP6/65/75",
-    "chemistry": "li-ion",
-    "form_factor": "prismatic",
-    "nominal_voltage_v": 3.90,
-    "rated_capacity_ah": 4.835,
-    "rated_energy_wh": 18.8,
-    "mass_g": 63,
-    "volume_l": 0.02925,
-    "pe_materials": ["cobalt"],
-    "ne_materials": ["graphite"]
-  },
   "ids": [
     "c5hnd9"
-  ]
+  ],
+  "spec": {
+    "batch": "202512",
+    "chemistry": "li-ion",
+    "form_factor": "prismatic",
+    "iec_code": "ICP6/65/75",
+    "iri_template": "{namespace}{manufacturer}/{model}/{batch}/{id}",
+    "manufacturer": "Google",
+    "mass_g": 63,
+    "model": "G20M7",
+    "name_template": "{manufacturer}-{model}-{batch}-{id}",
+    "namespace": "https://w3id.org/digibatt/battery-data/",
+    "ne_materials": [
+      "graphite"
+    ],
+    "nominal_voltage_v": 3.9,
+    "pe_materials": [
+      "cobalt"
+    ],
+    "rated_capacity_ah": 4.835,
+    "rated_energy_wh": 18.8,
+    "volume_l": 0.02925
+  }
 }

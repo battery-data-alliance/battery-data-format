@@ -19,11 +19,23 @@ class BioLogicMPT(DelimitedTextPlugin):
         # Required
         "Test Time / s": ["time/s", "time / s", "t (s)", "time [s]", "relative time(s)"],
         "Voltage / V": [
-            "ewe/v", "ecell/v", "u/v", "u[v]",
-            "ewe (v)", "ewe/v (v)", "<ewe>/v",
+            "ewe/v",
+            "ecell/v",
+            "u/v",
+            "u[v]",
+            "ewe (v)",
+            "ewe/v (v)",
+            "<ewe>/v",
         ],
         "Current / A": [
-            "i/ma", "i[a]", "current / a", "current(a)", "i / ma", "<i>/ma", "i(a)", "i/a",
+            "i/ma",
+            "i[a]",
+            "current / a",
+            "current(a)",
+            "i / ma",
+            "<i>/ma",
+            "i(a)",
+            "i/a",
         ],
         # Recommended
         "Cycle Count / 1": ["cycle number", "z cycle"],

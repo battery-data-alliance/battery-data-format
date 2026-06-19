@@ -71,9 +71,7 @@ def ingest(
     data_dir: Optional[str] = typer.Option("timeseries", help="Output subdir for converted files"),
     raw_dir: Optional[str] = typer.Option("timeseries/raw", help="Input subdir for raw files"),
     cell_metadata_dir: Optional[str] = typer.Option("batteries", help="Base dir for per-cell metadata folders"),
-    doi_enrich: bool = typer.Option(
-        True, "--doi-enrich/--no-doi-enrich", help="Enrich missing metadata from DOI"
-    ),
+    doi_enrich: bool = typer.Option(True, "--doi-enrich/--no-doi-enrich", help="Enrich missing metadata from DOI"),
     doi_timeout: int = typer.Option(15, help="Per-request timeout (seconds) for DOI lookups"),
     human: bool = typer.Option(False, "--human/--machine", help="Serialize headers as prefLabel instead of notation"),
 ):
@@ -205,8 +203,11 @@ def clean(
 
 
 @app.command()
-def validate(path: str, strict: bool = typer.Option(False, help="Raise error (non-zero exit) on invalid BDF"),
-             json: bool = typer.Option(False, help="Output machine-readable JSON report")):
+def validate(
+    path: str,
+    strict: bool = typer.Option(False, help="Raise error (non-zero exit) on invalid BDF"),
+    json: bool = typer.Option(False, help="Output machine-readable JSON report"),
+):
     """
     Validate a CSV/Parquet file against the BDF schema and basic sanity checks.
     """
@@ -215,6 +216,7 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
     except BDFValidationError as e:
         if json:
             import json as _json
+
             print(_json.dumps({"ok": False, "errors": str(e).splitlines(), "warnings": []}, indent=2))
         else:
             print(f"[bdf] INVALID\n{e}")
@@ -226,6 +228,7 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
     ok = bool(report.get("ok"))
     if json:
         import json as _json
+
         print(_json.dumps(report, indent=2, default=str))
     else:
         status = "OK" if ok else "INVALID"
@@ -242,14 +245,18 @@ def validate(path: str, strict: bool = typer.Option(False, help="Raise error (no
                 print(f"  - {c}")
     raise typer.Exit(code=0 if ok else 1)
 
+
 @app.command()
 def detect(path: str):
     sr = detect_source(path)
     print(f"{sr.id} ({sr.confidence:.2f}) - {sr.reason}")
 
+
 @app.command()
 def templates(
-    names: List[str] = typer.Argument(..., help="Template names (contribution, battery, excel, data_download, mapping)"),
+    names: List[str] = typer.Argument(
+        ..., help="Template names (contribution, battery, excel, data_download, mapping)"
+    ),
     root: str = typer.Option(".", help="Target directory for template files"),
     overwrite: bool = typer.Option(False, help="Overwrite existing files"),
 ):
@@ -264,6 +271,7 @@ def templates(
     for p in skipped:
         print(f"[bdf] skipped {p}")
 
+
 @app.command()
 def convert(
     path: str,
@@ -272,10 +280,10 @@ def convert(
     human: bool = typer.Option(False, "--human/--machine", help="Serialize headers as prefLabel instead of notation"),
 ):
     from . import read as read_bdf
+
     df = read_bdf(path, plugin=as_)
     save_bdf(df, to, index=False, human=human)
     print(f"[bdf] wrote {to}")
-
 
 
 @app.command()
@@ -286,7 +294,7 @@ def plot(
     save: Optional[str] = typer.Option(None, "--save", "-s", help="Save figure to file"),
     show: bool = typer.Option(False, "--show/--no-show", help="Display window"),
     as_: Optional[str] = typer.Option(None, "--as", help="Force a specific plugin id (e.g., biologic-mpt)"),
-    assume_bdf: bool = typer.Option(False, help="Assume input is already BDF (skip detection/normalization)")
+    assume_bdf: bool = typer.Option(False, help="Assume input is already BDF (skip detection/normalization)"),
 ):
     """
     Plot a BDF-normalized dataset. If the file isn't already BDF, auto-detect and convert on the fly.

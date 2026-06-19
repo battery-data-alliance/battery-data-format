@@ -49,13 +49,16 @@ HTTP_TIMEOUT = float(os.getenv("BDF_HTTP_TIMEOUT", "120"))
 # Helpers
 # ============================================================
 
+
 def _hash(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:16]
+
 
 def _cached_path_for_url(url: str, suffix: str = "") -> Path:
     tail = url.rstrip("/").split("/")[-1] or "index"
     name = f"{_hash(url)}__{tail}{suffix}"
     return CACHE_DIR / name
+
 
 def _http_get(url: str, stream: bool = False) -> requests.Response:
     headers = {
@@ -65,6 +68,7 @@ def _http_get(url: str, stream: bool = False) -> requests.Response:
     r = requests.get(url, headers=headers, stream=stream, timeout=HTTP_TIMEOUT)
     r.raise_for_status()
     return r
+
 
 def _http_head(url: str) -> Optional[int]:
     """Return content-length in bytes if available via HEAD, else None."""
@@ -77,6 +81,7 @@ def _http_head(url: str) -> Optional[int]:
     except Exception:
         pass
     return None
+
 
 def _fetch_registry(url: str) -> Dict[str, Any]:
     cache = _cached_path_for_url(url, suffix="__registry.json")
@@ -99,6 +104,7 @@ def _fetch_registry(url: str) -> Dict[str, Any]:
     with cache.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return data
+
 
 def _fetch_record_files(url: str) -> List[Dict[str, Any]]:
     cache = _cached_path_for_url(url, suffix="__record.json")
@@ -140,6 +146,7 @@ def _fetch_record_files(url: str) -> List[Dict[str, Any]]:
         json.dump(out, f, ensure_ascii=False, indent=2)
     return out
 
+
 def _download_file(url: str, filename_hint: Optional[str] = None) -> Path:
     dest = CACHE_DIR / f"{_hash(url)}__{filename_hint}" if filename_hint else _cached_path_for_url(url)
     if dest.exists() and dest.stat().st_size > 0:
@@ -162,6 +169,7 @@ def _download_file(url: str, filename_hint: Optional[str] = None) -> Path:
                 if chunk:
                     f.write(chunk)
     return dest
+
 
 def _plugin_slug_from_isBasedOn(is_based_on: Any) -> Optional[str]:
     """
@@ -193,6 +201,7 @@ def _plugin_slug_from_isBasedOn(is_based_on: Any) -> Optional[str]:
         if slug:
             return slug
     return None
+
 
 def _infer_plugin_from_filename(
     provider_org_id: Optional[str],
@@ -242,6 +251,7 @@ def _infer_plugin_from_filename(
         return "txt"
     return None
 
+
 def _iter_distributions(registry: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
     datasets = registry.get("dataset", [])
     if not isinstance(datasets, list):
@@ -276,7 +286,7 @@ def _iter_distributions(registry: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
                     "dataset_id": ds_id,
                     "dataset_identifier": ds_ident,
                     "distribution_id": dist_id,
-                    "error": "missing contentUrl"
+                    "error": "missing contentUrl",
                 }
                 continue
 
@@ -294,6 +304,7 @@ def _iter_distributions(registry: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
             count += 1
             if MAX_DATASETS and count >= MAX_DATASETS:
                 return
+
 
 def _load_with_bdf(path: Path, plugin_slug: Optional[str]) -> Any:
     """
@@ -333,6 +344,7 @@ def _load_with_bdf(path: Path, plugin_slug: Optional[str]) -> Any:
     raise AssertionError(
         f"Could not load with 'bdf'. plugin={plugin_slug!r}, file={str(path)!r}. Last error: {last_err}"
     )
+
 
 def _looks_nonempty(result: Any) -> bool:
     try:
@@ -377,9 +389,11 @@ def _looks_nonempty(result: Any) -> bool:
 
     return True  # Truthy object fallback
 
+
 # ============================================================
 # Collect cases once at import time
 # ============================================================
+
 
 def _collect_cases() -> List[Dict[str, Any]]:
     reg = _fetch_registry(REGISTRY_URL)
@@ -407,6 +421,7 @@ def _collect_cases() -> List[Dict[str, Any]]:
         pytest.skip("No distributions found in registry (or filtered out).")
     return cases
 
+
 CASES = _collect_cases()
 RECORD_FILES = _fetch_record_files(RECORD_API_URL)
 
@@ -414,10 +429,9 @@ RECORD_FILES = _fetch_record_files(RECORD_API_URL)
 # The test
 # ============================================================
 
+
 @pytest.mark.parametrize(
-    "case",
-    CASES,
-    ids=lambda c: f"{c.get('dataset_identifier','?')}::{(c.get('distribution_id','?').split('/')[-1])}"
+    "case", CASES, ids=lambda c: f"{c.get('dataset_identifier', '?')}::{(c.get('distribution_id', '?').split('/')[-1])}"
 )
 def test_registry_distribution_loads_with_bdf(case: Dict[str, Any]):
     if case.get("xfail"):
@@ -452,6 +466,5 @@ def test_record_files_load_with_bdf(file_case: Dict[str, Any]):
     plugin = _infer_plugin_from_filename(None, local_file)
     result = _load_with_bdf(local_file, plugin)
     assert _looks_nonempty(result), (
-        f"Empty/invalid result for record file key={file_case.get('key')}, "
-        f"plugin={plugin}, file={local_file}"
+        f"Empty/invalid result for record file key={file_case.get('key')}, plugin={plugin}, file={local_file}"
     )

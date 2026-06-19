@@ -1,7 +1,7 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schemas/dataset.schema.json",
-  "title": "BDF dataset.json",
+  "$ref": "contribution.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Per-file dataset metadata (same structure as contribution.json).",
-  "$ref": "contribution.schema.json"
+  "title": "BDF dataset.json"
 }

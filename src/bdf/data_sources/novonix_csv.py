@@ -16,7 +16,7 @@ class NovonixCSV(DelimitedTextPlugin):
 
     # --- Sectioned header ---
     data_section_marker = r"^\[Data\]$"
-    data_header_offset = 1      # the row after [Data] is the (first non-empty) header
+    data_header_offset = 1  # the row after [Data] is the (first non-empty) header
 
     # --- Detection ---
     # These strings are in the preamble, so they appear in the file head we sniff
@@ -45,51 +45,27 @@ class NovonixCSV(DelimitedTextPlugin):
     # Left side is canonical BDF label; right side is a list of vendor headers (case-insensitive).
     column_synonyms = {
         # Required canon
-        "Test Time / s": [
-            "run time (h)", "run-time (h)", "runtime (h)", "test time (h)", "testtime(h)"
-        ],
-        "Voltage / V": [
-            "potential (v)", "voltage (v)", "cell voltage (v)"
-        ],
-        "Current / A": [
-            "current (a)", "cell current (a)"
-        ],
-
+        "Test Time / s": ["run time (h)", "run-time (h)", "runtime (h)", "test time (h)", "testtime(h)"],
+        "Voltage / V": ["potential (v)", "voltage (v)", "cell voltage (v)"],
+        "Current / A": ["current (a)", "cell current (a)"],
         # Recommended / optional
-        "Step Time / s": [
-            "step time (h)", "steptime(h)"
-        ],
-        "Cycle Count / 1": [
-            "cycle number", "cycle", "cycle #", "cycle#"
-        ],
-        "Step Count / 1": [
-            "step number", "step", "step #", "step#"
-        ],
-        "Step Index / 1": [
-            "step position"
-        ],
+        "Step Time / s": ["step time (h)", "steptime(h)"],
+        "Cycle Count / 1": ["cycle number", "cycle", "cycle #", "cycle#"],
+        "Step Count / 1": ["step number", "step", "step #", "step#"],
+        "Step Index / 1": ["step position"],
         "Ambient Temperature / degC": [
-            "temperature (°c)", "temperature (c)", "ambient temperature (c)", "ambient temp (c)"
+            "temperature (°c)",
+            "temperature (c)",
+            "ambient temperature (c)",
+            "ambient temp (c)",
         ],
-        "Surface Temperature T1 / degC": [
-            "circuit temperature (°c)", "circuit temp (°c)", "circuit temperature (c)"
-        ],
-
+        "Surface Temperature T1 / degC": ["circuit temperature (°c)", "circuit temp (°c)", "circuit temperature (c)"],
         # Capacities / energies / power
-        "Net Capacity / Ah": [
-            "capacity (ah)", "net capacity (ah)"
-        ],
-        "Net Energy / Wh": [
-            "energy (wh)", "net energy (wh)"
-        ],
-        "Power / W": [
-            "power(w)", "power (w)"
-        ],
-
+        "Net Capacity / Ah": ["capacity (ah)", "net capacity (ah)"],
+        "Net Energy / Wh": ["energy (wh)", "net energy (wh)"],
+        "Power / W": ["power(w)", "power (w)"],
         # Absolute time (optional)
-        "Unix Time / s": [
-            "unix time (s)", "unixtime (s)"
-        ],
+        "Unix Time / s": ["unix time (s)", "unixtime (s)"],
     }
 
     # --- Lightweight unit hints for simple post-read fixups (optional) ---

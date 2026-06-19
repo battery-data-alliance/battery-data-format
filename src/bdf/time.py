@@ -63,9 +63,7 @@ def _datetime_to_unix(dt: pd.Series, *, min_success: float) -> pd.Series:
 
     success = float(dt.notna().mean())
     if success < min_success:
-        raise ValueError(
-            f"Timestamp parse success rate {success:.2%} below threshold {min_success:.2%}."
-        )
+        raise ValueError(f"Timestamp parse success rate {success:.2%} below threshold {min_success:.2%}.")
 
     valid = dt.notna().to_numpy()
     epoch_s = np.full(len(dt), np.nan, dtype="float64")
@@ -74,9 +72,7 @@ def _datetime_to_unix(dt: pd.Series, *, min_success: float) -> pd.Series:
         # (pandas 2.x may store datetimes in ms/us/s resolution, not just ns,
         # so astype("int64") does not reliably give nanoseconds).
         epoch = pd.Timestamp("1970-01-01", tz="UTC")
-        epoch_s[valid] = (
-            (dt[valid] - epoch).dt.total_seconds().to_numpy(dtype="float64")
-        )
+        epoch_s[valid] = (dt[valid] - epoch).dt.total_seconds().to_numpy(dtype="float64")
     return pd.Series(epoch_s, index=dt.index, name="Unix Time / s")
 
 
@@ -91,12 +87,7 @@ def _normalize_datetime_format(fmt: Optional[str]) -> Optional[str]:
     date_part = parts[0] if parts else raw
     time_part = " ".join(parts[1:]) if len(parts) > 1 else ""
 
-    date_part = (
-        date_part.replace("YYYY", "%Y")
-        .replace("YY", "%y")
-        .replace("DD", "%d")
-        .replace("MM", "%m")
-    )
+    date_part = date_part.replace("YYYY", "%Y").replace("YY", "%y").replace("DD", "%d").replace("MM", "%m")
 
     ampm = False
     if re_search_any(time_part, ["AM/PM", "AM", "PM", "am/pm", "am", "pm"]):

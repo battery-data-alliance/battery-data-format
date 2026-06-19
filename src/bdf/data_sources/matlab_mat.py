@@ -56,15 +56,13 @@ class MatlabMat(CyclerPlugin):
         if mapping is None and allow_infer:
             mapping = {"fields": _infer_mapping(list(data.keys()))}
             warnings.warn(
-                "Inferred .mat mapping (BDF_MAT_INFER=1). "
-                "Provide a .map.json file to lock this down.",
+                "Inferred .mat mapping (BDF_MAT_INFER=1). Provide a .map.json file to lock this down.",
                 stacklevel=2,
             )
 
         if mapping is None:
             raise ValueError(
-                "MATLAB .mat files require a mapping file. "
-                "Create a sidecar <name>.map.json or bdf.mapping.json."
+                "MATLAB .mat files require a mapping file. Create a sidecar <name>.map.json or bdf.mapping.json."
             )
 
         variables, field_units = _mapping_variables_and_units(mapping)
@@ -128,6 +126,7 @@ class MatlabMat(CyclerPlugin):
                 continue
             try:
                 from bdf.units.core import convert_series, resolve_unit
+
                 to_unit = resolve_unit(col, as_string=True)
                 df[col] = convert_series(df[col], str(unit), str(to_unit))
             except Exception:
@@ -172,6 +171,7 @@ def _load_mat_data(path: Path, data_path: Optional[str]) -> dict[str, Any]:
     data: dict[str, Any] = {}
     try:
         from scipy.io import loadmat  # type: ignore
+
         data = loadmat(path, squeeze_me=True, struct_as_record=False)
         data = {k: v for k, v in data.items() if not k.startswith("__")}
     except Exception as exc:
@@ -179,8 +179,7 @@ def _load_mat_data(path: Path, data_path: Optional[str]) -> dict[str, Any]:
             data = _load_mat_hdf5(path)
         else:
             raise RuntimeError(
-                "Reading .mat requires scipy (and h5py for v7.3). "
-                "Install with `pip install scipy h5py`."
+                "Reading .mat requires scipy (and h5py for v7.3). Install with `pip install scipy h5py`."
             ) from exc
 
     if data_path:
@@ -192,9 +191,7 @@ def _load_mat_hdf5(path: Path) -> dict[str, Any]:
     try:
         import h5py  # type: ignore
     except Exception as exc:
-        raise RuntimeError(
-            "Reading .mat (v7.3) requires h5py. Install with `pip install h5py`."
-        ) from exc
+        raise RuntimeError("Reading .mat (v7.3) requires h5py. Install with `pip install h5py`.") from exc
     data: dict[str, Any] = {}
     with h5py.File(path, "r") as f:
         for key in f:
@@ -316,6 +313,7 @@ def _normalize_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
             return True
         try:
             from bdf import spec
+
             if text in spec.COLUMN_ONTOLOGY:
                 return True
             for _, quantity_spec in spec.COLUMN_ONTOLOGY:
@@ -354,10 +352,7 @@ def _datetime_config(
         or mapping.get("timestamp_source")
     )
     target = (
-        cfg_raw.get("target")
-        or mapping.get("datetime_target")
-        or mapping.get("timestamp_target")
-        or "Unix Time / s"
+        cfg_raw.get("target") or mapping.get("datetime_target") or mapping.get("timestamp_target") or "Unix Time / s"
     )
     fmt = cfg_raw.get("format") or mapping.get("datetime_format") or mapping.get("timestamp_format")
     tz = (
@@ -413,12 +408,7 @@ def _mapping_variables_and_units(mapping: dict[str, Any]) -> tuple[dict[str, Any
         if variables:
             return variables, units
 
-    variables = (
-        mapping.get("variables")
-        or mapping.get("columns")
-        or mapping.get("map")
-        or {}
-    )
+    variables = mapping.get("variables") or mapping.get("columns") or mapping.get("map") or {}
     if isinstance(variables, dict):
         return variables, units
     return {}, units

@@ -80,6 +80,7 @@ def coerce_dataframe(fn: Callable[..., pl.LazyFrame]) -> Callable[..., Any]:
     Returns:
         Wrapper with signature (self, df: AnyDF, ...) -> AnyDF.
     """
+
     @functools.wraps(fn)
     def wrapper(self: Any, df: Any, *args: Any, **kwargs: Any) -> Any:
         kind = _classify_df(df)

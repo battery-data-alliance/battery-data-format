@@ -17,20 +17,26 @@ class SniffResult:
     reason: str
     meta: Dict[str, Any] = field(default_factory=dict)
 
+
 class _CyclerRegistry:
     _by_id: Dict[str, Type[CyclerPlugin]] = {}
+
     def register(self, cls: Type[CyclerPlugin]):
         if not getattr(cls, "id", None):
             raise ValueError(f"{cls.__name__} missing 'id'")
         if cls.id in self._by_id:
             raise ValueError(f"Duplicate plugin id: {cls.id}")
         self._by_id[cls.id] = cls
+
     def get(self, id_: str) -> Type[CyclerPlugin] | None:
         return self._by_id.get(id_)
+
     def all(self) -> Iterable[Type[CyclerPlugin]]:
         return self._by_id.values()
 
+
 REGISTRY = _CyclerRegistry()
+
 
 # Metaclass must inherit from 'type'
 class _AutoRegister(type):
@@ -40,12 +46,14 @@ class _AutoRegister(type):
         if name != "CyclerPlugin" and not name.startswith("_"):
             REGISTRY.register(cls)
 
+
 class CyclerPlugin(metaclass=_AutoRegister):
     """
     Base class for cycler plugins.
     Subclasses override: id, exts, sniff(), parse().
     Optional hooks: augment(), fixup().
     """
+
     id: str = "abstract"
     exts: Tuple[str, ...] = ()
     column_synonyms: Dict[str, list[str]] = {}  # optional
