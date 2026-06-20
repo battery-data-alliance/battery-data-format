@@ -1,14 +1,17 @@
 # src/bdf/io.py
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
+import re
 import warnings
 from pathlib import Path
 
 import pandas as pd
 import polars as pl
 
+from bdf import spec
 from bdf.plugins import PLUGINS, Plugin, detect
 
 
@@ -161,6 +164,116 @@ def _serialize_labels(df: pd.DataFrame, *, human: bool) -> pd.DataFrame:
     return out
 
 
+_LEGACY_SLUG = re.compile(r"[^a-z0-9]+")
+
+
+def _legacy_slugify(s: str) -> str:
+    return _LEGACY_SLUG.sub("-", s.lower()).strip("-")
+
+
+def _legacy_is_numeric(s: pd.Series) -> bool:
+    return pd.api.types.is_numeric_dtype(s)
+
+
+def _legacy_coalesce(target: pd.Series, incoming: pd.Series) -> pd.Series:
+    """Merge ``incoming`` into ``target``: prefer numeric typing, then fill holes."""
+    tnum, inum = _legacy_is_numeric(target), _legacy_is_numeric(incoming)
+    if inum and not tnum:
+        with contextlib.suppress(Exception):
+            incoming = pd.to_numeric(incoming, errors="coerce")
+        return incoming
+    return target.where(target.notna(), incoming)
+
+
+def canonicalize_legacy_labels(
+    df: pd.DataFrame,
+    *,
+    keep_unmapped: bool = True,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Rename deprecated on-disk BDF labels to current preferred labels.
+
+    Turns legacy ontology labels (skos:altLabel / notation) into the preferred
+    labels, converting units where the deprecated quantity used a different one.
+    Distinct from the spec-driven vendor normalizer in :mod:`bdf.table_normalizers`,
+    which maps raw vendor headers; this operates on already-BDF artifacts.
+
+    Args:
+        df: BDF table whose columns may carry deprecated labels.
+        keep_unmapped: When False, drop columns that are not canonical BDF labels.
+
+    Returns:
+        Tuple of (new_df, legacy_headers_used).
+    """
+    out = df.copy()
+    legacy_headers: list[str] = []
+
+    # Preferred non-deprecated base name -> mr_name.
+    base_preferred: dict[str, str] = {}
+    for q, s in spec.COLUMN_ONTOLOGY:
+        if s.deprecated:
+            continue
+        base = s.formatted_label.split(" / ", 1)[0].strip().lower()
+        base_preferred.setdefault(base, q)
+
+    # pref_label / notation -> (target_canon, target_unit, source_unit, is_legacy).
+    # source_unit is non-empty only when a deprecated unit differs from the target.
+    notation_to_canon: dict[str, tuple[str, str | None, str, bool]] = {}
+    pref_to_canon: dict[str, tuple[str, str | None, str, bool]] = {}
+    for q, s in spec.COLUMN_ONTOLOGY:
+        pref = s.formatted_label
+        notation = s.effective_notation
+        target_q = q
+        is_deprecated = s.deprecated
+        if s.deprecated:
+            base = pref.split(" / ", 1)[0].strip().lower()
+            target_q = base_preferred.get(base, q)
+        target_canon = spec.COLUMN_ONTOLOGY[target_q].formatted_label
+        target_unit = spec.COLUMN_ONTOLOGY[target_q].unit
+        src_unit = s.unit if is_deprecated and s.unit != target_unit else ""
+        notation_to_canon[notation] = (target_canon, target_unit, src_unit, is_deprecated)
+        pref_to_canon[pref] = (target_canon, target_unit, src_unit, is_deprecated)
+
+    synonym_idx = spec.COLUMN_ONTOLOGY.base_synonym_index()
+
+    def _apply(col: str, canon: str, target_unit: str | None, src_unit: str, is_legacy: bool) -> None:
+        if is_legacy and canon != col:
+            legacy_headers.append(col)
+        if src_unit and src_unit != target_unit and _legacy_is_numeric(out[col]):
+            conv = spec.get_unit_conversion(src_unit, target_unit)
+            if conv:
+                scale, offset = conv
+                out[col] = pd.to_numeric(out[col], errors="coerce") * scale + offset
+        if canon in out.columns and col != canon:
+            out[canon] = _legacy_coalesce(out[canon], out[col])
+            out.drop(columns=[col], inplace=True)
+        elif canon != col:
+            out.rename(columns={col: canon}, inplace=True)
+
+    for col in list(out.columns):
+        pref_hit = pref_to_canon.get(str(col))
+        if pref_hit:
+            _apply(col, *pref_hit)
+            continue
+
+        notation_hit = notation_to_canon.get(str(col))
+        if notation_hit:
+            _apply(col, *notation_hit)
+            continue
+
+        # Synonym fallback: altLabel / hiddenLabel slugs (e.g. "cycle_dimensionless").
+        col_slug = _legacy_slugify(str(col))
+        mr = synonym_idx.get(col_slug)
+        if mr:
+            qty = spec.COLUMN_ONTOLOGY[mr]
+            _apply(col, qty.formatted_label, qty.unit, "", True)
+
+    if keep_unmapped:
+        return out, legacy_headers
+    canonical_all = set(spec.COLUMN_ONTOLOGY.required_labels()) | set(spec.COLUMN_ONTOLOGY.optional_labels())
+    out = out[[c for c in out.columns if c in canonical_all]].copy()
+    return out, legacy_headers
+
+
 def load(pathlike) -> pd.DataFrame:
     p = Path(pathlike)
     if not p.exists():
@@ -191,8 +304,6 @@ def load(pathlike) -> pd.DataFrame:
             raise ValueError(f"Unsupported format: {fmt}")
 
         # Always expose human canonical labels in-memory.
-        from .normalize import canonicalize_legacy_labels
-
         df, legacy = canonicalize_legacy_labels(df)
         if legacy:
             warnings.warn(
@@ -220,12 +331,8 @@ def save(
     fmt = _detect_format(p)
     comp = _detect_compression(p)
 
-    try:
-        from .normalize import canonicalize_legacy_labels
-
+    with contextlib.suppress(Exception):
         df, _legacy = canonicalize_legacy_labels(df)
-    except Exception:
-        pass
     df = _serialize_labels(df, human=human)
 
     if fmt == "csv":
