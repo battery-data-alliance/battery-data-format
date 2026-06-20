@@ -375,6 +375,7 @@ def load_bdf_from_entry(entry: DatasetEntry):
 
         df = load_bdf(path)
     else:
-        df = read_bdf(path, plugin=entry.plugin, validate=True)
+        df_pl, _meta = read_bdf(path, plugin=entry.plugin, validate=True, lazy=False)
+        df = df_pl.to_pandas()
 
     return path, df

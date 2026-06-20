@@ -194,7 +194,8 @@ def clean(
         try:
             df = load_bdf(path)
         except Exception:
-            df = read_bdf(path, plugin=as_)
+            df_pl, _ = read_bdf(path, plugin=as_, lazy=False)
+            df = df_pl.to_pandas()
 
     df2, rep = clean_bdf(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=col)
     save_bdf(df2, out, index=False)
@@ -248,8 +249,8 @@ def validate(
 
 @app.command()
 def detect(path: str):
-    sr = detect_source(path)
-    print(f"{sr.id} ({sr.confidence:.2f}) - {sr.reason}")
+    plugin_id, _plugin = detect_source(path)
+    print(plugin_id)
 
 
 @app.command()
@@ -281,7 +282,8 @@ def convert(
 ):
     from . import read as read_bdf
 
-    df = read_bdf(path, plugin=as_)
+    df_pl, _ = read_bdf(path, plugin=as_, lazy=False)
+    df = df_pl.to_pandas()
     save_bdf(df, to, index=False, human=human)
     print(f"[bdf] wrote {to}")
 
@@ -311,7 +313,8 @@ def plot(
         try:
             df = load_bdf(p)
         except Exception:
-            df = read_bdf(p, plugin=as_)
+            df_pl, _ = read_bdf(p, plugin=as_, lazy=False)
+            df = df_pl.to_pandas()
 
     # Draw the plot
     line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")

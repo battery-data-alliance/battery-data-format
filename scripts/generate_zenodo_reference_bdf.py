@@ -431,9 +431,9 @@ def main() -> int:
                 )
                 continue
 
-            df = bdf.read(local_file, plugin=plugin, validate=False)
+            df, _ = bdf.read(local_file, plugin=plugin, validate=False, lazy=False)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            save_bdf(df, out_path, index=False, human=args.human)
+            save_bdf(df.to_pandas(), out_path, index=False, human=args.human)
             results.append(
                 CaseResult(
                     source=str(case.get("source")),
