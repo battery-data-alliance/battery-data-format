@@ -295,7 +295,7 @@ def test_quantity_defaults() -> None:
 )
 def test_quantity_unit_conversion(src_unit: str, dst_unit: str, expected: tuple[float, float] | None) -> None:
     q = Quantity(unit=src_unit, label_template=f"X / {src_unit}", mr_name="x", iri="", synonyms=[])
-    assert q.unit_conversion(dst_unit) == expected
+    assert q.convert_to(dst_unit) == expected
 
 
 @pytest.mark.parametrize(

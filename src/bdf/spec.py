@@ -372,7 +372,7 @@ class Quantity(BaseModel):
             return self.label_template.format(unit=self.unit)
         return self.label_template
 
-    def unit_conversion(self, dst_unit: str | None) -> tuple[float, float] | None:
+    def convert_to(self, dst_unit: str | None) -> tuple[float, float] | None:
         """Return (scale, offset) to convert self.unit → dst_unit, or None.
 
         Args:
