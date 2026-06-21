@@ -1,0 +1,218 @@
+{
+  "@context": [
+    "https://schema.org/",
+    "http://www.w3.org/ns/csvw"
+  ],
+  "@type": "schema:Dataset",
+  "schema:citation": "Sundaresan, Sneha; Devabattini, Bharath C.; Kumar, Pradeep; Pattipati, Krishna; Balasingam, Balakumar (2022), \u201cDataset for Tabular OCV modeling\u201d, Mendeley Data, V1, doi: 10.17632/m9w7grpjc7.1",
+  "schema:creator": [
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "University of Windsor"
+      },
+      "schema:familyName": "Sundaresan",
+      "schema:givenName": "Sneha",
+      "schema:name": "Sneha Sundaresan",
+      "schema:sameAs": "https://orcid.org/0000-0001-7471-440X"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "University of Windsor"
+      },
+      "schema:familyName": "Devabattini",
+      "schema:givenName": "Bharath C.",
+      "schema:name": "Bharath C. Devabattini"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "University of Windsor"
+      },
+      "schema:familyName": "Kumar",
+      "schema:givenName": "Pradeep",
+      "schema:name": "Pradeep Kumar"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "University of Windsor"
+      },
+      "schema:familyName": "Pattipati",
+      "schema:givenName": "Krishna",
+      "schema:name": "Krishna Pattipati"
+    },
+    {
+      "@type": "schema:Person",
+      "schema:affiliation": {
+        "@type": "schema:Organization",
+        "schema:name": "University of Windsor"
+      },
+      "schema:familyName": "Balasingam",
+      "schema:givenName": "Balakumar",
+      "schema:name": "Balakumar Balasingam"
+    }
+  ],
+  "schema:description": "Battery terminal voltage and current recorded during the OCV-SOC characterization process of a Li-ion Samsung 30T-INR21700 cell. Includes Arbin cycler data and a reproducible CC-CV charge and C/30 discharge/charge OCV test procedure for developing OCV-SOC models and tabular OCV representations.",
+  "schema:hasPart": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/samsung/inr2170030t/2022/data/UniversityofWindsor__samsung-inr2170030t-2022-c1202__2022__C30__25degC.bdf.parquet#dataset",
+      "@type": "schema:Dataset",
+      "schema:about": {
+        "@id": "https://w3id.org/digibatt/battery-data/samsung/inr2170030t/2022/c1202"
+      },
+      "schema:citation": "Sundaresan, Sneha; Devabattini, Bharath C.; Kumar, Pradeep; Pattipati, Krishna; Balasingam, Balakumar (2022), \u201cDataset for Tabular OCV modeling\u201d, Mendeley Data, V1, doi: 10.17632/m9w7grpjc7.1",
+      "schema:creator": [
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "University of Windsor"
+          },
+          "schema:familyName": "Sundaresan",
+          "schema:givenName": "Sneha",
+          "schema:name": "Sneha Sundaresan",
+          "schema:sameAs": "https://orcid.org/0000-0001-7471-440X"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "University of Windsor"
+          },
+          "schema:familyName": "Devabattini",
+          "schema:givenName": "Bharath C.",
+          "schema:name": "Bharath C. Devabattini"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "University of Windsor"
+          },
+          "schema:familyName": "Kumar",
+          "schema:givenName": "Pradeep",
+          "schema:name": "Pradeep Kumar"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "University of Windsor"
+          },
+          "schema:familyName": "Pattipati",
+          "schema:givenName": "Krishna",
+          "schema:name": "Krishna Pattipati"
+        },
+        {
+          "@type": "schema:Person",
+          "schema:affiliation": {
+            "@type": "schema:Organization",
+            "schema:name": "University of Windsor"
+          },
+          "schema:familyName": "Balasingam",
+          "schema:givenName": "Balakumar",
+          "schema:name": "Balakumar Balasingam"
+        }
+      ],
+      "schema:description": "Battery terminal voltage and current recorded during the OCV-SOC characterization process of a Li-ion Samsung 30T-INR21700 cell. Includes Arbin cycler data and a reproducible CC-CV charge and C/30 discharge/charge OCV test procedure for developing OCV-SOC models and tabular OCV representations. Measurement technique: C30.",
+      "schema:distribution": [
+        {
+          "@id": "https://github.com/digibatt/battery-data/samsung/inr2170030t/2022/data/UniversityofWindsor__samsung-inr2170030t-2022-c1202__2022__C30__25degC.bdf.parquet",
+          "@type": "schema:DataDownload",
+          "schema:contentUrl": "https://github.com/digibatt/battery-data/samsung/inr2170030t/2022/data/UniversityofWindsor__samsung-inr2170030t-2022-c1202__2022__C30__25degC.bdf.parquet",
+          "schema:encodingFormat": "application/x-parquet",
+          "schema:name": "UniversityofWindsor__samsung-inr2170030t-2022-c1202__2022__C30__25degC.bdf.parquet"
+        }
+      ],
+      "schema:identifier": [
+        "data/UniversityofWindsor__samsung-inr2170030t-2022-c1202__2022__C30__25degC.bdf.parquet",
+        "10.17632/m9w7grpjc7.1"
+      ],
+      "schema:inLanguage": "en",
+      "schema:keywords": [
+        "battery management system",
+        "lithium ion battery",
+        "state-of-charge",
+        "ocv-soc",
+        "open-circuit voltage",
+        "samsung",
+        "30t",
+        "inr21700-30t",
+        "arbin",
+        "c/30",
+        "25degc",
+        "tabular ocv"
+      ],
+      "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+      "schema:measurementTechnique": "C30",
+      "schema:name": "Dataset for Tabular OCV modeling - C30",
+      "schema:variableMeasured": [
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Test Time",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+          "schema:unitText": "s"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Voltage",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+          "schema:unitText": "V"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "Current",
+          "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+          "schema:unitText": "A"
+        }
+      ],
+      "schema:version": "1.0.0"
+    }
+  ],
+  "schema:identifier": "10.17632/m9w7grpjc7.1",
+  "schema:inLanguage": "en",
+  "schema:keywords": [
+    "battery management system",
+    "lithium ion battery",
+    "state-of-charge",
+    "ocv-soc",
+    "open-circuit voltage",
+    "samsung",
+    "30t",
+    "inr21700-30t",
+    "arbin",
+    "c/30",
+    "25degc",
+    "tabular ocv"
+  ],
+  "schema:license": "https://spdx.org/licenses/CC-BY-4.0",
+  "schema:name": "Dataset for Tabular OCV modeling",
+  "schema:url": "https://github.com/digibatt/battery-data/samsung/inr2170030t/2022",
+  "schema:variableMeasured": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Test Time",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#test_time_second",
+      "schema:unitText": "s"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Voltage",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#voltage_volt",
+      "schema:unitText": "V"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Current",
+      "schema:propertyID": "https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere",
+      "schema:unitText": "A"
+    }
+  ],
+  "schema:version": "1.0.0"
+}

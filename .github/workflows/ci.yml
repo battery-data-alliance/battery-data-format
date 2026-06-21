@@ -74,15 +74,22 @@ jobs:
       - name: Compute content-addressed cache key (offline)
         id: key
         run: echo "k=bdf-data-$(uv run python scripts/warm_cache.py --emit-key)" >> "$GITHUB_OUTPUT"
-      - name: Restore/save warmed cache
-        uses: actions/cache@v4
+      - name: Restore warmed cache
+        id: restore
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.bdf-cache
           key: ${{ steps.key.outputs.k }}
       - name: Warm cache
         run: uv run python scripts/warm_cache.py
+      - name: Save warmed cache
+        if: success() && steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.bdf-cache
+          key: ${{ steps.key.outputs.k }}
 
-  network-testa:
+  network-tests:
     needs: warm-cache
     runs-on: ubuntu-latest
     strategy:
@@ -104,5 +111,5 @@ jobs:
         with:
           path: ${{ github.workspace }}/.bdf-cache
           key: ${{ needs.warm-cache.outputs.cache-key }}
-      - name: Run tests (network)
-        run: uv run --all-extras pytest -q -m network
+      - name: Run tests (network, cache-backed sockets blocked)
+        run: uv run --all-extras pytest -q -m network --block-cached-sockets

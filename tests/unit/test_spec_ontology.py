@@ -724,6 +724,7 @@ def test_get_snapshot_writes_to_dest(tmp_path: Path) -> None:
 
 
 @pytest.mark.network
+@pytest.mark.live_network
 def test_bundled_snapshot_is_up_to_date(tmp_path: Path) -> None:
     """Bundled snapshot matches live ontology. Run `bdf-update-snapshot` if this fails."""
     fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl")

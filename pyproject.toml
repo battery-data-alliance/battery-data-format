@@ -103,6 +103,7 @@ testpaths = ["tests"]
 markers = [
   "slow: may be slow or large I/O",
   "network: requires internet access",
+  "live_network: needs a live socket even with a warm cache",
   "registry: uses remote registry on Zenodo",
   "golden: compares against golden files",
   "perf: performance/smoke thresholds",

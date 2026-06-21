@@ -20,6 +20,10 @@ import hashlib
 import sys
 from pathlib import Path
 
+# Fail the warm if the primed cache grows beyond this, to stay clear of
+# GitHub's 10 GB per-repo ``actions/cache`` limit.
+_MAX_CACHE_BYTES = 4 * 1024**3  # 4 GiB
+
 # Make the repo root importable so ``tests.integration`` resolves when this
 # script is run as ``python scripts/warm_cache.py``.
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -64,20 +68,31 @@ def emit_key(urls: list[str]) -> str:
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
 
-def warm(urls: list[str]) -> None:
+def warm(urls: list[str], max_bytes: int = _MAX_CACHE_BYTES) -> None:
     """Fetch each URL sequentially into the cache, printing resolved paths.
 
-    Exits non-zero if any fetch raises.
+    Exits non-zero if any fetch raises, or if the cumulative size of the
+    fetched files exceeds ``max_bytes`` — a guard against approaching GitHub's
+    10 GB ``actions/cache`` limit.
 
     Args:
         urls: Sorted list of URL strings to fetch.
+        max_bytes: Cumulative byte ceiling for the warmed cache.
     """
+    total = 0
     for url in urls:
         try:
             path = fetch.fetch_url(url)
         except Exception as e:  # noqa: BLE001
             sys.exit(f"ERROR: fetch failed for {url}: {e}")
+        total += Path(path).stat().st_size
         print(f"  cached: {url} -> {path}")
+        if total > max_bytes:
+            sys.exit(
+                f"ERROR: warmed cache reached {total / 1024**3:.2f} GiB, "
+                f"exceeding the {max_bytes / 1024**3:.2f} GiB limit "
+                f"(after fetching {url})."
+            )
 
 
 def main(argv: list[str] | None = None) -> None:
