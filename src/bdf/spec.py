@@ -838,14 +838,16 @@ class ColumnOntology:
         self._adopt(self.__class__.from_graph(g))
 
     def load_version(self, version: str, *, refresh: bool = False) -> None:
-        """Load a specific versioned ontology from cache.
+        """Load a specific versioned ontology, fetching it if not cached.
 
         Args:
             version: Version string to load (e.g. '1.0.0').
-            refresh: If True, ignore cached version.
+            refresh: If True, ignore the cache and re-fetch the release.
 
         Raises:
-            ValueError: If version not found in cache.
+            requests.HTTPError: If the release URL request fails.
+            RuntimeError: If the fetched ontology cannot be parsed, or its
+                versionInfo does not match the requested release.
         """
         cache_dir = _ontology_cache_dir()
         versioned = cache_dir / f"bdf-ontology-v{version}.ttl"
@@ -857,11 +859,12 @@ class ColumnOntology:
                 self._adopt(self.__class__.from_graph(g))
                 return
 
-        available = sorted(p.name for p in cache_dir.glob("bdf-ontology-v*.ttl"))
-        raise ValueError(
-            f"Version '{version}' not found in cache. "
-            f"Available: {available}. Use load_latest() to fetch and cache a version."
-        )
+        self.get_snapshot(dest=versioned, version=version)
+        data = versioned.read_bytes()
+        g = _graph_from_bytes(data, format="turtle")
+        if g is None:
+            raise RuntimeError(f"Failed to parse fetched ontology release {version!r}")
+        self._adopt(self.__class__.from_graph(g))
 
 
 def _update_snapshot_cli() -> None:
