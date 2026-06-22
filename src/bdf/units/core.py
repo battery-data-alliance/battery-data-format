@@ -75,6 +75,12 @@ _UNIT_ALIAS = {
     "per": "/",
 }
 
+# Tokens Pint recognises as angular units (1 cycle = 1 turn = 1 revolution = 2*pi
+# rad) but which, in a cycler column header, always denote a dimensionless count --
+# never an angle. Never accept them as a unit, or a cycle/turn count would be
+# silently scaled by 2*pi.
+_ANGULAR_UNIT_TOKENS = frozenset({"cycle", "cycles", "turn", "turns", "revolution", "revolutions"})
+
 
 _SPLIT = re.compile(r"[ _\-]+")
 _HASH = re.compile(r"^(?P<name>.+?)#(?P<unit>.+)$")
@@ -125,16 +131,25 @@ def parse_from_header(header: str) -> Tuple[str, Optional[str], str]:
         return base, unit, "paren"
 
     tokens = [t for t in _SPLIT.split(h.lower()) if t]
-    # try longest -> shortest suffix; accept only if Pint can parse the unit
+    # Try longest -> shortest suffix; accept only if Pint can parse the unit. Two
+    # guards stop a quantity *name* from being misread as a unit:
+    #   1. require a non-empty base remainder, so a suffix never consumes the whole
+    #      header (a bare "Cycle"/"Bar"/"V" column is a name, not a unit); and
+    #   2. reject angular tokens (cycle/turn/revolution), which Pint scales by 2*pi
+    #      but which always mean a dimensionless count here (e.g. a "z cycle" count).
+    # See test_parse_from_header.
     for i in range(min(6, len(tokens)), 0, -1):
-        unit = _norm_tokens(tokens[-i:])
+        base_tokens = tokens[:-i]
+        unit_tokens = tokens[-i:]
+        if not base_tokens or any(t in _ANGULAR_UNIT_TOKENS for t in unit_tokens):
+            continue
+        unit = _norm_tokens(unit_tokens)
         if not unit:
             continue
         try:
             if has_pint:
                 ureg.Unit(unit)  # validate with Pint
-            base = " ".join(tokens[:-i]) or h
-            return base, unit, "snake"
+            return " ".join(base_tokens), unit, "snake"
         except Exception:
             continue
 
