@@ -53,9 +53,7 @@ _UNIT_ALIAS = {
 # rad) but which, in a cycler column header, always denote a dimensionless count --
 # never an angle. Never accept them as a unit, or a cycle/turn count would be
 # silently scaled by 2*pi.
-_ANGULAR_UNIT_TOKENS = frozenset(
-    {"cycle", "cycles", "turn", "turns", "revolution", "revolutions"}
-)
+_ANGULAR_UNIT_TOKENS = frozenset({"cycle", "cycles", "turn", "turns", "revolution", "revolutions"})
 
 
 _SPLIT = re.compile(r"[ _\-]+")

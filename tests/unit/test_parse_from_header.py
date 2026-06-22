@@ -28,7 +28,7 @@ def test_bare_quantity_name_is_not_parsed_as_a_unit(header: str) -> None:
         "Cycle Count / 1",
         "Step Count",
         "Step Index / 1",
-        "z cycle",          # Biologic cycle-count synonym: unit word follows a prefix
+        "z cycle",  # Biologic cycle-count synonym: unit word follows a prefix
         "cell turn",
         "3 revolutions",
     ],
@@ -39,9 +39,9 @@ def test_count_headers_never_acquire_an_angular_unit(header: str) -> None:
     # count would be scaled by 2*pi during conversion.
     _base, unit, _source = parse_from_header(header)
     if unit is not None:
-        assert not any(
-            tok in unit.lower() for tok in ("cycle", "turn", "revolution", "rad")
-        ), f"{header!r} acquired an angular unit {unit!r}"
+        assert not any(tok in unit.lower() for tok in ("cycle", "turn", "revolution", "rad")), (
+            f"{header!r} acquired an angular unit {unit!r}"
+        )
 
 
 def test_explicit_units_still_parse() -> None:
