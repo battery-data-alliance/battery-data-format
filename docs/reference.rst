@@ -22,14 +22,14 @@ Python API
    :recursive:
 
    bdf.read
-   bdf.parse
+   bdf.load
+   bdf.save
    bdf.normalize
    bdf.validate
    bdf.clean
    bdf.plot
    bdf.explore
    bdf.detect
-   bdf.plugins
    bdf.ingest
    bdf.datasets
    bdf.load_registry

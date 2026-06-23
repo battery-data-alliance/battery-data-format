@@ -60,7 +60,6 @@ NON_DATA_URLS: frozenset[str] = frozenset(
         # SPARQL / vocabulary IRIs, not network reads.
         "https://schema.org/Dataset",
         "https://schema.org/name",
-        "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_capacity_ah",
     }
 )
 """URLs the notebooks reference but do **not** fetch as data files.
