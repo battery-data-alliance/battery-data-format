@@ -20,6 +20,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    env:
+      BDF_CACHE_DIR: ${{ github.workspace }}/.bdf-cache
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -30,7 +32,19 @@ jobs:
         run: uv sync --all-extras
       - name: Check generated docs are in sync with ontology snapshot
         run: uv run python scripts/generate_docs.py --check
+      - name: Compute content-addressed cache key (offline)
+        id: key
+        run: echo "k=bdf-data-$(uv run python scripts/warm_cache.py --emit-key)" >> "$GITHUB_OUTPUT"
+      - name: Restore/save warmed cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.bdf-cache
+          key: ${{ steps.key.outputs.k }}
+      - name: Warm cache
+        run: uv run python scripts/warm_cache.py
       - name: Build docs (link check skipped)
+        env:
+          MPLBACKEND: Agg
         run: uv run --all-extras sphinx-build -b html docs docs/_build/html
       - name: Build package and twine check
         run: |
