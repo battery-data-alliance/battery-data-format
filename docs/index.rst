@@ -5,6 +5,7 @@
    Get Started <get_started>
    Examples <examples/index>
    User Guide <user_guide>
+   Supported Plugins <plugins>
    Reference <reference>
 
 Battery Data Format (bdf)
@@ -40,6 +41,13 @@ Check out these resources to get started!
         :octicon:`book;1em;sd-text-info`  User Guide
         ^^^^^^^^^^
         Formats, workflows, metadata, and registry
+
+    .. grid-item-card::
+        :link: plugins.html
+
+        :octicon:`plug;1em;sd-text-info`  Supported Plugins
+        ^^^^^^^^^^^^^^^^^
+        Vendor formats, parsers, and column synonyms
 
     .. grid-item-card::
         :link: reference.html
