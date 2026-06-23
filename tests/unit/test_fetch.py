@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import bdf.fetch as fetch
-from bdf.fetch import _cache_dir, _safe_cache_name, fetch_url
+from bdf.fetch import _safe_cache_name, cache_dir, fetch_url
 
 
 class TestSafeCacheName:
@@ -55,23 +55,23 @@ class TestSafeCacheName:
 
 
 class TestCacheDir:
-    """Tests for _cache_dir's BDF_CACHE_DIR override."""
+    """Tests for cache_dir's BDF_CACHE_DIR override."""
 
     def test_override_honoured_when_set(self, tmp_path: Path, monkeypatch) -> None:
         override = tmp_path / "cache"
         monkeypatch.setenv("BDF_CACHE_DIR", str(override))
-        assert _cache_dir() == override
+        assert cache_dir() == override
         assert override.is_dir()
 
     def test_fallback_when_unset(self, monkeypatch) -> None:
         monkeypatch.delenv("BDF_CACHE_DIR", raising=False)
         monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: "/tmp/bdf-fallback-xyz")
-        assert _cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
+        assert cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
 
     def test_fallback_when_empty(self, monkeypatch) -> None:
         monkeypatch.setenv("BDF_CACHE_DIR", "")
         monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: "/tmp/bdf-fallback-xyz")
-        assert _cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
+        assert cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
 
     def test_cache_reuse_no_redownload(self, tmp_path: Path, monkeypatch) -> None:
         monkeypatch.setenv("BDF_CACHE_DIR", str(tmp_path))

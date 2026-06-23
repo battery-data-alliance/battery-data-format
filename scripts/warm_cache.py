@@ -10,7 +10,7 @@ Usage::
     python scripts/warm_cache.py            # sequential fetch into the cache
     python scripts/warm_cache.py --emit-key # print URL-set hash, no network
 
-Honours ``BDF_CACHE_DIR`` (via ``bdf.fetch._cache_dir``) so the cache path is
+Honours ``BDF_CACHE_DIR`` (via ``bdf.fetch.cache_dir``) so the cache path is
 deterministic and shareable with ``actions/cache``.
 """
 
@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> None:
         print(emit_key(urls))
         return
 
-    print(f"Warming cache for {len(urls)} URL(s) into {fetch._cache_dir()}")
+    print(f"Warming cache for {len(urls)} URL(s) into {fetch.cache_dir()}")
     warmed_bytes = 0
     warm(urls, max_bytes=_MAX_CACHE_BYTES)
     warmed_bytes += warm_ontology_versions(PINNED_ONTOLOGY_VERSIONS, max_bytes=_MAX_CACHE_BYTES - warmed_bytes)

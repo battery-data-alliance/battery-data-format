@@ -231,9 +231,9 @@ def _ontology_cache_dir() -> Path:
     Returns:
         Path to the cache directory.
     """
-    from .fetch import _cache_dir
+    from .fetch import cache_dir
 
-    return _cache_dir("bdf-ontology")
+    return cache_dir("bdf")
 
 
 def _ontology_version_slug(g: Any, raw_bytes: bytes) -> str:
