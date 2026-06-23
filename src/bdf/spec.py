@@ -221,14 +221,19 @@ def _graph_from_bytes(data: bytes, format: str | None = None) -> Graph:
 
 
 def _ontology_cache_dir() -> Path:
-    """Return the user cache directory for bdf ontology files.
+    """Return the cache directory for bdf ontology files.
+
+    Honours ``BDF_CACHE_DIR`` (the same env var ``bdf.fetch`` uses) so CI can
+    warm versioned ontology releases into the same actions/cache-backed
+    directory it restores for other network fixtures, instead of a
+    platformdirs path that never survives across CI jobs/runners.
 
     Returns:
-        Path to the user cache directory.
+        Path to the cache directory.
     """
-    from platformdirs import user_cache_dir
+    from .fetch import _cache_dir
 
-    return Path(user_cache_dir("bdf"))
+    return _cache_dir("bdf-ontology")
 
 
 def _ontology_version_slug(g: Any, raw_bytes: bytes) -> str:
