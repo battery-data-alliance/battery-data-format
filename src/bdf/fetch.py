@@ -130,6 +130,11 @@ def fetch_url(
                 return dest
             except Exception as e:
                 last_err = e
+                # A blocked socket (CI with --block-cached-sockets on a cache
+                # miss) is not transient: fail fast instead of burning the
+                # retry backoff. Match by name to avoid a pytest_socket import.
+                if type(e).__name__ == "SocketBlockedError":
+                    raise
                 # small backoff on transient failures
                 time.sleep(0.8 * (attempt + 1))
         # try next alt URL

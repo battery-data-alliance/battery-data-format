@@ -1,0 +1,709 @@
+{
+  "@context": [
+    "https://w3id.org/emmo/domain/battery/context",
+    {
+      "bdf": "https://w3id.org/bdf/",
+      "csvw": "http://www.w3.org/ns/csvw#",
+      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@id": "https://w3id.org/digibatt/battery-data/panasonic/ncr18650pf/201707/wykht8",
+  "@type": [
+    "schema:Product",
+    "Battery"
+  ],
+  "hasNegativeElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "Graphite",
+        "rdfs:label": "Graphite"
+      }
+    ],
+    "rdfs:label": "negative electrode"
+  },
+  "hasPositiveElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "LithiumNickelCobaltAluminiumOxide",
+        "rdfs:label": "LithiumNickelCobaltAluminiumOxide"
+      }
+    ],
+    "rdfs:label": "positive electrode"
+  },
+  "hasProperty": [
+    {
+      "@type": "NominalVoltage",
+      "hasMeasurementUnit": "emmo:Volt",
+      "hasNumberValue": 3.6,
+      "rdfs:label": "nominal voltage"
+    },
+    {
+      "@type": "RatedCapacity",
+      "hasMeasurementUnit": "emmo:AmpereHour",
+      "hasNumberValue": 2.9,
+      "rdfs:label": "rated capacity"
+    },
+    {
+      "@type": "RatedEnergy",
+      "hasMeasurementUnit": "emmo:WattHour",
+      "hasNumberValue": 9.9,
+      "rdfs:label": "rated energy"
+    },
+    {
+      "@type": "Mass",
+      "hasMeasurementUnit": "emmo:Gram",
+      "hasNumberValue": 47.5,
+      "rdfs:label": "mass"
+    },
+    {
+      "@type": "Volume",
+      "hasMeasurementUnit": "emmo:Litre",
+      "hasNumberValue": 0.0165,
+      "rdfs:label": "volume"
+    }
+  ],
+  "schema:additionalProperty": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "IEC code",
+      "schema:propertyID": "bdf:iec_code",
+      "schema:value": "INR18/650"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Chemistry",
+      "schema:propertyID": "bdf:chemistry",
+      "schema:value": "li-ion"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Form factor",
+      "schema:propertyID": "bdf:form_factor",
+      "schema:value": "cylindrical"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Nominal voltage",
+      "schema:propertyID": "bdf:nominal_voltage_v",
+      "schema:unitText": "V",
+      "schema:value": 3.6
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated capacity",
+      "schema:propertyID": "bdf:rated_capacity_ah",
+      "schema:unitText": "Ah",
+      "schema:value": 2.9
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated energy",
+      "schema:propertyID": "bdf:rated_energy_wh",
+      "schema:unitText": "Wh",
+      "schema:value": 9.9
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Mass",
+      "schema:propertyID": "bdf:mass_g",
+      "schema:unitText": "g",
+      "schema:value": 47.5
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Volume",
+      "schema:propertyID": "bdf:volume_l",
+      "schema:unitText": "L",
+      "schema:value": 0.0165
+    }
+  ],
+  "schema:category": "li-ion",
+  "schema:identifier": [
+    "wykht8",
+    "INR18/650"
+  ],
+  "schema:manufacturer": {
+    "@type": "schema:Organization",
+    "schema:name": "Panasonic"
+  },
+  "schema:model": "NCR18650PF",
+  "schema:name": "panasonic-ncr18650pf-201707-wykht8",
+  "schema:subjectOf": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170309__CHARGE_1C_1__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170309__CHARGE_1C_2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170309__CHARGE_1C_REPEAT__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170309__DISCHARGE_1C_1__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170309__DISCHARGE_1C_REPEAT__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170309__PAUSE_REPEAT__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170310__DISCHARGE_1C_2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170311__CHARGE_1C_3__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170311__HPPC_DISCHARGE_BETWEEN_PULSES__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170311__HPPC_PULSES_C2_1C_2C_4C_6C__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170311__TESTSEQ_TS003014__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170312__CHARGE_1C_2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170318__CHARGE_1C_1__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170318__DRIVE_CYCLE_CYCLE1__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170318__PAUSE_1__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__CHARGE_1C_2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__CHARGE_1C_3__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__CHARGE_1C_4__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__DRIVE_CYCLE_CYCLE2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__DRIVE_CYCLE_CYCLE3__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__DRIVE_CYCLE_CYCLE4__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__PAUSE_2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__PAUSE_3__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170319__PAUSE_4__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__CHARGE_1C_1__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__CHARGE_1C_2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__CHARGE_1C_2_DUP2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__DRIVE_CYCLE_HWFET_A__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__DRIVE_CYCLE_HWFET_B__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__DRIVE_CYCLE_US06__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__PAUSE_1__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__PAUSE_2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__PAUSE_2_DUP2__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170320__PAUSE_3__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__CHARGE_1C_3__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__CHARGE_1C_4__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__CHARGE_1C_5__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__DRIVE_CYCLE_LA92__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__DRIVE_CYCLE_NN__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__DRIVE_CYCLE_UDDS__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__PAUSE_4__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170321__PAUSE_5__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__DRIVE_CYCLE_COMBINED_US06_HWFET_UDDS_LA92_NN__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__DRIVE_CYCLE_HWFET__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__DRIVE_CYCLE_LA92__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__DRIVE_CYCLE_NN__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__DRIVE_CYCLE_UDDS__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__DRIVE_CYCLE_US06__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__HPPC_DISCHARGE_BETWEEN_PULSES__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170327__HPPC_PULSES_C2_1C_2C_4C_6C__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170328__CHARGE_1C_1__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170328__CHARGE_1C_1_DBD0F3__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170328__CHARGE_1C_2A__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170328__DRIVE_CYCLE_CYCLE1__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170328__DRIVE_CYCLE_CYCLE2__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170328__PAUSE_1__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170328__PAUSE_2__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170405__CHARGE_1C_2__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170405__CHARGE_1C_3__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170405__DRIVE_CYCLE_CYCLE3__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170405__DRIVE_CYCLE_CYCLE4__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170405__PAUSE_3__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170405__PAUSE_4__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170406__CHARGE_1C_4__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170406__PAUSE_5__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170427__CHARGE_1C_1A__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170427__HPPC_DISCHARGE_BETWEEN_PULSES__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170429__CHARGE_1C_2A__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170508__OCV_C20_END_OF_TESTS__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170520__DISCHARGE_PULSE__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170520__HPPC_DISCHARGE_BETWEEN_PULSES_4995DA__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170520__HPPC_DISCHARGE_BETWEEN_PULSES__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170520__HPPC_PULSES_C2_1C_2C_4C_6C__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170520__PRECHARGE__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170521__CHARGE_1C_2A__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170522__HPPC_DISCHARGE_BETWEEN_PULSES__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170526__CHARGE_1C_2A__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170530__CHARGE_1C_1__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170530__CHARGE_1C_2A__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170530__DRIVE_CYCLE_CYCLE1__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170530__DRIVE_CYCLE_CYCLE2__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__CHARGE_1C_2__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__CHARGE_1C_3__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__DRIVE_CYCLE_COMBINED_LA92_NN__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__DRIVE_CYCLE_CYCLE3__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__DRIVE_CYCLE_CYCLE4__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__DRIVE_CYCLE_LA92__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__DRIVE_CYCLE_NN__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__PAUSE_3__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170601__PAUSE_4__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__CHARGE_1C_4__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__CHARGE_1C_5__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__CHARGE_1C_6__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__CHARGE_1C_7__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__DRIVE_CYCLE_HWFET__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__DRIVE_CYCLE_UDDS__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__DRIVE_CYCLE_US06__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__PAUSE_5__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__PAUSE_6__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170602__PAUSE_7__0degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__DRIVE_CYCLE_COMBINED_US06_HWFET_UDDS_LA92__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__DRIVE_CYCLE_HWFET__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__DRIVE_CYCLE_LA92__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__DRIVE_CYCLE_UDDS__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__DRIVE_CYCLE_US06__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__HPPC_DISCHARGE_BETWEEN_PULSES__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__HPPC_PULSES_C2_1C_2C_4C_6C__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170607__PRECHARGE__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170608__CHARGE_1C_1A__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__CHARGE_1C_1__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__CHARGE_1C_2__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__CHARGE_1C_2A__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__DRIVE_CYCLE_CYCLE1__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__DRIVE_CYCLE_CYCLE2__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__PAUSE_1__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__PAUSE_2__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170610__PAUSE_3__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170611__CHARGE_1C_3__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170611__DRIVE_CYCLE_CYCLE3__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170611__DRIVE_CYCLE_CYCLE4__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170611__PAUSE_4__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170614__CHARGE_1C_8__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170614__CHARGE_1C_9__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170614__DRIVE_CYCLE_NN__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170614__PAUSE_9__-10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170615__HPPC_DISCHARGE_BETWEEN_PULSES__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170615__HPPC_PULSES_C2_1C_2C_4C_6C__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170623__CHARGE_1C_2A__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170623__DRIVE_CYCLE_COMBINED_HWFET_UDDS_LA92_NN__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170623__DRIVE_CYCLE_HWFET__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170623__DRIVE_CYCLE_LA92__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170623__DRIVE_CYCLE_NN__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170623__DRIVE_CYCLE_UDDS__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__CHARGE_1C_1__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__CHARGE_1C_2__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__CHARGE_1C_3__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__DRIVE_CYCLE_CYCLE1__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__DRIVE_CYCLE_CYCLE2__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__DRIVE_CYCLE_CYCLE3__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__PAUSE_1__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__PAUSE_2__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170624__PAUSE_3__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170625__CHARGE_1C_4__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170625__CHARGE_1C_5__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170625__DRIVE_CYCLE_CYCLE4__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170625__DRIVE_CYCLE_US06__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170625__PAUSE_4__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170625__PAUSE_5__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170630__CHARGE_1C_1__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170630__DRIVE_CYCLE_COMBINED_HWFET_UDDS_LA92_NN_TRISE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170630__DRIVE_CYCLE_CYCLE1_TRISE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170630__PAUSE_1__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170630__PAUSE_2__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170630__PRECHARGE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__CHARGE_1C_2__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__CHARGE_1C_3__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__CHARGE_1C_4__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__CHARGE_1C_5__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__DRIVE_CYCLE_CYCLE2_TRISE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__DRIVE_CYCLE_CYCLE3_TRISE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__DRIVE_CYCLE_CYCLE4_TRISE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__DRIVE_CYCLE_US06_TRISE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__PAUSE_3__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__PAUSE_4__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170701__PAUSE_5__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170704__DRIVE_CYCLE_CYCLE1TO4_TRISE_PAUSE__-20degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170709__CHARGE_1C_1__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170709__DRIVE_CYCLE_COMBINED_HWFET_UDDS_LA92_NN_TRISE__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170709__DRIVE_CYCLE_CYCLE1_TRISE__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170709__PAUSE_1__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170709__PAUSE_2__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170709__PRECHARGE__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__CHARGE_1C_2__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__CHARGE_1C_3__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__CHARGE_1C_4__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__CHARGE_1C_5__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__DRIVE_CYCLE_CYCLE2_TRISE__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__DRIVE_CYCLE_CYCLE3_TRISE__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__DRIVE_CYCLE_CYCLE4_TRISE__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__PAUSE_3__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__PAUSE_4__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170710__PAUSE_5__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170719__DRIVE_CYCLE_CYCLE1TO4_TRISE_PAUSE__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170722__CHARGE_1C_1__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170722__CHARGE_1C_2__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170722__DISCHARGE_1C_1__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170723__CHARGE_1C_REPEAT__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170723__DISCHARGE_1C_REPEAT__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170723__PAUSE_REPEAT__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170724__CHARGE_1C_3__10degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/panasonic/ncr18650pf/201707/data/UW__panasonic-ncr18650pf-201707-wykht8__20170724__DISCHARGE_1C_2__10degC.bdf.parquet#dataset"
+    }
+  ]
+}

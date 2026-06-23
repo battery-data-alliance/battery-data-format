@@ -1,0 +1,142 @@
+{
+  "@context": [
+    "https://w3id.org/emmo/domain/battery/context",
+    {
+      "bdf": "https://w3id.org/bdf/",
+      "csvw": "http://www.w3.org/ns/csvw#",
+      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+      "schema": "https://schema.org/"
+    }
+  ],
+  "@id": "https://w3id.org/digibatt/battery-data/google/g20m7/202512/kcsb0s",
+  "@type": [
+    "schema:Product",
+    "Battery"
+  ],
+  "hasNegativeElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "Graphite",
+        "rdfs:label": "Graphite"
+      }
+    ],
+    "rdfs:label": "negative electrode"
+  },
+  "hasPositiveElectrode": {
+    "@type": "Electrode",
+    "hasActiveMaterial": [
+      {
+        "@type": "Cobalt",
+        "rdfs:label": "Cobalt"
+      }
+    ],
+    "rdfs:label": "positive electrode"
+  },
+  "hasProperty": [
+    {
+      "@type": "NominalVoltage",
+      "hasMeasurementUnit": "emmo:Volt",
+      "hasNumberValue": 3.9,
+      "rdfs:label": "nominal voltage"
+    },
+    {
+      "@type": "RatedCapacity",
+      "hasMeasurementUnit": "emmo:AmpereHour",
+      "hasNumberValue": 4.835,
+      "rdfs:label": "rated capacity"
+    },
+    {
+      "@type": "RatedEnergy",
+      "hasMeasurementUnit": "emmo:WattHour",
+      "hasNumberValue": 18.8,
+      "rdfs:label": "rated energy"
+    },
+    {
+      "@type": "Mass",
+      "hasMeasurementUnit": "emmo:Gram",
+      "hasNumberValue": 63,
+      "rdfs:label": "mass"
+    },
+    {
+      "@type": "Volume",
+      "hasMeasurementUnit": "emmo:Litre",
+      "hasNumberValue": 0.02925,
+      "rdfs:label": "volume"
+    }
+  ],
+  "schema:additionalProperty": [
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "IEC code",
+      "schema:propertyID": "bdf:iec_code",
+      "schema:value": "ICP6/65/75"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Chemistry",
+      "schema:propertyID": "bdf:chemistry",
+      "schema:value": "li-ion"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Form factor",
+      "schema:propertyID": "bdf:form_factor",
+      "schema:value": "prismatic"
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Nominal voltage",
+      "schema:propertyID": "bdf:nominal_voltage_v",
+      "schema:unitText": "V",
+      "schema:value": 3.9
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated capacity",
+      "schema:propertyID": "bdf:rated_capacity_ah",
+      "schema:unitText": "Ah",
+      "schema:value": 4.835
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Rated energy",
+      "schema:propertyID": "bdf:rated_energy_wh",
+      "schema:unitText": "Wh",
+      "schema:value": 18.8
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Mass",
+      "schema:propertyID": "bdf:mass_g",
+      "schema:unitText": "g",
+      "schema:value": 63
+    },
+    {
+      "@type": "schema:PropertyValue",
+      "schema:name": "Volume",
+      "schema:propertyID": "bdf:volume_l",
+      "schema:unitText": "L",
+      "schema:value": 0.02925
+    }
+  ],
+  "schema:category": "li-ion",
+  "schema:identifier": [
+    "kcsb0s",
+    "ICP6/65/75"
+  ],
+  "schema:manufacturer": {
+    "@type": "schema:Organization",
+    "schema:name": "Google"
+  },
+  "schema:model": "G20M7",
+  "schema:name": "google-g20m7-202512-kcsb0s",
+  "schema:subjectOf": [
+    {
+      "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__C5__25degC.bdf.parquet#dataset"
+    },
+    {
+      "@id": "https://github.com/digibatt/battery-data/google/g20m7/202512/data/SINTEF__google-g20m7-202512-kcsb0s__20260109__ICI__25degC.bdf.parquet#dataset"
+    }
+  ]
+}

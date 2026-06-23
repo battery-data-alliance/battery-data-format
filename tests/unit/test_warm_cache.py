@@ -20,12 +20,15 @@ import hashlib
 import sys
 from pathlib import Path
 
+import pytest
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from examples.remote_sources import REMOTE_DATA_SOURCES  # noqa: E402
-from scripts.warm_cache import emit_key, url_sources  # noqa: E402
+from scripts import warm_cache  # noqa: E402
+from scripts.warm_cache import emit_key, url_sources, warm  # noqa: E402
 from tests.integration.test_cases import ALL_CASES  # noqa: E402
 
 # A couple of known files in the Zenodo reference record (18986774). Pinned here
@@ -89,3 +92,48 @@ class TestEmitKey:
         urls = url_sources()
         changed = sorted([*urls, "https://example.com/new-file.csv"])
         assert emit_key(changed) != emit_key(urls)
+
+
+class TestWarmSizeGuard:
+    """Tests for the cumulative cache-size ceiling enforced by ``warm``.
+
+    ``warm`` must abort (non-zero exit) once the total bytes of the fetched
+    files exceed its ``max_bytes`` ceiling, so a runaway data set fails the CI
+    warm step before the oversized cache is ever saved to ``actions/cache``.
+    """
+
+    @staticmethod
+    def _fake_fetch(monkeypatch, tmp_path: Path, size_per_file: int):
+        """Patch ``fetch.fetch_url`` to write a file of ``size_per_file`` bytes.
+
+        Args:
+            monkeypatch: Pytest monkeypatch fixture.
+            tmp_path: Directory to write the fake cached files into.
+            size_per_file: Byte length of each written file.
+        """
+
+        def _fetch(url: str, *args, **kwargs) -> Path:
+            dest = tmp_path / warm_cache.fetch._safe_cache_name(url, None)
+            dest.write_bytes(b"\0" * size_per_file)
+            return dest
+
+        monkeypatch.setattr(warm_cache.fetch, "fetch_url", _fetch)
+
+    def test_passes_when_total_under_limit(self, monkeypatch, tmp_path) -> None:
+        self._fake_fetch(monkeypatch, tmp_path, size_per_file=10)
+        urls = ["https://example.com/a.csv", "https://example.com/b.csv"]
+        # 20 bytes total, limit 100 -> no exit.
+        warm(urls, max_bytes=100)
+
+    def test_exits_when_total_exceeds_limit(self, monkeypatch, tmp_path) -> None:
+        self._fake_fetch(monkeypatch, tmp_path, size_per_file=60)
+        urls = ["https://example.com/a.csv", "https://example.com/b.csv"]
+        # First file 60 <= 100, second pushes total to 120 > 100 -> exit.
+        with pytest.raises(SystemExit) as exc:
+            warm(urls, max_bytes=100)
+        assert "exceeding" in str(exc.value)
+
+    def test_exits_on_first_oversized_file(self, monkeypatch, tmp_path) -> None:
+        self._fake_fetch(monkeypatch, tmp_path, size_per_file=200)
+        with pytest.raises(SystemExit):
+            warm(["https://example.com/big.csv"], max_bytes=100)
