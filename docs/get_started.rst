@@ -62,7 +62,7 @@ Quickstart notebook
 Open the rendered notebook:
 
 - :doc:`examples/quickstart`
-- :download:`Download the notebook <../examples/quickstart.ipynb>`
+- :download:`Download the notebook <examples/quickstart.ipynb>`
 
 First steps
 -----------

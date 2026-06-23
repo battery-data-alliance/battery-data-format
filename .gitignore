@@ -62,11 +62,11 @@ docs/_autosummary/
 
 # Project-specific data files
 ./*.parquet
-examples/**/*.parquet
+docs/examples/**/*.parquet
 out/
-examples/out/
+docs/examples/out/
 **/.bdf.state.json
-examples/in/raw_data_collection/g20m7/**
+docs/examples/in/raw_data_collection/g20m7/**
 examples/in/raw_data_collection/nacr32140mp10/**
 **/metadata.jsonld
 # committed registry snapshot used by examples/registry.ipynb (offline / CI)

@@ -84,6 +84,9 @@ docs = [
   "pydata-sphinx-theme>=0.15",
   "sphinx-autobuild>=2024.4.16",
   "sphinx-design>=0.6",
+  "myst-nb>=1.1",
+  "jupyter-cache>=1.0",
+  "ipykernel>=6.29",
 ]
 excel = [
     "fastexcel>=0.20.2",

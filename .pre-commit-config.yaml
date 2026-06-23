@@ -14,11 +14,11 @@ repos:
       - id: ruff-check
         types_or: [ python, pyi, jupyter ]
         args: [ --fix ]
-        exclude: ^examples/
+        exclude: ^docs/examples/
       # Run the formatter.
       - id: ruff-format
         types_or: [ python, pyi, jupyter ]
-        exclude: ^examples/
+        exclude: ^docs/examples/
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.20.2
     hooks:

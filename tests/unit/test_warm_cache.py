@@ -26,7 +26,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from examples.remote_sources import REMOTE_DATA_SOURCES  # noqa: E402
+from docs.examples.remote_sources import REMOTE_DATA_SOURCES  # noqa: E402
 from scripts import warm_cache  # noqa: E402
 from scripts.warm_cache import emit_key, url_sources, warm  # noqa: E402
 from tests.integration.test_cases import ALL_CASES  # noqa: E402

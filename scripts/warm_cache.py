@@ -31,7 +31,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from bdf import fetch  # noqa: E402
-from examples.remote_sources import REMOTE_DATA_SOURCES  # noqa: E402
+from docs.examples.remote_sources import REMOTE_DATA_SOURCES  # noqa: E402
 from tests.integration.test_cases import ALL_CASES  # noqa: E402
 
 
@@ -39,7 +39,7 @@ def url_sources() -> list[str]:
     """Return the sorted, de-duplicated remote URLs the integration suite fetches.
 
     Combines the integration ``ALL_CASES`` URL sources with the example
-    notebooks' declared remote data sources (``examples/remote_sources.py``), so
+    notebooks' declared remote data sources (``docs/examples/remote_sources.py``), so
     warming covers both the parser/detection cases and the network-marked
     notebook tests.
 
