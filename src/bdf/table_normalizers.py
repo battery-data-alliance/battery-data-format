@@ -25,7 +25,22 @@ from bdf.spec import COLUMN_ONTOLOGY, get_unit_conversion
 _logger = logging.getLogger(__name__)
 
 _DATE_COMPONENT_RE = re.compile(r"%[YymbBdej]")
+_TZ_COMPONENT_RE = re.compile(r"%:?[zZ]")
 _UNIT_CAPTURE = r"([A-Za-z0-9./]+)"
+
+
+def _split_tz_fmts(fmts: Sequence[str]) -> tuple[list[str], list[str]]:
+    """Split format strings into (tz_aware, naive) by embedded offset directive.
+
+    Args:
+        fmts: Datetime format strings to classify.
+
+    Returns:
+        Tuple of (formats with %z/%:z/%Z, formats without).
+    """
+    tz_aware = [f for f in fmts if _TZ_COMPONENT_RE.search(f)]
+    naive = [f for f in fmts if not _TZ_COMPONENT_RE.search(f)]
+    return tz_aware, naive
 
 
 class Syn(BaseModel):
@@ -170,11 +185,13 @@ class ResolvedColumn(BaseModel):
                     )
         return None
 
-    def get_expr(self, mr_name: str) -> pl.Expr:
+    def get_expr(self, mr_name: str, tz: str = "UTC") -> pl.Expr:
         """Build polars expression for column transformation with unit conversion and dtype casting.
 
         Args:
             mr_name: Machine-readable column name (e.g. 'voltage_volt').
+            tz: IANA timezone applied to naive (no embedded offset) datetime formats when
+                ``mr_name == "unix_time_second"``; ignored otherwise. Defaults to ``"UTC"``.
 
         Returns:
             Polars expression that applies scale, offset, and dtype conversion.
@@ -186,8 +203,10 @@ class ResolvedColumn(BaseModel):
             dur_fmts = [f for f in self.datetime_fmts if not _DATE_COMPONENT_RE.search(f)]
             parts: list[pl.Expr] = []
             if dt_fmts:
-                dt_expr = _datetime_unix_expr if mr_name == "unix_time_second" else _datetime_elapsed_expr
-                parts.append(dt_expr(src, dt_fmts))
+                if mr_name == "unix_time_second":
+                    parts.append(_datetime_unix_expr(src, dt_fmts, tz))
+                else:
+                    parts.append(_datetime_elapsed_expr(src, dt_fmts))
             if dur_fmts:
                 parts.append(_duration_str_expr(src))
             expr = pl.coalesce(parts) if len(parts) > 1 else parts[0]
@@ -205,24 +224,36 @@ class ResolvedColumn(BaseModel):
         return expr.alias(label)
 
 
-def _datetime_unix_expr(src: str, fmts: list[str]) -> pl.Expr:
+def _datetime_unix_expr(src: str, fmts: list[str], tz: str = "UTC") -> pl.Expr:
     """Parse datetimes to unix timestamp seconds.
+
+    Formats with an embedded offset directive (``%z``/``%:z``/``%Z``) are parsed and
+    converted to epoch as-is, ignoring ``tz``. Formats without are localized to ``tz``
+    before conversion to epoch.
 
     Args:
         src: Source column name.
-        fmts: List of datetime format strings to try in order.
+        fmts: Datetime format strings to try, in order.
+        tz: IANA timezone applied to naive (no embedded offset) candidates. Defaults to ``"UTC"``.
 
     Returns:
         Polars expression that parses datetime strings and converts to unix timestamp seconds.
     """
+    tz_aware_fmts, naive_fmts = _split_tz_fmts(fmts)
     # timestamp() per candidate avoids coalesce supertype conflict (tz-aware vs tz-naive)
-    candidates = [pl.col(src).str.to_datetime(f, strict=False).dt.timestamp("us") for f in fmts]
+    candidates = [pl.col(src).str.to_datetime(f, strict=False).dt.timestamp("us") for f in tz_aware_fmts]
+    candidates += [
+        pl.col(src).str.to_datetime(f, strict=False).dt.replace_time_zone(tz).dt.timestamp("us") for f in naive_fmts
+    ]
     parsed = pl.coalesce(candidates) if len(candidates) > 1 else candidates[0]
     return parsed.cast(pl.Float64) / 1e6
 
 
 def _datetime_elapsed_expr(src: str, fmts: list[str]) -> pl.Expr:
     """Parse datetimes to seconds elapsed since first row.
+
+    The offset cancels out in the subtraction, so ``tz`` is irrelevant here and a fixed
+    ``"UTC"`` is used internally.
 
     Args:
         src: Source column name.
@@ -231,8 +262,25 @@ def _datetime_elapsed_expr(src: str, fmts: list[str]) -> pl.Expr:
     Returns:
         Polars expression that calculates seconds elapsed from the first row's timestamp.
     """
-    ts = _datetime_unix_expr(src, fmts)
+    ts = _datetime_unix_expr(src, fmts, "UTC")
     return ts - ts.first()
+
+
+def _validate_tz(tz: str) -> None:
+    """Validate ``tz`` against polars' own timezone database, raising a clean error.
+
+    Args:
+        tz: IANA timezone name to validate.
+
+    Raises:
+        ValueError: If ``tz`` is not a recognized IANA timezone name.
+    """
+    try:
+        pl.Series(["2024-01-01 00:00:00"]).str.to_datetime().dt.replace_time_zone(tz)
+    except pl.exceptions.ComputeError as e:
+        if "time zone" not in str(e).lower():
+            raise
+        raise ValueError(f"invalid tz {tz!r}: {e}") from e
 
 
 def _duration_str_expr(src: str) -> pl.Expr:
@@ -448,6 +496,7 @@ class TableNormalizer(BaseModel):
         include_optional: bool = True,
         extra_columns: dict[str, str] | None = None,
         validate: bool = True,
+        tz: str = "UTC",
     ) -> pl.LazyFrame:
         """Resolve headers → BDF columns, apply unit conversion, return df_out.
 
@@ -462,19 +511,35 @@ class TableNormalizer(BaseModel):
             extra_columns: Additional column rename mappings to apply.
             validate: Validate column names against the BDF ontology when True (default;
                 raises on missing required columns instead of warning).
+            tz: IANA timezone applied to naive (no embedded offset) ``unix_time_second``
+                datetime formats. Defaults to ``"UTC"``; emits a ``UserWarning`` when a
+                naive format is in play and ``tz`` is left at its default.
 
         Returns:
             Normalized dataframe in the same format as input.
 
         Raises:
+            ValueError: If ``tz`` is not a recognized IANA timezone name.
             BDFValidationError: If ``validate=True`` and required BDF columns are missing.
         """
+        _validate_tz(tz)
+
         headers = list(df.collect_schema().names())
 
         resolved = self.resolve(headers)
 
         if not include_optional:
             resolved = {mr: r for mr, r in resolved.items() if getattr(COLUMN_ONTOLOGY, mr).required}
+
+        unix_rc = resolved.get("unix_time_second")
+        if unix_rc is not None and unix_rc.datetime_fmts and tz == "UTC":
+            dt_fmts = [f for f in unix_rc.datetime_fmts if _DATE_COMPONENT_RE.search(f)]
+            if any(not _TZ_COMPONENT_RE.search(f) for f in dt_fmts):
+                warnings.warn(
+                    "tz defaulted to UTC; pass tz=... if data was recorded in a different timezone",
+                    UserWarning,
+                    stacklevel=3,
+                )
 
         exprs: list[pl.Expr] = []
 
@@ -485,7 +550,7 @@ class TableNormalizer(BaseModel):
                     resolved_column.source_header,
                 )
                 continue
-            exprs.append(resolved_column.get_expr(mr_name))
+            exprs.append(resolved_column.get_expr(mr_name, tz))
 
         if extra_columns:
             for src, out_name in extra_columns.items():
@@ -1008,6 +1073,7 @@ def normalize(
     normalizer: "TableNormalizer | dict[str, str] | None" = None,
     extra_columns: dict[str, str] | None = None,
     validate: bool = True,
+    tz: str = "UTC",
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
     """Map vendor columns to BDF canonical names with unit conversion and dtype casting.
 
@@ -1023,11 +1089,15 @@ def normalize(
         extra_columns: Additional column rename mappings to apply.
         validate: Validate column names against the BDF ontology when True (default;
             raises on missing required columns instead of warning).
+        tz: IANA timezone applied to naive ``unix_time_second`` datetime formats. Defaults
+            to ``"UTC"``; emits a ``UserWarning`` when a naive format is in play and ``tz``
+            is left at its default.
 
     Returns:
         Normalized dataframe in the same format as input.
 
     Raises:
+        ValueError: If ``tz`` is not a recognized IANA timezone name.
         BDFValidationError: If ``validate=True`` and required BDF columns are missing.
     """
     if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
@@ -1053,4 +1123,5 @@ def normalize(
         include_optional=include_optional,
         extra_columns=extra_columns,
         validate=validate,
+        tz=tz,
     )

@@ -906,6 +906,69 @@ class TestBDFNormalizer:
             assert bdf_score > vendor_score, f"BDF_NORMALIZER should outscore {name}"
 
 
+class TestTimezoneHandling:
+    """Naive vs tz-aware unix_time_second parsing under the tz parameter."""
+
+    def test_naive_format_localized_to_explicit_tz(self):
+        """Explicit non-UTC tz shifts unix_time_second by the correct offset vs UTC."""
+        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00"]})
+        out_utc = n.normalize(df, validate=False, tz="UTC")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            out_ny = n.normalize(df, validate=False, tz="America/New_York")
+        t_utc = out_utc["Unix Time / s"][0]
+        t_ny = out_ny["Unix Time / s"][0]
+        # America/New_York is UTC-4 in June (EDT): same wall clock parses to a later instant.
+        assert t_ny - t_utc == pytest.approx(4 * 3600.0)
+
+    def test_tz_aware_format_ignores_tz_argument(self):
+        """A format with an embedded offset (%:z) produces identical output regardless of tz."""
+        n = TableNormalizer(
+            unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S%:z",)),),
+        )
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00+02:00"]})
+        out_utc = n.normalize(df, validate=False, tz="UTC")
+        out_tokyo = n.normalize(df, validate=False, tz="Asia/Tokyo")
+        assert out_utc["Unix Time / s"][0] == pytest.approx(out_tokyo["Unix Time / s"][0])
+
+    def test_default_tz_warns_and_matches_legacy_utc_behavior(self):
+        """Default call (no tz) on a naive format warns and matches pre-change (UTC) output."""
+        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00"]})
+        with pytest.warns(UserWarning, match="tz defaulted to UTC"):
+            out = n.normalize(df, validate=False)
+        assert out["Unix Time / s"][0] == pytest.approx(1717243200.0)
+
+    def test_tz_aware_only_format_emits_no_warning(self, recwarn):
+        """An entirely offset-qualified format emits no timezone warning under default tz."""
+        n = TableNormalizer(
+            unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S%:z",)),),
+        )
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00+02:00"]})
+        n.normalize(df, validate=False)
+        assert not any("tz defaulted to UTC" in str(w.message) for w in recwarn.list)
+
+    def test_invalid_tz_raises_before_collect(self):
+        """An invalid tz raises ValueError immediately from normalize(), before any lazy collect."""
+        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        lf = pl.LazyFrame({"ts": ["2024-06-01 12:00:00"]})
+        with pytest.raises(ValueError, match="invalid tz 'Not/AZone'.*time zone"):
+            n.normalize(lf, validate=False, tz="Not/AZone")
+
+    def test_elapsed_seconds_identical_regardless_of_tz(self):
+        """test_time_second/step_time_second values are unaffected by tz (offset cancels out)."""
+        n = TableNormalizer(
+            test_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),),
+        )
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00", "2024-06-01 12:01:00"]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            out_utc = n.normalize(df, validate=False, tz="UTC")
+            out_tokyo = n.normalize(df, validate=False, tz="Asia/Tokyo")
+        assert out_utc["Test Time / s"].to_list() == pytest.approx(out_tokyo["Test Time / s"].to_list())
+
+
 class TestExtend:
     def test_append_to_existing_tuple(self):
         """extend() appends new synonyms after the existing ones, built-ins first."""
