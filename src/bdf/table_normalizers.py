@@ -938,6 +938,23 @@ NOVONIX = TableNormalizer(
     ),
 )
 
+# Sign convention: PyBaMM is discharge-positive but BDF is charge-positive (see
+# current_ampere / net_capacity_ah in the ontology), so current and the signed
+# capacity integral are negated. PyBaMM "Discharge capacity" is the running signed
+# integral (Q - Q0), so scale=-1 turns it into net_capacity_ah (charge - discharge).
+#
+# "Step" is a 0-based index that resets each cycle, so the same value recurs in
+# successive cycles -- this matches step_id, not the within-step datapoint counter.
+PYBAMM = TableNormalizer(
+    test_time_second=ResolvedColumn(source_header="Time [s]"),
+    voltage_volt=ResolvedColumn(source_header="Voltage [V]"),
+    current_ampere=ResolvedColumn(source_header="Current [A]", scale=-1.0),
+    net_capacity_ah=ResolvedColumn(source_header="Discharge capacity [A.h]", scale=-1.0),
+    temperature_t1_celsius=ResolvedColumn(source_header="X-averaged cell temperature [C]"),
+    cycle_count=ResolvedColumn(source_header="Cycle"),
+    step_id=ResolvedColumn(source_header="Step"),
+)
+
 NDA_NORMALIZER = TableNormalizer(
     test_time_second=(Syn(hdr="total_time_{unit}"),),
     voltage_volt=(Syn(hdr="voltage_{unit}"),),
@@ -977,6 +994,7 @@ NORMALIZERS: dict[str, TableNormalizer] = {
     "neware": NEWARE,
     "novonix": NOVONIX,
     "neware_nda": NDA_NORMALIZER,
+    "pybamm": PYBAMM,
     "bdf": BDF_NORMALIZER,
 }
 
