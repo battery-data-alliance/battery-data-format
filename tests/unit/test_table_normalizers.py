@@ -90,11 +90,11 @@ class TestSyn:
         assert Syn(hdr="Test-Time").match("Other", "s") is None
 
     def test_match_exact_syn_with_none_unit(self):
-        """6.3: Syn without {unit} matches against unit=None column → (1.0, 0.0)."""
+        """Syn without {unit} matches against unit=None column → (1.0, 0.0)."""
         assert Syn(hdr="Step ID").match("Step ID", None) == (1.0, 0.0)
 
     def test_match_unit_parameterised_syn_with_none_unit(self):
-        """6.4: Syn with {unit} against unit=None column → None."""
+        """Syn with {unit} against unit=None column → None."""
         assert Syn(hdr="Step/{unit}").match("Step/s", None) is None
 
     def test_model_validate_string(self):
@@ -660,7 +660,7 @@ class TestNormalizerNormalize:
         assert out["Voltage / V"].dtype == pl.Float64
 
     def test_normalize_step_type_produces_utf8(self):
-        """6.7: normalize step_type column yields Utf8 output column 'Step Type'."""
+        """normalize step_type column yields Utf8 output column 'Step Type'."""
         n = TableNormalizer(step_type=(Syn(hdr="step_type"),))
         df = pl.DataFrame({"step_type": ["CC_CHG", "CC_DCH", "REST"]})
         with warnings.catch_warnings():
@@ -670,7 +670,7 @@ class TestNormalizerNormalize:
         assert out["Step Type"].dtype == pl.Utf8
 
     def test_normalize_step_id_produces_int64(self):
-        """6.8: normalize step_id column yields Int64 output column 'Step ID'."""
+        """normalize step_id column yields Int64 output column 'Step ID'."""
         n = TableNormalizer(step_id=(Syn(hdr="step_id"),))
         df = pl.DataFrame({"step_id": [1.0, 2.0, 3.0]})
         with warnings.catch_warnings():

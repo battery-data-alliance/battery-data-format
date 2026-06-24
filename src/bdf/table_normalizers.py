@@ -405,7 +405,7 @@ class TableNormalizer(BaseModel):
             Count of columns that resolve via synonyms or ResolvedColumn mappings.
         """
         resolved = self.resolve(headers)
-        return sum(1 for rc in resolved.values() if rc.source_header in headers)
+        return sum(1 for resolved_column in resolved.values() if resolved_column.source_header in headers)
 
     def known_header_names(self) -> list[str]:
         """Source-header names from ResolvedColumn fields only (known, not synonyms).
@@ -436,8 +436,8 @@ class TableNormalizer(BaseModel):
             raise ValueError("column_map must not be empty")
         kwargs: dict[str, ResolvedColumn] = {}
         for bdf_label_key, src_header in column_map.items():
-            mr_name, rc = ResolvedColumn.from_bdf_label(bdf_label_key, src_header)
-            kwargs[mr_name] = rc
+            mr_name, resolved_column = ResolvedColumn.from_bdf_label(bdf_label_key, src_header)
+            kwargs[mr_name] = resolved_column
         return cls(**kwargs)
 
     @coerce_dataframe
@@ -478,14 +478,14 @@ class TableNormalizer(BaseModel):
 
         exprs: list[pl.Expr] = []
 
-        for mr_name, rc in resolved.items():
-            if rc.source_header not in headers:
+        for mr_name, resolved_column in resolved.items():
+            if resolved_column.source_header not in headers:
                 _logger.info(
                     "normalize: source header %r not present in DataFrame; skipping",
-                    rc.source_header,
+                    resolved_column.source_header,
                 )
                 continue
-            exprs.append(rc.get_expr(mr_name))
+            exprs.append(resolved_column.get_expr(mr_name))
 
         if extra_columns:
             for src, out_name in extra_columns.items():
