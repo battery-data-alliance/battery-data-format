@@ -17,20 +17,30 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      BDF_CACHE_DIR: ${{ github.workspace }}/.bdf-cache
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
         with:
-          python-version: "3.11"
-      - name: Install docs dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install .[docs]
+          python-version: "3.12"
+      - name: Install dependencies
+        run: uv sync --all-extras
+      - name: Compute content-addressed cache key (offline)
+        id: key
+        run: echo "k=bdf-data-$(uv run python scripts/warm_cache.py --emit-key)" >> "$GITHUB_OUTPUT"
+      - name: Restore/save warmed cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.bdf-cache
+          key: ${{ steps.key.outputs.k }}
+      - name: Warm cache
+        run: uv run python scripts/warm_cache.py
       - name: Build docs
         env:
           MPLBACKEND: Agg
-        run: sphinx-build -b html docs docs/_build/html
+        run: uv run --all-extras sphinx-build -b html docs docs/_build/html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

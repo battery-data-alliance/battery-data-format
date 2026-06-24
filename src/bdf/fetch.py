@@ -30,7 +30,16 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _cache_dir(subdir: str = "bdf") -> Path:
+def cache_dir(subdir: str = "bdf") -> Path:
+    """Return the cache directory for ``subdir``, honouring ``BDF_CACHE_DIR``.
+
+    Args:
+        subdir: Cache subdirectory name, used as the platformdirs fallback
+            app name when ``BDF_CACHE_DIR`` is unset.
+
+    Returns:
+        Path to the cache directory, created if missing.
+    """
     base = os.getenv("BDF_CACHE_DIR")
     p = Path(base) if base else Path(user_cache_dir(subdir))
     p.mkdir(parents=True, exist_ok=True)
@@ -100,9 +109,9 @@ def fetch_url(
     - 'retries' = extra attempts on transient network errors (per URL).
     - 'refresh' forces a re-download even if cached.
     """
-    cache_dir = _cache_dir(cache_subdir)
+    cdir = cache_dir(cache_subdir)
     name = _safe_cache_name(url, filename)
-    dest = cache_dir / name
+    dest = cdir / name
 
     # Use cache if present and verified
     if dest.exists():
@@ -375,6 +384,7 @@ def load_bdf_from_entry(entry: DatasetEntry):
 
         df = load_bdf(path)
     else:
-        df = read_bdf(path, plugin=entry.plugin, validate=True)
+        df_pl, _meta = read_bdf(path, plugin=entry.plugin, validate=True, lazy=False)
+        df = df_pl.to_pandas()
 
     return path, df

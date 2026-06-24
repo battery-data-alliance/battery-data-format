@@ -295,7 +295,7 @@ def test_quantity_defaults() -> None:
 )
 def test_quantity_unit_conversion(src_unit: str, dst_unit: str, expected: tuple[float, float] | None) -> None:
     q = Quantity(unit=src_unit, label_template=f"X / {src_unit}", mr_name="x", iri="", synonyms=[])
-    assert q.unit_conversion(dst_unit) == expected
+    assert q.convert_to(dst_unit) == expected
 
 
 @pytest.mark.parametrize(
@@ -693,14 +693,28 @@ def test_load_version_uses_cached_file(tmp_path: Path) -> None:
     assert onto.test_time_second.unit == "ms"
 
 
-def test_load_version_missing_raises_value_error(tmp_path: Path) -> None:
-    """load_version with no cached file raises ValueError listing available versions."""
+def test_load_version_fetches_when_not_cached(tmp_path: Path) -> None:
+    """load_version fetches the release when no cached file exists, then caches it."""
+    versioned_ttl = _MINI_TTL.replace(
+        "@prefix schema: <https://schema.org/> .\n",
+        "@prefix schema: <https://schema.org/> .\n\n"
+        "<https://w3id.org/battery-data-alliance/ontology/battery-data-format> "
+        'rdf:type owl:Ontology ; owl:versionInfo "1.0.0" .\n',
+    )
+    response = Mock()
+    response.content = versioned_ttl.encode("utf-8")
+    response.raise_for_status = Mock()
+
     onto = ColumnOntology.build()
     with (
         patch("bdf.spec._ontology_cache_dir", return_value=tmp_path),
-        pytest.raises(ValueError, match="not found in cache"),
+        patch("requests.get", return_value=response) as mock_get,
     ):
-        onto.load_version("9.9.9")
+        onto.load_version("1.0.0")
+
+    mock_get.assert_called_once()
+    assert onto.test_time_second.unit == "ms"
+    assert (tmp_path / "bdf-ontology-v1.0.0.ttl").exists()
 
 
 # ---------------------------------------------------------------------------

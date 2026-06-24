@@ -62,7 +62,7 @@ Quickstart notebook
 Open the rendered notebook:
 
 - :doc:`examples/quickstart`
-- :download:`Download the notebook <../examples/quickstart.ipynb>`
+- :download:`Download the notebook <examples/quickstart.ipynb>`
 
 First steps
 -----------
@@ -71,7 +71,9 @@ First steps
 
    import bdf
 
-   df = bdf.read("raw_vendor.csv")  # auto-detect and normalize
+   # read() returns (frame, metadata); the frame is a polars frame
+   df, meta = bdf.read("raw_vendor.csv", lazy=False)  # auto-detect and normalize
+   df = df.to_pandas()  # the validate/plot helpers operate on pandas
    report = bdf.validate(df, report=True, raise_on_error=False)
    bdf.plot(df, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
 
@@ -81,6 +83,7 @@ Recommended usage
 Use ``bdf.read`` for the common path (raw vendor files or existing BDF artifacts).
 The other functions are for advanced workflows:
 
-- ``bdf.parse``: inspect raw vendor columns without normalization.
+- ``bdf.read(..., normalize=False)``: inspect raw vendor columns without normalization.
 - ``bdf.normalize``: normalize a DataFrame you already have in memory.
 - ``bdf.validate``: validate a DataFrame or BDF artifact without re-reading.
+- ``bdf.load`` / ``bdf.save``: read/write BDF artifacts directly as pandas DataFrames.

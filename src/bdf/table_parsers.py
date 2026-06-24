@@ -282,6 +282,14 @@ class DelimTxtParser(TableParser):
 
     @model_validator(mode="after")
     def _require_header(self) -> "DelimTxtParser":
+        """Reject construction with ``has_header=False``.
+
+        Returns:
+            ``self`` unchanged when ``has_header`` is True.
+
+        Raises:
+            ValueError: If ``has_header`` is False.
+        """
         if not self.has_header:
             raise ValueError(
                 "Reading data with bdf requires a header row to map columns to the bdf standard. "
@@ -550,6 +558,14 @@ class ExcelParser(TableParser):
 
     @model_validator(mode="after")
     def _require_header(self) -> "ExcelParser":
+        """Reject construction with ``has_header=False``.
+
+        Returns:
+            ``self`` unchanged when ``has_header`` is True.
+
+        Raises:
+            ValueError: If ``has_header`` is False.
+        """
         if not self.has_header:
             raise ValueError(
                 "Reading data with bdf requires a header row to map columns to the bdf standard. "
@@ -743,6 +759,16 @@ class MatParser(TableParser):
 
         Variable names come from ``self.normalizer.known_header_names()`` (a .mat
         file has no header row).
+
+        Args:
+            path: Local file path to the .mat file.
+
+        Returns:
+            Polars LazyFrame with one column per loaded variable, cast to float64.
+
+        Raises:
+            ValueError: If a named variable is missing from the file, or is not 1-D after
+                squeezing.
         """
         import numpy as np
 
@@ -763,6 +789,12 @@ class MatParser(TableParser):
         """Return the subset of ``self.normalizer`` source headers present in the .mat file.
 
         Variable names are sourced from :attr:`normalizer` (a .mat file has no header row).
+
+        Args:
+            path: Local file path to the .mat file.
+
+        Returns:
+            List of normalizer-known variable names that are present in the file.
         """
         var_names = self.normalizer.known_header_names()
         mat = self._load(Path(path), var_names)

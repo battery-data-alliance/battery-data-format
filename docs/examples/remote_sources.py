@@ -52,6 +52,17 @@ cache key de-duplicate via set union.
 """
 
 
+PINNED_ONTOLOGY_VERSIONS: tuple[str, ...] = ("1.1.0",)
+"""Ontology release tags an example notebook pins via ``ColumnOntology.load_version``.
+
+These never appear as literal URLs in a notebook (the version is interpolated
+into ``_BDF_RELEASE_URL_TMPL`` at call time), so the URL-extraction contract
+above can't catch them. ``scripts/warm_cache.py`` fetches each version into the
+``BDF_CACHE_DIR``-backed ontology cache ahead of the network-marked notebook
+tests, which load from that cache with no network call.
+"""
+
+
 NON_DATA_URLS: frozenset[str] = frozenset(
     {
         # Metadata example: dataset DOI and landing page (not fetched).
@@ -60,7 +71,6 @@ NON_DATA_URLS: frozenset[str] = frozenset(
         # SPARQL / vocabulary IRIs, not network reads.
         "https://schema.org/Dataset",
         "https://schema.org/name",
-        "https://w3id.org/battery-data-alliance/ontology/battery-data-format#discharging_capacity_ah",
     }
 )
 """URLs the notebooks reference but do **not** fetch as data files.

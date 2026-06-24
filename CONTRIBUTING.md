@@ -88,6 +88,12 @@ markers) are generated from it:
   `tests/unit/test_spec_ontology_fields.py`; an ontology release that
   changes it must update that test deliberately in the sync PR.
 
+The Supported Plugins page (`docs/plugins.rst`, between `BEGIN/END GENERATED`
+markers) is generated from `bdf.plugins.PLUGINS` by the `docs/_ext/generate_plugins_doc.py`
+Sphinx extension, which regenerates it automatically on every docs build. No
+manual step or CI check is needed -- just change the plugin definition and
+build the docs.
+
 ## Release workflow (summary)
 - Ensure CI is green (lint/type/tests/docs/build).
 - Bump version in `pyproject.toml` and update `CHANGELOG.md`.

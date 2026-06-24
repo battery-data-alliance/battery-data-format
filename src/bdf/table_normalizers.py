@@ -41,7 +41,14 @@ class Syn(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _coerce_str(cls, data: object) -> object:
-        """If a Syn is declared as a bare string, coerce to a dict for Pydantic parsing."""
+        """If a Syn is declared as a bare string, coerce to a dict for Pydantic parsing.
+
+        Args:
+            data: Raw value passed to the Syn constructor.
+
+        Returns:
+            ``{"hdr": data}`` when ``data`` is a str, otherwise ``data`` unchanged.
+        """
         return {"hdr": data} if isinstance(data, str) else data
 
     def match(self, header: str, bdf_unit: str | None) -> tuple[float, float] | None:
@@ -317,7 +324,11 @@ class TableNormalizer(BaseModel):
     surface_temperature_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
 
     def __iter__(self) -> Iterator[tuple[str, tuple[SynUnion, ...] | ResolvedColumn]]:  # type: ignore[override]
-        """Iterate over (mr_name, field_value) for all non-None fields in declaration order."""
+        """Iterate over (mr_name, field_value) for all non-None fields in declaration order.
+
+        Yields:
+            Tuples of (mr_name, field_value) for each set field, in declaration order.
+        """
         for mr_name in type(self).model_fields:
             val = getattr(self, mr_name)
             if val is not None:
@@ -955,6 +966,12 @@ NDA_NORMALIZER = TableNormalizer(
 
 
 def _build_bdf_normalizer() -> TableNormalizer:
+    """Build the identity normalizer mapping each non-deprecated BDF label to itself.
+
+    Returns:
+        TableNormalizer whose synonyms are exactly the canonical BDF label templates,
+        used to round-trip already-BDF-formatted tables.
+    """
     kwargs: dict[str, tuple] = {}
     for mr_name, q in COLUMN_ONTOLOGY:
         if q.deprecated:

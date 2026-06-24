@@ -5,8 +5,9 @@ The warm-cache contract has two halves the CI matrix depends on:
 * ``url_sources`` must enumerate every remote file the network jobs fetch — the
   union of the integration ``ALL_CASES`` URLs and the notebooks'
   ``REMOTE_DATA_SOURCES`` — sorted and de-duplicated.
-* ``emit_key`` must hash that set deterministically and identically to the
-  ``sha256`` of the newline-joined URLs, because the ``actions/cache`` key (and
+* ``emit_key`` must hash that set (plus the pinned ontology versions)
+  deterministically and identically to the ``sha256`` of the newline-joined
+  URLs and version tags, because the ``actions/cache`` key (and
   ``fetch._safe_cache_name``) are content-addressed on those exact byte strings.
 
 These tests pin both for a couple of known Zenodo files so a silent drift in the
@@ -26,7 +27,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from examples.remote_sources import REMOTE_DATA_SOURCES  # noqa: E402
+from docs.examples.remote_sources import PINNED_ONTOLOGY_VERSIONS, REMOTE_DATA_SOURCES  # noqa: E402
 from scripts import warm_cache  # noqa: E402
 from scripts.warm_cache import emit_key, url_sources, warm  # noqa: E402
 from tests.integration.test_cases import ALL_CASES  # noqa: E402
@@ -75,7 +76,8 @@ class TestEmitKey:
 
     def test_matches_manual_sha256_of_joined_urls(self) -> None:
         urls = url_sources()
-        expected = hashlib.sha256("\n".join(urls).encode("utf-8")).hexdigest()
+        joined = "\n".join(urls + [f"ontology-version:{v}" for v in PINNED_ONTOLOGY_VERSIONS])
+        expected = hashlib.sha256(joined.encode("utf-8")).hexdigest()
         assert emit_key(urls) == expected
 
     def test_deterministic_across_calls(self) -> None:

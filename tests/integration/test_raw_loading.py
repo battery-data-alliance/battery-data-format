@@ -319,7 +319,7 @@ def _load_with_bdf(path: Path, plugin_slug: Optional[str]) -> Any:
 
     if hasattr(bdf, "load"):
         try:
-            return bdf.load(path, plugin=plugin_slug)  # type: ignore[attr-defined]
+            return bdf.load(path)  # type: ignore[attr-defined]
         except (ImportError, ModuleNotFoundError) as e:
             pytest.skip(f"Optional dependency missing while loading {path}: {e}")
         except Exception as e:
@@ -327,7 +327,8 @@ def _load_with_bdf(path: Path, plugin_slug: Optional[str]) -> Any:
 
     if hasattr(bdf, "read"):
         try:
-            return bdf.read(path, plugin=plugin_slug)  # type: ignore[attr-defined]
+            df_pl, _meta = bdf.read(path, plugin=plugin_slug, lazy=False)  # type: ignore[attr-defined]
+            return df_pl.to_pandas()
         except (ImportError, ModuleNotFoundError) as e:
             pytest.skip(f"Optional dependency missing while loading {path}: {e}")
         except Exception as e:

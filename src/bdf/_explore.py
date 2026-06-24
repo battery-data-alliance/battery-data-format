@@ -5,7 +5,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .units import convert, resolve_unit
+from . import spec
 
 
 def _label_with_unit(name: str, unit: str) -> str:
@@ -16,14 +16,15 @@ def _label_with_unit(name: str, unit: str) -> str:
 def _prepare_series(series: pd.Series, unit: Optional[str]) -> pd.Series:
     if not unit:
         return series
-    try:
-        resolve_unit(str(series.name), as_string=True)
-    except Exception:
+    src = spec.unit_from_label(str(series.name))
+    if not src:
         return series
-    out = convert(series, unit, from_unit=None, strict=False)
-    if isinstance(out, pd.Series):
-        return out.rename(_label_with_unit(str(series.name), unit))
-    return pd.Series(out, index=series.index, name=_label_with_unit(str(series.name), unit))
+    conv = spec.get_unit_conversion(src, unit)
+    if not conv:
+        return series
+    scale, offset = conv
+    out = pd.to_numeric(series, errors="coerce") * scale + offset
+    return out.rename(_label_with_unit(str(series.name), unit))
 
 
 def _ensure_list(value: str | Iterable[str]) -> list[str]:

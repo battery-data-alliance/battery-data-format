@@ -334,7 +334,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--registry-url", default=DEFAULT_REGISTRY_URL)
     parser.add_argument("--record-api-url", default=DEFAULT_RECORD_API_URL)
     parser.add_argument("--cache-dir", default=str((REPO_ROOT / ".pytest_cache" / "bdf_registry").resolve()))
-    parser.add_argument("--output-dir", default=str((REPO_ROOT / "examples" / "reference").resolve()))
+    parser.add_argument("--output-dir", default=str((REPO_ROOT / "docs" / "examples" / "reference").resolve()))
     parser.add_argument("--max-items", type=int, default=0, help="Maximum number of registry distributions (0=all).")
     parser.add_argument("--max-record-files", type=int, default=0, help="Maximum number of record files (0=all).")
     parser.add_argument("--max-download-mib", type=int, default=200)
@@ -431,9 +431,9 @@ def main() -> int:
                 )
                 continue
 
-            df = bdf.read(local_file, plugin=plugin, validate=False)
+            df, _ = bdf.read(local_file, plugin=plugin, validate=False, lazy=False)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            save_bdf(df, out_path, index=False, human=args.human)
+            save_bdf(df.to_pandas(), out_path, index=False, human=args.human)
             results.append(
                 CaseResult(
                     source=str(case.get("source")),

@@ -9,47 +9,12 @@ Input formats
 .. code-block:: python
 
    import bdf
-   df = bdf.read("raw_vendor.csv", plugin="neware-csv")
+   df, meta = bdf.read("raw_vendor.csv", plugin="neware_csv", lazy=False)
 
-Supported plugins:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 20 55
-
-   * - Plugin id
-     - File types
-     - Notes
-   * - ``basytec-txt``
-     - ``.txt``, ``.dat``
-     - Basytec result files.
-   * - ``biologic-mpt``
-     - ``.mpt``
-     - BioLogic MPT exports.
-   * - ``digatron-csv``
-     - ``.csv``
-     - Digatron CSV exports (including unit-row layouts).
-   * - ``landt-csv``
-     - ``.csv``
-     - Landt CSV with snake_case headers.
-   * - ``landt-txt``
-     - ``.txt``
-     - Landt text exports.
-   * - ``matlab-mat``
-     - ``.mat``
-     - Requires a sidecar mapping file.
-   * - ``neware-csv``
-     - ``.csv``
-     - Neware/BTS CSV exports.
-   * - ``neware-nda``
-     - ``.nda``, ``.ndax``
-     - Neware NDA export (included by default).
-   * - ``neware-nda-fast``
-     - ``.nda``, ``.ndax``
-     - Fast NDA backend (requires ``fastnda``).
-   * - ``novonix-csv``
-     - ``.csv``
-     - Novonix UHPC CSV with ``[Data]`` section.
+The registered plugin ids are the keys of ``bdf.plugins.PLUGINS`` (use
+``bdf.plugins.list_sources()`` to list them). See :doc:`plugins` for the full
+catalog of every plugin, the file types it handles, its metadata parser, and
+its column synonyms.
 
 Workflows
 ---------
@@ -58,7 +23,8 @@ Workflows
 
    import bdf
 
-   df = bdf.read("raw_vendor.csv")
+   df, meta = bdf.read("raw_vendor.csv", lazy=False)
+   df = df.to_pandas()  # clean/plot operate on pandas
    df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
    bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"])
 
@@ -71,7 +37,7 @@ Recommended usage
 Use ``bdf.read`` for most workflows. The lower-level functions are for advanced
 cases:
 
-- ``bdf.parse``: read vendor data without normalization.
+- ``bdf.read(..., normalize=False)``: read vendor data without normalization.
 - ``bdf.normalize``: normalize an in-memory DataFrame.
 - ``bdf.validate``: validate a DataFrame or BDF artifact without re-reading.
 
@@ -79,7 +45,7 @@ For parse-only workflows:
 
 .. code-block:: python
 
-   df_raw = bdf.parse("raw_vendor.csv")
+   df_raw, meta = bdf.read("raw_vendor.csv", normalize=False, validate=False, lazy=False)
 
 For collections:
 

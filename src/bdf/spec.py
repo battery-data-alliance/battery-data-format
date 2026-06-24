@@ -221,14 +221,19 @@ def _graph_from_bytes(data: bytes, format: str | None = None) -> Graph:
 
 
 def _ontology_cache_dir() -> Path:
-    """Return the user cache directory for bdf ontology files.
+    """Return the cache directory for bdf ontology files.
+
+    Honours ``BDF_CACHE_DIR`` (the same env var ``bdf.fetch`` uses) so CI can
+    warm versioned ontology releases into the same actions/cache-backed
+    directory it restores for other network fixtures, instead of a
+    platformdirs path that never survives across CI jobs/runners.
 
     Returns:
-        Path to the user cache directory.
+        Path to the cache directory.
     """
-    from platformdirs import user_cache_dir
+    from .fetch import cache_dir
 
-    return Path(user_cache_dir("bdf"))
+    return cache_dir("bdf")
 
 
 def _ontology_version_slug(g: Any, raw_bytes: bytes) -> str:
@@ -372,7 +377,7 @@ class Quantity(BaseModel):
             return self.label_template.format(unit=self.unit)
         return self.label_template
 
-    def unit_conversion(self, dst_unit: str | None) -> tuple[float, float] | None:
+    def convert_to(self, dst_unit: str | None) -> tuple[float, float] | None:
         """Return (scale, offset) to convert self.unit → dst_unit, or None.
 
         Args:
@@ -838,14 +843,16 @@ class ColumnOntology:
         self._adopt(self.__class__.from_graph(g))
 
     def load_version(self, version: str, *, refresh: bool = False) -> None:
-        """Load a specific versioned ontology from cache.
+        """Load a specific versioned ontology, fetching it if not cached.
 
         Args:
             version: Version string to load (e.g. '1.0.0').
-            refresh: If True, ignore cached version.
+            refresh: If True, ignore the cache and re-fetch the release.
 
         Raises:
-            ValueError: If version not found in cache.
+            requests.HTTPError: If the release URL request fails.
+            RuntimeError: If the fetched ontology cannot be parsed, or its
+                versionInfo does not match the requested release.
         """
         cache_dir = _ontology_cache_dir()
         versioned = cache_dir / f"bdf-ontology-v{version}.ttl"
@@ -857,11 +864,12 @@ class ColumnOntology:
                 self._adopt(self.__class__.from_graph(g))
                 return
 
-        available = sorted(p.name for p in cache_dir.glob("bdf-ontology-v*.ttl"))
-        raise ValueError(
-            f"Version '{version}' not found in cache. "
-            f"Available: {available}. Use load_latest() to fetch and cache a version."
-        )
+        self.get_snapshot(dest=versioned, version=version)
+        data = versioned.read_bytes()
+        g = _graph_from_bytes(data, format="turtle")
+        if g is None:
+            raise RuntimeError(f"Failed to parse fetched ontology release {version!r}")
+        self._adopt(self.__class__.from_graph(g))
 
 
 def _update_snapshot_cli() -> None:

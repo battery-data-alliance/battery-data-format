@@ -12,17 +12,13 @@ try:
 except Exception:  # pragma: no cover
     pd = None  # type: ignore
 
-# Optional units helper
-try:
-    from bdf.units import resolve_unit  # type: ignore
-except Exception:
-
-    def resolve_unit(value: Any, *, as_string: bool = False):  # fallback stub
-        raise RuntimeError("bdf.units.resolve_unit is unavailable")
+from bdf import spec
 
 
-# Lazy-loaded spec to avoid import-order issues
-_SPEC = None  # set by _ensure_spec()
+def _unit_text_from_label(label: str) -> Optional[str]:
+    """Return the unit portion of a canonical 'Name / UNIT' BDF label, or None."""
+    return spec.unit_from_label(label)
+
 
 BDF_CSVW_SCHEMA_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format/schema"
 EMMO_BATTERY_CONTEXT = "https://w3id.org/emmo/domain/battery/context"
@@ -371,24 +367,9 @@ def _left_of_label(label: str) -> str:
     return label.split("/", 1)[0].strip()
 
 
-def _ensure_spec():
-    """Lazy import spec to avoid import-order issues during development/CI."""
-    global _SPEC
-    if _SPEC is None:
-        try:
-            from bdf import spec as _loaded  # type: ignore
-
-            _SPEC = _loaded
-        except Exception:
-            _SPEC = None
-
-
 def _spec_match_by_left(left: str) -> Optional[Dict[str, Any]]:
     """Return the spec column entry dict for a given preferred-label 'left' text."""
-    _ensure_spec()
-    if not _SPEC or not hasattr(_SPEC, "COLUMN_ONTOLOGY"):
-        return None
-    for _mr, qty in _SPEC.COLUMN_ONTOLOGY:  # type: ignore[attr-defined]
+    for _mr, qty in spec.COLUMN_ONTOLOGY:
         if _left_of_label(qty.label_template).lower() == left.lower():
             return {"iri": qty.iri}
     return None
@@ -400,13 +381,11 @@ def _required_pvs_from_spec() -> List[Dict[str, Any]]:
     Uses label_template -> left name, unit, and iri.
     If spec is unavailable, returns [] (caller has emergency fallback).
     """
-    _ensure_spec()
     pvs: List[Dict[str, Any]] = []
-    if _SPEC and hasattr(_SPEC, "COLUMN_ONTOLOGY"):
-        for _mr, qty in _SPEC.COLUMN_ONTOLOGY:  # type: ignore[attr-defined]
-            if qty.required:
-                name = _left_of_label(qty.label_template) if qty.label_template else qty.mr_name
-                pvs.append(PropertyValue(name=name, property_id=qty.iri, unit_text=qty.unit).to_schema_org())
+    for _mr, qty in spec.COLUMN_ONTOLOGY:
+        if qty.required:
+            name = _left_of_label(qty.label_template) if qty.label_template else qty.mr_name
+            pvs.append(PropertyValue(name=name, property_id=qty.iri, unit_text=qty.unit).to_schema_org())
     return pvs
 
 
@@ -414,7 +393,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
     Build a list of schema.org PropertyValue from DataFrame columns:
       - Prefer df.attrs["bdf:columns"] for quantity+unit if present
-      - Else, derive name from column label left side; unit via bdf.units.resolve_unit
+      - Else, derive name from column label left side; unit via spec.unit_from_label
       - Attach BDA IRI if found in spec (by matching preferred-label left side)
       - Keep numeric-looking columns by default
     """
@@ -428,10 +407,8 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
     if isinstance(meta, dict) and meta:
         for canon_label, info in meta.items():
             name = _left_of_label(str(canon_label))
-            unit_text = None
-            try:
-                unit_text = resolve_unit(canon_label, as_string=True)
-            except Exception:
+            unit_text = _unit_text_from_label(canon_label)
+            if not unit_text:
                 unit_text = str(info.get("unit")) if info.get("unit") else None
 
             iri = None
@@ -457,11 +434,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
         if not pd.api.types.is_numeric_dtype(s):
             continue
         left = _left_of_label(str(col))
-        unit_text = None
-        try:
-            unit_text = resolve_unit(str(col), as_string=True)
-        except Exception:
-            unit_text = None
+        unit_text = _unit_text_from_label(str(col))
         iri = None
         m = _spec_match_by_left(left)
         if m:

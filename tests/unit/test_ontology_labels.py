@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 import bdf
+from bdf.io import canonicalize_legacy_labels
 
 
 def test_legacy_labels_normalized_from_ontology(data_dir: Path) -> None:
@@ -14,7 +15,7 @@ def test_legacy_labels_normalized_from_ontology(data_dir: Path) -> None:
     assert "test_time_millisecond" in df.columns
 
     with pytest.warns(UserWarning):
-        normalized = bdf.read(legacy_path, validate=True)
+        normalized = bdf.load(legacy_path)
 
     assert "Test Time / s" in normalized.columns
     assert "Voltage / V" in normalized.columns
@@ -37,7 +38,7 @@ def test_hidden_label_is_normalized_to_preferred_label() -> None:
         }
     )
 
-    normalized = bdf.normalize(df)
+    normalized, _legacy = canonicalize_legacy_labels(df)
 
     assert "Internal Resistance / ohm" in normalized.columns
     assert "Internal Resistance / Ohm" not in normalized.columns

@@ -35,10 +35,10 @@ if str(_REPO_ROOT) not in sys.path:
 nbformat = pytest.importorskip("nbformat")
 _TRANSFORMER = pytest.importorskip("IPython.core.inputtransformer2").TransformerManager()
 
-from examples.remote_sources import NON_DATA_URLS, REMOTE_DATA_SOURCES  # noqa: E402
+from docs.examples.remote_sources import NON_DATA_URLS, REMOTE_DATA_SOURCES  # noqa: E402
 from tests.integration.test_cases import ALL_CASES  # noqa: E402
 
-_EXAMPLES_DIR = _REPO_ROOT / "examples"
+_EXAMPLES_DIR = _REPO_ROOT / "docs" / "examples"
 
 # URL substring, stopping at whitespace, quotes, angle/round brackets, backslash.
 _URL_RE = re.compile(r"https?://[^\s\"'\\)<>]+")
@@ -98,13 +98,13 @@ def _notebook_urls() -> set[str]:
 def test_notebook_url_extraction_count() -> None:
     """Canary on the extractor: the notebooks reference a known number of URLs.
 
-    Currently 10: 5 fetched data files (all in ``REMOTE_DATA_SOURCES``, 2 of which
-    also appear in ``ALL_CASES``) plus 5 non-data references (``NON_DATA_URLS``).
+    Currently 9: 5 fetched data files (all in ``REMOTE_DATA_SOURCES``, 2 of which
+    also appear in ``ALL_CASES``) plus 4 non-data references (``NON_DATA_URLS``).
     Bump this when a notebook adds or removes a URL — a silent drop means the
     nbformat/IPython-transformer/AST extraction has regressed.
     """
     urls = _notebook_urls()
-    assert len(urls) == 10, f"expected 10 notebook URLs, extracted {len(urls)}:\n" + "\n".join(
+    assert len(urls) == 9, f"expected 9 notebook URLs, extracted {len(urls)}:\n" + "\n".join(
         f"  - {u}" for u in sorted(urls)
     )
 
