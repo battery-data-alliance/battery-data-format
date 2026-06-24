@@ -939,3 +939,82 @@ class TestExtend:
         norm = TableNormalizer()
         with pytest.raises(ValueError, match="unknown TableNormalizer field"):
             norm.extend(not_a_real_field=(Syn(hdr="x"),))
+
+
+class TestPybammNormalizer:
+    """Conversion test on a synthetic PyBaMM-shaped dataframe.
+
+    PyBaMM is consumed in-memory as a dataframe (not a file format), so there is
+    no ``Plugin``/file-detection entry — just the ``NORMALIZERS["pybamm"]``
+    mapping exercised directly. The frame below uses PyBaMM's native variable
+    names (e.g. ``"Voltage [V]"``) as headers and follows its discharge-positive
+    sign convention: a discharge half (positive current, rising discharge
+    capacity) followed by a charge half (negative current, falling discharge
+    capacity), so the charge-positive sign flips are observable.
+    """
+
+    @pytest.fixture
+    def mock_df(self):
+        return pl.DataFrame(
+            {
+                "Time [s]": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                "Current [A]": [1.0, 1.0, 1.0, -0.5, -0.5, -0.5],
+                "Voltage [V]": [4.10, 3.90, 3.70, 3.80, 3.95, 4.10],
+                "Discharge capacity [A.h]": [0.0, 0.10, 0.20, 0.15, 0.10, 0.05],
+                "X-averaged cell temperature [C]": [25.0, 25.4, 25.9, 25.6, 25.3, 25.1],
+                "Cycle": [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+                "Step": [0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+            }
+        )
+
+    def test_normalizes_expected_columns(self, mock_df):
+        out = NORMALIZERS["pybamm"].normalize(mock_df, validate=False)
+        for mr in (
+            "test_time_second",
+            "voltage_volt",
+            "current_ampere",
+            "net_capacity_ah",
+            "temperature_t1_celsius",
+            "cycle_count",
+            "step_id",
+        ):
+            assert getattr(COLUMN_ONTOLOGY, mr).formatted_label in out.columns
+
+    def test_unit_compatible_columns_pass_through(self, mock_df):
+        """Time/voltage/temperature are unit-compatible 1:1 (s, V, C) — no scaling or sign flip."""
+        out = NORMALIZERS["pybamm"].normalize(mock_df, validate=False)
+        assert out["Test Time / s"].to_list() == mock_df["Time [s]"].to_list()
+        assert out["Voltage / V"].to_list() == mock_df["Voltage [V]"].to_list()
+        assert out["Temperature T1 / degC"].to_list() == mock_df["X-averaged cell temperature [C]"].to_list()
+
+    def test_current_sign_flipped_to_charge_positive(self, mock_df):
+        """PyBaMM is discharge-positive; BDF is charge-positive, so current is negated."""
+        out = NORMALIZERS["pybamm"].normalize(mock_df, validate=False)
+        assert out["Current / A"].to_list() == (-mock_df["Current [A]"]).to_list()
+
+    def test_net_capacity_sign_flipped_from_discharge_capacity(self, mock_df):
+        """PyBaMM "Discharge capacity" (Q-Q0, discharge-positive) negates to net_capacity_ah."""
+        out = NORMALIZERS["pybamm"].normalize(mock_df, validate=False)
+        assert out["Net Capacity / Ah"].to_list() == (-mock_df["Discharge capacity [A.h]"]).to_list()
+
+    def test_cycle_and_step_cast_to_int(self, mock_df):
+        out = NORMALIZERS["pybamm"].normalize(mock_df, validate=False)
+        assert out["Cycle Count / 1"].to_list() == mock_df["Cycle"].cast(pl.Int64).to_list()
+        assert out["Step ID"].to_list() == mock_df["Step"].cast(pl.Int64).to_list()
+
+    def test_test_time_second_monotonic_nondecreasing(self, mock_df):
+        out = NORMALIZERS["pybamm"].normalize(mock_df, validate=False)
+        t = out["Test Time / s"]
+        assert (t.diff().drop_nulls() >= 0).all()
+
+    def test_net_capacity_reflects_charge_discharge_sign(self, mock_df):
+        """In BDF convention net capacity falls step-to-step while discharging
+        (now negative current) and rises while charging (now positive current)."""
+        out = NORMALIZERS["pybamm"].normalize(mock_df, validate=False)
+        cap = out["Net Capacity / Ah"]
+        current = out["Current / A"]
+        d_cap = cap.diff()
+        # within the discharge run net capacity is non-increasing
+        assert (d_cap.filter(current < 0).drop_nulls() <= 0).all()
+        # within the charge run net capacity is non-decreasing
+        assert (d_cap.filter(current > 0).drop_nulls() >= 0).all()
