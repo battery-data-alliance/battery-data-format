@@ -62,6 +62,13 @@ class PluginDict(dict):
     """
 
     def __init__(self, *args, cutoff=0.6, **kwargs):
+        """Initialize the dict with an optional fuzzy-match cutoff.
+
+        Args:
+            *args: Positional arguments forwarded to ``dict.__init__``.
+            cutoff: Similarity threshold (0.0-1.0) for KeyError suggestions. Defaults to 0.6.
+            **kwargs: Keyword arguments forwarded to ``dict.__init__``.
+        """
         super().__init__(*args, **kwargs)
         self.cutoff = cutoff
 
@@ -399,10 +406,23 @@ def list_sources() -> list[str]:
 
 
 def _is_yaml_path(path: str | Path) -> bool:
+    """Return True if ``path``'s extension is ``.yaml`` or ``.yml``.
+
+    Args:
+        path: File path to check.
+
+    Returns:
+        True if the suffix indicates a YAML file.
+    """
     return Path(path).suffix.lower() in (".yaml", ".yml")
 
 
 def _require_yaml() -> None:
+    """Raise if PyYAML is not installed.
+
+    Raises:
+        ImportError: If PyYAML is not available, chained from the original import error.
+    """
     if not _HAS_YAML:
         raise ImportError(
             "YAML plugin files require PyYAML. Install with `pip install PyYAML`."
