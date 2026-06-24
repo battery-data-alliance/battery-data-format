@@ -161,6 +161,7 @@ class TableParser(BaseModel):
         include_optional: bool = True,
         extra_columns: dict[str, str] | None = None,
         lazy: bool = True,
+        tz: str = "UTC",
     ) -> pl.LazyFrame | pl.DataFrame:
         """Read ``path`` (local or URL) and return the normalized or raw frame.
 
@@ -177,6 +178,8 @@ class TableParser(BaseModel):
             include_optional: Include optional BDF columns in output.
             extra_columns: Additional column rename mappings.
             lazy: Return a LazyFrame when True (default); collect to a DataFrame when False.
+            tz: IANA timezone applied to naive ``unix_time_second`` datetime formats.
+                Defaults to ``"UTC"``; see ``TableNormalizer.normalize``.
 
         Returns:
             Normalized or raw polars LazyFrame (``lazy=True``) or DataFrame (``lazy=False``).
@@ -191,6 +194,7 @@ class TableParser(BaseModel):
             include_optional=include_optional,
             extra_columns=extra_columns,
             validate=validate,
+            tz=tz,
         )
         assert isinstance(result, pl.LazyFrame)
         return result if lazy else result.collect()

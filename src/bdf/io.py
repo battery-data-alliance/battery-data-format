@@ -21,13 +21,16 @@ def read(
     include_optional: bool = True,
     extra_columns: dict[str, str] | None = None,
     lazy: bool = True,
+    tz: str = "UTC",
 ) -> tuple[pl.DataFrame | pl.LazyFrame, dict]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
     An explicit ``plugin`` bypasses auto-detection. When ``normalize=False``, the raw
     parser frame is returned with source column names unchanged. ``validate`` defaults to
     True: column names are checked against the BDF ontology after reading; pass
-    ``validate=False`` to skip the check and only warn.
+    ``validate=False`` to skip the check and only warn. ``tz`` (default ``"UTC"``) is the
+    IANA timezone applied to naive ``unix_time_second`` datetime formats; a ``UserWarning``
+    is emitted when a naive format is in play and ``tz`` is left at its default.
     """
     plugin_id: str | None = None
     resolved_plugin: Plugin
@@ -48,6 +51,7 @@ def read(
         include_optional=include_optional,
         extra_columns=extra_columns,
         lazy=lazy,
+        tz=tz,
     )
 
     metadata: dict = {

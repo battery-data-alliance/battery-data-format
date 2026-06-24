@@ -90,11 +90,11 @@ class TestSyn:
         assert Syn(hdr="Test-Time").match("Other", "s") is None
 
     def test_match_exact_syn_with_none_unit(self):
-        """6.3: Syn without {unit} matches against unit=None column → (1.0, 0.0)."""
+        """Syn without {unit} matches against unit=None column → (1.0, 0.0)."""
         assert Syn(hdr="Step ID").match("Step ID", None) == (1.0, 0.0)
 
     def test_match_unit_parameterised_syn_with_none_unit(self):
-        """6.4: Syn with {unit} against unit=None column → None."""
+        """Syn with {unit} against unit=None column → None."""
         assert Syn(hdr="Step/{unit}").match("Step/s", None) is None
 
     def test_model_validate_string(self):
@@ -660,7 +660,7 @@ class TestNormalizerNormalize:
         assert out["Voltage / V"].dtype == pl.Float64
 
     def test_normalize_step_type_produces_utf8(self):
-        """6.7: normalize step_type column yields Utf8 output column 'Step Type'."""
+        """normalize step_type column yields Utf8 output column 'Step Type'."""
         n = TableNormalizer(step_type=(Syn(hdr="step_type"),))
         df = pl.DataFrame({"step_type": ["CC_CHG", "CC_DCH", "REST"]})
         with warnings.catch_warnings():
@@ -670,7 +670,7 @@ class TestNormalizerNormalize:
         assert out["Step Type"].dtype == pl.Utf8
 
     def test_normalize_step_id_produces_int64(self):
-        """6.8: normalize step_id column yields Int64 output column 'Step ID'."""
+        """normalize step_id column yields Int64 output column 'Step ID'."""
         n = TableNormalizer(step_id=(Syn(hdr="step_id"),))
         df = pl.DataFrame({"step_id": [1.0, 2.0, 3.0]})
         with warnings.catch_warnings():
@@ -904,6 +904,69 @@ class TestBDFNormalizer:
         ]:
             vendor_score = norm.score_columns(bdf_headers)
             assert bdf_score > vendor_score, f"BDF_NORMALIZER should outscore {name}"
+
+
+class TestTimezoneHandling:
+    """Naive vs tz-aware unix_time_second parsing under the tz parameter."""
+
+    def test_naive_format_localized_to_explicit_tz(self):
+        """Explicit non-UTC tz shifts unix_time_second by the correct offset vs UTC."""
+        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00"]})
+        out_utc = n.normalize(df, validate=False, tz="UTC")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            out_ny = n.normalize(df, validate=False, tz="America/New_York")
+        t_utc = out_utc["Unix Time / s"][0]
+        t_ny = out_ny["Unix Time / s"][0]
+        # America/New_York is UTC-4 in June (EDT): same wall clock parses to a later instant.
+        assert t_ny - t_utc == pytest.approx(4 * 3600.0)
+
+    def test_tz_aware_format_ignores_tz_argument(self):
+        """A format with an embedded offset (%:z) produces identical output regardless of tz."""
+        n = TableNormalizer(
+            unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S%:z",)),),
+        )
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00+02:00"]})
+        out_utc = n.normalize(df, validate=False, tz="UTC")
+        out_tokyo = n.normalize(df, validate=False, tz="Asia/Tokyo")
+        assert out_utc["Unix Time / s"][0] == pytest.approx(out_tokyo["Unix Time / s"][0])
+
+    def test_default_tz_warns_and_matches_legacy_utc_behavior(self):
+        """Default call (no tz) on a naive format warns and matches pre-change (UTC) output."""
+        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00"]})
+        with pytest.warns(UserWarning, match="tz defaulted to UTC"):
+            out = n.normalize(df, validate=False)
+        assert out["Unix Time / s"][0] == pytest.approx(1717243200.0)
+
+    def test_tz_aware_only_format_emits_no_warning(self, recwarn):
+        """An entirely offset-qualified format emits no timezone warning under default tz."""
+        n = TableNormalizer(
+            unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S%:z",)),),
+        )
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00+02:00"]})
+        n.normalize(df, validate=False)
+        assert not any("tz defaulted to UTC" in str(w.message) for w in recwarn.list)
+
+    def test_invalid_tz_raises_before_collect(self):
+        """An invalid tz raises ValueError immediately from normalize(), before any lazy collect."""
+        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        lf = pl.LazyFrame({"ts": ["2024-06-01 12:00:00"]})
+        with pytest.raises(ValueError, match="invalid tz 'Not/AZone'.*time zone"):
+            n.normalize(lf, validate=False, tz="Not/AZone")
+
+    def test_elapsed_seconds_identical_regardless_of_tz(self):
+        """test_time_second/step_time_second values are unaffected by tz (offset cancels out)."""
+        n = TableNormalizer(
+            test_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),),
+        )
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00", "2024-06-01 12:01:00"]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            out_utc = n.normalize(df, validate=False, tz="UTC")
+            out_tokyo = n.normalize(df, validate=False, tz="Asia/Tokyo")
+        assert out_utc["Test Time / s"].to_list() == pytest.approx(out_tokyo["Test Time / s"].to_list())
 
 
 class TestExtend:
