@@ -16,6 +16,10 @@ The registered plugin ids are the keys of ``bdf.plugins.PLUGINS`` (use
 catalog of every plugin, the file types it handles, its metadata parser, and
 its column synonyms.
 
+Looking for compliant example data? :doc:`reference_datasets` catalogs the
+canonical BDF artifacts committed under ``docs/examples/reference/``, each
+paired with the raw vendor export on Zenodo it was generated from.
+
 Workflows
 ---------
 

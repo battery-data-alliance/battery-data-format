@@ -6,6 +6,7 @@
    Examples <examples/index>
    User Guide <user_guide>
    Supported Plugins <plugins>
+   Reference Datasets <reference_datasets>
    Reference <reference>
 
 Battery Data Format (bdf)

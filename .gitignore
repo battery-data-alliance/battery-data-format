@@ -63,6 +63,8 @@ docs/_autosummary/
 # Project-specific data files
 ./*.parquet
 docs/examples/**/*.parquet
+# committed canonical reference artifacts (see docs/examples/reference/README.md)
+!docs/examples/reference/*.bdf.parquet
 out/
 docs/examples/out/
 **/.bdf.state.json

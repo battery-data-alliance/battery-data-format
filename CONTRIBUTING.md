@@ -94,6 +94,13 @@ Sphinx extension, which regenerates it automatically on every docs build. No
 manual step or CI check is needed -- just change the plugin definition and
 build the docs.
 
+The Reference Datasets page (`docs/reference_datasets.rst`, between `BEGIN/END
+GENERATED` markers) works the same way: `docs/_ext/generate_reference_datasets_doc.py`
+renders it from the provenance manifest `docs/examples/reference/datasets.json`.
+To add or change a canonical reference dataset, edit the manifest (see the
+README in that directory); `tests/integration/test_reference_datasets.py`
+enforces that the manifest, the committed artifacts, and BDF validation agree.
+
 ## Release workflow (summary)
 - Ensure CI is green (lint/type/tests/docs/build).
 - Bump version in `pyproject.toml` and update `CHANGELOG.md`.

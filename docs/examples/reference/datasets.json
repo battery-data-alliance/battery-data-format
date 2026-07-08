@@ -1,0 +1,415 @@
+{
+  "description": "Provenance manifest pairing every canonical BDF reference artifact in this directory with the raw vendor export it was generated from. See README.md and the Reference Datasets documentation page.",
+  "zenodo_record": "https://zenodo.org/records/18986774",
+  "doi": "10.5281/zenodo.18986774",
+  "license": "CC-BY-4.0",
+  "column_key_convention": "Machine-readable notation from the BDF ontology (e.g. test_time_second); one key per quantity with the canonical unit baked in. See https://battery-data-alliance.github.io/battery-data-format-ontology/pages/specification.html",
+  "regenerated_with": "python scripts/generate_zenodo_reference_bdf.py --registry-url https://zenodo.org/records/18986774/files/metadata.json --record-api-url https://zenodo.org/api/records/18986774 --include-record-files",
+  "datasets": [
+    {
+      "bdf_file": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.bdf.csv",
+      "bdf_sha256": "1971347477c5388d7486fbc285a6389782a43648e49429da1bcdc366cfbb8245",
+      "rows": 315306,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "ambient_temperature_celsius"
+      ],
+      "plugin": "basytec_txt",
+      "provider": "DLR",
+      "deliberate_data_bugs": null,
+      "notes": "GITT protocol, Li-Gr full cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.txt",
+          "url": "https://zenodo.org/api/records/18986774/files/DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.txt/content",
+          "size_bytes": 62380666,
+          "checksum": "md5:26eb1804d891c87bff7af244927be602"
+        }
+      ]
+    },
+    {
+      "bdf_file": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.bdf.csv",
+      "bdf_sha256": "cd5bcd104bd25c9245d4b0fbdc16c2c1042eac0072ab47dcf1b8cab136f4551b",
+      "rows": 39193,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "ambient_temperature_celsius"
+      ],
+      "plugin": "basytec_txt",
+      "provider": "DLR",
+      "deliberate_data_bugs": null,
+      "notes": "Pseudo-OCV protocol, Li-Gr full cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.txt",
+          "url": "https://zenodo.org/api/records/18986774/files/DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.txt/content",
+          "size_bytes": 9257892,
+          "checksum": "md5:9e5b47be4a13c71a66d20714d3e016b6"
+        }
+      ]
+    },
+    {
+      "bdf_file": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.bdf.csv",
+      "bdf_sha256": "0cace1af588be8aec28bdd2d37010e3669e2698949f10a74eba6de254246b7c2",
+      "rows": 17860,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "ambient_temperature_celsius"
+      ],
+      "plugin": "basytec_txt",
+      "provider": "DLR",
+      "deliberate_data_bugs": null,
+      "notes": "Pseudo-OCV protocol, Li-LNMO full cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.txt",
+          "url": "https://zenodo.org/api/records/18986774/files/DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.txt/content",
+          "size_bytes": 4060881,
+          "checksum": "md5:5e6bd90f2f01b777fe871e7f867d3ee0"
+        }
+      ]
+    },
+    {
+      "bdf_file": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.bdf.csv",
+      "bdf_sha256": "196fd7cfcdb7570d4a2dfea1dbeaa29c043b4049716f55b4ee38acb4cb0b9db8",
+      "rows": 323425,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "ambient_temperature_celsius"
+      ],
+      "plugin": "basytec_txt",
+      "provider": "DLR",
+      "deliberate_data_bugs": null,
+      "notes": "GITT protocol, Li-LNMO full cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.txt",
+          "url": "https://zenodo.org/api/records/18986774/files/DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.txt/content",
+          "size_bytes": 63013852,
+          "checksum": "md5:4c72b750dead3747e9bfe82413ecc9cd"
+        }
+      ]
+    },
+    {
+      "bdf_file": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.bdf.csv",
+      "bdf_sha256": "4dda9f11bc8fba4ff8973fe8546f990f30096c7dab0563ac527b489c9e49507a",
+      "rows": 47927,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "unix_time_second",
+        "step_id",
+        "step_type",
+        "ambient_temperature_celsius",
+        "step_time_second",
+        "charging_capacity_ah",
+        "discharging_capacity_ah",
+        "net_capacity_ah",
+        "step_cumulative_capacity_ah",
+        "charging_energy_wh",
+        "discharging_energy_wh",
+        "net_energy_wh",
+        "step_cumulative_energy_wh",
+        "temperature_t1_celsius"
+      ],
+      "plugin": "digatron_csv",
+      "provider": "FZJ",
+      "deliberate_data_bugs": null,
+      "notes": "HPPC protocol, INR21700 cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.csv",
+          "url": "https://zenodo.org/api/records/18986774/files/FZJ__INR21700__20250606__HPPC__25degC__Digatron.csv/content",
+          "size_bytes": 13275587,
+          "checksum": "md5:ef75214f8bca7f9654a2524f7db364b0"
+        }
+      ]
+    },
+    {
+      "bdf_file": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv",
+      "bdf_sha256": "bd1218715f73b7fe1904bd48201e7eda2442b184a82a0140004437ed6fe62129",
+      "rows": 17587,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "cycle_count",
+        "step_count",
+        "step_index",
+        "charging_capacity_ah",
+        "discharging_capacity_ah",
+        "charging_energy_wh",
+        "discharging_energy_wh",
+        "unix_time_second"
+      ],
+      "plugin": "neware_nda",
+      "provider": "SINTEF",
+      "deliberate_data_bugs": null,
+      "notes": "C/30 slow cycle, sodium-ion cell, 25 degC. Binary Neware NDA source.",
+      "raw_files": [
+        {
+          "filename": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.nda",
+          "url": "https://zenodo.org/api/records/18986774/files/SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.nda/content",
+          "size_bytes": 928720,
+          "checksum": "md5:ff7c20a432d8c17be210adec09e484e6"
+        }
+      ]
+    },
+    {
+      "bdf_file": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv",
+      "bdf_sha256": "34c5fd10287b1e00813fb9488b126b32497b53e75064be33f01bba04b5f3eeef",
+      "rows": 25162,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "step_index",
+        "discharging_capacity_ah",
+        "charging_capacity_ah",
+        "ambient_temperature_celsius"
+      ],
+      "plugin": "landt_csv",
+      "provider": "SINTEF",
+      "deliberate_data_bugs": null,
+      "notes": "Li-Gr coin cell, 25 degC. The same measurement is available as both a LANDT CSV and TXT export; both normalize to this file (the TXT via the landt_txt plugin).",
+      "raw_files": [
+        {
+          "filename": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv",
+          "url": "https://zenodo.org/api/records/18986774/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv/content",
+          "size_bytes": 2589396,
+          "checksum": "md5:819f9f245126cce4f538e3a3d5883636"
+        },
+        {
+          "filename": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.txt",
+          "url": "https://zenodo.org/api/records/18986774/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.txt/content",
+          "size_bytes": 2808323,
+          "checksum": "md5:fdfa79a7881662ba5d871a8d7d5357b1"
+        }
+      ]
+    },
+    {
+      "bdf_file": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.csv",
+      "bdf_sha256": "b01ea95116c54d284ca13e6b14ebf3312397b867315084397697cc40da0e3c8e",
+      "rows": 112834,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "cycle_count",
+        "step_id",
+        "step_time_second",
+        "net_capacity_ah",
+        "charging_energy_wh",
+        "discharging_energy_wh",
+        "net_energy_wh",
+        "power_watt",
+        "internal_resistance_ohm"
+      ],
+      "plugin": "biologic_mpt",
+      "provider": "SINTEF",
+      "deliberate_data_bugs": "Contains physically implausible voltage outlier spikes exactly as logged by the instrument. Kept on purpose to demonstrate outlier repair with bdf.clean.",
+      "notes": "CCCV C/50 protocol, sodium-ion cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.mpt",
+          "url": "https://zenodo.org/api/records/18986774/files/SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.mpt/content",
+          "size_bytes": 53617142,
+          "checksum": "md5:627f276281d2de9ad3ffe9494c7b115d"
+        }
+      ]
+    },
+    {
+      "bdf_file": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.bdf.csv",
+      "bdf_sha256": "3a71547ad1c6e0e212a0ac09e338fcd30a970a5fb2af42a51d8e061586bf6f75",
+      "rows": 157985,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "cycle_count",
+        "step_id",
+        "step_time_second",
+        "net_capacity_ah",
+        "charging_energy_wh",
+        "discharging_energy_wh",
+        "net_energy_wh",
+        "power_watt",
+        "internal_resistance_ohm"
+      ],
+      "plugin": "biologic_mpt",
+      "provider": "SINTEF",
+      "deliberate_data_bugs": null,
+      "notes": "GITT C/20 protocol, sodium-ion cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt",
+          "url": "https://zenodo.org/api/records/18986774/files/SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.mpt/content",
+          "size_bytes": 74699943,
+          "checksum": "md5:91854f0e74db18b13e640220bf8d42f0"
+        }
+      ]
+    },
+    {
+      "bdf_file": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv",
+      "bdf_sha256": "cbbd0465bfef73bfce5011477c7067f819e4798685716cf8e85db01eefa0e548",
+      "rows": 13086,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "cycle_count",
+        "step_index",
+        "power_watt",
+        "temperature_t1_celsius",
+        "temperature_t2_celsius",
+        "temperature_t3_celsius"
+      ],
+      "plugin": "neware_csv",
+      "provider": "SINTEF",
+      "deliberate_data_bugs": "Contains non-monotonic test-time jumps exactly as logged by the cycler. Kept on purpose to demonstrate time-axis repair with bdf.clean.",
+      "notes": "Rate test, LiPo pouch cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv",
+          "url": "https://zenodo.org/api/records/18986774/files/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv/content",
+          "size_bytes": 3151396,
+          "checksum": "md5:e2075f6ffd08ea0d9f1e686cebbf2d1e"
+        }
+      ]
+    },
+    {
+      "bdf_file": "SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.bdf.parquet",
+      "bdf_sha256": "c861d5a5baf2a1f1c11a87c416697ad268f2ce2bae46af229ac30f56f0441b3b",
+      "rows": 817551,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "unix_time_second",
+        "cycle_count",
+        "step_count",
+        "step_id",
+        "step_type",
+        "step_time_second",
+        "net_capacity_ah",
+        "step_net_energy_wh",
+        "power_watt",
+        "temperature_t1_celsius",
+        "temperature_t2_celsius"
+      ],
+      "plugin": "novonix_csv",
+      "provider": "SINTEF",
+      "deliberate_data_bugs": null,
+      "notes": "DCIR 0.1C protocol, LiPo pouch cell, 25 degC. Stored as a BDF parquet artifact (the raw export is 120 MB; parquet keeps the full 817k rows in 15 MB).",
+      "raw_files": [
+        {
+          "filename": "SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.csv",
+          "url": "https://zenodo.org/api/records/18986774/files/SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.csv/content",
+          "size_bytes": 119483324,
+          "checksum": "md5:54a40efd324d1dba5995fa4f3e65717d"
+        }
+      ]
+    },
+    {
+      "bdf_file": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.bdf.csv",
+      "bdf_sha256": "9b29f9c63f27cd17c9bfe89194f097e25a4aa93a49a30a97122210c5bbd8806d",
+      "rows": 6313,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "unix_time_second",
+        "cycle_count",
+        "step_count",
+        "ambient_temperature_celsius",
+        "record_index",
+        "step_time_second",
+        "step_cumulative_capacity_ah",
+        "step_cumulative_energy_wh",
+        "temperature_t1_celsius"
+      ],
+      "plugin": "maccor_csv",
+      "provider": "Faraday Institution",
+      "deliberate_data_bugs": null,
+      "notes": "Rate test, LG INR21700-M50 cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.csv",
+          "url": "https://zenodo.org/api/records/18986774/files/faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.csv/content",
+          "size_bytes": 597715,
+          "checksum": "md5:0bbf959cbfc367296ec69d7a74d2f5c1"
+        }
+      ]
+    },
+    {
+      "bdf_file": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.bdf.csv",
+      "bdf_sha256": "6ef67452874fc20cc1fae63ad389cb34bcfad72e6857c6c7ae956be8a8ea84f1",
+      "rows": 131884,
+      "columns": [
+        "test_time_second",
+        "voltage_volt",
+        "current_ampere",
+        "unix_time_second",
+        "cycle_count",
+        "step_id",
+        "record_index",
+        "step_time_second",
+        "charging_capacity_ah",
+        "discharging_capacity_ah",
+        "charging_energy_wh",
+        "discharging_energy_wh",
+        "power_watt",
+        "dc_internal_resistance_ohm",
+        "ac_internal_resistance_ohm",
+        "temperature_t1_celsius"
+      ],
+      "plugin": "arbin_csv",
+      "provider": "Shandong University",
+      "deliberate_data_bugs": null,
+      "notes": "Pulse test, sodium-ion cell, 25 degC.",
+      "raw_files": [
+        {
+          "filename": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.CSV",
+          "url": "https://zenodo.org/api/records/18986774/files/shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.CSV/content",
+          "size_bytes": 21635732,
+          "checksum": "md5:04a0ce9a567624bf72faacabf7bc1be2"
+        }
+      ]
+    }
+  ],
+  "unconverted_raw_files": [
+    {
+      "raw_file": "tum__bak-n18650ck-202204-044__cycle__45degC__basytec.txt",
+      "url": "https://zenodo.org/api/records/18986774/files/tum__bak-n18650ck-202204-044__cycle__45degC__basytec.txt/content",
+      "size_bytes": 258172136,
+      "reason": "Converts cleanly with the basytec_txt plugin, but the 258 MB raw yields a 58 MB BDF CSV — larger than we commit to the repository. Regenerate locally with scripts/generate_zenodo_reference_bdf.py if needed."
+    },
+    {
+      "raw_file": "tum__bak-n18650ck-202204-001__characterization__25degC__biologic.txt",
+      "url": "https://zenodo.org/api/records/18986774/files/tum__bak-n18650ck-202204-001__characterization__25degC__biologic.txt/content",
+      "size_bytes": 2063429,
+      "reason": "BioLogic TXT export with ragged rows that the biologic_mpt parser does not handle yet."
+    },
+    {
+      "raw_file": "stanford__a123- ANR26650m1B-2020-k1__1C__25degC__arbin.xlsx",
+      "url": "https://zenodo.org/api/records/18986774/files/stanford__a123-%20ANR26650m1B-2020-k1__1C__25degC__arbin.xlsx/content",
+      "size_bytes": 1115392,
+      "reason": "Arbin Excel export; no Arbin-Excel plugin exists yet (the generic Excel parser expects a 'record' sheet)."
+    },
+    {
+      "raw_file": "sintef__energizer-cr2032-202602-dtjrga__2026-02-25__c100__RT__landt.ccs",
+      "url": "https://zenodo.org/api/records/18986774/files/sintef__energizer-cr2032-202602-dtjrga__2026-02-25__c100__RT__landt.ccs/content",
+      "size_bytes": 10153216,
+      "reason": "LANDT binary .ccs container; no BDF parser exists for it yet."
+    }
+  ]
+}

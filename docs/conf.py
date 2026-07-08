@@ -27,6 +27,7 @@ extensions = [
     "sphinx_design",
     "myst_nb",
     "generate_plugins_doc",
+    "generate_reference_datasets_doc",
 ]
 
 # myst-nb: execute notebooks at build, cache results so unchanged
