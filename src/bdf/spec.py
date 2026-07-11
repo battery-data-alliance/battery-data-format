@@ -38,6 +38,22 @@ Notes:
 
 _SLUG = re.compile(r"[^a-z0-9]+")
 _REQUIRED_DEFAULT = {"test_time_second", "voltage_volt", "current_ampere"}
+
+# Generic-recognition disambiguation for vendor headers whose naive
+# label/notation slug resolves to the wrong quantity. Applied last (winning)
+# in base_synonym_index. Rationale, per the ontology's own definitions:
+#   - A raw column literally named "Step Index" / "Step_Index" is the program
+#     step identifier (Arbin Step_Index, Digatron Step, BioLogic Ns) => step_id,
+#     NOT the derived 1-based within-step counter step_index. Canonically
+#     labelled step_index data ("Step Index / 1", slug "step-index-1") still
+#     resolves to step_index via the exact-label/notation paths.
+#   - "Step", "Ns", and "Cycle Index" were previously unmapped; map them here.
+_VENDOR_SYNONYM_OVERRIDES: dict[str, str] = {
+    "step-index": "step_id",
+    "step": "step_id",
+    "ns": "step_id",
+    "cycle-index": "cycle_count",
+}
 _UNIT_ALIAS = {
     "celsius": "degC",
     "degree_celsius": "degC",
@@ -584,6 +600,11 @@ class ColumnOntology:
                 slug = _slugify(str(base))
                 if slug:
                     idx.setdefault(slug, q_name)
+        # Apply vendor-header disambiguation last so it wins over the naive
+        # label/notation slugs (see _VENDOR_SYNONYM_OVERRIDES).
+        for slug, q_name in _VENDOR_SYNONYM_OVERRIDES.items():
+            if q_name in self._quantities:
+                idx[slug] = q_name
         return idx
 
     def required_labels(self) -> tuple[str, ...]:

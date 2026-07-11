@@ -293,6 +293,7 @@ class CaseResult:
     rows: int | None = None
     cols: int | None = None
     error: str | None = None
+    derived_issues: list[str] | None = None
 
 
 def _output_path(
@@ -345,12 +346,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--human", action="store_true", help="Write human-prefLabel headers instead of machine labels.")
     parser.add_argument("--fail-fast", action="store_true")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero if any generated file has derived-column inconsistencies.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     import bdf
     from bdf.io import save as save_bdf
+    from bdf.validate import validate_df
 
     args = parse_args()
     cache_dir = Path(args.cache_dir).resolve()
@@ -433,7 +440,12 @@ def main() -> int:
 
             df, _ = bdf.read(local_file, plugin=plugin, validate=False, lazy=False)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            save_bdf(df.to_pandas(), out_path, index=False, human=args.human)
+            pdf = df.to_pandas()
+            save_bdf(pdf, out_path, index=False, human=args.human)
+            # Gate: never publish reference data that contradicts the ontology's
+            # derived-column definitions (mislabeled step_index, swapped
+            # cumulative/net, non-monotonic cumulative/cycle_count, etc.).
+            derived_issues = validate_df(pdf, report=False, raise_on_error=False)["derived"]["issues"]
             results.append(
                 CaseResult(
                     source=str(case.get("source")),
@@ -443,9 +455,15 @@ def main() -> int:
                     plugin=plugin,
                     rows=int(len(df)),
                     cols=int(len(df.columns)),
+                    derived_issues=derived_issues or None,
                 )
             )
-            print(f"[ok] {download_url} -> {out_path}")
+            if derived_issues:
+                print(f"[warn] {out_path.name}: {len(derived_issues)} derived-column issue(s):")
+                for msg in derived_issues:
+                    print(f"         - {msg}")
+            else:
+                print(f"[ok] {download_url} -> {out_path}")
         except Exception as exc:
             results.append(
                 CaseResult(
@@ -464,6 +482,7 @@ def main() -> int:
     ok = sum(1 for r in results if r.status == "ok")
     failed = sum(1 for r in results if r.status == "failed")
     skipped = sum(1 for r in results if r.status == "skipped_exists")
+    noncompliant = sum(1 for r in results if r.derived_issues)
 
     manifest = {
         "registry_url": args.registry_url,
@@ -471,14 +490,25 @@ def main() -> int:
         "output_dir": str(output_dir),
         "cache_dir": str(cache_dir),
         "human_headers": bool(args.human),
-        "summary": {"total": len(results), "ok": ok, "failed": failed, "skipped_exists": skipped},
+        "summary": {
+            "total": len(results),
+            "ok": ok,
+            "failed": failed,
+            "skipped_exists": skipped,
+            "noncompliant": noncompliant,
+        },
         "results": [asdict(r) for r in results],
     }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Wrote manifest: {manifest_path}")
-    print(f"Summary: ok={ok} failed={failed} skipped_exists={skipped}")
-    return 1 if failed else 0
+    print(f"Summary: ok={ok} failed={failed} skipped_exists={skipped} noncompliant={noncompliant}")
+    if failed:
+        return 1
+    if args.strict and noncompliant:
+        print(f"Strict mode: {noncompliant} file(s) have derived-column inconsistencies; failing.")
+        return 2
+    return 0
 
 
 if __name__ == "__main__":

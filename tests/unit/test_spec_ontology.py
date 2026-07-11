@@ -461,6 +461,23 @@ def test_base_synonym_index_includes_label_notation_and_synonyms() -> None:
     assert idx["alias-two"] == "custom_q"
 
 
+def test_base_synonym_index_vendor_step_disambiguation() -> None:
+    """A raw 'Step Index'/'Step'/'Ns' header must resolve to step_id, not step_index.
+
+    Per the ontology, 'Step Index' (Arbin), 'Step' (Digatron) and 'Ns' (BioLogic)
+    are program step identifiers (step_id); the derived 1-based within-step
+    counter step_index is not exported under those names. Canonically labelled
+    step_index data ('Step Index / 1') must still resolve to step_index.
+    """
+    idx = spec.COLUMN_ONTOLOGY.base_synonym_index()
+    assert idx["step-index"] == "step_id"
+    assert idx["step"] == "step_id"
+    assert idx["ns"] == "step_id"
+    assert idx["cycle-index"] == "cycle_count"
+    # canonical step_index label ("Step Index / 1") is unaffected
+    assert idx["step-index-1"] == "step_index"
+
+
 @pytest.mark.parametrize(
     ("label", "expected"),
     [
