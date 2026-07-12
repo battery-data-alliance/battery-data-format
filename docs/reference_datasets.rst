@@ -119,10 +119,10 @@ C/30 slow cycle, sodium-ion cell, 25 degC. Binary Neware NDA source.
 :Provider: SINTEF
 :Plugin: ``neware_nda``
 :Rows: 17,587
-:BDF artifact: ``docs/examples/reference/SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv`` (sha256 ``bd1218715f73...``)
+:BDF artifact: ``docs/examples/reference/SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv`` (sha256 ``52a853ba9e21...``)
 :Raw export: `SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.nda <https://zenodo.org/api/records/18986774/files/SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.nda/content>`__ (0.9 MiB, md5:ff7c20a432d8c17be210adec09e484e6)
 
-:Columns: ``test_time_second``, ``voltage_volt``, ``current_ampere``, ``cycle_count``, ``step_count``, ``step_index``, ``charging_capacity_ah``, ``discharging_capacity_ah``, ``charging_energy_wh``, ``discharging_energy_wh``, ``unix_time_second``
+:Columns: ``test_time_second``, ``voltage_volt``, ``current_ampere``, ``unix_time_second``, ``cycle_count``, ``step_count``, ``step_id``, ``step_type``, ``record_index``, ``step_time_second``, ``step_net_capacity_ah``, ``step_net_energy_wh``
 
 SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv
 ----------------------------------------------------
@@ -132,11 +132,11 @@ Li-Gr coin cell, 25 degC. The same measurement is available as both a LANDT CSV 
 :Provider: SINTEF
 :Plugin: ``landt_csv``
 :Rows: 25,162
-:BDF artifact: ``docs/examples/reference/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv`` (sha256 ``34c5fd10287b...``)
+:BDF artifact: ``docs/examples/reference/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv`` (sha256 ``e7ea478aa3fd...``)
 :Raw export: `SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv <https://zenodo.org/api/records/18986774/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.csv/content>`__ (2.5 MiB, md5:819f9f245126cce4f538e3a3d5883636)
 :Raw export: `SINTEF__LiGrR2032__2024-04-30__25degC__Landt.txt <https://zenodo.org/api/records/18986774/files/SINTEF__LiGrR2032__2024-04-30__25degC__Landt.txt/content>`__ (2.7 MiB, md5:fdfa79a7881662ba5d871a8d7d5357b1)
 
-:Columns: ``test_time_second``, ``voltage_volt``, ``current_ampere``, ``step_index``, ``discharging_capacity_ah``, ``charging_capacity_ah``, ``ambient_temperature_celsius``
+:Columns: ``test_time_second``, ``voltage_volt``, ``current_ampere``, ``unix_time_second``, ``cycle_count``, ``step_id``, ``step_type``, ``record_index``, ``step_time_second``, ``step_charging_capacity_ah``, ``step_discharging_capacity_ah``, ``step_charging_energy_wh``, ``step_discharging_energy_wh``, ``temperature_t1_celsius``, ``temperature_t2_celsius``, ``temperature_t3_celsius``
 
 SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.csv
 ---------------------------------------------------------------------------------------
@@ -180,10 +180,10 @@ Rate test, LiPo pouch cell, 25 degC.
 :Provider: SINTEF
 :Plugin: ``neware_csv``
 :Rows: 13,086
-:BDF artifact: ``docs/examples/reference/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv`` (sha256 ``cbbd0465bfef...``)
+:BDF artifact: ``docs/examples/reference/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv`` (sha256 ``90aa25c3852d...``)
 :Raw export: `SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv <https://zenodo.org/api/records/18986774/files/SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.csv/content>`__ (3.0 MiB, md5:e2075f6ffd08ea0d9f1e686cebbf2d1e)
 
-:Columns: ``test_time_second``, ``voltage_volt``, ``current_ampere``, ``cycle_count``, ``step_index``, ``power_watt``, ``temperature_t1_celsius``, ``temperature_t2_celsius``, ``temperature_t3_celsius``
+:Columns: ``test_time_second``, ``voltage_volt``, ``current_ampere``, ``unix_time_second``, ``cycle_count``, ``step_id``, ``step_time_second``, ``step_charging_capacity_ah``, ``step_discharging_capacity_ah``, ``step_cumulative_capacity_ah``, ``step_charging_energy_wh``, ``step_discharging_energy_wh``
 
 SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.bdf.parquet
 ---------------------------------------------------------------------------
