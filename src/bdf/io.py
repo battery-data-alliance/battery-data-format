@@ -24,6 +24,7 @@ def read(
     include_optional: bool = True,
     extra_columns: dict[str, str] | None = None,
     lazy: bool = True,
+    tz: str = "UTC",
 ) -> tuple[pl.DataFrame | pl.LazyFrame, dict]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
@@ -42,6 +43,9 @@ def read(
         include_optional: Include optional BDF columns in the normalized output.
         extra_columns: Additional column rename mappings to apply during normalization.
         lazy: Return a LazyFrame when True (default); collect to a DataFrame when False.
+        tz: IANA timezone applied to naive ``unix_time_second`` datetime formats. Defaults
+            to ``"UTC"``; a ``UserWarning`` is emitted when a naive format is in play and
+            ``tz`` is left at its default. See ``TableNormalizer.normalize``.
 
     Returns:
         Tuple of (df, metadata): the BDF table (LazyFrame or DataFrame per ``lazy``) and
@@ -70,6 +74,7 @@ def read(
         include_optional=include_optional,
         extra_columns=extra_columns,
         lazy=lazy,
+        tz=tz,
     )
 
     metadata: dict = {

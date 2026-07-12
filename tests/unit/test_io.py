@@ -169,7 +169,7 @@ def test_read_plugin_invalid_type_raises(tmp_path: Path) -> None:
 
 
 def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespace, tmp_path: Path) -> None:
-    """read() forwards path + the five read-shaping kwargs (incl. lazy) verbatim, nothing else."""
+    """read() forwards path + the six read-shaping kwargs (incl. lazy, tz) verbatim, nothing else."""
     p = tmp_path / "f.csv"
     read(
         p,
@@ -179,6 +179,7 @@ def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         include_optional=False,
         extra_columns={"a": "b"},
         lazy=False,
+        tz="America/New_York",
     )
     read_mocks.table_read.assert_called_once_with(
         p,
@@ -187,6 +188,7 @@ def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         include_optional=False,
         extra_columns={"a": "b"},
         lazy=False,
+        tz="America/New_York",
     )
 
 

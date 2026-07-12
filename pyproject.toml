@@ -73,6 +73,9 @@ dev = [
   "ipykernel>=6.0",
   "pre-commit>=4.6.0",
 ]
+pybamm-test = [
+  "pybamm",
+]
 docs = [
   "sphinx>=7.0",
   "pydata-sphinx-theme>=0.15",

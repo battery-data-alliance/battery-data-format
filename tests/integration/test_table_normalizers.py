@@ -22,6 +22,16 @@ from integration.test_cases import ALL_CASES
 # ---------------------------------------------------------------------------
 
 _KEY_BY_NORMALIZER: dict[TableNormalizer, str] = {norm: key for key, norm in NORMALIZERS.items()}
+_PYBAMM_EXPORTED_HEADERS: frozenset[str] = frozenset(
+    {
+        "Time [s]",
+        "Current [A]",
+        "Voltage [V]",
+        "Discharge capacity [A.h]",
+        "X-averaged cell temperature [C]",
+        "X-averaged cell temperature [K]",
+    }
+)
 
 
 def pool(key: str) -> frozenset[str]:
@@ -36,6 +46,11 @@ def pool(key: str) -> frozenset[str]:
     Returns:
         Frozenset of source headers a real file could carry for that normalizer.
     """
+    if key == "pybamm":
+        # PyBaMM is normalized from an exported in-memory solution dataframe, not a
+        # plugin-backed file sample. These authored headers mirror the export
+        # contract exercised in ``test_pybamm_exports.py``.
+        return _PYBAMM_EXPORTED_HEADERS
     headers: set[str] = set()
     for _, case in ALL_CASES:
         if case.expected_columns is None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 from pathlib import Path
 
@@ -18,6 +19,9 @@ SKIP_NOTEBOOKS = os.getenv("BDF_SKIP_NOTEBOOKS", "").lower() in {"1", "true", "y
 OFFLINE = os.getenv("BDF_OFFLINE", "").lower() in {"1", "true", "yes"}
 KERNEL_NAME = os.getenv("BDF_NOTEBOOK_KERNEL", "python3")
 TIMEOUT = int(os.getenv("BDF_NOTEBOOK_TIMEOUT", "600"))
+NOTEBOOK_OPTIONAL_DEPS = {
+    "table_parser.ipynb": ("fastnda", "fastnda not installed; skipping NDA notebook coverage."),
+}
 
 
 @pytest.fixture
@@ -56,6 +60,11 @@ def test_example_notebooks_execute(notebook_path: Path):
         pytest.skip("BDF_SKIP_NOTEBOOKS is set; skipping notebook execution.")
     if OFFLINE:
         pytest.skip("BDF_OFFLINE is set; skipping notebook execution.")
+    optional_dep = NOTEBOOK_OPTIONAL_DEPS.get(notebook_path.name)
+    if optional_dep is not None:
+        module_name, reason = optional_dep
+        if importlib.util.find_spec(module_name) is None:
+            pytest.skip(reason)
 
     nb = nbformat.read(notebook_path, as_version=4)
     client = NotebookClient(
