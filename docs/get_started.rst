@@ -45,6 +45,8 @@ Extras (combine as needed, for example ``pip install "batterydf[hvplot]"``):
      - Interactive exploration with Bokeh/HoloViews.
    * - ``polars``
      - Polars support plus the fast NDA backend (requires numpy>=2.2).
+   * - ``arbin``
+     - Arbin .res support via polars-access-mdbtools (requires MDB Tools on PATH).
    * - ``numpy2``
      - Forces numpy 2.x (recommended for fastnda).
    * - ``dev``

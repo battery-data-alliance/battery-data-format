@@ -176,6 +176,8 @@ pip install fastnda
 Note: fastnda requires numpy >=2.2. If you need fastnda, install with the numpy 2.x extra,
 for example `batterydf[polars,numpy2]` or `batterydf[numpy2]`.
 
+Optional Arbin .res support requires MDB Tools command-line utilities to be available on PATH.
+
 ### Quickstart
 
 ```python
