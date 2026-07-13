@@ -894,3 +894,18 @@ class TestExcelSheetPattern:
     def test_pattern_mutually_exclusive_with_sheet_id(self):
         with pytest.raises(ValueError, match="mutually exclusive"):
             ExcelParser(sheet_pattern=r"^Channel", sheet_id=1)
+
+    def test_multiple_matching_sheets_raise(self, tmp_path):
+        """A multi-channel workbook must not silently read only the first channel."""
+        openpyxl = pytest.importorskip("openpyxl")
+        pytest.importorskip("fastexcel")
+        wb = openpyxl.Workbook()
+        wb.active.title = "Global_Info"
+        for ch in ("Channel_1-001", "Channel_1-002"):
+            ws = wb.create_sheet(ch)
+            ws.append(["Test_Time(s)", "Voltage(V)"])
+        path = tmp_path / "two_channels.xlsx"
+        wb.save(path)
+        parser = ExcelParser(sheet_pattern=r"^Channel[_-]")
+        with pytest.raises(ValueError, match="multiple sheets match"):
+            parser.read_column_headings(path)

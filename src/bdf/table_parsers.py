@@ -607,12 +607,21 @@ class ExcelParser(TableParser):
         """
         import fastexcel
 
+        assert self.sheet_pattern is not None  # guarded by the single caller
         sheets = fastexcel.read_excel(path).sheet_names
-        pattern = re.compile(self.sheet_pattern or "", re.IGNORECASE)
-        for name in sheets:
-            if pattern.search(name):
-                return name
-        raise ValueError(f"no sheet matching {self.sheet_pattern!r} in {path.name!r}; sheets: {sheets}")
+        pattern = re.compile(self.sheet_pattern, re.IGNORECASE)
+        matches = [name for name in sheets if pattern.search(name)]
+        if not matches:
+            raise ValueError(f"no sheet matching {self.sheet_pattern!r} in {path.name!r}; sheets: {sheets}")
+        if len(matches) > 1:
+            # e.g. a multi-channel Arbin export in one workbook: silently reading the
+            # first channel would drop the others' data. Mirror the multi-sheet error
+            # in _read_sheet and make the caller choose.
+            raise ValueError(
+                f"multiple sheets match {self.sheet_pattern!r} in {path.name!r}: {matches}; "
+                "specify `sheet_name` or `sheet_id` to disambiguate."
+            )
+        return matches[0]
 
     def _read_sheet(self, path: str | Path, *, read_options: dict[str, Any], **extra: Any) -> pl.DataFrame:
         """Run ``pl.read_excel`` with the reader's sheet/column config and assert a single sheet.
