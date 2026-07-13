@@ -1158,8 +1158,14 @@ def _build_bdf_normalizer() -> TableNormalizer:
     for mr_name, q in COLUMN_ONTOLOGY:
         target_mr = mr_name
         if q.deprecated:
-            base = q.formatted_label.split(" / ", 1)[0].strip().lower()
-            target_mr = base_preferred.get(base, mr_name)
+            # Prefer the ontology's explicit dcterms:isReplacedBy link; the label
+            # base-name heuristic only covers unit-only renames (ms -> s) and
+            # silently misses renames like step_capacity_ah -> step_cumulative_capacity_ah.
+            if q.replaced_by and q.replaced_by in TableNormalizer.model_fields:
+                target_mr = q.replaced_by
+            else:
+                base = q.formatted_label.split(" / ", 1)[0].strip().lower()
+                target_mr = base_preferred.get(base, mr_name)
             if target_mr not in TableNormalizer.model_fields:
                 continue
         elif mr_name not in TableNormalizer.model_fields:

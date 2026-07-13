@@ -1001,3 +1001,55 @@ class TestFormattedLabel:
         """A literal {unit} placeholder is not substituted when unit is None."""
         q = Quantity(unit=None, label_template="X / {unit}", mr_name="x", iri="x", synonyms=[])
         assert q.formatted_label == "X / {unit}"
+
+
+# ---------------------------------------------------------------------------
+# dcterms:isReplacedBy -> Quantity.replaced_by
+# ---------------------------------------------------------------------------
+
+_REPLACED_BY_TTL = """\
+@prefix : <https://w3id.org/battery-data-alliance/ontology/battery-data-format#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <https://schema.org/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+:old_thing_ah rdf:type owl:Class ;
+    owl:deprecated "true"^^<http://www.w3.org/2001/XMLSchema#boolean> ;
+    dcterms:isReplacedBy :new_thing_ah ;
+    skos:prefLabel "Old Thing / Ah"@en ;
+    schema:unitCode "A.h" .
+
+:orphan_ms rdf:type owl:Class ;
+    owl:deprecated "true"^^<http://www.w3.org/2001/XMLSchema#boolean> ;
+    skos:prefLabel "Orphan / ms"@en ;
+    schema:unitCode "ms" .
+
+:new_thing_ah rdf:type owl:Class ;
+    skos:prefLabel "New Thing / Ah"@en ;
+    schema:unitCode "A.h" .
+"""
+
+
+def test_replaced_by_extracted_from_isreplacedby_link() -> None:
+    """A deprecated term's dcterms:isReplacedBy fragment lands in Quantity.replaced_by."""
+    onto = ColumnOntology.from_graph(spec._graph_from_bytes(_REPLACED_BY_TTL.encode("utf-8"), format="turtle"))
+    assert onto.old_thing_ah.replaced_by == "new_thing_ah"
+    assert onto.new_thing_ah.replaced_by == ""
+
+
+def test_replaced_by_empty_without_link() -> None:
+    """A deprecated term without an isReplacedBy link keeps replaced_by empty (heuristic fallback)."""
+    onto = ColumnOntology.from_graph(spec._graph_from_bytes(_REPLACED_BY_TTL.encode("utf-8"), format="turtle"))
+    assert onto.orphan_ms.replaced_by == ""
+
+
+def test_every_deprecated_quantity_has_replacement() -> None:
+    """Bundled snapshot invariant: every deprecated term links a non-deprecated replacement."""
+    for mr, q in COLUMN_ONTOLOGY:
+        if not q.deprecated:
+            continue
+        assert q.replaced_by, f"{mr} is deprecated but carries no dcterms:isReplacedBy"
+        target = COLUMN_ONTOLOGY.get(q.replaced_by)
+        assert target is not None and not target.deprecated, f"{mr} -> {q.replaced_by}"

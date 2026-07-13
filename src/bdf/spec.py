@@ -323,6 +323,9 @@ class Quantity(BaseModel):
     iri: str
     synonyms: list[str]
     deprecated: bool = False
+    replaced_by: str = ""
+    """mr_name of the non-deprecated replacement (dcterms:isReplacedBy); empty when
+    not deprecated or the ontology carries no link."""
     notation: str = ""
     obligation: str = ""
     definition: str = ""
@@ -447,6 +450,18 @@ class Quantity(BaseModel):
             False,
         )
 
+        # dcterms:isReplacedBy links a deprecated term to its preferred replacement;
+        # the IRI fragment is the replacement's mr_name. Left empty when absent so
+        # consumers fall back to the label base-name heuristic.
+        replaced_by = next(
+            (
+                str(obj).rsplit("#", 1)[-1]
+                for obj in g.objects(subject, URIRef("http://purl.org/dc/terms/isReplacedBy"))
+                if isinstance(obj, URIRef) and str(obj).startswith(ns)
+            ),
+            "",
+        )
+
         alt_labels = _english_literals(g, subject, skos.altLabel)
         notations = _english_literals(g, subject, skos.notation)
         notation = next((s for n in notations if (s := str(n).strip())), mr_name)
@@ -491,6 +506,7 @@ class Quantity(BaseModel):
             notation=notation,
             iri=iri,
             deprecated=deprecated,
+            replaced_by=replaced_by,
             synonyms=synonyms,
             obligation=obligation,
             definition=definition,

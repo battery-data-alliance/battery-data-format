@@ -183,8 +183,12 @@ def _label_maps() -> tuple[dict[str, str], dict[str, str]]:
 
         target_q = q
         if s.deprecated:
-            base = source_pref.split(" / ", 1)[0].strip().lower()
-            target_q = base_preferred.get(base, q)
+            # isReplacedBy first; base-name heuristic as fallback (see _build_bdf_normalizer).
+            if s.replaced_by and spec.COLUMN_ONTOLOGY.get(s.replaced_by) is not None:
+                target_q = s.replaced_by
+            else:
+                base = source_pref.split(" / ", 1)[0].strip().lower()
+                target_q = base_preferred.get(base, q)
 
         target = getattr(spec.COLUMN_ONTOLOGY, target_q)
         target_pref = target.formatted_label
@@ -323,8 +327,12 @@ def canonicalize_legacy_labels(
         target_q = q
         is_deprecated = s.deprecated
         if s.deprecated:
-            base = pref.split(" / ", 1)[0].strip().lower()
-            target_q = base_preferred.get(base, q)
+            # isReplacedBy first; base-name heuristic as fallback (see _build_bdf_normalizer).
+            if s.replaced_by and spec.COLUMN_ONTOLOGY.get(s.replaced_by) is not None:
+                target_q = s.replaced_by
+            else:
+                base = pref.split(" / ", 1)[0].strip().lower()
+                target_q = base_preferred.get(base, q)
         target_canon = spec.COLUMN_ONTOLOGY[target_q].formatted_label
         target_unit = spec.COLUMN_ONTOLOGY[target_q].unit
         src_unit = s.unit if is_deprecated and s.unit != target_unit else ""
