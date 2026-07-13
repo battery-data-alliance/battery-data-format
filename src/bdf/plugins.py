@@ -197,6 +197,13 @@ NEWARE_XLSX = Plugin(
     table_parser=ExcelParser(normalizer=NORMALIZERS["neware"], sheet_name="record"),
 )
 
+# Arbin MITS Excel exports: data lives in a per-channel sheet whose name varies by
+# MITS version (Channel_1-002, Channel-6_1, Channel_6_1, ...); Global_Info carries
+# test metadata and ACIM_chan_*/Statistics* sheets (EIS, summaries) are not read.
+ARBIN_XLSX = Plugin(
+    table_parser=ExcelParser(normalizer=NORMALIZERS["arbin"], sheet_pattern=r"^Channel[_-]"),
+)
+
 NOVONIX_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["novonix"]),
     metadata_parser=TxtPreambleParser(magic=("[summary]", "[data]", "novonix uhpc data file", "novonix")),
@@ -226,6 +233,7 @@ PLUGINS: dict[str, Plugin] = PluginDict(
         "maccor_csv": MACCOR_CSV,
         "neware_csv": NEWARE_CSV,
         "neware_xlsx": NEWARE_XLSX,
+        "arbin_xlsx": ARBIN_XLSX,
         "novonix_csv": NOVONIX_CSV,
         "neware_nda": NEWARE_NDA,
         "bdf_csv": BDF_CSV,

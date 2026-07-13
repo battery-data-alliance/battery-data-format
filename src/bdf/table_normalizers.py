@@ -633,9 +633,15 @@ class TableNormalizer(BaseModel):
 # several file formats (e.g. ``"neware"`` backs both the CSV and XLSX sources).
 # ---------------------------------------------------------------------------
 
-_ARBIN_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S")
 _ACCESS_UNIX_EPOCH_DAYS = 25569.0
 _SECONDS_PER_DAY = 86400.0
+_ARBIN_DT_FMTS = (
+    "%m/%d/%Y %H:%M:%S%.f",
+    "%m/%d/%Y %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S%.f",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y/%m/%d %H:%M:%S",
+)
 _DIGATRON_DT_FMTS = (
     "%Y-%m-%d %H:%M:%S%.f%:z",
     "%Y-%m-%d %H:%M:%S%:z",
@@ -646,15 +652,43 @@ _LANDT_DT_FMTS = ("%Y-%m-%d %H:%M:%S",)
 _MACCOR_DT_FMTS = ("%d-%b-%y %I:%M:%S %p", "%d-%b-%y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y %H:%M")
 _NEWARE_DT_FMTS = ("%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
 
+# Arbin exports use two header dialects: MITS CSV/newer Excel use spaces before the
+# parenthesised unit ("Test Time (s)"); older MITS Excel uses underscores and no space
+# ("Test_Time(s)"). Both are covered below and share this one normalizer across the
+# arbin_csv and arbin_xlsx plugins.
 ARBIN = TableNormalizer(
-    test_time_second=(Syn(hdr="Test Time ({unit})"),),
-    voltage_volt=(Syn(hdr="Voltage ({unit})"),),
-    current_ampere=(Syn(hdr="Current ({unit})"),),
-    unix_time_second=(DateTimeSyn(syn=Syn(hdr="Date Time"), fmts=_ARBIN_DT_FMTS),),
-    cycle_count=(Syn(hdr="Cycle Index"),),
-    step_id=(Syn(hdr="Step Index"),),
-    record_index=(Syn(hdr="Data Point"),),
-    step_time_second=(Syn(hdr="Step Time ({unit})"),),
+    test_time_second=(
+        Syn(hdr="Test Time ({unit})"),
+        Syn(hdr="Test_Time({unit})"),
+    ),
+    voltage_volt=(
+        Syn(hdr="Voltage ({unit})"),
+        Syn(hdr="Voltage({unit})"),
+    ),
+    current_ampere=(
+        Syn(hdr="Current ({unit})"),
+        Syn(hdr="Current({unit})"),
+    ),
+    unix_time_second=(
+        DateTimeSyn(syn=Syn(hdr="Date Time"), fmts=_ARBIN_DT_FMTS),
+        DateTimeSyn(syn=Syn(hdr="Date_Time"), fmts=_ARBIN_DT_FMTS),
+    ),
+    cycle_count=(
+        Syn(hdr="Cycle Index"),
+        Syn(hdr="Cycle_Index"),
+    ),
+    step_id=(
+        Syn(hdr="Step Index"),
+        Syn(hdr="Step_Index"),
+    ),
+    record_index=(
+        Syn(hdr="Data Point"),
+        Syn(hdr="Data_Point"),
+    ),
+    step_time_second=(
+        Syn(hdr="Step Time ({unit})"),
+        Syn(hdr="Step_Time({unit})"),
+    ),
     temperature_t1_celsius=(
         Syn(hdr="Aux_Temperature_1 (C)"),
         Syn(hdr="Aux_Temperature_1 ({unit})"),
