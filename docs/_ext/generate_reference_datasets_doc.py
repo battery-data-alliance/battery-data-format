@@ -40,6 +40,128 @@ def _mib(size_bytes: int) -> str:
     return f"{size_bytes / (1024 * 1024):.1f} MiB"
 
 
+_VERDICT_BADGE = {
+    "PASS": ":bdg-success:`PASS`",
+    "WARN": ":bdg-warning:`WARN`",
+    "FAIL": ":bdg-danger:`FAIL`",
+}
+
+
+def _summary_table(datasets: list[dict]) -> list[str]:
+    """Render the at-a-glance scorecard summary table."""
+    lines = [
+        "Scorecard summary",
+        "-----------------",
+        "",
+        "Each artifact is re-converted from its raw source and compared against the",
+        "committed file by ``scripts/build_scorecards.py``. **FAIL** means the committed",
+        "artifact disagrees with a fresh conversion (stale or produced by a buggy",
+        "converter); **WARN** means undocumented derived-column findings; details are in",
+        "each dataset's scorecard below.",
+        "",
+        ".. list-table::",
+        "   :header-rows: 1",
+        "   :widths: 8 46 10 12 12 12",
+        "",
+        "   * - Verdict",
+        "     - Dataset",
+        "     - Rows",
+        "     - Mapped",
+        "     - Dropped",
+        "     - Findings",
+    ]
+    for e in datasets:
+        card = e.get("scorecard")
+        if not card:
+            continue
+        # mirror docutils' section-id generation: lowercase, non-alphanumeric runs -> single hyphen
+        anchor = re.sub(r"[^a-z0-9]+", "-", e["bdf_file"].lower()).strip("-")
+        n_findings = len(card["derived_issues"]) + (
+            0 if card["artifact_vs_fresh"] == ["matches fresh conversion"] else 1
+        )
+        lines.extend(
+            [
+                f"   * - {_VERDICT_BADGE.get(card['verdict'], card['verdict'])}",
+                f"     - `{e['bdf_file']} <#{anchor}>`__",
+                f"     - {card['stats'].get('rows', '?'):,}",
+                f"     - {card['mapped_columns']}/{card['native_columns']}",
+                f"     - {len(card['unmapped_native_columns'])}",
+                f"     - {n_findings or '—'}",
+            ]
+        )
+    lines.append("")
+    return lines
+
+
+def _scorecard_block(entry: dict) -> list[str]:
+    """Render one dataset's scorecard: verdict, plot, checks, mapping, dropped columns."""
+    card = entry.get("scorecard")
+    if not card:
+        return []
+    lines: list[str] = []
+
+    stats = card["stats"]
+    stat_bits = [f"{stats.get('rows', 0):,} rows"]
+    if "duration_hours" in stats:
+        stat_bits.append(f"{stats['duration_hours']:,} h")
+    for c in ("Voltage / V", "Current / A"):
+        if c in stats:
+            s = stats[c]
+            stat_bits.append(f"{c}: [{s['min']}, {s['max']}]" + (f" ({s['nulls']} nulls)" if s["nulls"] else ""))
+    lines.extend([f"{_VERDICT_BADGE.get(card['verdict'], card['verdict'])} {' — '.join(stat_bits)}", ""])
+
+    if card.get("plot"):
+        lines.extend([f".. image:: _static/scorecards/{card['plot']}", "   :width: 100%", ""])
+
+    # finding strings may contain RST-active characters (e.g. |delta| pipes) — render as literals
+    checks = []
+    for f in card["artifact_vs_fresh"]:
+        if f == "matches fresh conversion":
+            checks.append(f"- ✓ raw-vs-artifact: {f}")
+        else:
+            checks.append(f"- ✗ raw-vs-artifact: {_lit(f)}")
+    if card["derived_issues"]:
+        for issue in card["derived_issues"]:
+            checks.append(f"- ✗ derived: {_lit(issue)}")
+    else:
+        checks.append("- ✓ derived-column consistency: no findings")
+    lines.extend(checks)
+    lines.append("")
+
+    lines.extend(
+        [
+            f".. dropdown:: Column mapping ({card['mapped_columns']} mapped, "
+            f"{len(card['unmapped_native_columns'])} native columns dropped)",
+            "",
+            "   .. list-table::",
+            "      :header-rows: 1",
+            "      :widths: 40 40 20",
+            "",
+            "      * - Native column",
+            "        - BDF column",
+            "        - Conversion",
+        ]
+    )
+    for m in card["mapping"]:
+        lines.extend(
+            [
+                f"      * - {_lit(m['native'])}",
+                f"        - {_lit(m['bdf'])}",
+                f"        - {m['conversion']}",
+            ]
+        )
+    if card["unmapped_native_columns"]:
+        lines.extend(
+            [
+                "",
+                "   **Dropped (no BDF mapping):** "
+                + ", ".join(_lit(c) if c else "``<empty header>``" for c in card["unmapped_native_columns"]),
+            ]
+        )
+    lines.append("")
+    return lines
+
+
 def _dataset_section(entry: dict) -> list[str]:
     """Render one dataset pairing as an RST section."""
     title = entry["bdf_file"]
@@ -75,6 +197,7 @@ def _dataset_section(entry: dict) -> list[str]:
 
     lines.append(f":Columns: {', '.join(_lit(c) for c in entry['columns'])}")
     lines.append("")
+    lines.extend(_scorecard_block(entry))
     return lines
 
 
@@ -86,6 +209,9 @@ def _generated_content() -> str:
         "docs/examples/reference/datasets.json - do not edit by hand."
     )
     blocks: list[str] = [stamp, ""]
+
+    if any(e.get("scorecard") for e in manifest["datasets"]):
+        blocks.extend(_summary_table(manifest["datasets"]))
 
     for entry in manifest["datasets"]:
         blocks.extend(_dataset_section(entry))
