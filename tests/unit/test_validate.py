@@ -104,3 +104,21 @@ def test_cycle_count_non_monotonic_flagged():
     df["cycle_count"] = [0, 1, 0, 1]
     rep = validate_df(df, report=False, raise_on_error=False)
     assert any(d["check"] == "monotonic" and d["column"] == "cycle_count" for d in rep["derived"]["details"])
+
+
+def test_derived_identity_tolerates_csv_roundtrip_noise_near_zero():
+    """8-significant-digit CSV round-trips leave ~1e-8-of-scale residue where the
+    identity crosses zero; the scale-aware atol must not flag that as a violation."""
+    df = _consistent_derived_df()
+    # perturb net by 1e-8 of the ~2 Ah column scale near its zero crossing
+    df.loc[1, "net_capacity_ah"] += 2.7e-08
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert not any(d["check"] == "identity" for d in rep["derived"]["details"])
+
+
+def test_derived_identity_still_catches_gross_violation():
+    """The scale-aware atol stays far below real violations (e.g. swapped columns)."""
+    df = _consistent_derived_df()
+    df["net_capacity_ah"] = df["charging_capacity_ah"] + df["discharging_capacity_ah"]
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert any(d["check"] == "identity" for d in rep["derived"]["details"])

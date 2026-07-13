@@ -102,7 +102,10 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
         got = cols[target].to_numpy(dtype=float)
         exp = (cols[a] + cols[b] if op == "+" else cols[a] - cols[b]).to_numpy(dtype=float)
         valid = np.isfinite(got) & np.isfinite(exp)
-        mismatch = valid & ~np.isclose(got, exp, rtol=1e-6, atol=1e-9)
+        # scale-aware atol: 8-significant-digit CSV round-trips leave ~1e-8-of-scale
+        # residue near zero-crossings, which a fixed atol=1e-9 misreads as violations.
+        scale = float(np.nanmax(np.abs(exp[valid]))) if valid.any() else 0.0
+        mismatch = valid & ~np.isclose(got, exp, rtol=1e-6, atol=1e-9 + 1e-7 * scale)
         n_bad = int(mismatch.sum())
         if n_bad:
             worst = float(np.abs(got[mismatch] - exp[mismatch]).max())
