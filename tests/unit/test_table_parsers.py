@@ -14,7 +14,7 @@ import polars as pl
 import pytest
 
 from bdf.table_normalizers import ResolvedColumn, Syn, TableNormalizer
-from bdf.table_parsers import DelimTxtParser, ExcelParser, MatParser, NDAParser, ParquetParser, TableParser
+from bdf.table_parsers import DelimTxtParser, ExcelParser, MatParser, MDBParser, NDAParser, ParquetParser, TableParser
 
 
 class TestMatchesExt:
@@ -54,12 +54,19 @@ class TestMatchesMagicBytes:
     def test_nda_rejects_unrelated_bytes(self) -> None:
         assert NDAParser().matches_magic_bytes(b"PAR1") is False
 
+    def test_mdb_matches_jet_magic(self) -> None:
+        assert MDBParser().matches_magic_bytes(b"\x00\x01\x00\x00Standard Jet DB\x00\x00") is True
+
+    def test_mdb_rejects_unrelated_bytes(self) -> None:
+        assert MDBParser().matches_magic_bytes(b"NEWARE") is False
+
     def test_is_text_flags(self) -> None:
         assert DelimTxtParser().is_text is True
         assert ExcelParser().is_text is False
         assert MatParser().is_text is False
         assert ParquetParser().is_text is False
         assert NDAParser().is_text is False
+        assert MDBParser().is_text is False
 
 
 class TestDelimTxtTextPlausibilityGate:
@@ -719,3 +726,94 @@ class TestNDAParser:
         nda_path.write_bytes(b"")
         parser = NDAParser()
         assert parser.read_column_headings(nda_path) == ["a", "b"]
+
+
+class TestMDBParser:
+    """MDBParser, with polars-access-mdbtools mocked so no binary fixture or real dependency is needed."""
+
+    @pytest.fixture
+    def fake_polars_access_mdbtools(self, monkeypatch: pytest.MonkeyPatch):
+        """Install a stub `polars_access_mdbtools` module exposing a spyable `read_table(path, table_name)`."""
+        import sys
+        import types
+
+        df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
+        calls: list[tuple[str, str]] = []
+
+        def fake_read_table(path: str, table_name: str) -> pl.DataFrame:
+            calls.append((path, table_name))
+            return df
+
+        module = types.ModuleType("polars_access_mdbtools")
+        module.read_table = fake_read_table  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+        return calls
+
+    def test_read_raw_missing_dependency_raises_runtime_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_read_raw raises RuntimeError with install hint when polars_access_mdbtools is not importable."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def blocked_import(name: str, *args, **kwargs):
+            if name == "polars_access_mdbtools":
+                raise ImportError("no polars_access_mdbtools")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", blocked_import)
+        parser = MDBParser()
+        with pytest.raises(RuntimeError, match=r"batterydf\[arbin_res\].*mdb-schema"):
+            parser._read_raw("cell.res")
+
+    def test_read_raw_passes_resolved_local_path_to_polars_access_mdbtools(
+        self, fake_polars_access_mdbtools, tmp_path: Path
+    ) -> None:
+        """_read_raw resolves a local path and forwards it as a string to polars_access_mdbtools.read_table."""
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        lf = parser._read_raw(res_path)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+        assert fake_polars_access_mdbtools == [(str(res_path), "Channel_Normal_Table")]
+
+    def test_read_raw_resolves_url_via_fetch_url(
+        self, fake_polars_access_mdbtools, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """_read_raw downloads URL sources through fetch_url before handing the local path to polars_access_mdbtools."""
+        cached = tmp_path / "downloaded.res"
+        cached.write_bytes(b"")
+        monkeypatch.setattr("bdf.fetch.fetch_url", lambda url: cached)
+        parser = MDBParser()
+        parser._read_raw("https://example.com/cell.res")
+        assert fake_polars_access_mdbtools == [(str(cached), "Channel_Normal_Table")]
+
+    def test_read_raw_sorts_channel_normal_table_by_data_point(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """_read_raw sorts Arbin MDB rows by Data_Point because mdbtools may return storage order."""
+        import sys
+        import types
+
+        df = pl.DataFrame({"Data_Point": [3, 1, 2], "Voltage": [3.3, 3.1, 3.2]})
+
+        def fake_read_table(path: str, table_name: str) -> pl.DataFrame:
+            return df
+
+        module = types.ModuleType("polars_access_mdbtools")
+        module.read_table = fake_read_table  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        out = parser._read_raw(res_path).collect()
+        assert out["Data_Point"].to_list() == [1, 2, 3]
+        assert out["Voltage"].to_list() == [3.1, 3.2, 3.3]
+
+    def test_read_column_headings_returns_schema_names(self, fake_polars_access_mdbtools, tmp_path: Path) -> None:
+        """read_column_headings reflects polars_access_mdbtools' column names without requiring data rows."""
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        assert parser.read_column_headings(res_path) == ["a", "b"]

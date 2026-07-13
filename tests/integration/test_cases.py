@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
@@ -481,6 +482,65 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 ),
             },
             marks=(pytest.mark.network,),
+        ),
+    ),
+    (
+        "arbin_res/local",
+        SampleCase(
+            source="arbin/sample.res",
+            plugin_id="arbin_res",
+            ext_ids=frozenset({"arbin_res"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_res",
+            detect_id="arbin_res",
+            deciding_stage="ext",
+            expected_columns={
+                "record_index": ColExpect("Data_Point", 1.0),
+                "test_time_second": ColExpect("Test_Time", 1.0),
+                "step_time_second": ColExpect("Step_Time", 1.0),
+                "unix_time_second": ColExpect("DateTime", 86400.0),
+                "step_id": ColExpect("Step_Index", 1.0),
+                "cycle_count": ColExpect("Cycle_Index", 1.0),
+                "current_ampere": ColExpect("Current", 1.0),
+                "voltage_volt": ColExpect("Voltage", 1.0),
+                "charging_capacity_ah": ColExpect("Charge_Capacity", 1.0),
+                "discharging_capacity_ah": ColExpect("Discharge_Capacity", 1.0),
+                "charging_energy_wh": ColExpect("Charge_Energy", 1.0),
+                "discharging_energy_wh": ColExpect("Discharge_Energy", 1.0),
+                "dc_internal_resistance_ohm": ColExpect("Internal_Resistance", 1.0),
+                "absolute_impedance_ohm": ColExpect("AC_Impedance", 1.0),
+                "phase_degree": ColExpect("ACI_Phase_Angle", 1.0),
+            },
+            marks=(
+                pytest.mark.skipif(
+                    pytest.importorskip("polars_access_mdbtools", reason="polars-access-mdbtools not installed")
+                    is None,
+                    reason="polars-access-mdbtools not installed",
+                ),
+                pytest.mark.skipif(shutil.which("mdb-schema") is None, reason="MDB Tools not installed"),
+            ),
+            known_validity_bugs={
+                "charging_capacity_ah": (
+                    "Charge Capacity resets at cycle boundaries in this .res export, "
+                    "so it is cycle-local rather than globally cumulative"
+                ),
+                "discharging_capacity_ah": (
+                    "Discharge Capacity resets at cycle boundaries in this .res export, "
+                    "so it is cycle-local rather than globally cumulative"
+                ),
+                "charging_energy_wh": (
+                    "Charge Energy resets at cycle boundaries in this .res export, "
+                    "mirroring the cycle-local Charge Capacity counter"
+                ),
+                "discharging_energy_wh": (
+                    "Discharge Energy resets at cycle boundaries in this .res export, "
+                    "mirroring the cycle-local Discharge Capacity counter"
+                ),
+                "step_time_second": (
+                    "Step Time is monotonic within each step, but the final Step ID 7 "
+                    "boundary starts around one hour instead of resetting near zero"
+                ),
+            },
         ),
     ),
 ]

@@ -223,6 +223,8 @@ def _infer_plugin_from_filename(
 
     if ext in (".nda", ".ndax"):
         return "neware_nda"
+    if ext == ".res":
+        return "arbin_res"
     if ext == ".mpt":
         return "biologic_mpt"
     if "biologic" in haystack and ext in (".mpt", ".txt", ".csv"):
