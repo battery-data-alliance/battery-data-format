@@ -33,7 +33,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .file_utils import is_url, read_head, resolve_source
 from .metadata_parsers import JsonSidecarParser, MetadataParser, MetadataSchema, TxtPreambleParser
 from .table_normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS, TableNormalizer
-from .table_parsers import DelimTxtParser, ExcelParser, MatParser, NDAParser, ParquetParser
+from .table_parsers import DelimTxtParser, ExcelParser, MatParser, MDBParser, NDAParser, ParquetParser
 
 try:
     import yaml
@@ -45,7 +45,7 @@ except ImportError as _exc:
     _YAML_IMPORT_ERROR = _exc
 
 TableParserUnion = Annotated[
-    DelimTxtParser | ExcelParser | MatParser | ParquetParser | NDAParser,
+    DelimTxtParser | ExcelParser | MatParser | MDBParser | ParquetParser | NDAParser,
     Field(discriminator="kind"),
 ]
 MetadataUnion = Annotated[
@@ -134,6 +134,13 @@ ARBIN_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["arbin"]),
 )
 
+ARBIN_RES = Plugin(
+    table_parser=MDBParser(
+        normalizer=NORMALIZERS["arbin_res"],
+        unique_exts=frozenset({".res"}),
+    ),
+)
+
 BASYTEC_TXT = Plugin(
     table_parser=DelimTxtParser(
         normalizer=NORMALIZERS["basytec"],
@@ -210,6 +217,7 @@ BDF_PARQUET = Plugin(table_parser=ParquetParser(normalizer=BDF_NORMALIZER))
 PLUGINS: dict[str, Plugin] = PluginDict(
     {
         "arbin_csv": ARBIN_CSV,
+        "arbin_res": ARBIN_RES,
         "basytec_txt": BASYTEC_TXT,
         "biologic_mpt": BIOLOGIC_MPT,
         "digatron_csv": DIGATRON_CSV,

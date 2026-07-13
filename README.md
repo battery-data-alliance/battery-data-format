@@ -160,6 +160,8 @@ pip install batterydf
 pip install batterydf[hvplot]
 # Polars + fast NDA backend
 pip install batterydf[polars]
+# Arbin .res support (requires MDB tools)
+pip install batterydf[arbin_res]
 # Force numpy 2.x (combine as needed, e.g. batterydf[polars,numpy2])
 pip install batterydf[numpy2]
 # for docs/dev: pip install -e .[dev,docs]

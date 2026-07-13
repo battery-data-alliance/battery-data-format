@@ -1,8 +1,9 @@
-"""Table parsers: ``TableParser``, ``DelimTxtParser``, ``ExcelParser``, ``MatParser``.
+"""Table parsers: ``TableParser``, ``DelimTxtParser``, ``ExcelParser``, ``MatParser``, ``MDBParser``.
 
 Each parser wraps polars (DelimTxtParser, ExcelParser) or scipy (MatParser) file parsers
 and turns a source (local path or ``http(s)://`` URL) → :class:`polars.LazyFrame` for one
-file-format family, keyed by a ``kind`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``).
+file-format family, keyed by a ``kind`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``
+/ ``"mdb"``).
 A parser carries a :class:`~bdf.table_normalizers.TableNormalizer` field (default empty): its
 :meth:`read` returns the normalized frame, and a MAT parser sources its variable names
 from that normalizer. A blank normalizer degrades to a raw mechanics-only read.
@@ -712,6 +713,64 @@ class NDAParser(TableParser):
 
         Args:
             path: Local file path or URL to .nda or .ndax file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# MDBParser
+# ---------------------------------------------------------------------------
+
+
+class MDBParser(TableParser):
+    """Parser for Microsoft Access .mdb database files using polars-access-mdbtools.
+
+    Always reads the ``Channel_Normal_Table`` table.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["mdb"] = "mdb"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".mdb"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"\x00\x01\x00\x00Standard Jet DB"})
+    is_text: ClassVar[bool] = False
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read an MDB file to a LazyFrame.
+
+        Args:
+            path: Local file path or URL to .mdb file.
+
+        Returns:
+            A polars LazyFrame containing the MDB data.
+
+        Raises:
+            RuntimeError: If polars-access-mdbtools is not installed.
+        """
+        try:
+            import polars_access_mdbtools
+        except ImportError as exc:
+            raise RuntimeError(
+                "MDBParser requires the optional Arbin .res dependencies. "
+                "Install with `pip install batterydf[arbin_res]`; MDB Tools command-line utilities "
+                "(including `mdb-schema`) must also be available on PATH."
+            ) from exc
+
+        resolved = resolve_source(path)
+        df = polars_access_mdbtools.read_table(str(resolved), "Channel_Normal_Table")
+        if "Data_Point" in df.columns:
+            df = df.sort("Data_Point")
+        return df.lazy()
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from an MDB file.
+
+        Args:
+            path: Local file path or URL to .mdb or .res file.
 
         Returns:
             List of column names.
