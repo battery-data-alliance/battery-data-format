@@ -8,18 +8,20 @@
   "datasets": [
     {
       "bdf_file": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "1971347477c5388d7486fbc285a6389782a43648e49429da1bcdc366cfbb8245",
+      "bdf_sha256": "cfc400994e25e1259ddef5eb9fe830c87865820a6cc40c40f13ad2db1246987f",
       "rows": 315306,
       "columns": [
         "test_time_second",
         "voltage_volt",
         "current_ampere",
-        "ambient_temperature_celsius"
+        "step_id",
+        "record_index",
+        "temperature_t1_celsius"
       ],
       "plugin": "basytec_txt",
       "provider": "DLR",
       "deliberate_data_bugs": null,
-      "notes": "GITT protocol, Li-Gr full cell, 25 degC.",
+      "notes": "GITT protocol, Li-Gr full cell, 25 degC. Regenerated 2026-07-13: the legacy conversion carried test_time_second values 3600x too large (hours-to-seconds applied twice); the temperature channel, previously published as ambient_temperature_celsius, is now the unqualified temperature_t1_celsius per the aux-channel policy (raw header T1[degC]; identical values; placement confirmation requested from DLR); Step ID and Record Index are newly extracted.",
       "raw_files": [
         {
           "filename": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.txt",
@@ -27,22 +29,93 @@
           "size_bytes": 62380666,
           "checksum": "md5:26eb1804d891c87bff7af244927be602"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 17,
+        "mapped_columns": 6,
+        "mapping": [
+          {
+            "native": "I[A]",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "DataSet",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Line",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "T1[°C]",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "~Time[h]",
+            "bdf": "Test Time / s",
+            "conversion": "x 3600"
+          },
+          {
+            "native": "U[V]",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "t-Set[h]",
+          "Command",
+          "Ah[Ah/kg]",
+          "Ah-Charge",
+          "Ah-Discharge",
+          "Ah-Step",
+          "Ah-Step[Ah/kg]",
+          "Ah-Set",
+          "Ah-Set[Ah/kg]",
+          "Cyc-Count",
+          "State"
+        ],
+        "stats": {
+          "rows": 315306,
+          "duration_hours": 614.8,
+          "Voltage / V": {
+            "min": 0.0097,
+            "max": 1.5149,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.0007,
+            "max": 0.0007,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.png"
+      }
     },
     {
       "bdf_file": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "cd5bcd104bd25c9245d4b0fbdc16c2c1042eac0072ab47dcf1b8cab136f4551b",
+      "bdf_sha256": "c73d4465ff34cb8e7f987ba9cbbee48c75491b7d3a094b6f53537942f67abdff",
       "rows": 39193,
       "columns": [
         "test_time_second",
         "voltage_volt",
         "current_ampere",
-        "ambient_temperature_celsius"
+        "step_id",
+        "record_index",
+        "temperature_t1_celsius"
       ],
       "plugin": "basytec_txt",
       "provider": "DLR",
       "deliberate_data_bugs": null,
-      "notes": "Pseudo-OCV protocol, Li-Gr full cell, 25 degC.",
+      "notes": "Pseudo-OCV protocol, Li-Gr full cell, 25 degC. Regenerated 2026-07-13: the legacy conversion carried test_time_second values 3600x too large (hours-to-seconds applied twice); the temperature channel, previously published as ambient_temperature_celsius, is now the unqualified temperature_t1_celsius per the aux-channel policy (raw header T1[degC]; identical values; placement confirmation requested from DLR); Step ID and Record Index are newly extracted.",
       "raw_files": [
         {
           "filename": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.txt",
@@ -50,22 +123,93 @@
           "size_bytes": 9257892,
           "checksum": "md5:9e5b47be4a13c71a66d20714d3e016b6"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 17,
+        "mapped_columns": 6,
+        "mapping": [
+          {
+            "native": "I[A]",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "DataSet",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Line",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "T1[°C]",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "~Time[h]",
+            "bdf": "Test Time / s",
+            "conversion": "x 3600"
+          },
+          {
+            "native": "U[V]",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "t-Set[h]",
+          "Command",
+          "Ah[Ah/kg]",
+          "Ah-Charge",
+          "Ah-Discharge",
+          "Ah-Step",
+          "Ah-Step[Ah/kg]",
+          "Ah-Set",
+          "Ah-Set[Ah/kg]",
+          "Cyc-Count",
+          "State"
+        ],
+        "stats": {
+          "rows": 39193,
+          "duration_hours": 102.95,
+          "Voltage / V": {
+            "min": 0.0097,
+            "max": 1.5021,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.0001,
+            "max": 0.0001,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.png"
+      }
     },
     {
       "bdf_file": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "0cace1af588be8aec28bdd2d37010e3669e2698949f10a74eba6de254246b7c2",
+      "bdf_sha256": "7f8f980f25bd539779cfc9eb66a7cf4ef71ad41c060ee2acf3d29e269ea55774",
       "rows": 17860,
       "columns": [
         "test_time_second",
         "voltage_volt",
         "current_ampere",
-        "ambient_temperature_celsius"
+        "step_id",
+        "record_index",
+        "temperature_t1_celsius"
       ],
       "plugin": "basytec_txt",
       "provider": "DLR",
       "deliberate_data_bugs": null,
-      "notes": "Pseudo-OCV protocol, Li-LNMO full cell, 25 degC.",
+      "notes": "Pseudo-OCV protocol, Li-LNMO full cell, 25 degC. Regenerated 2026-07-13: the legacy conversion carried test_time_second values 3600x too large (hours-to-seconds applied twice); the temperature channel, previously published as ambient_temperature_celsius, is now the unqualified temperature_t1_celsius per the aux-channel policy (raw header T1[degC]; identical values; placement confirmation requested from DLR); Step ID and Record Index are newly extracted.",
       "raw_files": [
         {
           "filename": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.txt",
@@ -73,22 +217,93 @@
           "size_bytes": 4060881,
           "checksum": "md5:5e6bd90f2f01b777fe871e7f867d3ee0"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 17,
+        "mapped_columns": 6,
+        "mapping": [
+          {
+            "native": "I[A]",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "DataSet",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Line",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "T1[°C]",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "~Time[h]",
+            "bdf": "Test Time / s",
+            "conversion": "x 3600"
+          },
+          {
+            "native": "U[V]",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "t-Set[h]",
+          "Command",
+          "Ah[Ah/kg]",
+          "Ah-Charge",
+          "Ah-Discharge",
+          "Ah-Step",
+          "Ah-Step[Ah/kg]",
+          "Ah-Set",
+          "Ah-Set[Ah/kg]",
+          "Cyc-Count",
+          "State"
+        ],
+        "stats": {
+          "rows": 17860,
+          "duration_hours": 40.93,
+          "Voltage / V": {
+            "min": 2.9938,
+            "max": 4.9001,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.0003,
+            "max": 0.0003,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.png"
+      }
     },
     {
       "bdf_file": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "196fd7cfcdb7570d4a2dfea1dbeaa29c043b4049716f55b4ee38acb4cb0b9db8",
+      "bdf_sha256": "b54df597404a98cbce6326b9cbe4825e6c0256a1fb07c80e9d62f0b4dc8034fd",
       "rows": 323425,
       "columns": [
         "test_time_second",
         "voltage_volt",
         "current_ampere",
-        "ambient_temperature_celsius"
+        "step_id",
+        "record_index",
+        "temperature_t1_celsius"
       ],
       "plugin": "basytec_txt",
       "provider": "DLR",
       "deliberate_data_bugs": null,
-      "notes": "GITT protocol, Li-LNMO full cell, 25 degC.",
+      "notes": "GITT protocol, Li-LNMO full cell, 25 degC. Regenerated 2026-07-13: the legacy conversion carried test_time_second values 3600x too large (hours-to-seconds applied twice); the temperature channel, previously published as ambient_temperature_celsius, is now the unqualified temperature_t1_celsius per the aux-channel policy (raw header T1[degC]; identical values; placement confirmation requested from DLR); Step ID and Record Index are newly extracted.",
       "raw_files": [
         {
           "filename": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.txt",
@@ -96,7 +311,76 @@
           "size_bytes": 63013852,
           "checksum": "md5:4c72b750dead3747e9bfe82413ecc9cd"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 17,
+        "mapped_columns": 6,
+        "mapping": [
+          {
+            "native": "I[A]",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "DataSet",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Line",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "T1[°C]",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "~Time[h]",
+            "bdf": "Test Time / s",
+            "conversion": "x 3600"
+          },
+          {
+            "native": "U[V]",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "t-Set[h]",
+          "Command",
+          "Ah[Ah/kg]",
+          "Ah-Charge",
+          "Ah-Discharge",
+          "Ah-Step",
+          "Ah-Step[Ah/kg]",
+          "Ah-Set",
+          "Ah-Set[Ah/kg]",
+          "Cyc-Count",
+          "State"
+        ],
+        "stats": {
+          "rows": 323425,
+          "duration_hours": 625.77,
+          "Voltage / V": {
+            "min": 2.9882,
+            "max": 4.9006,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.0006,
+            "max": 0.0006,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.png"
+      }
     },
     {
       "bdf_file": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.bdf.csv",
@@ -132,7 +416,125 @@
           "size_bytes": 13275587,
           "checksum": "md5:ef75214f8bca7f9654a2524f7db364b0"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 22,
+        "mapped_columns": 17,
+        "mapping": [
+          {
+            "native": "Tenv#degC",
+            "bdf": "Ambient Temperature / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "AhCha#AH",
+            "bdf": "Charging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "WhCha#Wh",
+            "bdf": "Charging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Current#A",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "AhDch#Ah",
+            "bdf": "Discharging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "WhDch#Wh",
+            "bdf": "Discharging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "AhAccu#Ah",
+            "bdf": "Net Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "WhAccu#Wh",
+            "bdf": "Net Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "AhStep#Ah",
+            "bdf": "Step Cumulative Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "WhStep#Wh",
+            "bdf": "Step Cumulative Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step Duration#s",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Status",
+            "bdf": "Step Type",
+            "conversion": "1:1"
+          },
+          {
+            "native": "T1#degC",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Program Duration#s",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Timestamp",
+            "bdf": "Unix Time / s",
+            "conversion": "datetime parse"
+          },
+          {
+            "native": "Voltage#V",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "Cycle",
+          "Cycle Level",
+          "Procedure",
+          "Procedure Level",
+          "AhBal#Ah"
+        ],
+        "stats": {
+          "rows": 47927,
+          "duration_hours": 13280.94,
+          "Voltage / V": {
+            "min": 2.5,
+            "max": 4.2001,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -5.0,
+            "max": 5.0001,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.png"
+      }
     },
     {
       "bdf_file": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv",
@@ -163,7 +565,94 @@
           "size_bytes": 928720,
           "checksum": "md5:ff7c20a432d8c17be210adec09e484e6"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 12,
+        "mapped_columns": 12,
+        "mapping": [
+          {
+            "native": "current_mA",
+            "bdf": "Current / A",
+            "conversion": "x 0.001"
+          },
+          {
+            "native": "cycle_count",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "index",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step_count",
+            "bdf": "Step Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step_index",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "capacity_mAh",
+            "bdf": "Step Net Capacity / Ah",
+            "conversion": "x 0.001"
+          },
+          {
+            "native": "energy_mWh",
+            "bdf": "Step Net Energy / Wh",
+            "conversion": "x 0.001"
+          },
+          {
+            "native": "step_time_s",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step_type",
+            "bdf": "Step Type",
+            "conversion": "1:1"
+          },
+          {
+            "native": "total_time_s",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "unix_time_s",
+            "bdf": "Unix Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "voltage_V",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [],
+        "stats": {
+          "rows": 17587,
+          "duration_hours": 48.82,
+          "Voltage / V": {
+            "min": 2.9999,
+            "max": 4.2002,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.165,
+            "max": 0.1651,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.png"
+      }
     },
     {
       "bdf_file": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv",
@@ -204,7 +693,116 @@
           "size_bytes": 2808323,
           "checksum": "md5:fdfa79a7881662ba5d871a8d7d5357b1"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 17,
+        "mapped_columns": 16,
+        "mapping": [
+          {
+            "native": "current_A",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "cycle_index",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "channel_index",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "charge_capacity_Ah",
+            "bdf": "Step Charging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "charge_energy_Wh",
+            "bdf": "Step Charging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "discharge_capacity_Ah",
+            "bdf": "Step Discharging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "discharge_energy_Wh",
+            "bdf": "Step Discharging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step_index",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step_time_s",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step_name",
+            "bdf": "Step Type",
+            "conversion": "1:1"
+          },
+          {
+            "native": "temperature_1_C",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "temperature_2_C",
+            "bdf": "Temperature T2 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "temperature_3_C",
+            "bdf": "Temperature T3 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "test_time_s",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "date_time_iso_string",
+            "bdf": "Unix Time / s",
+            "conversion": "datetime parse"
+          },
+          {
+            "native": "voltage_V",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "Pressure_Psi"
+        ],
+        "stats": {
+          "rows": 25162,
+          "duration_hours": 72.96,
+          "Voltage / V": {
+            "min": 0.01,
+            "max": 2.9215,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.0002,
+            "max": 0.0002,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.png"
+      }
     },
     {
       "bdf_file": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.csv",
@@ -226,7 +824,7 @@
       ],
       "plugin": "biologic_mpt",
       "provider": "SINTEF",
-      "deliberate_data_bugs": "Contains physically implausible voltage outlier spikes exactly as logged by the instrument. Kept on purpose to demonstrate outlier repair with bdf.clean.",
+      "deliberate_data_bugs": "Contains physically implausible voltage outlier spikes exactly as logged by the instrument. Kept on purpose to demonstrate outlier repair with bdf.clean. The same instrument glitches corrupt the vendor energy accumulators: the net-energy identity is violated by up to 15.5 Wh and the charging/discharging energy columns are non-monotonic, exactly as exported.",
       "notes": "CCCV C/50 protocol, sodium-ion cell, 25 degC.",
       "raw_files": [
         {
@@ -235,7 +833,119 @@
           "size_bytes": 53617142,
           "checksum": "md5:627f276281d2de9ad3ffe9494c7b115d"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 32,
+        "mapped_columns": 12,
+        "mapping": [
+          {
+            "native": "Energy charge/W.h",
+            "bdf": "Charging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "I/mA",
+            "bdf": "Current / A",
+            "conversion": "x 0.001"
+          },
+          {
+            "native": "cycle number",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Energy discharge/W.h",
+            "bdf": "Discharging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "R/Ohm",
+            "bdf": "Internal Resistance / ohm",
+            "conversion": "1:1"
+          },
+          {
+            "native": "(Q-Qo)/mA.h",
+            "bdf": "Net Capacity / Ah",
+            "conversion": "x 0.001"
+          },
+          {
+            "native": "Energy/W.h",
+            "bdf": "Net Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "P/W",
+            "bdf": "Power / W",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Ns",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step time/s",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "time/s",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Ecell/V",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "mode",
+          "ox/red",
+          "error",
+          "control changes",
+          "Ns changes",
+          "counter inc.",
+          "I Range",
+          "control/mA",
+          "dq/mA.h",
+          "Q charge/discharge/mA.h",
+          "half cycle",
+          "Temperature/ï¿½C",
+          "Capacitance charge/ï¿½F",
+          "Capacitance discharge/ï¿½F",
+          "x",
+          "Q discharge/mA.h",
+          "Q charge/mA.h",
+          "Capacity/mA.h",
+          "Efficiency/%",
+          ""
+        ],
+        "stats": {
+          "rows": 112834,
+          "duration_hours": 313.23,
+          "Voltage / V": {
+            "min": 1.4999,
+            "max": 4.0195,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.2003,
+            "max": 0.2014,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [
+          "'net_energy_wh' != charging_energy_wh - discharging_energy_wh in 81731/112834 rows (worst |Δ| = 15.55).",
+          "'charging_energy_wh' is not monotonically non-decreasing (2 drops).",
+          "'discharging_energy_wh' is not monotonically non-decreasing (3 drops)."
+        ],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.png"
+      }
     },
     {
       "bdf_file": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.bdf.csv",
@@ -266,7 +976,115 @@
           "size_bytes": 74699943,
           "checksum": "md5:91854f0e74db18b13e640220bf8d42f0"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 32,
+        "mapped_columns": 12,
+        "mapping": [
+          {
+            "native": "Energy charge/W.h",
+            "bdf": "Charging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "I/mA",
+            "bdf": "Current / A",
+            "conversion": "x 0.001"
+          },
+          {
+            "native": "cycle number",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Energy discharge/W.h",
+            "bdf": "Discharging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "R/Ohm",
+            "bdf": "Internal Resistance / ohm",
+            "conversion": "1:1"
+          },
+          {
+            "native": "(Q-Qo)/mA.h",
+            "bdf": "Net Capacity / Ah",
+            "conversion": "x 0.001"
+          },
+          {
+            "native": "Energy/W.h",
+            "bdf": "Net Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "P/W",
+            "bdf": "Power / W",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Ns",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "step time/s",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "time/s",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Ecell/V",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "mode",
+          "ox/red",
+          "error",
+          "control changes",
+          "Ns changes",
+          "counter inc.",
+          "I Range",
+          "control/mA",
+          "dq/mA.h",
+          "Q charge/discharge/mA.h",
+          "half cycle",
+          "Temperature/ï¿½C",
+          "Capacitance charge/ï¿½F",
+          "Capacitance discharge/ï¿½F",
+          "x",
+          "Q discharge/mA.h",
+          "Q charge/mA.h",
+          "Capacity/mA.h",
+          "Efficiency/%",
+          ""
+        ],
+        "stats": {
+          "rows": 157985,
+          "duration_hours": 435.46,
+          "Voltage / V": {
+            "min": 1.4999,
+            "max": 3.9501,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -0.5447,
+            "max": 0.5457,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.png"
+      }
     },
     {
       "bdf_file": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv",
@@ -297,7 +1115,117 @@
           "size_bytes": 3151396,
           "checksum": "md5:e2075f6ffd08ea0d9f1e686cebbf2d1e"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 34,
+        "mapped_columns": 12,
+        "mapping": [
+          {
+            "native": "Current(A)",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Cycle Index",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Chg. Cap.(Ah)",
+            "bdf": "Step Charging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Chg. Energy(Wh)",
+            "bdf": "Step Charging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Capacity(Ah)",
+            "bdf": "Step Cumulative Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "DChg. Cap.(Ah)",
+            "bdf": "Step Discharging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "DChg. Energy(Wh)",
+            "bdf": "Step Discharging Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step Index",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Time(s)",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Total Time(s)",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Date",
+            "bdf": "Unix Time / s",
+            "conversion": "datetime parse"
+          },
+          {
+            "native": "Voltage(V)",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "DataPoint",
+          "Step Type",
+          "Spec. Cap.(mAh/g)",
+          "Chg. Spec. Cap.(mAh/g)",
+          "DChg. Spec. Cap.(mAh/g)",
+          "Energy(Wh)",
+          "Spec. Energy(mWh/g)",
+          "Chg. Spec. Energy(mWh/g)",
+          "DChg. Spec. Energy(mWh/g)",
+          "Power(W)",
+          "dQ/dV(mAh/V)",
+          "dQm/dV(mAh/V.g)",
+          "Contact resistance(mO)",
+          "Module start-stop switch",
+          "SOC/DOD(%)",
+          "LgD",
+          "V1(V)",
+          "V2(V)",
+          "V3(V)",
+          "T1(?)",
+          "T2(?)",
+          "T3(?)"
+        ],
+        "stats": {
+          "rows": 13086,
+          "duration_hours": 34.9,
+          "Voltage / V": {
+            "min": 2.9995,
+            "max": 4.3501,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -59.4593,
+            "max": 2.1816,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.png"
+      }
     },
     {
       "bdf_file": "SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.bdf.parquet",
@@ -330,7 +1258,107 @@
           "size_bytes": 119483324,
           "checksum": "md5:54a40efd324d1dba5995fa4f3e65717d"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 16,
+        "mapped_columns": 14,
+        "mapping": [
+          {
+            "native": "Current (A)",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Cycle Number",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Capacity (Ah)",
+            "bdf": "Net Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Power(W)",
+            "bdf": "Power / W",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step Number",
+            "bdf": "Step Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step position",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Energy (Wh)",
+            "bdf": "Step Net Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step Time (h)",
+            "bdf": "Step Time / s",
+            "conversion": "x 3600"
+          },
+          {
+            "native": "Step Type",
+            "bdf": "Step Type",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Temperature (°C)",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Circuit Temperature (°C)",
+            "bdf": "Temperature T2 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Run Time (h)",
+            "bdf": "Test Time / s",
+            "conversion": "x 3600"
+          },
+          {
+            "native": "Date and Time",
+            "bdf": "Unix Time / s",
+            "conversion": "datetime parse"
+          },
+          {
+            "native": "Potential (V)",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "dVdt (V/h)",
+          "dIdt (A/h)"
+        ],
+        "stats": {
+          "rows": 817551,
+          "duration_hours": 72.45,
+          "Voltage / V": {
+            "min": 2.999,
+            "max": 4.3508,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -19.9997,
+            "max": 19.9996,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.png"
+      }
     },
     {
       "bdf_file": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.bdf.csv",
@@ -361,11 +1389,102 @@
           "size_bytes": 597715,
           "checksum": "md5:0bbf959cbfc367296ec69d7a74d2f5c1"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 15,
+        "mapped_columns": 12,
+        "mapping": [
+          {
+            "native": "Temperature Chamber [degC]",
+            "bdf": "Ambient Temperature / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Current [A]",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Cycle C",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Rec",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step",
+            "bdf": "Step Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Capacity [Ah]",
+            "bdf": "Step Cumulative Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Energy [Wh]",
+            "bdf": "Step Cumulative Energy / Wh",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step Time [s]",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Temperature Cell [degC]",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Test Time [s]",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "DPT Time",
+            "bdf": "Unix Time / s",
+            "conversion": "datetime parse"
+          },
+          {
+            "native": "Voltage [V]",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "Cycle P",
+          "Md",
+          "ES"
+        ],
+        "stats": {
+          "rows": 6313,
+          "duration_hours": 48.18,
+          "Voltage / V": {
+            "min": 2.4999,
+            "max": 4.2031,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": 0.0,
+            "max": 7.5026,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.png"
+      }
     },
     {
       "bdf_file": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.bdf.csv",
-      "bdf_sha256": "6ef67452874fc20cc1fae63ad389cb34bcfad72e6857c6c7ae956be8a8ea84f1",
+      "bdf_sha256": "3b8d629ecdc6f492808fc3759363e8bc8b546a1b379a38d472d9b69e398f42f3",
       "rows": 131884,
       "columns": [
         "test_time_second",
@@ -376,10 +1495,6 @@
         "step_id",
         "record_index",
         "step_time_second",
-        "charging_capacity_ah",
-        "discharging_capacity_ah",
-        "charging_energy_wh",
-        "discharging_energy_wh",
         "power_watt",
         "dc_internal_resistance_ohm",
         "ac_internal_resistance_ohm",
@@ -388,7 +1503,7 @@
       "plugin": "arbin_csv",
       "provider": "Shandong University",
       "deliberate_data_bugs": null,
-      "notes": "Pulse test, sodium-ion cell, 25 degC.",
+      "notes": "Pulse test, sodium-ion cell, 25 degC. Arbin accumulator columns (Charge/Discharge Capacity and Energy) are deliberately absent: their reset points are schedule-authored (verified: resets at scripted steps 9/12/74, cycle index constant), so no test-accumulating BDF term is correct in general. They will return via derivation from current x time.",
       "raw_files": [
         {
           "filename": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.CSV",
@@ -396,7 +1511,109 @@
           "size_bytes": 21635732,
           "checksum": "md5:04a0ce9a567624bf72faacabf7bc1be2"
         }
-      ]
+      ],
+      "scorecard": {
+        "verdict": "PASS",
+        "native_columns": 26,
+        "mapped_columns": 12,
+        "mapping": [
+          {
+            "native": "ACR (Ohm)",
+            "bdf": "AC Internal Resistance / ohm",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Current (A)",
+            "bdf": "Current / A",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Cycle Index",
+            "bdf": "Cycle Count / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Internal Resistance (Ohm)",
+            "bdf": "DC Internal Resistance / ohm",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Power (W)",
+            "bdf": "Power / W",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Data Point",
+            "bdf": "Record Index / 1",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step Index",
+            "bdf": "Step ID",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Step Time (s)",
+            "bdf": "Step Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Aux_Temperature_1 (C)",
+            "bdf": "Temperature T1 / degC",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Test Time (s)",
+            "bdf": "Test Time / s",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Date Time",
+            "bdf": "Unix Time / s",
+            "conversion": "datetime parse"
+          },
+          {
+            "native": "Voltage (V)",
+            "bdf": "Voltage / V",
+            "conversion": "1:1"
+          }
+        ],
+        "unmapped_native_columns": [
+          "TC_Counter1",
+          "TC_Counter2",
+          "TC_Counter3",
+          "TC_Counter4",
+          "Charge Capacity (Ah)",
+          "Discharge Capacity (Ah)",
+          "Charge Energy (Wh)",
+          "Discharge Energy (Wh)",
+          "Capacity (Ah)",
+          "mAh/g",
+          "dV/dt (V/s)",
+          "dQ/dV (Ah/V)",
+          "dV/dQ (V/Ah)",
+          "Aux_dT/dt_1 (C/s)"
+        ],
+        "stats": {
+          "rows": 131884,
+          "duration_hours": 25.7,
+          "Voltage / V": {
+            "min": -0.0422,
+            "max": 4.0505,
+            "nulls": 0
+          },
+          "Current / A": {
+            "min": -30.0045,
+            "max": 30.0035,
+            "nulls": 0
+          }
+        },
+        "derived_issues": [],
+        "artifact_vs_fresh": [
+          "matches fresh conversion"
+        ],
+        "plot": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.png"
+      }
     }
   ],
   "unconverted_raw_files": [
