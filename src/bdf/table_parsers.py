@@ -971,3 +971,84 @@ class MatParser(TableParser):
         var_names = self.normalizer.known_header_names()
         mat = self._load(Path(path), var_names)
         return [name for name in var_names if name in mat]
+
+
+# ---------------------------------------------------------------------------
+# MPRParser
+# ---------------------------------------------------------------------------
+
+
+class MPRParser(TableParser):
+    """Wraps fastnda for Biologic .mpr binary files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["mpr"] = "mpr"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".mpr"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"BIO-LOGIC MODULAR FILE"})
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read Biologic MPR file to a LazyFrame using yadg.
+
+        Args:
+            path: Local file path to .mpr.
+
+        Returns:
+            A polars LazyFrame containing the MPR data.
+
+        Raises:
+            RuntimeError: If yadg is not installed.
+        """
+        try:
+            import yadg  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("MPRParser requires yadg. Install with `pip install yadg`.") from exc
+        resolved = resolve_source(path)
+        dt = yadg.extractors.extract("eclab.mpr", str(resolved))
+        ds = dt.to_dataset()
+        df = pl.DataFrame(
+            {
+                f"{name}/{str(var.attrs['units']).replace('·', '')}"
+                if "units" in var.attrs
+                else str(name): var.to_numpy()
+                for name, var in ds.variables.items()
+                if not str(name).endswith("_err")
+            }
+        )
+        df = self._fix_missing_columns(df)
+        return df.lazy()
+
+    @staticmethod
+    def _fix_missing_columns(df: pl.DataFrame) -> pl.DataFrame:
+        """If current is missing and dq exists, recreate current."""
+        cols = set(df.columns)
+
+        # Missing current (OCV or only dq present)
+        current_cols = {"I", "<I>"}
+        if not (current_cols & cols):
+            if ({"dq", "dQ"} & cols) and "uts" in cols:
+                # dq is mA h, multiply by 3600/1000 to get A s
+                # Then multiply by diff(time) / s to get current in A
+                dq_col = next(col for col in ("dq", "dQ") if col in cols)
+                dt = df["uts"].diff().fill_null(float("inf"))
+                df = df.with_columns((3.6 * df[dq_col] / dt).alias("I/A"))
+            else:
+                df = df.with_columns(pl.lit(0, dtype=pl.Float64).alias("I/A"))
+
+        # Missing cycle number, sometimes there is only 0-indexed half cycle
+        if ("cycle number" not in cols) and ("half cycle" in cols):
+            df = df.with_columns((pl.col("half cycle") // 2 + 1).alias("cycle number"))
+
+        return df
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from Biologic MPR file.
+
+        Args:
+            path: Local file path or URL to .mpr file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()
