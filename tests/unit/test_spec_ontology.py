@@ -200,6 +200,20 @@ def test_pint_understands_never_propagates_on_pathological_alias() -> None:
         # "Cel" (UCUM unitCode casing) converts with the correct offset
         ("Cel", "K", (1.0, 273.15)),
         ("Cel", "degC", (1.0, 0.0)),
+        # Units with special characters
+        ("℃", "degC", (1.0, 0.0)),
+        ("°C", "degC", (1.0, 0.0)),
+        ("mA*h", "Ah", (1.0e-3, 0.0)),
+        ("mA·h", "Ah", (1.0e-3, 0.0)),
+        ("mA h", "Ah", (1.0e-3, 0.0)),
+        ("mA  h", "Ah", (1.0e-3, 0.0)),
+        ("V s⁻¹", "V/s", (1.0, 0.0)),
+        ("V / s", "V/s", (1.0, 0.0)),
+        ("V s^-1", "V/s", (1.0, 0.0)),
+        ("µA", "A", (1.0e-6, 0.0)),
+        ("μA", "A", (1.0e-6, 0.0)),
+        ("Ω", "ohm", (1.0, 0.0)),
+        ("Ω", "ohm", (1.0, 0.0)),
     ],
 )
 def test_get_unit_conversion(src: str | None, dst: str, expected: tuple[float, float] | None) -> None:
