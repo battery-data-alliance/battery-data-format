@@ -26,7 +26,7 @@ _logger = logging.getLogger(__name__)
 
 _DATE_COMPONENT_RE = re.compile(r"%[YymbBdej]")
 _TZ_COMPONENT_RE = re.compile(r"%:?[zZ]")
-_UNIT_CAPTURE = r"([A-Za-z0-9.·/*^%°℃ΩΩµμ⁰¹²³⁴⁵⁶⁷⁸⁹⁻ \-]+)" # omega/ohm and mu/micro are different characters
+_UNIT_CAPTURE = r"([A-Za-z0-9.·/*^%°℃ΩΩµμ⁰¹²³⁴⁵⁶⁷⁸⁹⁻ \-]+)"  # omega/ohm and mu/micro are different characters
 _DST_AMBIGUOUS_STRATEGY = "earliest"
 _DST_NON_EXISTENT_STRATEGY = "null"
 
