@@ -187,7 +187,7 @@ def get_unit_conversion(src_unit: str | None, dst_unit: str | None) -> tuple[flo
         scale = round(at_one - at_zero, 15)
         offset = round(at_zero, 15)
         return (scale, offset)
-    except pint.errors.PintError:
+    except (pint.errors.PintError, AssertionError):
         return None
 
 
