@@ -167,8 +167,8 @@ def get_unit_conversion(src_unit: str | None, dst_unit: str | None) -> tuple[flo
     Returns:
         Tuple of (scale, offset) for conversion, or None if incompatible.
     """
-    src_bare = (src_unit or "").strip()
-    dst_bare = (dst_unit or "").strip()
+    src_bare = _normalize_unit((src_unit or "").strip())
+    dst_bare = _normalize_unit((dst_unit or "").strip())
     src_is_dim = src_bare in ("", "1")
     dst_is_dim = dst_bare in ("1", "")
     if src_is_dim or dst_is_dim:
