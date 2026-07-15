@@ -1009,9 +1009,7 @@ class MPRParser(TableParser):
         ds = dt.to_dataset()
         df = pl.DataFrame(
             {
-                f"{name}/{str(var.attrs['units']).replace('·', '')}"
-                if "units" in var.attrs
-                else str(name): var.to_numpy()
+                f"{name}/{str(var.attrs['units'])}" if "units" in var.attrs else str(name): var.to_numpy()
                 for name, var in ds.variables.items()
                 if not str(name).endswith("_err")
             }
@@ -1025,16 +1023,14 @@ class MPRParser(TableParser):
         cols = set(df.columns)
 
         # Missing current (OCV or only dq present)
-        current_cols = {"I", "<I>"}
+        current_cols = {"I/mA", "<I>/mA"}
         if not (current_cols & cols):
-            if ({"dq", "dQ"} & cols) and "uts" in cols:
-                # dq is mA h, multiply by 3600/1000 to get A s
-                # Then multiply by diff(time) / s to get current in A
-                dq_col = next(col for col in ("dq", "dQ") if col in cols)
-                dt = df["uts"].diff().fill_null(float("inf"))
-                df = df.with_columns((3.6 * df[dq_col] / dt).alias("I/A"))
+            if "uts/s" in cols and (dq_col := next((c for c in ("dq/mA·h", "dQ/mA·h", "dQ/C") if c in cols), None)):
+                dt = df["uts/s"].diff().fill_null(float("inf"))
+                multiplier = 1000 if dq_col == "dQ/C" else 3600
+                df = df.with_columns((multiplier * df[dq_col] / dt).alias("I/mA"))
             else:
-                df = df.with_columns(pl.lit(0, dtype=pl.Float64).alias("I/A"))
+                df = df.with_columns(pl.lit(0, dtype=pl.Float64).alias("I/mA"))
 
         # Missing cycle number, sometimes there is only 0-indexed half cycle
         if ("cycle number" not in cols) and ("half cycle" in cols):
