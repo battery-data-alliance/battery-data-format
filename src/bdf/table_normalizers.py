@@ -743,7 +743,7 @@ BASYTEC = TableNormalizer(
         Syn(hdr="Current", assumed=True),
     ),
     temperature_t1_celsius=(
-        Syn(hdr="T1[{unit}]", assumed=True),
+        Syn(hdr="T1[{unit}]"),
         Syn(hdr="T1[°C]"),
         Syn(hdr="Temp[{unit}]", assumed=True),
         Syn(hdr="Temp[°C]", assumed=True),
