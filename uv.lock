@@ -152,8 +152,7 @@ dependencies = [
 
 [package.optional-dependencies]
 arbin-res = [
-    { name = "polars-access-mdbtools", version = "0.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "polars-access-mdbtools", version = "0.1.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "polars-access-mdbtools", marker = "python_full_version >= '3.11'" },
 ]
 dev = [
     { name = "ipykernel" },
@@ -238,7 +237,7 @@ requires-dist = [
     { name = "plotly" },
     { name = "polars", specifier = ">=1.41.2" },
     { name = "polars", marker = "extra == 'polars'" },
-    { name = "polars-access-mdbtools", marker = "extra == 'arbin-res'" },
+    { name = "polars-access-mdbtools", marker = "python_full_version >= '3.11' and extra == 'arbin-res'", specifier = ">=0.1.2" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.0" },
     { name = "pyarrow", specifier = ">=15.0" },
     { name = "pybamm", marker = "extra == 'pybamm-test'" },
@@ -2930,37 +2929,8 @@ wheels = [
 
 [[package]]
 name = "polars-access-mdbtools"
-version = "0.0.2"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.11'",
-]
-dependencies = [
-    { name = "polars" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/87/dd/d341212504e6f0d79b5298538b7af21ec0b43f90d63e97839be9d486e878/polars_access_mdbtools-0.0.2.tar.gz", hash = "sha256:2cef4bd829fb77e33ad96cfb1c683312cf1f00efe42fcdd2fd4af3a551d111ef", size = 6611, upload-time = "2024-04-17T04:26:22.506Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/4f/d28ac26328b4efe659214c3490c03c6e313f039afa2d9f2d3d8994c91b90/polars_access_mdbtools-0.0.2-py3-none-any.whl", hash = "sha256:f1898df17389efc0631eeca184b99dd6eb0f0f7bd5323459cecce10c773fb360", size = 5829, upload-time = "2024-04-17T04:26:20.846Z" },
-]
-
-[[package]]
-name = "polars-access-mdbtools"
 version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'win32'",
-    "python_full_version == '3.11.*' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'emscripten'",
-    "python_full_version == '3.11.*' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.11.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 dependencies = [
     { name = "polars" },
 ]

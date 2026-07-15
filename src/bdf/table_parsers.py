@@ -756,8 +756,8 @@ class MDBParser(TableParser):
         except ImportError as exc:
             raise RuntimeError(
                 "MDBParser requires the optional Arbin .res dependencies. "
-                "Install with `pip install batterydf[arbin_res]`; MDB Tools command-line utilities "
-                "(including `mdb-schema`) must also be available on PATH."
+                "Use Python >=3.11 and install with `pip install batterydf[arbin_res]`; "
+                "MDB Tools command-line utilities (including `mdb-schema`) must also be available on PATH."
             ) from exc
 
         resolved = resolve_source(path)

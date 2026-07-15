@@ -52,7 +52,7 @@ bdf-update-snapshot = "bdf.spec:_update_snapshot_cli"
 
 [project.optional-dependencies]
 fastnda = ["fastnda"]
-arbin_res = ["polars-access-mdbtools"]
+arbin_res = ["polars-access-mdbtools>=0.1.2; python_version >= '3.11'"]
 polars = ["polars", "fastnda"]
 hvplot = ["hvplot", "holoviews", "bokeh"]
 numpy2 = ["numpy>=2.0,<3.0"]
