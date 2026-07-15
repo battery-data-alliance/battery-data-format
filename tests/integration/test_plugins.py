@@ -54,7 +54,7 @@ def test_matches_magic_bytes_for_own_plugin(cid: str, case: SampleCase, data_dir
     [
         pytest.param(cid, c, id=cid, marks=c.marks)
         for cid, c in ALL_CASES
-        if not c.plugin_id.endswith(("_xlsx", "_parquet", "_nda"))
+        if not c.plugin_id.endswith(("_xlsx", "_parquet", "_nda", "_mpr"))
     ],
 )
 def test_text_format_passes_delim_txt_gate(cid: str, case: SampleCase, data_dir: Path) -> None:
@@ -68,7 +68,7 @@ def test_text_format_passes_delim_txt_gate(cid: str, case: SampleCase, data_dir:
     [
         pytest.param(cid, c, id=cid, marks=c.marks)
         for cid, c in ALL_CASES
-        if c.plugin_id.endswith(("_xlsx", "_parquet", "_nda"))
+        if c.plugin_id.endswith(("_xlsx", "_parquet", "_nda", "_mpr"))
     ],
 )
 def test_binary_format_fails_delim_txt_gate(cid: str, case: SampleCase, data_dir: Path) -> None:
