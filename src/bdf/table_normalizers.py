@@ -57,6 +57,9 @@ class Syn(BaseModel):
     """Fixed source unit for exact, non-templated aliases."""
     legacy: bool = False
     """Raise a warning that this column is legacy and has been converted."""
+    reverse_sign: bool = False
+    """Flip sign of column in addition to unit conversion
+    e.g. negative impedance or discharge-positive current columns."""
 
     @model_validator(mode="before")
     @classmethod
@@ -89,12 +92,15 @@ class Syn(BaseModel):
             m = re.fullmatch(pattern, header)
             if m is None:
                 return None
-            return get_unit_conversion(m.group(1), bdf_unit)
-        if self.hdr.strip() != header.strip():
-            return None
-        if self.source_unit is not None:
-            return get_unit_conversion(self.source_unit, bdf_unit)
-        return (1.0, 0.0)
+            result = get_unit_conversion(m.group(1), bdf_unit)
+        else:
+            if self.hdr.strip() != header.strip():
+                return None
+            result = get_unit_conversion(self.source_unit, bdf_unit) if self.source_unit is not None else (1.0, 0.0)
+        if not self.reverse_sign or result is None:
+            return result
+        scale, offset = result
+        return (-scale, offset)
 
     def exact_match(self, header: str) -> bool:
         """Test exact case-insensitive match against header.
