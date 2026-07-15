@@ -55,6 +55,7 @@ _UNIT_ALIAS = {
     "A.h": "Ah",
     "W.h": "Wh",
     "Ohm": "ohm",
+    "Ω": "ohm",  # 'ohm' character, 'Omega' character already understood by pint
 }
 
 # Bare "C" or "c" is ambiguous (Celsius vs Coulombs). This set lists the BDF
