@@ -46,7 +46,7 @@ Workflows
    df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
    bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"])
 
-Plotly interactive plots are included in the base install; Bokeh/HoloViews
+Plotly interactive plots require ``batterydf[plot]``; Bokeh/HoloViews
 backends require ``batterydf[hvplot]``.
 
 Recommended usage
