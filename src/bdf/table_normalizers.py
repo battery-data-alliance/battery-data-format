@@ -26,7 +26,7 @@ _logger = logging.getLogger(__name__)
 
 _DATE_COMPONENT_RE = re.compile(r"%[YymbBdej]")
 _TZ_COMPONENT_RE = re.compile(r"%:?[zZ]")
-_UNIT_CAPTURE = r"([A-Za-z0-9./]+)"
+_UNIT_CAPTURE = r"([A-Za-z0-9.·/*^%°℃ΩΩµμ⁰¹²³⁴⁵⁶⁷⁸⁹⁻ \-]+)"  # omega/ohm and mu/micro are different characters
 _DST_AMBIGUOUS_STRATEGY = "earliest"
 _DST_NON_EXISTENT_STRATEGY = "null"
 
@@ -685,7 +685,7 @@ BASYTEC = TableNormalizer(
         Syn(hdr="Current", assumed=True),
     ),
     temperature_t1_celsius=(
-        Syn(hdr="T1[{unit}]", assumed=True),
+        Syn(hdr="T1[{unit}]"),
         Syn(hdr="T1[°C]"),
         Syn(hdr="Temp[{unit}]", assumed=True),
         Syn(hdr="Temp[°C]", assumed=True),
@@ -1100,8 +1100,14 @@ def _build_bdf_normalizer() -> TableNormalizer:
     for mr_name, q in COLUMN_ONTOLOGY:
         target_mr = mr_name
         if q.deprecated:
-            base = q.formatted_label.split(" / ", 1)[0].strip().lower()
-            target_mr = base_preferred.get(base, mr_name)
+            # Prefer the ontology's explicit dcterms:isReplacedBy link; the label
+            # base-name heuristic only covers unit-only renames (ms -> s) and
+            # silently misses renames like step_capacity_ah -> step_cumulative_capacity_ah.
+            if q.replaced_by and q.replaced_by in TableNormalizer.model_fields:
+                target_mr = q.replaced_by
+            else:
+                base = q.formatted_label.split(" / ", 1)[0].strip().lower()
+                target_mr = base_preferred.get(base, mr_name)
             if target_mr not in TableNormalizer.model_fields:
                 continue
         elif mr_name not in TableNormalizer.model_fields:

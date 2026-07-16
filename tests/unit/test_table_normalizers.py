@@ -1144,3 +1144,34 @@ class TestPybammNormalizer:
         assert (d_cap.filter(current < 0).drop_nulls() <= 0).all()
         # within the charge run net capacity is non-decreasing
         assert (d_cap.filter(current > 0).drop_nulls() >= 0).all()
+
+
+class TestDeprecatedRedirects:
+    """Deprecated on-disk labels must land on their dcterms:isReplacedBy target."""
+
+    def test_renamed_deprecated_columns_survive_read(self):
+        """Regression (#52-era data loss): step_capacity_ah / step_energy_wh headers,
+        whose replacements have a different base name, were silently dropped by the
+        base-name heuristic; the isReplacedBy link routes them correctly."""
+        df = pl.DataFrame(
+            {
+                "test_time_second": [0.0, 1.0],
+                "voltage_volt": [3.7, 3.6],
+                "current_ampere": [0.1, 0.1],
+                "step_capacity_ah": [0.5, 0.6],
+                "step_energy_wh": [1.5, 1.7],
+            }
+        )
+        out = BDF_NORMALIZER.normalize(df, validate=False)
+        assert out["Step Cumulative Capacity / Ah"].to_list() == [0.5, 0.6]
+        assert out["Step Cumulative Energy / Wh"].to_list() == [1.5, 1.7]
+
+    def test_every_deprecated_notation_resolves_to_replacement_label(self):
+        """Exhaustive: each deprecated notation header resolves to its replacement's label."""
+        for mr, q in COLUMN_ONTOLOGY:
+            if not q.deprecated:
+                continue
+            target = COLUMN_ONTOLOGY.get(q.replaced_by)
+            assert target is not None, mr
+            resolved = BDF_NORMALIZER.resolve([q.effective_notation])
+            assert resolved.get(q.replaced_by) is not None, f"{q.effective_notation} did not resolve to {q.replaced_by}"

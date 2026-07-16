@@ -208,3 +208,23 @@ def test_read_returns_table_parser_frame_unchanged(read_mocks: SimpleNamespace, 
     p = tmp_path / "f.csv"
     result, _ = read(p, plugin=read_mocks.plugin, lazy=False)
     assert result is sentinel
+
+
+class TestDeprecatedLabelRedirects:
+    """Load and save paths route deprecated labels via dcterms:isReplacedBy."""
+
+    def test_canonicalize_renames_to_replacement(self):
+        """Regression: step_capacity_ah was renamed to its own deprecated pref label
+        instead of the replacement's."""
+        df = pd.DataFrame({"step_capacity_ah": [0.5], "test_time_second": [0.0]})
+        out, legacy = io.canonicalize_legacy_labels(df)
+        assert "Step Cumulative Capacity / Ah" in out.columns
+        assert "Step Capacity / Ah" not in out.columns
+        assert "step_capacity_ah" in legacy
+
+    def test_label_maps_route_deprecated_notation_to_replacement_pref(self):
+        """The save-path label maps must also honor the replacement link."""
+        _, machine_to_pref = io._label_maps()
+        assert machine_to_pref["step_capacity_ah"] == "Step Cumulative Capacity / Ah"
+        assert machine_to_pref["step_energy_wh"] == "Step Cumulative Energy / Wh"
+        assert machine_to_pref["test_time_millisecond"] == "Test Time / s"
