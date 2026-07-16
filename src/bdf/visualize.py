@@ -4,7 +4,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Dict, Optional, Tuple, Union
 
-import matplotlib.pyplot as plt
 import pandas as pd
 
 from bdf import spec
@@ -107,6 +106,8 @@ def plot(
       - Unit conversion via xunit/yunit/yyunit (spec.get_unit_conversion)
       - Primary axis data is always drawn on top of secondary axis data.
     """
+    import matplotlib.pyplot as plt
+
     ys = _to_list(ydata)
     yys = _to_list(yydata)
     if not ys and not yys:
