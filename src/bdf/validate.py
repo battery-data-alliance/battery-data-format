@@ -9,6 +9,7 @@ import pandas as pd
 
 from . import spec
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
+from .spec import _slugify
 
 __all__ = ["BDFValidationError", "validate_df"]
 
@@ -18,13 +19,6 @@ OPTIONAL = spec.COLUMN_ONTOLOGY.optional_labels()
 
 class BDFValidationError(Exception):
     """Raised when a DataFrame fails BDF validation."""
-
-
-_SLUG = re.compile(r"[^a-z0-9]+")
-
-
-def _slugify(text: str) -> str:
-    return _SLUG.sub("-", text.lower()).strip("-")
 
 
 # Algebraic identities the ontology defines via prov:wasDerivedFrom:

@@ -108,11 +108,9 @@ if _enable_short_warnings():
 # small helpers
 # -------------------------------
 def _is_url(x: str) -> bool:
-    try:
-        u = urlparse(str(x))
-        return u.scheme in ("http", "https") and bool(u.netloc)
-    except Exception:
-        return False
+    from .file_utils import is_url
+
+    return is_url(str(x))
 
 
 def _resolve_source(
@@ -164,8 +162,9 @@ def _default_ingest_cache_dir() -> Path:
 
 
 def _ensure_dir(path: Path) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    from .file_utils import ensure_dir
+
+    return ensure_dir(path)
 
 
 def _parse_github_tree(url: str) -> tuple[str, str, str, str] | None:
