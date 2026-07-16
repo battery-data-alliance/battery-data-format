@@ -930,6 +930,19 @@ class TestBDFNormalizer:
         assert out["Test Time / s"][0] == pytest.approx(1.5)
         assert out.columns == ["Test Time / s", "Voltage / V", "Current / A"]
 
+    def test_bdf_normalizer_warns_for_legacy_cols(self):
+        df = pl.DataFrame(
+            {
+                "test_time_millisecond": [1000.0],
+                "voltage_volt": [3.7],
+                "current_ampere": [0.1],
+            }
+        )
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
 
 class TestTimezoneHandling:
     """Naive vs tz-aware unix_time_second parsing under the tz parameter."""
