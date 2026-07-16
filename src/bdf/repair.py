@@ -13,8 +13,13 @@ try:
 except Exception:
     sps = None  # type: ignore
 
-TIME_COL = "Test Time / s"
-DEFAULT_OUTLIER_COLS = ("Voltage / V", "Current / A")
+from . import spec
+
+TIME_COL = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
+DEFAULT_OUTLIER_COLS = (
+    spec.COLUMN_ONTOLOGY.voltage_volt.formatted_label,
+    spec.COLUMN_ONTOLOGY.current_ampere.formatted_label,
+)
 
 __all__ = ["fix_time", "clean", "CleanReport"]
 

@@ -7,6 +7,9 @@ import pandas as pd
 
 from . import spec
 
+X_DEFAULT = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
+Y_DEFAULT = spec.COLUMN_ONTOLOGY.voltage_volt.formatted_label
+
 
 def _label_with_unit(name: str, unit: str) -> str:
     base = name.split(" / ", 1)[0].strip() if " / " in name else name
@@ -169,8 +172,8 @@ def _plot_plotly(
 def explore(
     df: pd.DataFrame,
     *,
-    xdata: str = "Test Time / s",
-    ydata: str | Iterable[str] = "Voltage / V",
+    xdata: str = X_DEFAULT,
+    ydata: str | Iterable[str] = Y_DEFAULT,
     yydata: Optional[str | Iterable[str]] = None,
     xunit: Optional[str] = None,
     yunit: Optional[str] = None,
