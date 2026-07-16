@@ -155,28 +155,23 @@ The **Battery Data Format (.bdf)** is a step toward unifying and accelerating ba
 
 ```bash
 pip install batterydf
-# Neware .nda/.ndax support is included in base
-# Interactive plotting (hvplot/bokeh)
-pip install batterydf[hvplot]
-# Polars + fast NDA backend
-pip install batterydf[polars]
-# Arbin .res support (requires MDB tools)
-pip install batterydf[arbin_res]
-# Force numpy 2.x (combine as needed, e.g. batterydf[polars,numpy2])
-pip install batterydf[numpy2]
-# for docs/dev: pip install -e .[dev,docs]
+```
+
+Optional extras add support for specific vendor formats or plotting backends.
+Combine as needed, e.g. `batterydf[nda,plot]`, or use `batterydf[all]` to get everything:
+```bash
+pip install batterydf[nda]       # Neware .nda/.ndax (using fastnda)
+pip install batterydf[mpr]       # BioLogic .mpr (using yadg)
+pip install batterydf[excel]     # Excel (using calamine)
+pip install batterydf[mat]       # MATLAB .mat files (using scipy)
+pip install batterydf[arbin_res] # Arbin .res files (using pyodbc or mdbtools)
+pip install batterydf[plot]      # For plotting with matplotlib/plotly
+pip install batterydf[hvplot]    # For plotting with bokeh/holoviews
+pip install batterydf[yaml]      # For YAML plugin definitions
+pip install batterydf[all]       # Everything above
 ```
 
 PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
-
-Optional fast NDA backend (Python >=3.10, numpy >=2.2 required):
-```bash
-pip install fastnda
-```
-Note: fastnda requires numpy >=2.2. If you need fastnda, install with the numpy 2.x extra,
-for example `batterydf[polars,numpy2]` or `batterydf[numpy2]`.
-
-Optional Arbin .res support requires MDB Tools command-line utilities to be available on PATH.
 
 ### Quickstart
 
@@ -186,11 +181,15 @@ import bdf
 # Read raw or BDF; plugin auto-detects
 df = bdf.read("path/to/file.bdf.csv")
 
-# Read Neware .nda/.ndax (supported by default)
+# Read Neware .nda/.ndax (requires fastnda: pip install batterydf[nda])
 df = bdf.read("path/to/file.nda")
 
-# Force the fast NDA backend if installed
-df = bdf.read("path/to/file.nda", plugin="neware-nda-fast")
+# Force the NDA plugin explicitly
+df = bdf.read("path/to/file.nda", plugin="neware_nda")
+
+# Interactive exploration (plotly requires batterydf[plot]; bokeh requires batterydf[hvplot])
+bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
+bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)
@@ -201,7 +200,7 @@ df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
 # Plot
 bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
 
-# Interactive exploration (plotly included in base; bokeh requires batterydf[hvplot])
+# Interactive exploration (plotly requires batterydf[plot]; bokeh requires batterydf[hvplot])
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 
