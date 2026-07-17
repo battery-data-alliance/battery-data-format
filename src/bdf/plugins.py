@@ -325,9 +325,12 @@ def detect_from_ext_or_magic_bytes(
     """Return plugins from ``cands`` whose table parser handles the extension of ``path``.
 
     Defaults to :data:`PLUGINS`. The extension is read from the path/URL string alone
-    (no network I/O, no local file access). Falls back to :func:`detect_from_magic_bytes`
-    — which does fetch/read the file — when ``path`` has no extension, or no candidate
-    handles the extension found.
+    (no network I/O, no local file access). Tries at most three suffix forms, longest
+    first: all suffixes joined (``.a.b.c.bdf.parquet``), then the last two (``.bdf.parquet``),
+    then just the last (``.parquet``). A parser whose ``base_exts`` only registers the bare
+    extension still matches filenames with extra dotted segments before it. Falls back
+    to :func:`detect_from_magic_bytes` — which does fetch/read the file — when ``path``
+    has no extension, or no candidate handles any suffix form.
 
     Args:
         path: Local file path or URL to check.
@@ -340,8 +343,13 @@ def detect_from_ext_or_magic_bytes(
         ValueError: If neither the extension nor magic bytes match any candidate.
     """
     path_str = str(path)
-    ext = _ext_from_url(path_str) if is_url(path_str) else "".join(Path(path).suffixes).lower()
-    if ext:
+    if is_url(path_str):
+        exts = [_ext_from_url(path_str)]
+    else:
+        suffixes = Path(path).suffixes
+        exts = ["".join(suffixes), "".join(suffixes[-2:]), "".join(suffixes[-1:])]
+        exts = [e.lower() for e in exts]
+    for ext in dict.fromkeys(e for e in exts if e):  # de-dupe, preserve order
         matched = {id_: p for id_, p in cands.items() if p.table_parser.matches_ext(ext)}
         if matched:
             return matched
