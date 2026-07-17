@@ -720,6 +720,133 @@ class ParquetParser(TableParser):
 
 
 # ---------------------------------------------------------------------------
+# JsonParser
+# ---------------------------------------------------------------------------
+
+
+class JsonParser(TableParser):
+    """Wraps json load and :func:`polars.from_dict`
+
+    :func:`polars.read_json` can ONLY read records-oriented json
+    :func:`polars.LazyFrame(dict)` works both records-oriented and list-oriented
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["json"] = "json"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".json"})
+    is_text: ClassVar[bool] = True
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read json file to a LazyFrame. Cannot be truly lazy.
+
+        Args:
+            path: Local file path or URL to json file.
+
+        Returns:
+            A polars LazyFrame containing the json data.
+        """
+        import json
+
+        with Path(path).open("r") as f:
+            data = json.load(f)
+        return pl.LazyFrame(data)
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from json file.
+
+        Args:
+            path: Local file path or URL to json file.
+
+        Returns:
+            List of column names.
+        """
+        import json
+
+        with Path(path).open("r") as f:
+            data = json.load(f)
+        return pl.LazyFrame(data).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# NdjsonParser
+# ---------------------------------------------------------------------------
+
+
+class NdjsonParser(TableParser):
+    """Wraps :func:`polars.scan_ndjson` for .ndjson files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["ndjson"] = "ndjson"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".ndjson"})
+    is_text: ClassVar[bool] = True
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read ndjson file to a LazyFrame. Cannot be truly lazy.
+
+        Args:
+            path: Local file path or URL to ndjson file.
+
+        Returns:
+            A polars LazyFrame containing the ndjson data.
+        """
+        return pl.scan_ndjson(path)
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from ndjson file.
+
+        Args:
+            path: Local file path or URL to ndjson file.
+
+        Returns:
+            List of column names.
+        """
+        return pl.scan_ndjson(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# IPCParser
+# ---------------------------------------------------------------------------
+
+
+class IPCParser(TableParser):
+    """Wraps :func:`polars.scan_ipc` for .ipc/.arrow/.feather files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["ipc"] = "ipc"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".ipc", ".arrow", ".feather", ".ftr"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"ARROW1"})
+    is_text: ClassVar[bool] = False
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read IPC file to a LazyFrame.
+
+        Args:
+            path: Local file path or URL to IPC file.
+
+        Returns:
+            A polars LazyFrame containing the IPC data.
+        """
+        return pl.scan_ipc(path)
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from IPC file.
+
+        Args:
+            path: Local file path or URL to IPC file.
+
+        Returns:
+            List of column names.
+        """
+        return pl.scan_ipc(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
 # NDAParser
 # ---------------------------------------------------------------------------
 
