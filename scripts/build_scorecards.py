@@ -20,6 +20,7 @@ rendered by the Reference Datasets docs page:
   ("nothing is lost" check); reviewers must be able to see what is dropped.
 * ``stats`` — rows, duration, ranges and null counts for the required columns.
 * ``derived_issues`` — findings from ``bdf.validate``'s derived-column checks.
+* ``time_scale`` — wall-clock cross-check finding (mis-scaled elapsed-time column), or null.
 * a small voltage/current-vs-time plot per pair under ``docs/_static/scorecards/``.
 
 Run from the repo root: ``python scripts/build_scorecards.py`` (network required on
@@ -119,6 +120,36 @@ def _compare(fresh: pl.DataFrame, art: pl.DataFrame) -> list[str]:
     return findings
 
 
+_KNOWN_TIME_FACTORS = {1000.0: "milliseconds", 60.0: "minutes", 3600.0: "hours", 1e6: "microseconds"}
+
+
+def _time_scale_check(art: pl.DataFrame) -> str | None:
+    """Cross-check elapsed-time increments against wall-clock increments.
+
+    A uniformly mis-scaled time column is self-consistent and passes every
+    single-column check; only the independently recorded wall clock exposes it
+    (battery-data-format#65). Returns a finding string, or None when the clocks
+    agree (or either column is absent).
+    """
+    if "Test Time / s" not in art.columns or "Unix Time / s" not in art.columns:
+        return None
+    dt = art["Test Time / s"].cast(pl.Float64).diff().to_numpy()
+    dw = art["Unix Time / s"].cast(pl.Float64).diff().to_numpy()
+    mask = np.isfinite(dt) & np.isfinite(dw) & (dt > 0) & (dw > 0)
+    if mask.sum() < 10:
+        return None
+    ratio = float(np.median(dt[mask] / dw[mask]))
+    if 0.98 <= ratio <= 1.02:
+        return None
+    for factor, unit in _KNOWN_TIME_FACTORS.items():
+        if abs(ratio / factor - 1.0) <= 0.02:
+            return (
+                f"Test Time / s increments are {factor:g}x the wall-clock increments: "
+                f"values are {unit} stored under a seconds header (see battery-data-format#65)"
+            )
+    return f"Test Time / s increments disagree with the wall clock by {ratio:.3g}x (unexplained)"
+
+
 def _stats(art: pl.DataFrame) -> dict:
     stats: dict = {"rows": art.height}
     if "Test Time / s" in art.columns:
@@ -180,8 +211,9 @@ def build_scorecard(entry: dict) -> dict:
     mapping, unmapped = _mapping_and_unmapped(plugin_id, list(raw_df.columns))
     findings = _compare(fresh, art)
     derived = list(rep["derived"]["issues"])
+    time_scale = _time_scale_check(art)
 
-    if findings:
+    if findings or time_scale:
         verdict = "FAIL"
     elif derived and not entry.get("deliberate_data_bugs"):
         verdict = "WARN"
@@ -199,6 +231,7 @@ def build_scorecard(entry: dict) -> dict:
         "unmapped_native_columns": unmapped,
         "stats": _stats(art),
         "derived_issues": derived,
+        "time_scale": time_scale,
         "artifact_vs_fresh": findings or ["matches fresh conversion"],
         "plot": plot_name if has_plot else None,
     }
@@ -207,11 +240,14 @@ def build_scorecard(entry: dict) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--check", action="store_true", help="Recompute and fail if committed scorecards are stale.")
+    parser.add_argument("--only", default=None, help="Only process manifest entries whose bdf_file contains this substring.")
     args = parser.parse_args()
 
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     stale = 0
     for entry in manifest["datasets"]:
+        if args.only and args.only not in entry["bdf_file"]:
+            continue
         card = build_scorecard(entry)
         old = entry.get("scorecard")
         if args.check:

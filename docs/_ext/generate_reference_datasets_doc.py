@@ -78,7 +78,7 @@ def _summary_table(datasets: list[dict]) -> list[str]:
         anchor = re.sub(r"[^a-z0-9]+", "-", e["bdf_file"].lower()).strip("-")
         n_findings = len(card["derived_issues"]) + (
             0 if card["artifact_vs_fresh"] == ["matches fresh conversion"] else 1
-        )
+        ) + (1 if card.get("time_scale") else 0)
         lines.extend(
             [
                 f"   * - {_VERDICT_BADGE.get(card['verdict'], card['verdict'])}",
@@ -120,6 +120,8 @@ def _scorecard_block(entry: dict) -> list[str]:
             checks.append(f"- ✓ raw-vs-artifact: {f}")
         else:
             checks.append(f"- ✗ raw-vs-artifact: {_lit(f)}")
+    if card.get("time_scale"):
+        lines.append(f"- **Time-scale cross-check:** {card['time_scale']}")
     if card["derived_issues"]:
         for issue in card["derived_issues"]:
             checks.append(f"- ✗ derived: {_lit(issue)}")
