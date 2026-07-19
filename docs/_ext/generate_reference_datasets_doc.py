@@ -47,46 +47,65 @@ _VERDICT_BADGE = {
 }
 
 
+_VERDICT_RANK = {"FAIL": 2, "WARN": 1, "PASS": 0}
+
+
+def _by_plugin(datasets: list[dict]) -> dict[str, list[dict]]:
+    groups: dict[str, list[dict]] = {}
+    for e in datasets:
+        groups.setdefault(e["plugin"], []).append(e)
+    return groups
+
+
 def _summary_table(datasets: list[dict]) -> list[str]:
-    """Render the at-a-glance scorecard summary table."""
+    """Render the at-a-glance scorecard summary, one row per plugin."""
     lines = [
-        "Scorecard summary",
-        "-----------------",
+        "Scorecard summary by plugin",
+        "---------------------------",
         "",
-        "Each artifact is re-converted from its raw source and compared against the",
-        "committed file by ``scripts/build_scorecards.py``. **FAIL** means the committed",
-        "artifact disagrees with a fresh conversion (stale or produced by a buggy",
-        "converter); **WARN** means undocumented derived-column findings; details are in",
-        "each dataset's scorecard below.",
+        "Every artifact is re-converted from its raw source by ``scripts/build_scorecards.py``",
+        "and compared against the committed file, so each row scores a *converter*: **FAIL**",
+        "means at least one of the plugin's artifacts disagrees with a fresh conversion or",
+        "fails a cross-check; **WARN** means undocumented derived-column findings; details",
+        "are on each dataset's card in the plugin's section below.",
         "",
         ".. list-table::",
         "   :header-rows: 1",
-        "   :widths: 8 46 10 12 12 12",
+        "   :widths: 22 10 12 12 14 12 12",
         "",
-        "   * - Verdict",
-        "     - Dataset",
+        "   * - Plugin",
+        "     - Verdict",
+        "     - Datasets",
         "     - Rows",
         "     - Mapped",
         "     - Dropped",
         "     - Findings",
     ]
-    for e in datasets:
-        card = e.get("scorecard")
-        if not card:
+    for plugin, entries in _by_plugin(datasets).items():
+        cards = [e["scorecard"] for e in entries if e.get("scorecard")]
+        if not cards:
             continue
-        # mirror docutils' section-id generation: lowercase, non-alphanumeric runs -> single hyphen
-        anchor = re.sub(r"[^a-z0-9]+", "-", e["bdf_file"].lower()).strip("-")
-        n_findings = len(card["derived_issues"]) + (
-            0 if card["artifact_vs_fresh"] == ["matches fresh conversion"] else 1
-        ) + (1 if card.get("time_scale") else 0)
+        worst = max((c["verdict"] for c in cards), key=lambda v: _VERDICT_RANK.get(v, 0))
+        rows = sum(c["stats"].get("rows", 0) for c in cards)
+        mapped = sum(c["mapped_columns"] for c in cards)
+        native = sum(c["native_columns"] for c in cards)
+        dropped = sum(len(c["unmapped_native_columns"]) for c in cards)
+        findings = sum(
+            len(c["derived_issues"])
+            + (0 if c["artifact_vs_fresh"] == ["matches fresh conversion"] else 1)
+            + (1 if c.get("time_scale") else 0)
+            for c in cards
+        )
+        anchor = re.sub(r"[^a-z0-9]+", "-", plugin.lower()).strip("-")
         lines.extend(
             [
-                f"   * - {_VERDICT_BADGE.get(card['verdict'], card['verdict'])}",
-                f"     - `{e['bdf_file']} <#{anchor}>`__",
-                f"     - {card['stats'].get('rows', '?'):,}",
-                f"     - {card['mapped_columns']}/{card['native_columns']}",
-                f"     - {len(card['unmapped_native_columns'])}",
-                f"     - {n_findings or '—'}",
+                f"   * - `{plugin} <#{anchor}>`__",
+                f"     - {_VERDICT_BADGE.get(worst, worst)}",
+                f"     - {len(cards)}",
+                f"     - {rows:,}",
+                f"     - {mapped}/{native}",
+                f"     - {dropped}",
+                f"     - {findings or '—'}",
             ]
         )
     lines.append("")
@@ -167,7 +186,7 @@ def _scorecard_block(entry: dict) -> list[str]:
 def _dataset_section(entry: dict) -> list[str]:
     """Render one dataset pairing as an RST section."""
     title = entry["bdf_file"]
-    lines = [title, "-" * len(title), ""]
+    lines = [title, "~" * len(title), ""]
 
     if entry.get("notes"):
         lines.extend([entry["notes"], ""])
@@ -185,7 +204,6 @@ def _dataset_section(entry: dict) -> list[str]:
     lines.extend(
         [
             f"- **Provider:** {entry['provider']}",
-            f"- **Plugin:** {_lit(entry['plugin'])}",
             f"- **Rows:** {entry['rows']:,}",
             f"- **BDF artifact:** {_lit('docs/examples/reference/' + entry['bdf_file'])} "
             f"(sha256 {_lit(entry['bdf_sha256'][:12] + '...')})",
@@ -215,8 +233,12 @@ def _generated_content() -> str:
     if any(e.get("scorecard") for e in manifest["datasets"]):
         blocks.extend(_summary_table(manifest["datasets"]))
 
-    for entry in manifest["datasets"]:
-        blocks.extend(_dataset_section(entry))
+    for plugin, entries in _by_plugin(manifest["datasets"]).items():
+        blocks.extend([plugin, "-" * len(plugin), ""])
+        worst_note = f"{len(entries)} reference dataset(s) exercising the ``{plugin}`` parser and normalizer."
+        blocks.extend([worst_note, ""])
+        for entry in entries:
+            blocks.extend(_dataset_section(entry))
 
     unconverted = manifest.get("unconverted_raw_files", [])
     if unconverted:
