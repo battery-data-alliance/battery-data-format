@@ -60,14 +60,11 @@ def _by_plugin(datasets: list[dict]) -> dict[str, list[dict]]:
 def _summary_table(datasets: list[dict]) -> list[str]:
     """Render the at-a-glance scorecard summary, one row per plugin."""
     lines = [
-        "Scorecard summary by plugin",
-        "---------------------------",
+        "Plugin scorecards",
+        "-----------------",
         "",
-        "Every artifact is re-converted from its raw source by ``scripts/build_scorecards.py``",
-        "and compared against the committed file, so each row scores a *converter*: **FAIL**",
-        "means at least one of the plugin's artifacts disagrees with a fresh conversion or",
-        "fails a cross-check; **WARN** means undocumented derived-column findings; details",
-        "are on each dataset's card in the plugin's section below.",
+        "Each row scores a *converter*: every artifact is re-converted from raw and cross-checked;",
+        "**FAIL** means a disagreement or failed check, detailed on the dataset's card below.",
         "",
         ".. list-table::",
         "   :header-rows: 1",
