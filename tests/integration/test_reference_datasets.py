@@ -89,3 +89,31 @@ def test_manifest_provenance_fields_complete() -> None:
         for raw in entry["raw_files"]:
             assert raw["url"].startswith("https://zenodo.org/"), entry["bdf_file"]
             assert raw["checksum"], entry["bdf_file"]
+
+
+@pytest.mark.network
+@pytest.mark.parametrize("entry", DATASETS, ids=lambda e: e["bdf_file"])
+def test_published_artifact_fetches_and_validates(entry: dict) -> None:
+    """Fetch-based guard for the published artifact record (artifacts-on-Zenodo model).
+
+    Activates per entry once ``prepare_artifact_record.py --record-id`` has
+    back-filled the ``artifact`` block; skips (with a reason) until then. When
+    the committed copies leave git, this test is the artifact coverage.
+    """
+    art = entry.get("artifact") or {}
+    if not art.get("url"):
+        pytest.skip("artifact not yet published to the Zenodo artifact record")
+    import hashlib
+
+    from bdf.fetch import fetch_url
+
+    local = fetch_url(art["url"], filename=art["filename"])
+    h = hashlib.sha256()
+    with open(local, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    assert h.hexdigest() == art["sha256"], f"checksum mismatch for {art['filename']}"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        df, _meta = bdf.read(local, validate=True, lazy=False)
+    assert df.height == entry["rows"], f"row count differs from manifest for {art['filename']}"
