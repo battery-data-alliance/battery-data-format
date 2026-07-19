@@ -184,20 +184,20 @@ def _dataset_section(entry: dict) -> list[str]:
 
     lines.extend(
         [
-            f":Provider: {entry['provider']}",
-            f":Plugin: {_lit(entry['plugin'])}",
-            f":Rows: {entry['rows']:,}",
-            f":BDF artifact: {_lit('docs/examples/reference/' + entry['bdf_file'])} "
+            f"- **Provider:** {entry['provider']}",
+            f"- **Plugin:** {_lit(entry['plugin'])}",
+            f"- **Rows:** {entry['rows']:,}",
+            f"- **BDF artifact:** {_lit('docs/examples/reference/' + entry['bdf_file'])} "
             f"(sha256 {_lit(entry['bdf_sha256'][:12] + '...')})",
         ]
     )
     for raw in entry["raw_files"]:
         lines.append(
-            f":Raw export: `{raw['filename']} <{raw['url']}>`__ ({_mib(raw['size_bytes'])}, {raw['checksum']})"
+            f"- **Raw export:** `{raw['filename']} <{raw['url']}>`__ ({_mib(raw['size_bytes'])}, {raw['checksum']})"
         )
     lines.append("")
 
-    lines.append(f":Columns: {', '.join(_lit(c) for c in entry['columns'])}")
+    lines.append(f"- **Columns:** {', '.join(_lit(c) for c in entry['columns'])}")
     lines.append("")
     lines.extend(_scorecard_block(entry))
     return lines
