@@ -39,7 +39,7 @@ from .table_parsers import (
     IpcParser,
     JsonParser,
     MatParser,
-    MPRParser,
+    MprParser,
     NDAParser,
     NdjsonParser,
     ParquetParser,
@@ -55,7 +55,15 @@ except ImportError as _exc:
     _YAML_IMPORT_ERROR = _exc
 
 TableParserUnion = Annotated[
-    DelimTxtParser | ExcelParser | IpcParser | JsonParser | MatParser | MPRParser |NDAParser | NdjsonParser | ParquetParser,
+    DelimTxtParser
+    | ExcelParser
+    | IpcParser
+    | JsonParser
+    | MatParser
+    | MprParser
+    | NDAParser
+    | NdjsonParser
+    | ParquetParser,
     Field(discriminator="kind"),
 ]
 MetadataUnion = Annotated[
@@ -172,7 +180,7 @@ BIOLOGIC_MPT = Plugin(
     ),
 )
 
-BIOLOGIC_MPR = Plugin(table_parser=MPRParser(normalizer=NORMALIZERS["biologic"]))
+BIOLOGIC_MPR = Plugin(table_parser=MprParser(normalizer=NORMALIZERS["biologic"]))
 
 DIGATRON_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["digatron"]),
