@@ -354,8 +354,8 @@ class TableNormalizer(BaseModel):
     step_id: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_type: tuple[SynUnion, ...] | ResolvedColumn | None = None
     ambient_temperature_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
     record_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    step_record_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_time_second: tuple[SynUnion, ...] | ResolvedColumn | None = None
     charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
@@ -381,6 +381,10 @@ class TableNormalizer(BaseModel):
     cumulative_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_cumulative_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     cycle_cumulative_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     power_watt: tuple[SynUnion, ...] | ResolvedColumn | None = None
     internal_resistance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
     dc_internal_resistance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
@@ -708,10 +712,25 @@ ARBIN = TableNormalizer(
         Syn(hdr="Aux_Temperature_1 (C)"),
         Syn(hdr="Aux_Temperature_1 ({unit})"),
     ),
-    charging_capacity_ah=(Syn(hdr="Charge Capacity ({unit})"),),
-    discharging_capacity_ah=(Syn(hdr="Discharge Capacity ({unit})"),),
-    charging_energy_wh=(Syn(hdr="Charge Energy ({unit})"),),
-    discharging_energy_wh=(Syn(hdr="Discharge Energy ({unit})"),),
+    # Arbin's accumulators reset at operator-authored schedule points ('Set variable(s)')
+    # and can be assigned arbitrary values ('Set value'), so they carry the schedule-scoped
+    # terms, not the monotonic test-scoped ones (ontology 1.3.0; ADR 0001 in the ontology repo).
+    schedule_charging_capacity_ah=(
+        Syn(hdr="Charge Capacity ({unit})"),
+        Syn(hdr="Charge_Capacity({unit})"),
+    ),
+    schedule_discharging_capacity_ah=(
+        Syn(hdr="Discharge Capacity ({unit})"),
+        Syn(hdr="Discharge_Capacity({unit})"),
+    ),
+    schedule_charging_energy_wh=(
+        Syn(hdr="Charge Energy ({unit})"),
+        Syn(hdr="Charge_Energy({unit})"),
+    ),
+    schedule_discharging_energy_wh=(
+        Syn(hdr="Discharge Energy ({unit})"),
+        Syn(hdr="Discharge_Energy({unit})"),
+    ),
     power_watt=(Syn(hdr="Power ({unit})"),),
     ac_internal_resistance_ohm=(Syn(hdr="ACR ({unit})"),),
     dc_internal_resistance_ohm=(Syn(hdr="Internal Resistance ({unit})"),),

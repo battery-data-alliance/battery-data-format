@@ -223,7 +223,7 @@ Full docs (API, CLI, examples) are built with Sphinx/pydata theme. After build, 
 
 ### Which label should I use for my column headings?
 
-You should use the Preferred Label for your column headings. This is the label that is designed to adhere to recommendations for human-readable titles and corresponds to the `csvw:titles` property in the table schema.
+On disk, the canonical column headings are the machine-readable names (e.g. `test_time_second`, `voltage_volt`): one stable key per quantity with the unit baked in, defined and versioned by the ontology, and safe for any downstream tool to key on. This is what `bdf.save` writes by default. The Preferred Labels (e.g. `Test Time / s`) are the human-readable view: `bdf.read` presents columns under them in memory, files authored with them read equivalently, and `bdf.save(..., human=True)` writes them if you want human-readable files. This is the label that is designed to adhere to recommendations for human-readable titles and corresponds to the `csvw:titles` property in the table schema.
 
 ### What is the difference between the preferred label and the machine-readable name?
 

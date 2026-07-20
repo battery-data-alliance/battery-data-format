@@ -52,7 +52,7 @@ cache key de-duplicate via set union.
 """
 
 
-PINNED_ONTOLOGY_VERSIONS: tuple[str, ...] = ("1.1.0",)
+PINNED_ONTOLOGY_VERSIONS: tuple[str, ...] = ("1.3.0",)
 """Ontology release tags an example notebook pins via ``ColumnOntology.load_version``.
 
 These never appear as literal URLs in a notebook (the version is interpolated

@@ -34,7 +34,7 @@ _CYCLE_RESET_SIGNED = "CYCLE_RESET_SIGNED"
 _INT_FAMILY: dict[str, str] = {
     "record_index": _STRICT_INC,
     "step_count": _COUNTER_UNIQUE,
-    "step_index": _STEP_INDEX,
+    "step_record_index": _STEP_INDEX,
     "step_id": _WEAK_ID,
     "cycle_count": _COUNTER,
 }

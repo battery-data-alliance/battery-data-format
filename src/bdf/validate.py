@@ -143,25 +143,26 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
                 issues.append(f"'cycle_count' is not monotonically non-decreasing ({drops} drops).")
                 details.append({"check": "monotonic", "column": "cycle_count", "violations": drops})
 
-    # 4) step_index: 1-based within-step point counter (resets to 1, else +1)
-    if "step_index" in cols:
-        v = cols["step_index"].to_numpy(dtype=float)
+    # 4) step_record_index (nee step_index): 1-based within-step point counter (resets to 1, else +1)
+    _sri_key = "step_record_index" if "step_record_index" in cols else ("step_index" if "step_index" in cols else None)
+    if _sri_key is not None:
+        v = cols[_sri_key].to_numpy(dtype=float)
         finite = v[np.isfinite(v)]
         if finite.size:
             mn = float(finite.min())
             if mn != 1.0:
                 issues.append(
-                    f"'step_index' never equals 1 (min={mn:g}); it looks like a program step "
+                    f"'step_record_index' never equals 1 (min={mn:g}); it looks like a program step "
                     f"identifier (Step ID / Arbin Step_Index / Digatron Step), not the 1-based "
                     f"within-step point counter."
                 )
-                details.append({"check": "step_index_min", "column": "step_index", "min": mn})
+                details.append({"check": "step_index_min", "column": "step_record_index", "min": mn})
             elif v.size >= 2:
                 d = np.diff(v)
                 bad = int(np.nansum((d != 1.0) & (v[1:] != 1.0)))
                 if bad:
-                    issues.append(f"'step_index' has {bad} transitions that neither increment by 1 nor reset to 1.")
-                    details.append({"check": "step_index_seq", "column": "step_index", "violations": bad})
+                    issues.append(f"'step_record_index' has {bad} transitions that neither increment by 1 nor reset to 1.")
+                    details.append({"check": "step_index_seq", "column": "step_record_index", "violations": bad})
 
     return {"issues": issues, "details": details}
 
