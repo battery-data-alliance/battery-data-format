@@ -282,7 +282,12 @@ def main() -> int:
         "title": "Battery Data Format (BDF) canonical reference artifacts",
         "upload_type": "dataset",
         "description": readme[0],
-        "creators": [{"name": "Battery Data Alliance"}],
+        "creators": [
+            {"name": "Clark, Simon", "orcid": "0000-0002-8758-6109"},
+            {"name": "Hege, Gabe"},  # ORCID to be supplied
+            {"name": "Kimbell, Graham", "orcid": "0000-0001-9610-3589"},
+            {"name": "Holland, Tom", "orcid": "0009-0009-0670-1901"},
+        ],
         "license": "cc-by-4.0",
         "related_identifiers": [
             {"relation": "isDerivedFrom", "identifier": RAW_RECORD_DOI},
