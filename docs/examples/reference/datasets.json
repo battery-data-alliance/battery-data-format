@@ -609,9 +609,7 @@
             "nulls": 0
           }
         },
-        "derived_issues": [
-          "'net_capacity_ah' != charging_capacity_ah - discharging_capacity_ah in 76/47927 rows (worst |Δ| = 2.671e-08)."
-        ],
+        "derived_issues": [],
         "time_scale": "Test Time / s increments are 1000x the wall-clock increments: values are milliseconds stored under a seconds header (see battery-data-format#65)",
         "artifact_vs_fresh": [
           "matches fresh conversion"
