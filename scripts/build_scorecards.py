@@ -153,6 +153,44 @@ def _time_scale_check(art: pl.DataFrame) -> str | None:
     return None
 
 
+def _bug_check(entry: dict, derived_issues: list[str], time_monotonic: str | None) -> dict | None:
+    """Compare the bug we actually detect against the one a deliberate-bug file declares.
+
+    An ``expected_bug`` block turns the free-text ``deliberate_data_bugs`` note into a
+    machine-checked contract: the named derived-column violations and the time
+    non-monotonicity flag must still be reproduced. If a documented defect silently
+    disappears (data changed, or a converter "fixed" it), this fails -- the fixture no
+    longer demonstrates what it claims to. Returns None when no expectation is declared.
+    """
+    exp = entry.get("expected_bug")
+    if not exp:
+        return None
+    import re
+
+    got_cols = set(re.findall(r"'([a-z0-9_]+)'", " ".join(derived_issues)))
+    missing = [c for c in exp.get("derived_columns", []) if c not in got_cols]
+    time_mismatch = bool(exp.get("time_non_monotonic")) != bool(time_monotonic)
+    parts = []
+    if missing:
+        parts.append(f"expected derived-column findings on {missing} not reproduced")
+    if time_mismatch:
+        parts.append(f"time non-monotonicity expected={bool(exp.get('time_non_monotonic'))}, got={bool(time_monotonic)}")
+    if parts:
+        return {"reproduced": False, "detail": "; ".join(parts)}
+    return {"reproduced": True, "detail": "detected defects match the documented deliberate bug"}
+
+
+def _time_monotonic_finding(rep: dict) -> str | None:
+    """Return a finding when validate reports a non-monotonic elapsed-time column, else None."""
+    ts = rep.get("time_stats", {})
+    if ts.get("present") and not ts.get("monotonic", True):
+        return (
+            f"'Test Time / s' is not monotonically non-decreasing "
+            f"({ts.get('violations', 0)} drops, worst {ts.get('min_drop', 0):g} s)"
+        )
+    return None
+
+
 def _stats(art: pl.DataFrame) -> dict:
     stats: dict = {"rows": art.height}
     if "Test Time / s" in art.columns:
@@ -215,10 +253,16 @@ def build_scorecard(entry: dict) -> dict:
     findings = _compare(fresh, art)
     derived = list(rep["derived"]["issues"])
     time_scale = _time_scale_check(art)
+    time_monotonic = _time_monotonic_finding(rep)
+    bug_check = _bug_check(entry, derived, time_monotonic)
 
-    if findings or time_scale:
+    # Verdict reflects the actual validation state; a documented deliberate bug
+    # EXPLAINS a finding, it does not suppress it (a green PASS on data with real
+    # findings would be misleading -- the card's notes carry the "on purpose" context).
+    # A declared deliberate bug that no longer reproduces is itself a failure.
+    if findings or time_scale or (bug_check and not bug_check["reproduced"]):
         verdict = "FAIL"
-    elif derived and not entry.get("deliberate_data_bugs"):
+    elif derived or time_monotonic:
         verdict = "WARN"
     else:
         verdict = "PASS"
@@ -235,6 +279,8 @@ def build_scorecard(entry: dict) -> dict:
         "stats": _stats(art),
         "derived_issues": derived,
         "time_scale": time_scale,
+        "time_monotonic": time_monotonic,
+        "bug_check": bug_check,
         "artifact_vs_fresh": findings or ["matches fresh conversion"],
         "plot": plot_name if has_plot else None,
     }

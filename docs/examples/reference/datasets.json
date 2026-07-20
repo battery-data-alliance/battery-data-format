@@ -95,6 +95,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -209,6 +211,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -323,6 +327,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -437,6 +443,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -611,6 +619,8 @@
         },
         "derived_issues": [],
         "time_scale": "Test Time / s increments are 1000x the wall-clock increments: values are milliseconds stored under a seconds header (see battery-data-format#65)",
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -732,6 +742,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -902,6 +914,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -958,7 +972,7 @@
         }
       ],
       "scorecard": {
-        "verdict": "PASS",
+        "verdict": "WARN",
         "native_columns": 32,
         "mapped_columns": 12,
         "mapping": [
@@ -1065,6 +1079,11 @@
           "'discharging_energy_wh' is not monotonically non-decreasing (3 drops)."
         ],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": {
+          "reproduced": true,
+          "detail": "detected defects match the documented deliberate bug"
+        },
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -1088,6 +1107,14 @@
             "url": null
           }
         }
+      },
+      "expected_bug": {
+        "derived_columns": [
+          "net_energy_wh",
+          "charging_energy_wh",
+          "discharging_energy_wh"
+        ],
+        "time_non_monotonic": false
       }
     },
     {
@@ -1224,6 +1251,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -1280,7 +1309,7 @@
         }
       ],
       "scorecard": {
-        "verdict": "PASS",
+        "verdict": "WARN",
         "native_columns": 34,
         "mapped_columns": 12,
         "mapping": [
@@ -1385,6 +1414,11 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": "'Test Time / s' is not monotonically non-decreasing (19 drops, worst -125193 s)",
+        "bug_check": {
+          "reproduced": true,
+          "detail": "detected defects match the documented deliberate bug"
+        },
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -1408,6 +1442,10 @@
             "url": null
           }
         }
+      },
+      "expected_bug": {
+        "derived_columns": [],
+        "time_non_monotonic": true
       }
     },
     {
@@ -1538,6 +1576,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -1680,6 +1720,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
@@ -1849,6 +1891,8 @@
         },
         "derived_issues": [],
         "time_scale": null,
+        "time_monotonic": null,
+        "bug_check": null,
         "artifact_vs_fresh": [
           "column set differs: ['Charging Capacity / Ah', 'Charging Energy / Wh', 'Discharging Capacity / Ah', 'Discharging Energy / Wh']"
         ],

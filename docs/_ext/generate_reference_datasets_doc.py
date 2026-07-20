@@ -91,6 +91,7 @@ def _summary_table(datasets: list[dict]) -> list[str]:
             len(c["derived_issues"])
             + (0 if c["artifact_vs_fresh"] == ["matches fresh conversion"] else 1)
             + (1 if c.get("time_scale") else 0)
+            + (1 if c.get("time_monotonic") else 0)
             for c in cards
         )
         anchor = re.sub(r"[^a-z0-9]+", "-", plugin.lower()).strip("-")
@@ -138,6 +139,12 @@ def _scorecard_block(entry: dict) -> list[str]:
             checks.append(f"- ✗ raw-vs-artifact: {_lit(f)}")
     if card.get("time_scale"):
         lines.append(f"- **Time-scale cross-check:** {card['time_scale']}")
+    if card.get("time_monotonic"):
+        lines.append(f"- ✗ time monotonicity: {_lit(card['time_monotonic'])}")
+    bc = card.get("bug_check")
+    if bc:
+        mark = "✓" if bc["reproduced"] else "✗"
+        lines.append(f"- {mark} **Expected-bug check:** {bc['detail']}")
     if card["derived_issues"]:
         for issue in card["derived_issues"]:
             checks.append(f"- ✗ derived: {_lit(issue)}")

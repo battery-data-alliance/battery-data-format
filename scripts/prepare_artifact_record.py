@@ -34,7 +34,13 @@ from bdf.fetch import fetch_url
 from bdf.validate import validate_df
 
 # Reuse the scorecard primitives so the record's audit matches the docs scorecards.
-from build_scorecards import _mapping_and_unmapped, _stats, _time_scale_check  # noqa: E402
+from build_scorecards import (  # noqa: E402
+    _bug_check,
+    _mapping_and_unmapped,
+    _stats,
+    _time_monotonic_finding,
+    _time_scale_check,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO / "docs" / "examples" / "reference" / "datasets.json"
@@ -60,12 +66,15 @@ _RANK = {"PASS": 0, "WARN": 1, "FAIL": 2}
 _BADGE = {"PASS": "#1a7f37", "WARN": "#9a6700", "FAIL": "#cf222e"}
 
 
-def _findings(card: dict) -> list[str]:
-    out = []
+def _findings(card: dict) -> list[tuple[str, str]]:
+    """Return (severity, text) per finding: 'fail' (red) for time-unit defects, 'warn' (orange) for the rest."""
+    out: list[tuple[str, str]] = []
     if card.get("time_scale"):
-        out.append(f"Time-scale cross-check: {card['time_scale']}")
+        out.append(("fail", f"Time-scale cross-check: {card['time_scale']}"))
+    if card.get("time_monotonic"):
+        out.append(("warn", card["time_monotonic"]))
     for d in card.get("derived_issues", []):
-        out.append(f"Derived-column: {d}")
+        out.append(("warn", f"Derived-column: {d}"))
     return out
 
 
@@ -103,10 +112,19 @@ def _write_scorecard_html(entries: list[dict], out_path: Path) -> None:
                 b64 = base64.b64encode(png.read_bytes()).decode()
                 plot = f'<img alt="overview" src="data:image/png;base64,{b64}">'
             fl = (
-                '<ul class="find">' + "".join(f"<li>{esc(x)}</li>" for x in findings) + "</ul>"
+                '<ul class="find">' + "".join(f'<li class="{sev}">{esc(x)}</li>' for sev, x in findings) + "</ul>"
                 if findings
                 else '<p class="ok">No findings.</p>'
             )
+            bug = (
+                f'<p class="bug"><b>Deliberate (kept on purpose):</b> {esc(c["deliberate_data_bugs"])}</p>'
+                if c.get("deliberate_data_bugs")
+                else ""
+            )
+            bc = c.get("bug_check")
+            if bc:
+                cls, mark = ("ok", "✓") if bc["reproduced"] else ("fail-note", "✗")
+                bug += f'<p class="{cls}">{mark} Expected-bug check: {esc(bc["detail"])}</p>'
             maprows = "".join(
                 f"<tr><td><code>{esc(m['native'])}</code></td><td><code>{esc(m['bdf'])}</code></td>"
                 f"<td>{esc(str(m['conversion']))}</td></tr>"
@@ -116,7 +134,7 @@ def _write_scorecard_html(entries: list[dict], out_path: Path) -> None:
             cards.append(
                 f'<div class="card"><h3>{esc(_stem(e["bdf_file"]))} '
                 f'<span class="b" style="background:{_BADGE[c["verdict"]]}">{c["verdict"]}</span></h3>'
-                f'<p class="meta">{esc(e.get("notes", ""))}</p>{plot}{fl}'
+                f'<p class="meta">{esc(e.get("notes", ""))}</p>{plot}{fl}{bug}'
                 f'<details><summary>Column mapping &mdash; {c["mapped_columns"]}/{c["native_columns"]} mapped, '
                 f"{len(c['unmapped_native_columns'])} dropped</summary>"
                 f'<table class="map"><tr><th>Native</th><th>BDF</th><th>Conversion</th></tr>{maprows}</table>'
@@ -130,7 +148,8 @@ def _write_scorecard_html(entries: list[dict], out_path: Path) -> None:
 <title>BDF reference dataset scorecards</title>
 <style>
 :root{{--fg:#1f2328;--mut:#59636e;--line:#d1d9e0;--bg:#fff;--card:#f6f8fa}}
-@media(prefers-color-scheme:dark){{:root{{--fg:#e6edf3;--mut:#9198a1;--line:#3d444d;--bg:#0d1117;--card:#151b23}}}}
+@media(prefers-color-scheme:dark){{:root{{--fg:#e6edf3;--mut:#9198a1;--line:#3d444d;--bg:#0d1117;--card:#151b23}}
+ul.find li.warn{{color:#d4a72c}}ul.find li.fail{{color:#ff7b72}}p.ok{{color:#3fb950}}}}
 *{{box-sizing:border-box}}body{{font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;color:var(--fg);
 background:var(--bg);margin:0;padding:2.5rem 1.25rem;max-width:60rem;margin:auto}}
 h1{{font-size:1.6rem;margin:0 0 .3rem}}h2{{font-size:1.2rem;margin:2.2rem 0 .8rem;padding-bottom:.3rem;
@@ -141,7 +160,9 @@ th,td{{text-align:left;padding:.35rem .6rem;border-bottom:1px solid var(--line);
 th{{color:var(--mut);font-weight:600}}table.sum td:first-child a{{font-weight:600}}
 .card{{background:var(--card);border:1px solid var(--line);border-radius:.6rem;padding:1rem 1.2rem;margin:.9rem 0}}
 .card img{{max-width:100%;border-radius:.3rem;margin:.3rem 0}}p.meta{{color:var(--mut);margin:.1rem 0 .6rem;font-size:.9rem}}
-ul.find{{margin:.3rem 0;padding-left:1.1rem}}ul.find li{{color:#cf222e}}p.ok{{color:#1a7f37;margin:.3rem 0}}
+ul.find{{margin:.3rem 0;padding-left:1.1rem}}ul.find li.warn{{color:#9a6700}}ul.find li.fail{{color:#cf222e}}
+p.ok{{color:#1a7f37;margin:.3rem 0}}p.fail-note{{color:#cf222e;font-weight:600;margin:.3rem 0}}
+p.bug{{color:var(--mut);font-size:.88rem;margin:.4rem 0;border-left:3px solid #9a6700;padding-left:.6rem}}
 code{{font:12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--line);padding:.1rem .3rem;border-radius:.2rem}}
 details{{margin-top:.5rem}}summary{{cursor:pointer;color:var(--mut);font-size:.88rem}}
 .map{{overflow-x:auto;display:block}}p.drop{{font-size:.85rem;color:var(--mut)}}a{{color:#0969da}}
@@ -180,9 +201,13 @@ def _generate(entry: dict, out_dir: Path, formats: list[str]) -> tuple[dict[str,
     mapping, unmapped = _mapping_and_unmapped(entry["plugin"], list(raw_df.columns))
     derived = list(rep["derived"]["issues"])
     time_scale = _time_scale_check(df)
-    if time_scale:
+    time_monotonic = _time_monotonic_finding(rep)
+    bug_check = _bug_check(entry, derived, time_monotonic)
+    # A documented deliberate bug explains a finding; it does not suppress the verdict.
+    # A declared deliberate bug that no longer reproduces is itself a failure.
+    if time_scale or (bug_check and not bug_check["reproduced"]):
         verdict = "FAIL"
-    elif derived and not entry.get("deliberate_data_bugs"):
+    elif derived or time_monotonic:
         verdict = "WARN"
     else:
         verdict = "PASS"
@@ -195,6 +220,9 @@ def _generate(entry: dict, out_dir: Path, formats: list[str]) -> tuple[dict[str,
         "stats": _stats(df),
         "derived_issues": derived,
         "time_scale": time_scale,
+        "time_monotonic": time_monotonic,
+        "bug_check": bug_check,
+        "deliberate_data_bugs": entry.get("deliberate_data_bugs"),
         "plot": _stem(entry["bdf_file"]) + ".png",
     }
     return outs, card
