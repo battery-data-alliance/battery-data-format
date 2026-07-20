@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -744,9 +745,19 @@ class TestJsonParser:
         df = lf.collect()
         assert len(df) == 2
 
-    def test_special_characters(self, tmp_path: Path) -> None:
-        parser = JsonParser()
+    def test_special_characters(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Spy on Path.open to check encodings used
+        original_open = Path.open
+        calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
 
+        def spy_open(self: Path, *args: Any, **kwargs: Any) -> object:
+            calls.append((args, kwargs))
+            return original_open(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", spy_open)
+
+        # Open file with special characters and assert they do not become garbled
+        parser = JsonParser()
         p_record = tmp_path / "data_record.json"
         data_record = [
             {"q [µA·h]": 1.0, "R [Ω]": 2.0, "sweep [mV s⁻¹]": 3.0, "T1 [°C]": 4.0, "T2 [℃]": 5.0},
@@ -759,6 +770,18 @@ class TestJsonParser:
         df = lf.collect()
         assert len(df) == 2
         assert all(col in df.columns for col in ["q [µA·h]", "R [Ω]", "sweep [mV s⁻¹]", "T1 [°C]", "T2 [℃]"])
+        columns = lf = parser.read_column_headings(p_record)
+        assert columns == ["q [µA·h]", "R [Ω]", "sweep [mV s⁻¹]", "T1 [°C]", "T2 [℃]"]
+
+        # Assert that all Path.open was explicitly given utf-8 encoding
+        # Otherwise Linux CI runners pass this test whether or not encoding was given
+        assert calls, "Path.open was never called"
+        for args, kwargs in calls:
+            mode = args[0] if args else kwargs.get("mode", "r")
+            if "b" in mode:
+                continue
+            encoding = args[1] if len(args) > 1 else kwargs.get("encoding")
+            assert encoding == "utf-8", f"opened in text mode without encoding='utf-8': args={args} kwargs={kwargs}"
 
 
 class TestNdjsonParser:
