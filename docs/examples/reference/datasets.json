@@ -616,25 +616,8 @@
         ],
         "plot": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.png"
       },
-      "artifact": {
-        "generated_with": "bdf 0.1.0",
-        "record_id": null,
-        "doi": null,
-        "formats": {
-          "csv": {
-            "filename": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.bdf.csv",
-            "sha256": "4dda9f11bc8fba4ff8973fe8546f990f30096c7dab0563ac527b489c9e49507a",
-            "bytes": 10434486,
-            "url": null
-          },
-          "parquet": {
-            "filename": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.bdf.parquet",
-            "sha256": "4fae1ed115f42596e6624676544ff5a2d578d2d0a6e3cfc15ee7fc0e7092f94b",
-            "bytes": 2435813,
-            "url": null
-          }
-        }
-      }
+      "artifact": null,
+      "hold_from_record": "Test-time column is milliseconds under a seconds header (battery-data-format#65); held until the read-time wall-clock reconciliation (#70) lands so the artifact can be regenerated with a correct timeline."
     },
     {
       "bdf_file": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv",

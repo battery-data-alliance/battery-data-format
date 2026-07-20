@@ -210,7 +210,13 @@ def main() -> int:
     formats = [f.strip() for f in args.formats.split(",") if f.strip()]
 
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    entries = [e for e in manifest["datasets"] if not args.only or args.only in e["bdf_file"]]
+    selected = [e for e in manifest["datasets"] if not args.only or args.only in e["bdf_file"]]
+    # Entries held from this record version (e.g. awaiting a fix) stay in the repo
+    # manifest and the docs scorecards, but are excluded from the published bundle.
+    held = [e for e in selected if e.get("hold_from_record")]
+    entries = [e for e in selected if not e.get("hold_from_record")]
+    for e in held:
+        e["artifact"] = None  # drop any stale checksums for a held dataset
 
     if args.record_id:
         base = f"https://zenodo.org/records/{args.record_id}/files"
@@ -266,6 +272,10 @@ def main() -> int:
     for e in entries:
         for fmt, meta in e["artifact"]["formats"].items():
             readme.append(f"| {meta['filename']} | {fmt} | {meta['bytes']} | {meta['sha256']} |")
+    if held:
+        readme += ["", "Held from this version (pending a fix, included in a later version):", ""]
+        for e in held:
+            readme.append(f"- {_stem(e['bdf_file'])} — {e['hold_from_record']}")
     (args.out / "README.md").write_text("\n".join(readme) + "\n", encoding="utf-8")
 
     meta = {
