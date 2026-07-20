@@ -124,12 +124,17 @@ _KNOWN_TIME_FACTORS = {1000.0: "milliseconds", 60.0: "minutes", 3600.0: "hours",
 
 
 def _time_scale_check(art: pl.DataFrame) -> str | None:
-    """Cross-check elapsed-time increments against wall-clock increments.
+    """Detect a mislabeled time *unit* by cross-checking against the wall clock.
 
     A uniformly mis-scaled time column is self-consistent and passes every
     single-column check; only the independently recorded wall clock exposes it
-    (battery-data-format#65). Returns a finding string, or None when the clocks
-    agree (or either column is absent).
+    (battery-data-format#65). A unit mislabel (ms/min/h/us under a seconds
+    header) shows up as a *clean* factor between the elapsed-time and wall-clock
+    increments, so only clean-factor matches are reported. Ratios that are merely
+    far from 1 but near no unit factor are NOT flagged: on pulse/rest tests a fine
+    sub-second test timer against a coarse 1-second wall clock biases the ratio
+    below 1 without any bug (the reason an earlier version false-flagged the
+    Novonix DCIR and Maccor rate files). Returns a finding string, or None.
     """
     if "Test Time / s" not in art.columns or "Unix Time / s" not in art.columns:
         return None
@@ -139,15 +144,13 @@ def _time_scale_check(art: pl.DataFrame) -> str | None:
     if mask.sum() < 10:
         return None
     ratio = float(np.median(dt[mask] / dw[mask]))
-    if 0.98 <= ratio <= 1.02:
-        return None
     for factor, unit in _KNOWN_TIME_FACTORS.items():
         if abs(ratio / factor - 1.0) <= 0.02:
             return (
                 f"Test Time / s increments are {factor:g}x the wall-clock increments: "
                 f"values are {unit} stored under a seconds header (see battery-data-format#65)"
             )
-    return f"Test Time / s increments disagree with the wall clock by {ratio:.3g}x (unexplained)"
+    return None
 
 
 def _stats(art: pl.DataFrame) -> dict:

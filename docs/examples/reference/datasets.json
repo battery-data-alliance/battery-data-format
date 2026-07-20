@@ -94,10 +94,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.bdf.csv",
+            "sha256": "cfc400994e25e1259ddef5eb9fe830c87865820a6cc40c40f13ad2db1246987f",
+            "bytes": 20267686,
+            "url": null
+          },
+          "parquet": {
+            "filename": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.bdf.parquet",
+            "sha256": "e061f2327682be204ed63184bd0bfd43991065a046159f1029f1cf5fe2b26ca3",
+            "bytes": 4824139,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -188,10 +208,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.bdf.csv",
+            "sha256": "c73d4465ff34cb8e7f987ba9cbbee48c75491b7d3a094b6f53537942f67abdff",
+            "bytes": 2939109,
+            "url": null
+          },
+          "parquet": {
+            "filename": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.bdf.parquet",
+            "sha256": "538c7e6f99db0aa74939c7967bb7a15a48cf073e574139f3bf79310f4ccb2b02",
+            "bytes": 728738,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -282,10 +322,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.bdf.csv",
+            "sha256": "7f8f980f25bd539779cfc9eb66a7cf4ef71ad41c060ee2acf3d29e269ea55774",
+            "bytes": 1286445,
+            "url": null
+          },
+          "parquet": {
+            "filename": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.bdf.parquet",
+            "sha256": "6f5d3f3a78c3b428bcf8d9fe354629d03d97c762d2b38312ba85e2f0105100e5",
+            "bytes": 366385,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -376,10 +436,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.bdf.csv",
+            "sha256": "b54df597404a98cbce6326b9cbe4825e6c0256a1fb07c80e9d62f0b4dc8034fd",
+            "bytes": 20373374,
+            "url": null
+          },
+          "parquet": {
+            "filename": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.bdf.parquet",
+            "sha256": "1aed2e121d3e9de871ca118d5a561ac84c5a9d25c25f0bc08d650b71908ac93f",
+            "bytes": 4863232,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -537,6 +617,25 @@
           "matches fresh conversion"
         ],
         "plot": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.bdf.csv",
+            "sha256": "4dda9f11bc8fba4ff8973fe8546f990f30096c7dab0563ac527b489c9e49507a",
+            "bytes": 10434486,
+            "url": null
+          },
+          "parquet": {
+            "filename": "FZJ__INR21700__20250606__HPPC__25degC__Digatron.bdf.parquet",
+            "sha256": "4fae1ed115f42596e6624676544ff5a2d578d2d0a6e3cfc15ee7fc0e7092f94b",
+            "bytes": 2435813,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -651,10 +750,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv",
+            "sha256": "52a853ba9e2133e29bb7bbdf7c7e41726a486dd42def0a2cdc1c0a9a50f61f4c",
+            "bytes": 2304837,
+            "url": null
+          },
+          "parquet": {
+            "filename": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.parquet",
+            "sha256": "e71bcab666b007b0a56c628f22dfb5b2e69d2aa9f4c246e2c406b566710b9527",
+            "bytes": 868919,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -806,6 +925,25 @@
           "matches fresh conversion"
         ],
         "plot": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv",
+            "sha256": "e7ea478aa3fd9882d1c2fa3c568e8ba83c406d2fb9c6dfb5d5afff89fe7d7d66",
+            "bytes": 2560503,
+            "url": null
+          },
+          "parquet": {
+            "filename": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.parquet",
+            "sha256": "e44ed196581c7db7a179a9be3a12a19e5399d9eb5f32713093ce8b286f4e0172",
+            "bytes": 731349,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -945,10 +1083,30 @@
           "'charging_energy_wh' is not monotonically non-decreasing (2 drops).",
           "'discharging_energy_wh' is not monotonically non-decreasing (3 drops)."
         ],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.csv",
+            "sha256": "b01ea95116c54d284ca13e6b14ebf3312397b867315084397697cc40da0e3c8e",
+            "bytes": 16954820,
+            "url": null
+          },
+          "parquet": {
+            "filename": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.parquet",
+            "sha256": "967881cc945489df5a0b943779f80b247ace4392179ae7b047b0ba3fbe66fe47",
+            "bytes": 8059918,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -1084,10 +1242,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.bdf.csv",
+            "sha256": "3a71547ad1c6e0e212a0ac09e338fcd30a970a5fb2af42a51d8e061586bf6f75",
+            "bytes": 18649272,
+            "url": null
+          },
+          "parquet": {
+            "filename": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.bdf.parquet",
+            "sha256": "27cfc45f73bda767f4b0bb05f8caeae0221da92ecbba88f75d922d4dabeae3bc",
+            "bytes": 2841376,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -1225,10 +1403,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv",
+            "sha256": "90aa25c3852ded3b5268d8596d1e3c42185dbf12c3da7e1b458c859a801618e8",
+            "bytes": 992830,
+            "url": null
+          },
+          "parquet": {
+            "filename": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.parquet",
+            "sha256": "a89dc114b4606eeda4011cd7b62bccf2926ef486ffb8aab3155f2b0ed068d31b",
+            "bytes": 479055,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -1358,10 +1556,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.bdf.csv",
+            "sha256": "58e0d630cd4ae6108245284d6c5f951caeb89e573f3b77375b627ede18047232",
+            "bytes": 80643003,
+            "url": null
+          },
+          "parquet": {
+            "filename": "SINTEF__SLPBA842124HV-06__20241011__DCIR__0p1C__25degC__Novonix.bdf.parquet",
+            "sha256": "c861d5a5baf2a1f1c11a87c416697ad268f2ce2bae46af229ac30f56f0441b3b",
+            "bytes": 14647841,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -1480,10 +1698,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
           "matches fresh conversion"
         ],
         "plot": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.bdf.csv",
+            "sha256": "9b29f9c63f27cd17c9bfe89194f097e25a4aa93a49a30a97122210c5bbd8806d",
+            "bytes": 548940,
+            "url": null
+          },
+          "parquet": {
+            "filename": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.bdf.parquet",
+            "sha256": "a6c3fa8f6e38f2a1fd04a1ff967b08a89b3653625e47f472cface1b8bd96e5a7",
+            "bytes": 278024,
+            "url": null
+          }
+        }
       }
     },
     {
@@ -1517,13 +1755,23 @@
         }
       ],
       "scorecard": {
-        "verdict": "PASS",
+        "verdict": "FAIL",
         "native_columns": 26,
-        "mapped_columns": 12,
+        "mapped_columns": 16,
         "mapping": [
           {
             "native": "ACR (Ohm)",
             "bdf": "AC Internal Resistance / ohm",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Charge Capacity (Ah)",
+            "bdf": "Charging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Charge Energy (Wh)",
+            "bdf": "Charging Energy / Wh",
             "conversion": "1:1"
           },
           {
@@ -1539,6 +1787,16 @@
           {
             "native": "Internal Resistance (Ohm)",
             "bdf": "DC Internal Resistance / ohm",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Discharge Capacity (Ah)",
+            "bdf": "Discharging Capacity / Ah",
+            "conversion": "1:1"
+          },
+          {
+            "native": "Discharge Energy (Wh)",
+            "bdf": "Discharging Energy / Wh",
             "conversion": "1:1"
           },
           {
@@ -1587,10 +1845,6 @@
           "TC_Counter2",
           "TC_Counter3",
           "TC_Counter4",
-          "Charge Capacity (Ah)",
-          "Discharge Capacity (Ah)",
-          "Charge Energy (Wh)",
-          "Discharge Energy (Wh)",
           "Capacity (Ah)",
           "mAh/g",
           "dV/dt (V/s)",
@@ -1613,10 +1867,30 @@
           }
         },
         "derived_issues": [],
+        "time_scale": null,
         "artifact_vs_fresh": [
-          "matches fresh conversion"
+          "column set differs: ['Charging Capacity / Ah', 'Charging Energy / Wh', 'Discharging Capacity / Ah', 'Discharging Energy / Wh']"
         ],
         "plot": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.png"
+      },
+      "artifact": {
+        "generated_with": "bdf 0.1.0",
+        "record_id": null,
+        "doi": null,
+        "formats": {
+          "csv": {
+            "filename": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.bdf.csv",
+            "sha256": "6ef67452874fc20cc1fae63ad389cb34bcfad72e6857c6c7ae956be8a8ea84f1",
+            "bytes": 15867929,
+            "url": null
+          },
+          "parquet": {
+            "filename": "shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.bdf.parquet",
+            "sha256": "e43d681ba0c6f2b17a0c377f013634b3784c9cb77c041acc88f87eac0c389fd5",
+            "bytes": 7008033,
+            "url": null
+          }
+        }
       }
     }
   ],
