@@ -30,14 +30,9 @@ dependencies = [
   "rdflib>=7.0",
   "typer>=0.12",
   "rich>=13.7",
-  "matplotlib>=3.8",
-  "plotly",
-  "nbformat>=4.2",
-  "openpyxl>=3.1",
   "pydantic>=2.6",
   "requests>=2.31",
   "pint>=0.22",
-  "NewareNDA",
   "platformdirs>=4.10.0",
   "polars>=1.41.2",
 ]
@@ -51,30 +46,58 @@ bdf = "bdf.cli:app"
 bdf-update-snapshot = "bdf.spec:_update_snapshot_cli"
 
 [project.optional-dependencies]
-fastnda = ["fastnda"]
-polars = ["polars", "fastnda"]
-hvplot = ["hvplot", "holoviews", "bokeh"]
-numpy2 = ["numpy>=2.0,<3.0"]
-yaml = [
-    "pyyaml>=6.0.3",
+# Extra file types
+nda = ["fastnda>=1.2.0"]
+mpr = ["yadg>=6.2.0,<7.0.0"]
+excel = ["fastexcel>=0.20.2"]
+mat = ["scipy>=1.15.3"]
+yaml = ["pyyaml>=6.0.3"]
+
+# Plotting
+plot = [
+  "matplotlib>=3.8",
+  "plotly",
 ]
-dev = [
+hvplot = [
+  "hvplot",
+  "holoviews",
+  "bokeh",
+]
+
+# Bundle of all user-facing feature extras
+all = [
+  "batterydf[nda,mpr,excel,mat,yaml,plot,hvplot]",
+]
+
+[dependency-groups]
+# Developer dependencies are local only (see PEP 735)
+# They are never published and are not installable extras from PyPI
+# By default, we install all dev and docs deps with `uv sync`
+# Can also do e.g. `pip install -e . --group dev --group docs`
+
+test = [
   "pytest",
   "pytest-cov",
   "pytest-socket",
+  # Jupyter notebooks used in tests
+  "nbclient>=0.9",
+  "nbformat>=5.9",
+  "ipykernel>=6.0",
+  # pybamm package not required for the table normalizer, only used in tests
+  "pybamm"
+]
+lint = [
   # ruff and mypy are also run via pre-commit; pinned here to the same versions
   # so CI (which invokes `python -m ruff`/`python -m mypy`) matches local hooks.
   "ruff==0.15.12",
   "mypy==1.20.2",
   "types-requests",
   "types-PyYAML",
-  "nbclient>=0.9",
-  "nbformat>=5.9",
-  "ipykernel>=6.0",
   "pre-commit>=4.6.0",
 ]
-pybamm-test = [
-  "pybamm",
+dev = [
+  { include-group = "test" },
+  { include-group = "lint" },
 ]
 docs = [
   "sphinx>=7.0",
@@ -85,13 +108,11 @@ docs = [
   "jupyter-cache>=1.0",
   "ipykernel>=6.29",
 ]
-excel = [
-    "fastexcel>=0.20.2",
-]
-mat = [
-    "scipy>=1.15.3",
-]
 
+[tool.uv]
+# `uv sync`/`uv run` install these groups even without --group/--all-groups,
+# matching the pre-PEP-735 behavior where dev/docs were plain extras.
+default-groups = ["dev", "docs"]
 
 [project.readme]
 file = "README.md"

@@ -33,7 +33,7 @@ Install
 
 PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
 
-Extras (combine as needed, for example ``pip install "batterydf[hvplot]"``):
+Extras (combine as needed, for example ``pip install "batterydf[nda,plot]"``):
 
 .. list-table::
    :header-rows: 1
@@ -41,20 +41,25 @@ Extras (combine as needed, for example ``pip install "batterydf[hvplot]"``):
 
    * - Extra
      - Adds
+   * - ``nda``
+     - Neware .nda/.ndax support (fastnda backend, requires numpy>=2.2).
+   * - ``mpr``
+     - BioLogic .mpr support (via yadg).
+   * - ``excel``
+     - Excel support via the fast ``calamine`` engine.
+   * - ``mat``
+     - MATLAB .mat support.
+   * - ``yaml``
+     - YAML plugin definitions.
+   * - ``plot``
+     - Static (matplotlib) interactive (plotly) plotting.
    * - ``hvplot``
      - Interactive exploration with Bokeh/HoloViews.
-   * - ``polars``
-     - Polars support plus the fast NDA backend (requires numpy>=2.2).
-   * - ``numpy2``
-     - Forces numpy 2.x (recommended for fastnda).
-   * - ``dev``
-     - Test and lint tooling for contributors.
-   * - ``docs``
-     - Sphinx docs toolchain.
-   * - ``fastnda``
-     - Fast NDA backend (requires numpy>=2.2).
+   * - ``all``
+     - Every extra above.
 
-Plotly interactive plots and Neware NDA support are included in the base install.
+Dev-only tooling (tests, linting, docs) are in ``[dependency-groups]``,
+clone the repo and use `uv sync` -- see ``CONTRIBUTING.md`` for more info.
 
 Quickstart notebook
 -------------------

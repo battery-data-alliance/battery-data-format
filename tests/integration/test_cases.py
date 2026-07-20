@@ -36,6 +36,14 @@ _ZENODO_NEWARE_TIME_BUG_URL = (
 )
 _ZENODO_MACCOR_URL = f"{_ZENODO_BASE}/faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.csv/content"
 _ZENODO_ARBIN_URL = f"{_ZENODO_BASE}/shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.CSV/content"
+_ZENODO_XLSX_BASE = "https://zenodo.org/api/records/21337233/files"
+_ZENODO_ARBIN_XLSX_OCV_URL = f"{_ZENODO_XLSX_BASE}/UCCS__ANR26650M1B-A002__2021__OCV-S4__-25degC__Arbin.xlsx/content"
+_ZENODO_ARBIN_XLSX_CAP_URL = (
+    f"{_ZENODO_XLSX_BASE}/Stanford__IFPR26650-YX05__20231012__Capacity__25degC__Arbin.xlsx/content"
+)
+_ZENODO_ARBIN_XLSX_EIS_URL = (
+    f"{_ZENODO_XLSX_BASE}/Oxford__SLPBB142124-01__20240812__DynamicMBTF__25degC__Arbin__Wb1.xlsx/content"
+)
 
 
 class ColExpect(NamedTuple):
@@ -481,6 +489,120 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 ),
             },
             marks=(pytest.mark.network,),
+        ),
+    ),
+    (
+        "arbin_xlsx/zenodo_21337233_ocv_micro",
+        SampleCase(
+            source=_ZENODO_ARBIN_XLSX_OCV_URL,
+            is_url=True,
+            plugin_id="arbin_xlsx",
+            ext_ids=frozenset({"neware_xlsx", "arbin_xlsx"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_xlsx",
+            detect_id="arbin_xlsx",
+            deciding_stage="columns",
+            expected_columns={
+                # underscore header dialect (older MITS Excel); 39-row micro-fixture
+                "test_time_second": ColExpect("Test_Time(s)", 1.0),
+                "voltage_volt": ColExpect("Voltage(V)", 1.0),
+                "current_ampere": ColExpect("Current(A)", 1.0),
+                "unix_time_second": ColExpect("Date_Time", 1.0, is_datetime=True),
+                "cycle_count": ColExpect("Cycle_Index", 1.0),
+                "step_id": ColExpect("Step_Index", 1.0),
+                "record_index": ColExpect("Data_Point", 1.0),
+                "step_time_second": ColExpect("Step_Time(s)", 1.0),
+            },
+            marks=(
+                pytest.mark.network,
+                pytest.mark.skipif(
+                    pytest.importorskip("fastexcel", reason="fastexcel not installed") is None,
+                    reason="fastexcel not installed",
+                ),
+            ),
+        ),
+    ),
+    (
+        "arbin_xlsx/zenodo_21337233_capacity",
+        SampleCase(
+            source=_ZENODO_ARBIN_XLSX_CAP_URL,
+            is_url=True,
+            plugin_id="arbin_xlsx",
+            ext_ids=frozenset({"neware_xlsx", "arbin_xlsx"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_xlsx",
+            detect_id="arbin_xlsx",
+            deciding_stage="columns",
+            expected_columns={
+                # underscore dialect without Data_Point (lithiumwerks-style export)
+                "test_time_second": ColExpect("Test_Time(s)", 1.0),
+                "voltage_volt": ColExpect("Voltage(V)", 1.0),
+                "current_ampere": ColExpect("Current(A)", 1.0),
+                "unix_time_second": ColExpect("Date_Time", 1.0, is_datetime=True),
+                "cycle_count": ColExpect("Cycle_Index", 1.0),
+                "step_id": ColExpect("Step_Index", 1.0),
+                "step_time_second": ColExpect("Step_Time(s)", 1.0),
+            },
+            marks=(
+                pytest.mark.network,
+                pytest.mark.skipif(
+                    pytest.importorskip("fastexcel", reason="fastexcel not installed") is None,
+                    reason="fastexcel not installed",
+                ),
+            ),
+        ),
+    ),
+    (
+        "arbin_xlsx/zenodo_21337233_dynamic_eis",
+        SampleCase(
+            source=_ZENODO_ARBIN_XLSX_EIS_URL,
+            is_url=True,
+            plugin_id="arbin_xlsx",
+            ext_ids=frozenset({"neware_xlsx", "arbin_xlsx"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_xlsx",
+            detect_id="arbin_xlsx",
+            deciding_stage="columns",
+            expected_columns={
+                # space header dialect (newer MITS Excel); multi-sheet workbook whose
+                # ACIM_chan (EIS) and Statistics sheets must be ignored by the parser
+                "test_time_second": ColExpect("Test Time (s)", 1.0),
+                "voltage_volt": ColExpect("Voltage (V)", 1.0),
+                "current_ampere": ColExpect("Current (A)", 1.0),
+                "unix_time_second": ColExpect("Date Time", 1.0, is_datetime=True),
+                "cycle_count": ColExpect("Cycle Index", 1.0),
+                "step_id": ColExpect("Step Index", 1.0),
+                "record_index": ColExpect("Data Point", 1.0),
+                "step_time_second": ColExpect("Step Time (s)", 1.0),
+                "power_watt": ColExpect("Power (W)", 1.0),
+                "temperature_t1_celsius": ColExpect("Aux_Temperature_1 (C)", 1.0),
+                "dc_internal_resistance_ohm": ColExpect("Internal Resistance (Ohm)", 1.0),
+                "ac_internal_resistance_ohm": ColExpect("ACR (Ohm)", 1.0),
+                # NOTE: the four vendor accumulator expectations below disappear when the
+                # accumulator-unmap change (fix/derived-tolerance-and-arbin-accumulators)
+                # merges; drop them during that rebase.
+                "charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
+                "discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
+                "charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
+                "discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
+            },
+            null_ok_columns=frozenset({"DC Internal Resistance / ohm", "AC Internal Resistance / ohm"}),
+            known_validity_bugs={
+                "ac_internal_resistance_ohm": "ACR (Ohm) is entirely empty in this dynamic-load export",
+                # Schedule-authored accumulator resets (79 discharge / 1 charge, at scripted
+                # steps); removed along with the accumulator ColExpects at the unmap rebase.
+                "charging_capacity_ah": "Charge Capacity resets at schedule-defined steps",
+                "discharging_capacity_ah": "Discharge Capacity resets at schedule-defined steps",
+                "charging_energy_wh": "Charge Energy resets at schedule-defined steps",
+                "discharging_energy_wh": "Discharge Energy resets at schedule-defined steps",
+            },
+            marks=(
+                pytest.mark.network,
+                pytest.mark.skipif(
+                    pytest.importorskip("fastexcel", reason="fastexcel not installed") is None,
+                    reason="fastexcel not installed",
+                ),
+            ),
         ),
     ),
 ]

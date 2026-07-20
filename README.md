@@ -4,7 +4,7 @@
 
 It is well known that organizing, cleaning, and preparing battery data for analytics takes significant time and effort, creating a high barrier to leveraging advances in battery modeling for battery development cycles.
 
-[A 2024 Forrester study](https://25090789.fs1.hubspotusercontent-eu1.net/hubfs/25090789/FORRESTER%20DRAFT_PLACEHOLDER.pdf) surveyed 165 decision-makers in the automotive industry responsible for EV battery testing, validation, and development in the US and Europe. Among the respondents, 57% cited deciphering complex relationships in vast, multiparameter datasets as a significant barrier to battery validation, and 61% estimated months to years of time savings from AI-powered cell characterization testing that leverages standardized data sets.
+[A 2024 Forrester study](https://www.monolithai.com/ev-battery-validation-ai-study) surveyed 165 decision-makers in the automotive industry responsible for EV battery testing, validation, and development in the US and Europe. Among the respondents, 57% cited deciphering complex relationships in vast, multiparameter datasets as a significant barrier to battery validation, and 61% estimated months to years of time savings from AI-powered cell characterization testing that leverages standardized data sets.
 
 ## Goal of launching the BDF
 
@@ -151,28 +151,26 @@ What that buys you in practice:
 
 The **Battery Data Format (.bdf)** is a step toward unifying and accelerating battery research and development. By adopting this open-source standard, we can foster collaboration, enhance model interoperability, and unlock the full potential of data-driven battery innovation.
 
-## Install the Pyton Package
+## Install the Python Package
 
 ```bash
 pip install batterydf
-# Neware .nda/.ndax support is included in base
-# Interactive plotting (hvplot/bokeh)
-pip install batterydf[hvplot]
-# Polars + fast NDA backend
-pip install batterydf[polars]
-# Force numpy 2.x (combine as needed, e.g. batterydf[polars,numpy2])
-pip install batterydf[numpy2]
-# for docs/dev: pip install -e .[dev,docs]
+```
+
+Optional extras add support for specific vendor formats or plotting backends.
+Combine as needed, e.g. `batterydf[nda,plot]`, or use `batterydf[all]` to get everything:
+```bash
+pip install batterydf[nda]      # Neware .nda/.ndax (using fastnda)
+pip install batterydf[mpr]      # BioLogic .mpr (using yadg)
+pip install batterydf[excel]    # Excel (using calamine)
+pip install batterydf[mat]      # MATLAB .mat files (using scipy)
+pip install batterydf[plot]     # For plotting with matplotlib/plotly
+pip install batterydf[hvplot]   # For plotting with bokeh/holoviews
+pip install batterydf[yaml]     # For YAML plugin definitions
+pip install batterydf[all]      # Everything above
 ```
 
 PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
-
-Optional fast NDA backend (Python >=3.10, numpy >=2.2 required):
-```bash
-pip install fastnda
-```
-Note: fastnda requires numpy >=2.2. If you need fastnda, install with the numpy 2.x extra,
-for example `batterydf[polars,numpy2]` or `batterydf[numpy2]`.
 
 ### Quickstart
 
@@ -182,15 +180,11 @@ import bdf
 # Read raw or BDF; plugin auto-detects
 df = bdf.read("path/to/file.bdf.csv")
 
-# Read Neware .nda/.ndax (supported by default)
+# Read Neware .nda/.ndax (requires fastnda: pip install batterydf[nda])
 df = bdf.read("path/to/file.nda")
 
-# Force the fast NDA backend if installed
-df = bdf.read("path/to/file.nda", plugin="neware-nda-fast")
-
-# Interactive exploration (plotly included in base; bokeh requires batterydf[hvplot])
-bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
-bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
+# Force the NDA plugin explicitly
+df = bdf.read("path/to/file.nda", plugin="neware_nda")
 
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)
@@ -201,7 +195,7 @@ df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
 # Plot
 bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
 
-# Interactive exploration (plotly included in base; bokeh requires batterydf[hvplot])
+# Interactive exploration (plotly requires batterydf[plot]; bokeh requires batterydf[hvplot])
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 
@@ -233,10 +227,27 @@ You should use the Preferred Label for your column headings. This is the label t
 
 ### What is the difference between the preferred label and the machine-readable name?
 
-The preferred label is designed to be readable for humans and adhere to IUPAC / SI guidelines for quantity notation. But the preferred label contains some characters (e.g. spaces and slashes) that can create difficulty for some machines. The machine-readable name is designed to be an alias for referring to the quantity in software. It is linked to the preferred label in both the BDF applicaiton ontology and the CSVW table schema. 
+The preferred label is designed to be readable for humans and adhere to IUPAC / SI guidelines for quantity notation. But the preferred label contains some characters (e.g. spaces and slashes) that can create difficulty for some machines. The machine-readable name is designed to be an alias for referring to the quantity in software. It is linked to the preferred label in both the BDF application ontology and the CSVW table schema.
 
 ### Why do we use a slash between the quantity and the unit?
 
 This is the notation that is recommended by authoritative bodies like IUPAC and SI. The slash comes from the fact that quantities are the product of a value and a unit, and they obey the rules of algebra. For example, if we say that `Voltage = 4.2 V` and divide both sides of the equation by the unit, we get `Voltage / V = 4.2`
 
 ### How can I check if my file is a valid instance of BDF?
+
+Use the built-in validator. From Python:
+
+```python
+import bdf
+
+df = bdf.read("path/to/file.bdf.csv")
+report = bdf.validate(df, report=True, raise_on_error=False)
+```
+
+Or from the command line:
+
+```bash
+bdf validate path/to/file.bdf.csv
+```
+
+The validator checks column headers and units against the BDF ontology, structural rules such as time monotonicity, and the ontology-defined relationships between derived columns (e.g. that cumulative capacity equals charging plus discharging capacity).

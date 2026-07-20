@@ -26,7 +26,7 @@ _logger = logging.getLogger(__name__)
 
 _DATE_COMPONENT_RE = re.compile(r"%[YymbBdej]")
 _TZ_COMPONENT_RE = re.compile(r"%:?[zZ]")
-_UNIT_CAPTURE = r"([A-Za-z0-9./]+)"
+_UNIT_CAPTURE = r"([A-Za-z0-9.·/*^%°℃ΩΩµμ⁰¹²³⁴⁵⁶⁷⁸⁹⁻ \-]+)"  # omega/ohm and mu/micro are different characters
 _DST_AMBIGUOUS_STRATEGY = "earliest"
 _DST_NON_EXISTENT_STRATEGY = "null"
 
@@ -56,6 +56,8 @@ class Syn(BaseModel):
     """True when no real-file sample exercises this synonym (see test_synonym_coverage)."""
     source_unit: str | None = None
     """Fixed source unit for exact, non-templated aliases."""
+    legacy: bool = False
+    """Raise a warning that this column is legacy and has been converted."""
 
     @model_validator(mode="before")
     @classmethod
@@ -130,6 +132,7 @@ class ResolvedColumn(BaseModel):
     datetime_fmts: tuple[str, ...] = Field(
         default=(), description="Datetime format strings for parsing timestamp columns."
     )
+    legacy: bool = False  # Resolved from a legacy column, warn user
 
     @classmethod
     def from_bdf_label(cls, bdf_label_key: str, src_header: str) -> tuple[str, ResolvedColumn]:
@@ -197,6 +200,7 @@ class ResolvedColumn(BaseModel):
                         source_header=header,
                         scale=scale,
                         offset=offset,
+                        legacy=syn.legacy,
                     )
         return None
 
@@ -571,6 +575,19 @@ class TableNormalizer(BaseModel):
         if not include_optional:
             resolved = {mr: r for mr, r in resolved.items() if getattr(COLUMN_ONTOLOGY, mr).required}
 
+        legacy_pairs = [
+            (rc.source_header, getattr(COLUMN_ONTOLOGY, mr_name).formatted_label)
+            for mr_name, rc in resolved.items()
+            if rc.legacy
+        ]
+        if legacy_pairs:
+            detail = ", ".join(f"{old!r} -> {new!r}" for old, new in legacy_pairs)
+            warnings.warn(
+                f"Legacy BDF column labels detected and normalized to preferred labels: {detail}",
+                UserWarning,
+                stacklevel=3,
+            )
+
         unix_rc = resolved.get("unix_time_second")
         if unix_rc is not None and unix_rc.datetime_fmts and tz == "UTC":
             dt_fmts = [f for f in unix_rc.datetime_fmts if _DATE_COMPONENT_RE.search(f)]
@@ -633,7 +650,13 @@ class TableNormalizer(BaseModel):
 # several file formats (e.g. ``"neware"`` backs both the CSV and XLSX sources).
 # ---------------------------------------------------------------------------
 
-_ARBIN_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_ARBIN_DT_FMTS = (
+    "%m/%d/%Y %H:%M:%S%.f",
+    "%m/%d/%Y %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S%.f",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y/%m/%d %H:%M:%S",
+)
 _DIGATRON_DT_FMTS = (
     "%Y-%m-%d %H:%M:%S%.f%:z",
     "%Y-%m-%d %H:%M:%S%:z",
@@ -644,15 +667,43 @@ _LANDT_DT_FMTS = ("%Y-%m-%d %H:%M:%S",)
 _MACCOR_DT_FMTS = ("%d-%b-%y %I:%M:%S %p", "%d-%b-%y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y %H:%M")
 _NEWARE_DT_FMTS = ("%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
 
+# Arbin exports use two header dialects: MITS CSV/newer Excel use spaces before the
+# parenthesised unit ("Test Time (s)"); older MITS Excel uses underscores and no space
+# ("Test_Time(s)"). Both are covered below and share this one normalizer across the
+# arbin_csv and arbin_xlsx plugins.
 ARBIN = TableNormalizer(
-    test_time_second=(Syn(hdr="Test Time ({unit})"),),
-    voltage_volt=(Syn(hdr="Voltage ({unit})"),),
-    current_ampere=(Syn(hdr="Current ({unit})"),),
-    unix_time_second=(DateTimeSyn(syn=Syn(hdr="Date Time"), fmts=_ARBIN_DT_FMTS),),
-    cycle_count=(Syn(hdr="Cycle Index"),),
-    step_id=(Syn(hdr="Step Index"),),
-    record_index=(Syn(hdr="Data Point"),),
-    step_time_second=(Syn(hdr="Step Time ({unit})"),),
+    test_time_second=(
+        Syn(hdr="Test Time ({unit})"),
+        Syn(hdr="Test_Time({unit})"),
+    ),
+    voltage_volt=(
+        Syn(hdr="Voltage ({unit})"),
+        Syn(hdr="Voltage({unit})"),
+    ),
+    current_ampere=(
+        Syn(hdr="Current ({unit})"),
+        Syn(hdr="Current({unit})"),
+    ),
+    unix_time_second=(
+        DateTimeSyn(syn=Syn(hdr="Date Time"), fmts=_ARBIN_DT_FMTS),
+        DateTimeSyn(syn=Syn(hdr="Date_Time"), fmts=_ARBIN_DT_FMTS),
+    ),
+    cycle_count=(
+        Syn(hdr="Cycle Index"),
+        Syn(hdr="Cycle_Index"),
+    ),
+    step_id=(
+        Syn(hdr="Step Index"),
+        Syn(hdr="Step_Index"),
+    ),
+    record_index=(
+        Syn(hdr="Data Point"),
+        Syn(hdr="Data_Point"),
+    ),
+    step_time_second=(
+        Syn(hdr="Step Time ({unit})"),
+        Syn(hdr="Step_Time({unit})"),
+    ),
     temperature_t1_celsius=(
         Syn(hdr="Aux_Temperature_1 (C)"),
         Syn(hdr="Aux_Temperature_1 ({unit})"),
@@ -685,7 +736,7 @@ BASYTEC = TableNormalizer(
         Syn(hdr="Current", assumed=True),
     ),
     temperature_t1_celsius=(
-        Syn(hdr="T1[{unit}]", assumed=True),
+        Syn(hdr="T1[{unit}]"),
         Syn(hdr="T1[°C]"),
         Syn(hdr="Temp[{unit}]", assumed=True),
         Syn(hdr="Temp[°C]", assumed=True),
@@ -1097,18 +1148,32 @@ def _build_bdf_normalizer() -> TableNormalizer:
         if syn not in existing:
             kwargs[target_mr] = (*existing, syn)
 
+    # Append synonyms to TableNormalizer
+    # Append the deprecated quantities first, so their concrete synonyms
+    # (e.g. "Test Time / ms") take priority over generic templates (e.g.
+    # "Time Time / {unit}"), and deprecation warnings get raised correctly.
     for mr_name, q in COLUMN_ONTOLOGY:
-        target_mr = mr_name
-        if q.deprecated:
+        if not q.deprecated:
+            continue
+        # Prefer the ontology's explicit dcterms:isReplacedBy link
+        if q.replaced_by and q.replaced_by in TableNormalizer.model_fields:
+            target_mr = q.replaced_by
+        else:
             base = q.formatted_label.split(" / ", 1)[0].strip().lower()
             target_mr = base_preferred.get(base, mr_name)
-            if target_mr not in TableNormalizer.model_fields:
-                continue
-        elif mr_name not in TableNormalizer.model_fields:
+        if target_mr not in TableNormalizer.model_fields:
             continue
 
-        _append(target_mr, Syn(hdr=q.label_template))
-        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit))
+        # Use formatted_label for deprecated terms, not a generic template
+        _append(target_mr, Syn(hdr=q.formatted_label, source_unit=q.unit, legacy=True))
+        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=True))
+
+    # Then append all non-deprecated synonyms
+    for mr_name, q in COLUMN_ONTOLOGY:
+        if q.deprecated or mr_name not in TableNormalizer.model_fields:
+            continue
+        _append(mr_name, Syn(hdr=q.label_template, legacy=False))
+        _append(mr_name, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=False))
     return TableNormalizer(**kwargs)
 
 

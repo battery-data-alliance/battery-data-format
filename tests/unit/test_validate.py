@@ -104,3 +104,87 @@ def test_cycle_count_non_monotonic_flagged():
     df["cycle_count"] = [0, 1, 0, 1]
     rep = validate_df(df, report=False, raise_on_error=False)
     assert any(d["check"] == "monotonic" and d["column"] == "cycle_count" for d in rep["derived"]["details"])
+
+
+def test_derived_identity_tolerates_csv_roundtrip_noise_near_zero():
+    """8-significant-digit CSV round-trips leave ~1e-8-of-scale residue where the
+    identity crosses zero; the scale-aware atol must not flag that as a violation."""
+    df = _consistent_derived_df()
+    # perturb net by 1e-8 of the ~2 Ah column scale near its zero crossing
+    df.loc[1, "net_capacity_ah"] += 2.7e-08
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert not any(d["check"] == "identity" for d in rep["derived"]["details"])
+
+
+def test_derived_identity_still_catches_gross_violation():
+    """The scale-aware atol stays far below real violations (e.g. swapped columns)."""
+    df = _consistent_derived_df()
+    df["net_capacity_ah"] = df["charging_capacity_ah"] + df["discharging_capacity_ah"]
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert any(d["check"] == "identity" for d in rep["derived"]["details"])
+
+
+# ---------------------------------------------------------------------------
+# Characterization tests for the polars port (0.2.0 API freeze).
+# These pin the report structure and warning behavior of validate_df so the
+# pandas -> polars port can be verified as behavior-identical.
+# ---------------------------------------------------------------------------
+
+
+def test_report_has_stable_shape_and_keys():
+    rep = validate_df(_base_df(), report=False, raise_on_error=False)
+    assert set(rep.keys()) == {
+        "ok",
+        "missing",
+        "extras",
+        "required",
+        "optional",
+        "legacy_labels",
+        "n_rows",
+        "n_cols",
+        "time_stats",
+        "derived",
+    }
+    assert rep["ok"] is True
+    assert rep["n_rows"] == 3
+    assert rep["n_cols"] == 3
+    assert rep["missing"] == []
+    assert rep["extras"] == []
+    assert set(rep["derived"].keys()) == {"issues", "details"}
+
+
+def test_time_stats_monotonic_shape():
+    rep = validate_df(_base_df(), report=False, raise_on_error=False)
+    ts = rep["time_stats"]
+    assert ts["present"] is True
+    assert ts["monotonic"] is True
+    assert ts["violations"] == 0
+    assert ts["min_drop"] == 0.0
+
+
+def test_time_stats_nonmonotonic_fields_and_warning():
+    df = _base_df()
+    df["Test Time / s"] = [0.0, 10.0, 3.0]
+    with pytest.warns(RuntimeWarning, match="Non-monotonic"):
+        rep = validate_df(df, report=False, raise_on_error=False)
+    ts = rep["time_stats"]
+    assert ts["monotonic"] is False
+    assert ts["violations"] == 1
+    assert ts["min_drop"] == -7.0
+    assert ts["first_bad_index"] == 2
+
+
+def test_unknown_columns_reported_as_extras():
+    df = _base_df()
+    df["Totally Custom / X"] = [1, 2, 3]
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert rep["extras"] == ["Totally Custom / X"]
+    assert rep["ok"] is True  # extras are allowed
+
+
+def test_time_stats_absent_when_no_time_column():
+    df = pd.DataFrame({"Voltage / V": [3.7], "Current / A": [0.1]})
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert rep["time_stats"]["present"] is False
+    assert rep["ok"] is False
+    assert "Test Time / s" in rep["missing"]

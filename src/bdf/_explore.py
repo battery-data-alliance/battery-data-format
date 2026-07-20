@@ -113,7 +113,7 @@ def _plot_plotly(
         import plotly.graph_objects as go  # type: ignore
     except Exception as e:
         raise RuntimeError(
-            "bdf.explore(..., backend='plotly') requires plotly. Install with `pip install batterydf[plotly]`."
+            "bdf.explore(..., backend='plotly') requires plotly. Install with `pip install batterydf[plot]`."
         ) from e
 
     mode = "lines"

@@ -400,3 +400,41 @@ class TestLoadDumpPlugins:
         dump_plugins({"neware_csv": NEWARE_CSV}, path)
         data = json.loads(path.read_text())
         assert "separator" not in data["neware_csv"]["table_parser"]
+
+
+class TestArbinXlsxDetection:
+    """arbin_xlsx vs neware_xlsx disambiguation on shared .xlsx extension."""
+
+    @staticmethod
+    def _workbook(tmp_path, sheet, headers, name):
+        openpyxl = pytest.importorskip("openpyxl")
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = sheet
+        ws.append(headers)
+        ws.append([1] * len(headers))
+        path = tmp_path / name
+        wb.save(path)
+        return path
+
+    def test_arbin_workbook_detects_arbin_xlsx(self, tmp_path):
+        pytest.importorskip("fastexcel")
+        path = self._workbook(
+            tmp_path,
+            "Channel_1-002",
+            ["Data_Point", "Test_Time(s)", "Voltage(V)", "Current(A)", "Step_Index"],
+            "arbin.xlsx",
+        )
+        plugin_id, _ = detect(path)
+        assert plugin_id == "arbin_xlsx"
+
+    def test_neware_workbook_still_detects_neware_xlsx(self, tmp_path):
+        pytest.importorskip("fastexcel")
+        path = self._workbook(
+            tmp_path,
+            "record",
+            ["Time", "Voltage(V)", "Current(A)", "Step Type"],
+            "neware.xlsx",
+        )
+        plugin_id, _ = detect(path)
+        assert plugin_id == "neware_xlsx"

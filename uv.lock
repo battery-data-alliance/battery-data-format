@@ -129,18 +129,13 @@ name = "batterydf"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "matplotlib" },
-    { name = "nbformat" },
-    { name = "newarenda" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "openpyxl" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pint", version = "0.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pint", version = "0.25.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "platformdirs" },
-    { name = "plotly" },
     { name = "polars" },
     { name = "pyarrow" },
     { name = "pydantic" },
@@ -151,12 +146,53 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "bokeh" },
+    { name = "fastexcel" },
+    { name = "fastnda" },
+    { name = "holoviews" },
+    { name = "hvplot" },
+    { name = "matplotlib" },
+    { name = "plotly" },
+    { name = "pyyaml" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "yadg" },
+]
+excel = [
+    { name = "fastexcel" },
+]
+hvplot = [
+    { name = "bokeh" },
+    { name = "holoviews" },
+    { name = "hvplot" },
+]
+mat = [
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+mpr = [
+    { name = "yadg" },
+]
+nda = [
+    { name = "fastnda" },
+]
+plot = [
+    { name = "matplotlib" },
+    { name = "plotly" },
+]
+yaml = [
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
     { name = "mypy" },
     { name = "nbclient" },
     { name = "nbformat" },
     { name = "pre-commit" },
+    { name = "pybamm" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-socket" },
@@ -177,85 +213,90 @@ docs = [
     { name = "sphinx-design", version = "0.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx-design", version = "0.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-excel = [
-    { name = "fastexcel" },
+lint = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "ruff" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
 ]
-fastnda = [
-    { name = "fastnda" },
-]
-hvplot = [
-    { name = "bokeh" },
-    { name = "holoviews" },
-    { name = "hvplot" },
-]
-mat = [
-    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-]
-numpy2 = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-]
-polars = [
-    { name = "fastnda" },
-    { name = "polars" },
-]
-pybamm-test = [
+test = [
+    { name = "ipykernel" },
+    { name = "nbclient" },
+    { name = "nbformat" },
     { name = "pybamm" },
-]
-yaml = [
-    { name = "pyyaml" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-socket" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "batterydf", extras = ["nda", "mpr", "excel", "mat", "yaml", "plot", "hvplot"], marker = "extra == 'all'" },
     { name = "bokeh", marker = "extra == 'hvplot'" },
     { name = "fastexcel", marker = "extra == 'excel'", specifier = ">=0.20.2" },
-    { name = "fastnda", marker = "extra == 'fastnda'" },
-    { name = "fastnda", marker = "extra == 'polars'" },
+    { name = "fastnda", marker = "extra == 'nda'", specifier = ">=1.2.0" },
     { name = "holoviews", marker = "extra == 'hvplot'" },
     { name = "hvplot", marker = "extra == 'hvplot'" },
-    { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.0" },
-    { name = "ipykernel", marker = "extra == 'docs'", specifier = ">=6.29" },
-    { name = "jupyter-cache", marker = "extra == 'docs'", specifier = ">=1.0" },
-    { name = "matplotlib", specifier = ">=3.8" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = "==1.20.2" },
-    { name = "myst-nb", marker = "extra == 'docs'", specifier = ">=1.1" },
-    { name = "nbclient", marker = "extra == 'dev'", specifier = ">=0.9" },
-    { name = "nbformat", specifier = ">=4.2" },
-    { name = "nbformat", marker = "extra == 'dev'", specifier = ">=5.9" },
-    { name = "newarenda" },
+    { name = "matplotlib", marker = "extra == 'plot'", specifier = ">=3.8" },
     { name = "numpy", specifier = ">=1.24,<3.0" },
-    { name = "numpy", marker = "extra == 'numpy2'", specifier = ">=2.0,<3.0" },
-    { name = "openpyxl", specifier = ">=3.1" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pint", specifier = ">=0.22" },
     { name = "platformdirs", specifier = ">=4.10.0" },
-    { name = "plotly" },
+    { name = "plotly", marker = "extra == 'plot'" },
     { name = "polars", specifier = ">=1.41.2" },
-    { name = "polars", marker = "extra == 'polars'" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.0" },
     { name = "pyarrow", specifier = ">=15.0" },
-    { name = "pybamm", marker = "extra == 'pybamm-test'" },
     { name = "pydantic", specifier = ">=2.6" },
-    { name = "pydata-sphinx-theme", marker = "extra == 'docs'", specifier = ">=0.15" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "pytest-socket", marker = "extra == 'dev'" },
     { name = "pyyaml", marker = "extra == 'yaml'", specifier = ">=6.0.3" },
     { name = "rdflib", specifier = ">=7.0" },
     { name = "requests", specifier = ">=2.31" },
     { name = "rich", specifier = ">=13.7" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = "==0.15.12" },
     { name = "scipy", marker = "extra == 'mat'", specifier = ">=1.15.3" },
-    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7.0" },
-    { name = "sphinx-autobuild", marker = "extra == 'docs'", specifier = ">=2024.4.16" },
-    { name = "sphinx-design", marker = "extra == 'docs'", specifier = ">=0.6" },
     { name = "typer", specifier = ">=0.12" },
-    { name = "types-pyyaml", marker = "extra == 'dev'" },
-    { name = "types-requests", marker = "extra == 'dev'" },
+    { name = "yadg", marker = "extra == 'mpr'", specifier = ">=6.2.0,<7.0.0" },
 ]
-provides-extras = ["fastnda", "polars", "hvplot", "numpy2", "yaml", "dev", "pybamm-test", "docs", "excel", "mat"]
+provides-extras = ["nda", "mpr", "excel", "mat", "yaml", "plot", "hvplot", "all"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipykernel", specifier = ">=6.0" },
+    { name = "mypy", specifier = "==1.20.2" },
+    { name = "nbclient", specifier = ">=0.9" },
+    { name = "nbformat", specifier = ">=5.9" },
+    { name = "pre-commit", specifier = ">=4.6.0" },
+    { name = "pybamm" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-socket" },
+    { name = "ruff", specifier = "==0.15.12" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
+]
+docs = [
+    { name = "ipykernel", specifier = ">=6.29" },
+    { name = "jupyter-cache", specifier = ">=1.0" },
+    { name = "myst-nb", specifier = ">=1.1" },
+    { name = "pydata-sphinx-theme", specifier = ">=0.15" },
+    { name = "sphinx", specifier = ">=7.0" },
+    { name = "sphinx-autobuild", specifier = ">=2024.4.16" },
+    { name = "sphinx-design", specifier = ">=0.6" },
+]
+lint = [
+    { name = "mypy", specifier = "==1.20.2" },
+    { name = "pre-commit", specifier = ">=4.6.0" },
+    { name = "ruff", specifier = "==0.15.12" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
+]
+test = [
+    { name = "ipykernel", specifier = ">=6.0" },
+    { name = "nbclient", specifier = ">=0.9" },
+    { name = "nbformat", specifier = ">=5.9" },
+    { name = "pybamm" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-socket" },
+]
 
 [[package]]
 name = "beautifulsoup4"
@@ -962,6 +1003,23 @@ wheels = [
 ]
 
 [[package]]
+name = "dgbowl-schemas"
+version = "125"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "babel" },
+    { name = "pint", version = "0.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "pint", version = "0.25.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "tzlocal" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/47/46/9cd73df24d2cbca70a41f7b81b6bd71503672094157c650918b4cc013b35/dgbowl_schemas-125.tar.gz", hash = "sha256:a1373d01e617aae9183c137e1e406b0f7e5f0828fe6a9827794f8b5fa227e2f3", size = 27557, upload-time = "2026-02-22T12:15:27.772Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/b5/db4e581bdaefc8074657c88ce66f615627677837c1ca437c0df56184074a/dgbowl_schemas-125-py3-none-any.whl", hash = "sha256:d8ef134566fc6fda8b9429e22310015b5a34db49009a5afcb6531a3bfe79f30c", size = 66116, upload-time = "2026-02-22T12:15:26.074Z" },
+]
+
+[[package]]
 name = "distlib"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1078,7 +1136,7 @@ wheels = [
 
 [[package]]
 name = "fastnda"
-version = "1.1.1"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "defusedxml" },
@@ -1090,9 +1148,9 @@ dependencies = [
     { name = "typer" },
     { name = "xmltodict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/a4/6eccf223b7f87dc376d8803364df2b323aaf4f678f44b63aa28501267f9d/fastnda-1.1.1.tar.gz", hash = "sha256:d0ac7250191bdee399221d8bde740fba790ef49050884770e23285ce5c45998e", size = 18882264, upload-time = "2026-03-17T14:26:59.22Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/0c/cf744f072b2cf74589772af0ab69b82cd95b5eb2cd5290a633d45f46432a/fastnda-1.2.0.tar.gz", hash = "sha256:1e5170c4a6cc99284d62d1011dbcf632350adee7383ce5bb3eeeec592ce3f7ff", size = 18883283, upload-time = "2026-06-12T09:44:00.182Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/41/3ad6f5b0e1db563e4d4209449fac1b0c236c726418e7e41ecf34b8bcab73/fastnda-1.1.1-py3-none-any.whl", hash = "sha256:977c6fe303f41352e6274a5f7bca0e389a8dea00c9416e5f19cbfc75f3fda781", size = 24316, upload-time = "2026-03-17T14:26:57.287Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/a5/17ff96da574cdecdb2efcb69453684d8e4857d2d7ac92256671a8065d9cf/fastnda-1.2.0-py3-none-any.whl", hash = "sha256:ed7df47a8d60e33734dd2e8ba795fadfaf48833bf73f8341571d4f9323355861", size = 24928, upload-time = "2026-06-12T09:43:58.677Z" },
 ]
 
 [[package]]
@@ -1262,6 +1320,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
+]
+
+[[package]]
+name = "h5netcdf"
+version = "1.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ef/03/92d6cc02c0055158167255980461155d6e17f1c4143c03f8bcc18d3e3f3a/h5netcdf-1.8.1.tar.gz", hash = "sha256:9b396a4cc346050fc1a4df8523bc1853681ec3544e0449027ae397cb953c7a16", size = 78679, upload-time = "2026-01-23T07:35:31.233Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/8b/88f16936a8e8070a83d36239555227ecd91728f9ef222c5382cda07e0fd6/h5netcdf-1.8.1-py3-none-any.whl", hash = "sha256:a76ed7cfc9b8a8908ea7057c4e57e27307acff1049b7f5ed52db6c2247636879", size = 62915, upload-time = "2026-01-23T07:35:30.195Z" },
 ]
 
 [[package]]
@@ -2282,19 +2354,6 @@ wheels = [
 ]
 
 [[package]]
-name = "newarenda"
-version = "2026.2.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/06/16/a330b8e1d0070e994625eaff9c2c4dff4279fa47deba7af390e3d5bb15a8/newarenda-2026.2.2.tar.gz", hash = "sha256:11db2f526edf9c4e475e741d5213877ae8740d2b5eceaeb561dd01528b7ff9d0", size = 13577, upload-time = "2026-02-02T13:33:53.033Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/44/126e85c6eb4466c6d733f88549acc520928a4cc7ea20fcd90e9f50dbafd5/newarenda-2026.2.2-py3-none-any.whl", hash = "sha256:2589aa3ac4f092efb387b6ddf863e4232d66ec83847fdce819fc515dac4b4418", size = 15924, upload-time = "2026-02-02T13:33:50.868Z" },
-]
-
-[[package]]
 name = "nh3"
 version = "0.3.5"
 source = { registry = "https://pypi.org/simple" }
@@ -2493,6 +2552,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1a/9c/c531f2293b91265d8b48e9b329f54fdd7ffae73cb4134ea10cca4237e9cc/numpy-2.4.6-pp311-pypy311_pp73-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5dbbdb29840ca3d91ee0fece42fc29278886d908280bfec0a5846c6f901a3eb0", size = 15798374, upload-time = "2026-05-18T23:37:02.674Z" },
     { url = "https://files.pythonhosted.org/packages/1a/b0/413077f6b1153ed3cba361401c6783bbad6114804a000cc22eb71c13e190/numpy-2.4.6-pp311-pypy311_pp73-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8ad03c0965fb3c692200e74d458ca28c1dbb4ce96f9a479a8aa041ad5fabca02", size = 16747286, upload-time = "2026-05-18T23:37:06.327Z" },
     { url = "https://files.pythonhosted.org/packages/15/ce/e5ec180bc41812edcd8daeb8639d205622c0e8c02259d8ab25a0201b3c2a/numpy-2.4.6-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:2803abfebfc990042cd494d8ce2d5f82e9d847af6d35ec486923aa19dbad5e73", size = 12504263, upload-time = "2026-05-18T23:37:09.715Z" },
+]
+
+[[package]]
+name = "olefile"
+version = "0.47"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/1b/077b508e3e500e1629d366249c3ccb32f95e50258b231705c09e3c7a4366/olefile-0.47.zip", hash = "sha256:599383381a0bf3dfbd932ca0ca6515acd174ed48870cbf7fee123d698c192c1c", size = 112240, upload-time = "2023-12-01T16:22:53.025Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/17/d3/b64c356a907242d719fc668b71befd73324e47ab46c8ebbbede252c154b2/olefile-0.47-py2.py3-none-any.whl", hash = "sha256:543c7da2a7adadf21214938bb79c83ea12b473a4b6ee4ad4bf854e7715e13d1f", size = 114565, upload-time = "2023-12-01T16:22:51.518Z" },
 ]
 
 [[package]]
@@ -4486,6 +4554,15 @@ wheels = [
 ]
 
 [[package]]
+name = "striprtf"
+version = "0.0.32"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/f9/b3ecbd2e0abb9c29edd2913482f0c5df47a098221444ccd50cc5cd3f9b91/striprtf-0.0.32.tar.gz", hash = "sha256:7f375a375d99a2700842173168c90c9b545cb244241ffc5d868ed9f6baf9155f", size = 7571, upload-time = "2026-04-27T15:42:37.15Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/cf/4157959aa36a567faab32a5fb078904b76654bdd86a3d7f8fba21ed89d84/striprtf-0.0.32-py3-none-any.whl", hash = "sha256:9f695fea9662cb4ffccf2b56286b3e77028c0a61e87258719584e681e0144869", size = 8044, upload-time = "2026-04-27T15:42:35.948Z" },
+]
+
+[[package]]
 name = "sympy"
 version = "1.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4665,12 +4742,33 @@ wheels = [
 ]
 
 [[package]]
+name = "tzlocal"
+version = "5.4.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/81/5b/879b2f932adfa7a053c360d50bc896c977fa6426109185f7c12ebdd0cb9d/tzlocal-5.4.4.tar.gz", hash = "sha256:8dbb8660838688a7b6ba4fed31d18dedf842afb4d47ca050d6d891c2c15f3be4", size = 31170, upload-time = "2026-06-29T08:03:40.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/a4/017a7a6cbe387d961a688ec31364ae60a5c4e22c96ae9921b79a947c855d/tzlocal-5.4.4-py3-none-any.whl", hash = "sha256:aae09f0126a8a86fa736be266eb4a471380d26a0de3bc14844e7821fee3e2a15", size = 18115, upload-time = "2026-06-29T08:03:38.666Z" },
+]
+
+[[package]]
 name = "uc-micro-py"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/78/67/9a363818028526e2d4579334460df777115bdec1bb77c08f9db88f6389f2/uc_micro_py-2.0.0.tar.gz", hash = "sha256:c53691e495c8db60e16ffc4861a35469b0ba0821fe409a8a7a0a71864d33a811", size = 6611, upload-time = "2026-03-01T06:31:27.526Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/61/73/d21edf5b204d1467e06500080a50f79d49ef2b997c79123a536d4a17d97c/uc_micro_py-2.0.0-py3-none-any.whl", hash = "sha256:3603a3859af53e5a39bc7677713c78ea6589ff188d70f4fee165db88e22b242c", size = 6383, upload-time = "2026-03-01T06:31:26.257Z" },
+]
+
+[[package]]
+name = "uncertainties"
+version = "3.2.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/0c/cb09f33b26955399c675ab378e4063ed7e48422d3d49f96219ab0be5eba9/uncertainties-3.2.3.tar.gz", hash = "sha256:76a5653e686f617a42922d546a239e9efce72e6b35411b7750a1d12dcba03031", size = 160492, upload-time = "2025-04-21T19:58:28.63Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/5e/f1e1dd319e35e962a4e00b33150a8868b6329cc1d19fd533436ba5488f09/uncertainties-3.2.3-py3-none-any.whl", hash = "sha256:313353900d8f88b283c9bad81e7d2b2d3d4bcc330cbace35403faaed7e78890a", size = 60118, upload-time = "2025-04-21T19:58:26.864Z" },
 ]
 
 [[package]]
@@ -4967,6 +5065,36 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f6/08/3cb9f67a8d48021aca2a02292cc26eecd71d949ae70ad66420a8730cc302/xyzservices-2026.3.0.tar.gz", hash = "sha256:d226866a5d8e9fef337034d8da37a8298f0a1d9d1489b4018e69579eb321fea4", size = 1135736, upload-time = "2026-03-30T14:42:25.596Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/a9/d23012099dc88ec69a29c6407b41d89681cb674c2043cd5b467c7e299c08/xyzservices-2026.3.0-py3-none-any.whl", hash = "sha256:503183d4b322bfebc3c50cdd21192aa3e81e36c5efbf9133d54ae82143e0576b", size = 94101, upload-time = "2026-03-30T14:42:24.608Z" },
+]
+
+[[package]]
+name = "yadg"
+version = "6.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "babel" },
+    { name = "dgbowl-schemas" },
+    { name = "h5netcdf" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "olefile" },
+    { name = "openpyxl" },
+    { name = "packaging" },
+    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pint", version = "0.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "pint", version = "0.25.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "python-dateutil" },
+    { name = "pyyaml" },
+    { name = "striprtf" },
+    { name = "tzlocal" },
+    { name = "uncertainties" },
+    { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "xarray", version = "2026.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/94/66/ed61cc4ffad502919fff7adec80ceb9ea408a59365ed5df7c98a89a7dcaf/yadg-6.2.2.tar.gz", hash = "sha256:23a25163fe9d8994b75d302102e44beae571c20ace62258431cd6a8e60bc3b94", size = 96568, upload-time = "2025-10-01T18:09:09.988Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/7f/d370b0b6a61d357fb49520b8ac8803bf0a871f9124ea07257258d8a7abe5/yadg-6.2.2-py3-none-any.whl", hash = "sha256:d319942fea0c43331a3a30e2e99f4874962ebd60ce166253bdeaa4a8931012c0", size = 113952, upload-time = "2025-10-01T18:09:08.62Z" },
 ]
 
 [[package]]

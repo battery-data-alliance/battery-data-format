@@ -31,6 +31,7 @@ Python API
    bdf.explore
    bdf.detect
    bdf.ingest
+   bdf.templates
    bdf.datasets
    bdf.load_registry
    bdf.get_entry
