@@ -1172,24 +1172,32 @@ def _build_bdf_normalizer() -> TableNormalizer:
         if syn not in existing:
             kwargs[target_mr] = (*existing, syn)
 
+    # Append synonyms to TableNormalizer
+    # Append the deprecated quantities first, so their concrete synonyms
+    # (e.g. "Test Time / ms") take priority over generic templates (e.g.
+    # "Time Time / {unit}"), and deprecation warnings get raised correctly.
     for mr_name, q in COLUMN_ONTOLOGY:
-        target_mr = mr_name
-        if q.deprecated:
-            # Prefer the ontology's explicit dcterms:isReplacedBy link; the label
-            # base-name heuristic only covers unit-only renames (ms -> s) and
-            # silently misses renames like step_capacity_ah -> step_cumulative_capacity_ah.
-            if q.replaced_by and q.replaced_by in TableNormalizer.model_fields:
-                target_mr = q.replaced_by
-            else:
-                base = q.formatted_label.split(" / ", 1)[0].strip().lower()
-                target_mr = base_preferred.get(base, mr_name)
-            if target_mr not in TableNormalizer.model_fields:
-                continue
-        elif mr_name not in TableNormalizer.model_fields:
+        if not q.deprecated:
+            continue
+        # Prefer the ontology's explicit dcterms:isReplacedBy link
+        if q.replaced_by and q.replaced_by in TableNormalizer.model_fields:
+            target_mr = q.replaced_by
+        else:
+            base = q.formatted_label.split(" / ", 1)[0].strip().lower()
+            target_mr = base_preferred.get(base, mr_name)
+        if target_mr not in TableNormalizer.model_fields:
             continue
 
-        _append(target_mr, Syn(hdr=q.label_template, legacy=q.deprecated))
-        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=q.deprecated))
+        # Use formatted_label for deprecated terms, not a generic template
+        _append(target_mr, Syn(hdr=q.formatted_label, source_unit=q.unit, legacy=True))
+        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=True))
+
+    # Then append all non-deprecated synonyms
+    for mr_name, q in COLUMN_ONTOLOGY:
+        if q.deprecated or mr_name not in TableNormalizer.model_fields:
+            continue
+        _append(mr_name, Syn(hdr=q.label_template, legacy=False))
+        _append(mr_name, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=False))
     return TableNormalizer(**kwargs)
 
 

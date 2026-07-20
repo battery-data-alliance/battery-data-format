@@ -17,6 +17,7 @@ from bdf.table_normalizers import (
     ResolvedColumn,
     Syn,
     TableNormalizer,
+    _build_bdf_normalizer,
     normalize,
 )
 
@@ -931,16 +932,60 @@ class TestBDFNormalizer:
         assert out.columns == ["Test Time / s", "Voltage / V", "Current / A"]
 
     def test_bdf_normalizer_warns_for_legacy_cols(self):
-        df = pl.DataFrame(
-            {
-                "test_time_millisecond": [1000.0],
-                "voltage_volt": [3.7],
-                "current_ampere": [0.1],
-            }
-        )
+        df = pl.DataFrame({"test_time_millisecond": [1000.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
         with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
             out = BDF_NORMALIZER.normalize(df)
         assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+        df = pl.DataFrame({"Test Time / ms": [1000.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+    def test_bdf_normalizer_does_not_warn_for_good_cols(self):
+        df = pl.DataFrame({"test_time_second": [1.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+        df = pl.DataFrame({"Test Time / s": [1.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+    def test_bdf_normalizer_legacy_detection_is_order_independent(self, monkeypatch):
+        """_build_bdf_normalizer must not depend on COLUMN_ONTOLOGY's iteration order.
+
+        The normaliser appends synonyms to a list and iterates through them when matching
+        columns. Legacy detection should work independent of this order.
+        """
+        reversed_quantities = dict(reversed(list(COLUMN_ONTOLOGY._quantities.items())))
+        monkeypatch.setattr(COLUMN_ONTOLOGY, "_quantities", reversed_quantities)
+
+        reversed_normalizer = _build_bdf_normalizer()
+        df = pl.DataFrame({"test_time_millisecond": [1000.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = reversed_normalizer.normalize(df)
+        assert out["Test Time / s"][0] == 1.0
+        df = pl.DataFrame({"Test Time / ms": [1000.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = reversed_normalizer.normalize(df)
+        assert out["Test Time / s"][0] == 1.0
+
+        df = pl.DataFrame({"test_time_second": [1.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = reversed_normalizer.normalize(df)
+        df = pl.DataFrame({"Test Time / s": [1.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = reversed_normalizer.normalize(df)
         assert out["Test Time / s"][0] == 1.0
 
 
