@@ -744,6 +744,22 @@ class TestJsonParser:
         df = lf.collect()
         assert len(df) == 2
 
+    def test_special_characters(self, tmp_path: Path) -> None:
+        parser = JsonParser()
+
+        p_record = tmp_path / "data_record.json"
+        data_record = [
+            {"q [µA·h]": 1.0, "R [Ω]": 2.0, "sweep [mV s⁻¹]": 3.0, "T1 [°C]": 4.0, "T2 [℃]": 5.0},
+            {"q [µA·h]": 1.1, "R [Ω]": 2.1, "sweep [mV s⁻¹]": 3.1, "T1 [°C]": 4.1, "T2 [℃]": 5.1},
+        ]
+        with p_record.open("w", encoding="utf-8") as f:
+            json.dump(data_record, f, ensure_ascii=False)
+        lf = parser._read_raw(p_record)
+        assert isinstance(lf, pl.LazyFrame)
+        df = lf.collect()
+        assert len(df) == 2
+        assert all(col in df.columns for col in ["q [µA·h]", "R [Ω]", "sweep [mV s⁻¹]", "T1 [°C]", "T2 [℃]"])
+
 
 class TestNdjsonParser:
     def test_read_raw(self, tmp_path: Path) -> None:
