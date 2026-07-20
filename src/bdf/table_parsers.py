@@ -808,11 +808,11 @@ class NdjsonParser(TableParser):
 
 
 # ---------------------------------------------------------------------------
-# IPCParser
+# IpcParser
 # ---------------------------------------------------------------------------
 
 
-class IPCParser(TableParser):
+class IpcParser(TableParser):
     """Wraps :func:`polars.scan_ipc` for .ipc/.arrow/.feather files."""
 
     model_config = ConfigDict(frozen=True)

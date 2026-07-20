@@ -19,7 +19,7 @@ from bdf.table_normalizers import ResolvedColumn, Syn, TableNormalizer
 from bdf.table_parsers import (
     DelimTxtParser,
     ExcelParser,
-    IPCParser,
+    IpcParser,
     JsonParser,
     MatParser,
     MDBParser,
@@ -777,39 +777,39 @@ class TestNdjsonParser:
         assert pytest.approx(df["Current / A"][0]) == 0.5
 
 
-class TestIPCParser:
+class TestIpcParser:
     def test_read_raw(self, tmp_path: Path) -> None:
-        """IPCParser._read_raw returns LazyFrame with correct column names."""
+        """IpcParser._read_raw returns LazyFrame with correct column names."""
         p = tmp_path / "data.ipc"
         pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_ipc(p)
-        parser = IPCParser()
+        parser = IpcParser()
         lf = parser._read_raw(p)
         assert isinstance(lf, pl.LazyFrame)
         assert lf.collect_schema().names() == ["a", "b"]
 
     def test_read_column_headings(self, tmp_path: Path) -> None:
-        """IPCParser.read_column_headings returns column names without data rows."""
+        """IpcParser.read_column_headings returns column names without data rows."""
         p = tmp_path / "data.ipc"
         pl.DataFrame({"x": [1], "y": [2]}).write_ipc(p)
-        parser = IPCParser()
+        parser = IpcParser()
         assert parser.read_column_headings(p) == ["x", "y"]
 
     def test_read_normalized(self, tmp_path: Path) -> None:
-        """IPCParser applies normalizer to produce BDF columns with correct scaling."""
+        """IpcParser applies normalizer to produce BDF columns with correct scaling."""
         p = tmp_path / "data.ipc"
         pl.DataFrame({"voltage_V": [3.7], "current_mA": [500.0]}).write_ipc(p)
         norm = TableNormalizer(
             voltage_volt=(Syn(hdr="voltage_{unit}"),),
             current_ampere=(Syn(hdr="current_{unit}"),),
         )
-        parser = IPCParser(normalizer=norm)
+        parser = IpcParser(normalizer=norm)
         df = parser.read(p, validate=False).collect()
         assert "Voltage / V" in df.columns
         assert "Current / A" in df.columns
         assert pytest.approx(df["Current / A"][0]) == 0.5
 
     def test_read_raw_without_extension(self, tmp_path: Path) -> None:
-        """IPCParser._read_raw works without extension (using magic bytes)."""
+        """IpcParser._read_raw works without extension (using magic bytes)."""
         p = tmp_path / "data"
         pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_ipc(p)
         lf, _metadata = bdf.read(p, normalize=False)
