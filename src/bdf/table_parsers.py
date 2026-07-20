@@ -785,7 +785,7 @@ class NdjsonParser(TableParser):
     is_text: ClassVar[bool] = True
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
-        """Read ndjson file to a LazyFrame. Cannot be truly lazy.
+        """Read ndjson file to a LazyFrame.
 
         Args:
             path: Local file path or URL to ndjson file.
