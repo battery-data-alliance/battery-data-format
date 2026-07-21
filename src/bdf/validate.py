@@ -143,25 +143,28 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
                 issues.append(f"'cycle_count' is not monotonically non-decreasing ({drops} drops).")
                 details.append({"check": "monotonic", "column": "cycle_count", "violations": drops})
 
-    # 4) step_index: 1-based within-step point counter (resets to 1, else +1)
-    if "step_index" in cols:
-        v = cols["step_index"].to_numpy(dtype=float)
+    # 4) step_record_index (ex step_index, deprecated in ontology 1.3.0):
+    # 1-based within-step point counter (resets to 1, else +1). Data using the
+    # deprecated header still resolves via the deprecated term's mr name.
+    counter_name = next((n for n in ("step_record_index", "step_index") if n in cols), None)
+    if counter_name:
+        v = cols[counter_name].to_numpy(dtype=float)
         finite = v[np.isfinite(v)]
         if finite.size:
             mn = float(finite.min())
             if mn != 1.0:
                 issues.append(
-                    f"'step_index' never equals 1 (min={mn:g}); it looks like a program step "
+                    f"'{counter_name}' never equals 1 (min={mn:g}); it looks like a program step "
                     f"identifier (Step ID / Arbin Step_Index / Digatron Step), not the 1-based "
                     f"within-step point counter."
                 )
-                details.append({"check": "step_index_min", "column": "step_index", "min": mn})
+                details.append({"check": "step_index_min", "column": counter_name, "min": mn})
             elif v.size >= 2:
                 d = np.diff(v)
                 bad = int(np.nansum((d != 1.0) & (v[1:] != 1.0)))
                 if bad:
-                    issues.append(f"'step_index' has {bad} transitions that neither increment by 1 nor reset to 1.")
-                    details.append({"check": "step_index_seq", "column": "step_index", "violations": bad})
+                    issues.append(f"'{counter_name}' has {bad} transitions that neither increment by 1 nor reset to 1.")
+                    details.append({"check": "step_index_seq", "column": counter_name, "violations": bad})
 
     return {"issues": issues, "details": details}
 
