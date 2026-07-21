@@ -6,9 +6,7 @@ from typing import Optional
 import pandas as pd
 
 from . import spec
-
-X_DEFAULT = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
-Y_DEFAULT = spec.COLUMN_ONTOLOGY.voltage_volt.formatted_label
+from .visualize import X_DEFAULT, Y_DEFAULT
 
 
 def _label_with_unit(name: str, unit: str) -> str:

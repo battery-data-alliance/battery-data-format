@@ -171,6 +171,8 @@ def open_compressed(path: Path) -> Any:
 
         return pa.output_stream(str(path), compression="zstd")
     raise ValueError(f"Unsupported compression: {comp}")
+
+
 def ensure_dir(path: Path) -> Path:
     """Create ``path`` (and parents) if missing and return it."""
     path.mkdir(parents=True, exist_ok=True)
