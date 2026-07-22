@@ -6,6 +6,7 @@
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix quantitykind: <http://qudt.org/vocab/quantitykind/> .
+@prefix qudt: <http://qudt.org/schema/qudt/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema: <https://schema.org/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
@@ -34,6 +35,8 @@ vann:preferredNamespacePrefix a owl:AnnotationProperty .
 
 vann:preferredNamespaceUri a owl:AnnotationProperty .
 
+qudt:hasQuantityKind a owl:AnnotationProperty .
+
 skos:definition a owl:AnnotationProperty .
 
 skos:exactMatch a owl:AnnotationProperty .
@@ -58,43 +61,49 @@ schema:unitText a owl:AnnotationProperty .
 
 <https://w3id.org/battery-data-alliance/ontology/battery-data-format> a owl:Ontology ;
     dcterms:abstract "An application ontology for the Battery Data Format (BDF) from the Battery Data Alliance (BDA)" ;
-    dcterms:bibliographicCitation "Pending" ;
     dcterms:created "2025-01-23"^^xsd:date ;
     dcterms:creator <https://orcid.org/0000-0002-8758-6109> ;
     dcterms:issued "2026-05-14"^^xsd:date ;
     dcterms:license <http://www.apache.org/licenses/LICENSE-2.0> ;
-    dcterms:modified "2026-06-11"^^xsd:date ;
-    dcterms:publisher "Battery Data Alliance" ;
+    dcterms:modified "2026-07-19"^^xsd:date ;
+    dcterms:publisher <https://github.com/battery-data-alliance> ;
     dcterms:title "Battery Data Format Ontology"@en ;
-    bibo:doi "pending" ;
     bibo:status "stable" ;
     vann:preferredNamespacePrefix "bdf" ;
     vann:preferredNamespaceUri "https://w3id.org/battery-data-alliance/ontology/battery-data-format#" ;
     owl:imports <https://w3id.org/emmo/domain/battery/0.18.6/battery> ;
-    owl:priorVersion <https://w3id.org/battery-data-alliance/ontology/battery-data-format/1.1.0/battery-data-format> ;
-    owl:versionIRI <https://w3id.org/battery-data-alliance/ontology/battery-data-format/1.2.0/battery-data-format> ;
-    owl:versionInfo "1.2.0" .
+    owl:priorVersion <https://w3id.org/battery-data-alliance/ontology/battery-data-format/1.2.0/battery-data-format> ;
+    owl:versionIRI <https://w3id.org/battery-data-alliance/ontology/battery-data-format/1.3.0/battery-data-format> ;
+    owl:versionInfo "1.3.0" .
 
 :absolute_impedance_ohm a owl:Class ;
+    rdfs:label "Absolute Impedance / ohm"@en ;
+    qudt:hasQuantityKind quantitykind:Impedance ;
+    rdfs:comment "The magnitude of the complex impedance, in ohm."@en ;
     rdfs:seeAlso unit:OHM ;
-    rdfs:subClassOf sosa:ObservableProperty,
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:Ohm ],
+        sosa:ObservableProperty,
         emmo:EMMO_79a02de5_b884_4eab_bc18_f67997d597a2 ;
     skos:altLabel "absolute_impedance_ohm"@en ;
     skos:definition "The magnitude of the complex impedance, in ohm."@en ;
-    skos:exactMatch quantitykind:Impedance ;
     skos:notation "absolute_impedance_ohm"@en ;
     skos:prefLabel "Absolute Impedance / ohm"@en ;
     prov:wasDerivedFrom :imaginary_impedance_ohm,
         :real_impedance_ohm ;
     schema:description "The magnitude of the complex impedance, in ohm."@en ;
+    schema:name "Absolute Impedance / ohm"@en ;
     schema:unitCode "Ohm" ;
     schema:unitText "ohm"@en ;
     :latexFormula "|Z| = \\sqrt{Z_\\mathrm{re}^2 + Z_\\mathrm{im}^2}"^^xsd:string ;
     :latexSymbol "|Z|"^^xsd:string ;
-    :obligation "optional" .
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "The magnitude of the complex impedance, in ohm."@en .
 
 :ac_internal_resistance_ohm a owl:Class ;
     rdfs:label "AC Internal Resistance / ohm"@en ;
+    qudt:hasQuantityKind quantitykind:Resistance ;
     rdfs:comment "Alternating current internal resistance of the test object, in ohm: the magnitude of the impedance at a fixed excitation frequency, conventionally 1 kHz unless otherwise stated. Equivalent to the ACR quantity reported by some instruments (e.g. Arbin ACR). The excitation frequency should be recorded in accompanying metadata."@en ;
     rdfs:seeAlso unit:OHM ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -106,7 +115,6 @@ schema:unitText a owl:AnnotationProperty .
         "ac_resistance_ohm"@en,
         "acr"@en ;
     skos:definition "Alternating current internal resistance of the test object, in ohm: the magnitude of the impedance at a fixed excitation frequency, conventionally 1 kHz unless otherwise stated. Equivalent to the ACR quantity reported by some instruments (e.g. Arbin ACR). The excitation frequency should be recorded in accompanying metadata."@en ;
-    skos:exactMatch quantitykind:Resistance ;
     skos:notation "ac_internal_resistance_ohm" ;
     skos:prefLabel "AC Internal Resistance / ohm"@en ;
     schema:description "AC internal resistance: impedance magnitude at a fixed excitation frequency, conventionally 1 kHz. Equivalent to instrument ACR outputs."@en ;
@@ -119,6 +127,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :ambient_pressure_pa a owl:Class ;
     rdfs:label "Ambient Pressure / Pa"@en ;
+    qudt:hasQuantityKind quantitykind:Pressure ;
     rdfs:comment "Ambient air pressure recorded during testing, in pascal."@en ;
     rdfs:seeAlso unit:PA ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -129,7 +138,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "ambient_pressure_pa"@en,
         "ambient_pressure_pascal"@en ;
     skos:definition "Ambient air pressure recorded during testing, in pascal."@en ;
-    skos:exactMatch quantitykind:Pressure ;
     skos:notation "ambient_pressure_pa" ;
     skos:prefLabel "Ambient Pressure / Pa"@en ;
     schema:description "Ambient air pressure recorded during testing, in pascal."@en ;
@@ -142,6 +150,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :ambient_temperature_celsius a owl:Class ;
     rdfs:label "Ambient Temperature / degC"@en ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
     rdfs:comment "Ambient temperature recorded during testing, in degree Celsius."@en ;
     rdfs:seeAlso unit:DEG_C ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -152,7 +161,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "ambient_temperature_celsius"@en,
         "ambient_temperature_degc"@en ;
     skos:definition "Ambient temperature recorded during testing, in degree Celsius."@en ;
-    skos:exactMatch quantitykind:Temperature ;
     skos:notation "ambient_temperature_celsius" ;
     skos:prefLabel "Ambient Temperature / degC"@en ;
     schema:description "Ambient temperature recorded during testing, in degree Celsius."@en ;
@@ -165,6 +173,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :applied_pressure_pa a owl:Class ;
     rdfs:label "Applied Pressure / Pa"@en ;
+    qudt:hasQuantityKind quantitykind:Pressure ;
     rdfs:comment "External pressure actively applied to the test object and controlled by an external agent (e.g. a fixture, clamp, or press), in pascal. Distinguished from surface_pressure_pa, which is the pressure measured at the surface of the test object regardless of its source."@en ;
     rdfs:seeAlso unit:PA ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -175,7 +184,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "applied_pressure_pa"@en,
         "applied_pressure_pascal"@en ;
     skos:definition "External pressure actively applied to the test object and controlled by an external agent (e.g. a fixture, clamp, or press), in pascal. Distinguished from surface_pressure_pa, which is the pressure measured at the surface of the test object regardless of its source."@en ;
-    skos:exactMatch quantitykind:Pressure ;
     skos:notation "applied_pressure_pa" ;
     skos:prefLabel "Applied Pressure / Pa"@en ;
     schema:description "External pressure actively applied to the test object and controlled by an external agent (e.g. a fixture, clamp, or press), in pascal. Distinguished from surface_pressure_pa, which is the pressure measured at the surface of the test object regardless of its source."@en ;
@@ -188,6 +196,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :cumulative_capacity_ah a owl:Class ;
     rdfs:label "Cumulative Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Total Ah throughput since the start of the test, in ampere hour. Defined as charging_capacity_ah + discharging_capacity_ah; always monotonically non-decreasing. Counts charge flow in both directions and is therefore independent of the net state of charge."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -198,7 +207,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "cumulative_capacity_ah"@en,
         "cumulative_capacity_ampere_hour"@en ;
     skos:definition "Total Ah throughput since the start of the test, in ampere hour. Defined as charging_capacity_ah + discharging_capacity_ah; always monotonically non-decreasing. Counts charge flow in both directions and is therefore independent of the net state of charge."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "cumulative_capacity_ah" ;
     skos:prefLabel "Cumulative Capacity / Ah"@en ;
     skos:scopeNote "Suitable for throughput-based degradation models."@en ;
@@ -216,6 +224,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :cumulative_energy_wh a owl:Class ;
     rdfs:label "Cumulative Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Total Wh throughput since the start of the test, in watt hour. Defined as charging_energy_wh + discharging_energy_wh; always monotonically non-decreasing."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -226,7 +235,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "cumulative_energy_watt_hour"@en,
         "cumulative_energy_wh"@en ;
     skos:definition "Total Wh throughput since the start of the test, in watt hour. Defined as charging_energy_wh + discharging_energy_wh; always monotonically non-decreasing."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "cumulative_energy_wh" ;
     skos:prefLabel "Cumulative Energy / Wh"@en ;
     prov:wasDerivedFrom :power_watt,
@@ -243,17 +251,17 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_cumulative_capacity_ah a owl:Class ;
     rdfs:label "Cycle Cumulative Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Running accumulation of charge throughput within the current cycle, in ampere hour: the time integral of the absolute current from the start of the current cycle, monotonically non-decreasing within the cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Defined as cycle_charging_capacity_ah + cycle_discharging_capacity_ah."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:AmpereHour ],
         sosa:ObservableProperty,
-        electrochemistry:ae108db7_8765_4329_9908_059277dee586 ;
+        electrochemistry:electrochemistry_ae108db7_8765_4329_9908_059277dee586 ;
     skos:altLabel "cycle_cumulative_capacity_ah"@en,
         "cycle_cumulative_capacity_ampere_hour"@en ;
     skos:definition "Running accumulation of charge throughput within the current cycle, in ampere hour: the time integral of the absolute current from the start of the current cycle, monotonically non-decreasing within the cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Defined as cycle_charging_capacity_ah + cycle_discharging_capacity_ah."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "cycle_cumulative_capacity_ah" ;
     skos:prefLabel "Cycle Cumulative Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -270,17 +278,17 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_cumulative_energy_wh a owl:Class ;
     rdfs:label "Cycle Cumulative Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Running accumulation of energy throughput within the current cycle, in watt hour: the time integral of the current-signed instantaneous power (P times the sign of I) from the start of the current cycle, monotonically non-decreasing within the cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Defined as cycle_charging_energy_wh + cycle_discharging_energy_wh."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:WattHour ],
         sosa:ObservableProperty,
-        electrochemistry:46376e5d_9627_4514_9881_9e62083625c3 ;
+        electrochemistry:electrochemistry_46376e5d_9627_4514_9881_9e62083625c3 ;
     skos:altLabel "cycle_cumulative_energy_watt_hour"@en,
         "cycle_cumulative_energy_wh"@en ;
     skos:definition "Running accumulation of energy throughput within the current cycle, in watt hour: the time integral of the current-signed instantaneous power (P times the sign of I) from the start of the current cycle, monotonically non-decreasing within the cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Defined as cycle_charging_energy_wh + cycle_discharging_energy_wh."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "cycle_cumulative_energy_wh" ;
     skos:prefLabel "Cycle Cumulative Energy / Wh"@en ;
     prov:wasDerivedFrom :cycle_count,
@@ -297,17 +305,17 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_net_capacity_ah a owl:Class ;
     rdfs:label "Cycle Net Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Net charge transferred during the current cycle, in ampere hour. Defined as cycle_charging_capacity_ah minus cycle_discharging_capacity_ah; the running signed integral of current from the start of the current cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Can be negative if more charge is extracted than injected during the cycle. Its end-of-cycle value is the per-cycle coulombic slippage: the irreversible charge consumed by side reactions during that cycle."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:AmpereHour ],
         sosa:ObservableProperty,
-        electrochemistry:791c1915_a791_4450_acd8_7f94764743b5 ;
+        electrochemistry:electrochemistry_791c1915_a791_4450_acd8_7f94764743b5 ;
     skos:altLabel "cycle_net_capacity_ah"@en,
         "cycle_net_capacity_ampere_hour"@en ;
     skos:definition "Net charge transferred during the current cycle, in ampere hour. Defined as cycle_charging_capacity_ah minus cycle_discharging_capacity_ah; the running signed integral of current from the start of the current cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Can be negative if more charge is extracted than injected during the cycle. Its end-of-cycle value is the per-cycle coulombic slippage: the irreversible charge consumed by side reactions during that cycle."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "cycle_net_capacity_ah" ;
     skos:prefLabel "Cycle Net Capacity / Ah"@en ;
     prov:wasDerivedFrom :cycle_charging_capacity_ah,
@@ -324,17 +332,17 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_net_energy_wh a owl:Class ;
     rdfs:label "Cycle Net Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Net energy transferred during the current cycle, in watt hour. Defined as cycle_charging_energy_wh minus cycle_discharging_energy_wh; the running signed integral of instantaneous power from the start of the current cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Can be negative if more energy is extracted than delivered during the cycle. Its end-of-cycle value is the net energy absorbed over that cycle, reflecting voltage hysteresis and other losses."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:WattHour ],
         sosa:ObservableProperty,
-        electrochemistry:46376e5d_9627_4514_9881_9e62083625c3 ;
+        electrochemistry:electrochemistry_46376e5d_9627_4514_9881_9e62083625c3 ;
     skos:altLabel "cycle_net_energy_watt_hour"@en,
         "cycle_net_energy_wh"@en ;
     skos:definition "Net energy transferred during the current cycle, in watt hour. Defined as cycle_charging_energy_wh minus cycle_discharging_energy_wh; the running signed integral of instantaneous power from the start of the current cycle; resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Can be negative if more energy is extracted than delivered during the cycle. Its end-of-cycle value is the net energy absorbed over that cycle, reflecting voltage hysteresis and other losses."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "cycle_net_energy_wh" ;
     skos:prefLabel "Cycle Net Energy / Wh"@en ;
     prov:wasDerivedFrom :cycle_charging_energy_wh,
@@ -351,6 +359,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :dc_internal_resistance_ohm a owl:Class ;
     rdfs:label "DC Internal Resistance / ohm"@en ;
+    qudt:hasQuantityKind quantitykind:Resistance ;
     rdfs:comment "Direct current internal resistance of the test object, in ohm, determined from the voltage response to a current step (e.g. delta-V over delta-I across a current pulse). The method parameters (pulse magnitude and duration) are instrument-specific and not standardised; values obtained with different methods are not directly comparable."@en ;
     rdfs:seeAlso unit:OHM ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -362,7 +371,6 @@ schema:unitText a owl:AnnotationProperty .
         "dc_resistance_ohm"@en,
         "dcir"@en ;
     skos:definition "Direct current internal resistance of the test object, in ohm, determined from the voltage response to a current step (e.g. delta-V over delta-I across a current pulse). The method parameters (pulse magnitude and duration) are instrument-specific and not standardised; values obtained with different methods are not directly comparable."@en ;
-    skos:exactMatch quantitykind:Resistance ;
     skos:notation "dc_internal_resistance_ohm" ;
     skos:prefLabel "DC Internal Resistance / ohm"@en ;
     schema:description "DC internal resistance from the voltage response to a current step. Method parameters are instrument-specific; values from different methods are not directly comparable."@en ;
@@ -374,19 +382,26 @@ schema:unitText a owl:AnnotationProperty .
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Direct current internal resistance of the test object, in ohm, determined from the voltage response to a current step (e.g. delta-V over delta-I across a current pulse). The method parameters (pulse magnitude and duration) are instrument-specific and not standardised; values obtained with different methods are not directly comparable."@en .
 
 :frequency_hertz a owl:Class ;
+    rdfs:label "Frequency / Hz"@en ;
+    qudt:hasQuantityKind quantitykind:Frequency ;
+    rdfs:comment "The frequency of the applied periodic excitation or measured response, in hertz."@en ;
     rdfs:seeAlso unit:HZ ;
-    rdfs:subClassOf sosa:ObservableProperty,
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:Hertz ],
+        sosa:ObservableProperty,
         emmo:EMMO_852b4ab8_fc29_4749_a8c7_b92d4fca7d5a ;
     skos:altLabel "frequency_hertz"@en ;
     skos:definition "The frequency of the applied periodic excitation or measured response, in hertz."@en ;
-    skos:exactMatch quantitykind:Frequency ;
     skos:notation "frequency_hertz"@en ;
     skos:prefLabel "Frequency / Hz"@en ;
     schema:description "The frequency of the applied periodic excitation or measured response, in hertz."@en ;
+    schema:name "Frequency / Hz"@en ;
     schema:unitCode "Hz" ;
     schema:unitText "hertz"@en ;
     :latexSymbol "f"^^xsd:string ;
-    :obligation "optional" .
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "The frequency of the applied periodic excitation or measured response, in hertz."@en .
 
 :latexFormula a owl:AnnotationProperty ;
     rdfs:label "LaTeX formula"@en ;
@@ -400,6 +415,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :net_capacity_ah a owl:Class ;
     rdfs:label "Net Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Running integral of signed current from the start of the test, in ampere hour. Defined as charging_capacity_ah minus discharging_capacity_ah; can be negative if more charge has been extracted than injected since test start. Equivalent to BioLogic Q-Q0. Increases during charge intervals and decreases during discharge intervals."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -410,7 +426,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "net_capacity_ah"@en,
         "net_capacity_ampere_hour"@en ;
     skos:definition "Running integral of signed current from the start of the test, in ampere hour. Defined as charging_capacity_ah minus discharging_capacity_ah; can be negative if more charge has been extracted than injected since test start. Equivalent to BioLogic Q-Q0. Increases during charge intervals and decreases during discharge intervals."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "net_capacity_ah" ;
     skos:prefLabel "Net Capacity / Ah"@en ;
     prov:wasDerivedFrom :charging_capacity_ah,
@@ -427,6 +442,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :net_energy_wh a owl:Class ;
     rdfs:label "Net Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Running net energy from the start of the test, in watt hour. Defined as charging_energy_wh minus discharging_energy_wh; can be negative if more energy has been extracted than delivered since test start. Increases during charge intervals and decreases during discharge intervals."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -437,7 +453,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "net_energy_watt_hour"@en,
         "net_energy_wh"@en ;
     skos:definition "Running net energy from the start of the test, in watt hour. Defined as charging_energy_wh minus discharging_energy_wh; can be negative if more energy has been extracted than delivered since test start. Increases during charge intervals and decreases during discharge intervals."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "net_energy_wh" ;
     skos:prefLabel "Net Energy / Wh"@en ;
     prov:wasDerivedFrom :charging_energy_wh,
@@ -458,30 +473,42 @@ schema:unitText a owl:AnnotationProperty .
     rdfs:range xsd:string .
 
 :phase_degree a owl:Class ;
+    rdfs:label "Phase / deg"@en ;
+    qudt:hasQuantityKind quantitykind:Angle ;
+    rdfs:comment "The phase angle of the complex impedance: the argument of the complex impedance, representing the phase shift between voltage and current, in degree."@en ;
     rdfs:seeAlso unit:DEG ;
-    rdfs:subClassOf sosa:ObservableProperty,
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:Degree ],
+        sosa:ObservableProperty,
         emmo:EMMO_2a0e5777_348c_475b_adf0_1b1e71a29bc9 ;
     skos:altLabel "phase_degree"@en ;
     skos:definition "The phase angle of the complex impedance: the argument of the complex impedance, representing the phase shift between voltage and current, in degree."@en ;
-    skos:exactMatch quantitykind:Angle ;
     skos:notation "phase_degree"@en ;
     skos:prefLabel "Phase / deg"@en ;
     prov:wasDerivedFrom :imaginary_impedance_ohm,
         :real_impedance_ohm ;
     schema:description "The phase angle of the complex impedance, representing the phase shift between voltage and current, in degree."@en ;
+    schema:name "Phase / deg"@en ;
     schema:unitCode "deg" ;
     schema:unitText "degree"@en ;
     :latexFormula "\\phi = \\operatorname{atan2}\\!\\left(Z_\\mathrm{im},\\,Z_\\mathrm{re}\\right) \\cdot \\frac{180}{\\pi}"^^xsd:string ;
     :latexSymbol "\\phi"^^xsd:string ;
-    :obligation "optional" .
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "The phase angle of the complex impedance: the argument of the complex impedance, representing the phase shift between voltage and current, in degree."@en .
 
 :record_index a owl:Class ;
+    rdfs:label "Record Index / 1"@en ;
+    qudt:hasQuantityKind quantitykind:Count ;
+    rdfs:comment "An ordinal, dimensionless integer used to order data records within a time-series dataset, incremented by one for each recorded record and carrying no physical or quantitative meaning."@en ;
     rdfs:seeAlso unit:NUM ;
-    rdfs:subClassOf sosa:ObservableProperty,
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:EMMO_5ebd5e01_0ed3_49a2_a30d_cd05cbe72978 ],
+        sosa:ObservableProperty,
         emmo:EMMO_ba882f34_0d71_4e4f_9d92_0c076c633a2c ;
     skos:altLabel "record_index"@en ;
     skos:definition "An ordinal, dimensionless integer used to order data records within a time-series dataset, incremented by one for each recorded record and carrying no physical or quantitative meaning."@en ;
-    skos:exactMatch quantitykind:Count ;
     skos:notation "record_index"@en ;
     skos:prefLabel "Record Index / 1"@en ;
     schema:description "An ordinal, dimensionless integer used to order data records within a time-series dataset, incremented by one for each recorded record and carrying no physical or quantitative meaning."@en ;
@@ -492,8 +519,121 @@ schema:unitText a owl:AnnotationProperty .
     :obligation "optional" ;
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "An ordinal, dimensionless integer used to order data records within a time-series dataset, incremented by one for each recorded record and carrying no physical or quantitative meaning."@en .
 
+:schedule_charging_capacity_ah a owl:Class ;
+    rdfs:label "Schedule Charging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
+    rdfs:comment "Cumulative electric charge transferred into the test object during charging since the most recent schedule-defined assignment event, in ampere hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with charging_capacity_ah. Where computed, it is the time integral of the positive part of current since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Charge_Capacity), whose assignment behavior is operator-defined."@en ;
+    rdfs:seeAlso unit:A-HR ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:AmpereHour ],
+        sosa:ObservableProperty,
+        electrochemistry:electrochemistry_10763eb0_dbc9_4d34_bd1a_7b8996590d45 ;
+    skos:altLabel "schedule_charging_capacity_ah"@en,
+        "schedule_charging_capacity_ampere_hour"@en ;
+    skos:definition "Cumulative electric charge transferred into the test object during charging since the most recent schedule-defined assignment event, in ampere hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with charging_capacity_ah. Where computed, it is the time integral of the positive part of current since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Charge_Capacity), whose assignment behavior is operator-defined."@en ;
+    skos:notation "schedule_charging_capacity_ah" ;
+    skos:prefLabel "Schedule Charging Capacity / Ah"@en ;
+    skos:scopeNote "Assignment points are protocol-defined, so values are not comparable across tests without the schedule; not suitable for cross-test aggregation. Use charging_capacity_ah for the test-scoped quantity."@en ;
+    prov:wasDerivedFrom :current_ampere,
+        :test_time_second ;
+    schema:description "Cumulative electric charge transferred into the test object during charging since the most recent schedule-defined assignment event, in ampere hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned)."@en ;
+    schema:measurementTechnique "Vendor accumulator integrated by the instrument between schedule-defined assignment events; equivalently, the time integral of the positive part of current since the most recent assignment."@en ;
+    schema:name "Schedule Charging Capacity / Ah"@en ;
+    schema:unitCode "A.h" ;
+    schema:unitText "ampere hour"@en ;
+    :latexFormula "Q_\\mathrm{chg}^\\mathrm{sched}(t) = Q_\\mathrm{chg}^\\mathrm{sched}(t_r) + \\frac{1}{3600}\\int_{t_r}^{t} \\max\\!\\bigl(I(\\tau),\\,0\\bigr)\\,\\mathrm{d}\\tau,\\quad t_r = \\text{most recent schedule-defined assignment}"^^xsd:string ;
+    :latexSymbol "Q_\\mathrm{chg}^\\mathrm{sched}"^^xsd:string ;
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Cumulative electric charge transferred into the test object during charging since the most recent schedule-defined assignment event, in ampere hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with charging_capacity_ah. Where computed, it is the time integral of the positive part of current since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Charge_Capacity), whose assignment behavior is operator-defined."@en .
+
+:schedule_charging_energy_wh a owl:Class ;
+    rdfs:label "Schedule Charging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
+    rdfs:comment "Cumulative electric energy transferred into the test object during charging since the most recent schedule-defined assignment event, in watt hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with charging_energy_wh. Where computed, it is the time integral of instantaneous power over the charge intervals (current > 0) since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Charge_Energy), whose assignment behavior is operator-defined."@en ;
+    rdfs:seeAlso unit:W-HR ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:WattHour ],
+        sosa:ObservableProperty,
+        electrochemistry:electrochemistry_2ab7af60_da58_4243_b3bc_cbb2155cac53 ;
+    skos:altLabel "schedule_charging_energy_watt_hour"@en,
+        "schedule_charging_energy_wh"@en ;
+    skos:definition "Cumulative electric energy transferred into the test object during charging since the most recent schedule-defined assignment event, in watt hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with charging_energy_wh. Where computed, it is the time integral of instantaneous power over the charge intervals (current > 0) since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Charge_Energy), whose assignment behavior is operator-defined."@en ;
+    skos:notation "schedule_charging_energy_wh" ;
+    skos:prefLabel "Schedule Charging Energy / Wh"@en ;
+    skos:scopeNote "Assignment points are protocol-defined, so values are not comparable across tests without the schedule; not suitable for cross-test aggregation. Use charging_energy_wh for the test-scoped quantity."@en ;
+    prov:wasDerivedFrom :current_ampere,
+        :test_time_second ;
+    schema:description "Cumulative electric energy transferred into the test object during charging since the most recent schedule-defined assignment event, in watt hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned)."@en ;
+    schema:measurementTechnique "Vendor accumulator integrated by the instrument between schedule-defined assignment events; equivalently, the time integral of instantaneous power over the charge intervals (current > 0) since the most recent assignment."@en ;
+    schema:name "Schedule Charging Energy / Wh"@en ;
+    schema:unitCode "W.h" ;
+    schema:unitText "watt hour"@en ;
+    :latexFormula "E_\\mathrm{chg}^\\mathrm{sched}(t) = E_\\mathrm{chg}^\\mathrm{sched}(t_r) + \\frac{1}{3600}\\int_{t_r}^{t} P(\\tau)\\,\\bigl[I(\\tau) > 0\\bigr]\\,\\mathrm{d}\\tau,\\quad t_r = \\text{most recent schedule-defined assignment}"^^xsd:string ;
+    :latexSymbol "E_\\mathrm{chg}^\\mathrm{sched}"^^xsd:string ;
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Cumulative electric energy transferred into the test object during charging since the most recent schedule-defined assignment event, in watt hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with charging_energy_wh. Where computed, it is the time integral of instantaneous power over the charge intervals (current > 0) since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Charge_Energy), whose assignment behavior is operator-defined."@en .
+
+:schedule_discharging_capacity_ah a owl:Class ;
+    rdfs:label "Schedule Discharging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
+    rdfs:comment "Cumulative electric charge transferred out of the test object during discharging since the most recent schedule-defined assignment event, in ampere hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with discharging_capacity_ah. Where computed, it is the time integral of the magnitude of the negative part of current since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Discharge_Capacity), whose assignment behavior is operator-defined."@en ;
+    rdfs:seeAlso unit:A-HR ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:AmpereHour ],
+        sosa:ObservableProperty,
+        electrochemistry:electrochemistry_0141b5c2_9f15_46f4_82e6_92a104faa476 ;
+    skos:altLabel "schedule_discharging_capacity_ah"@en,
+        "schedule_discharging_capacity_ampere_hour"@en ;
+    skos:definition "Cumulative electric charge transferred out of the test object during discharging since the most recent schedule-defined assignment event, in ampere hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with discharging_capacity_ah. Where computed, it is the time integral of the magnitude of the negative part of current since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Discharge_Capacity), whose assignment behavior is operator-defined."@en ;
+    skos:notation "schedule_discharging_capacity_ah" ;
+    skos:prefLabel "Schedule Discharging Capacity / Ah"@en ;
+    skos:scopeNote "Assignment points are protocol-defined, so values are not comparable across tests without the schedule; not suitable for cross-test aggregation. Use discharging_capacity_ah for the test-scoped quantity."@en ;
+    prov:wasDerivedFrom :current_ampere,
+        :test_time_second ;
+    schema:description "Cumulative electric charge transferred out of the test object during discharging since the most recent schedule-defined assignment event, in ampere hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned)."@en ;
+    schema:measurementTechnique "Vendor accumulator integrated by the instrument between schedule-defined assignment events; equivalently, the time integral of the magnitude of the negative part of current since the most recent assignment."@en ;
+    schema:name "Schedule Discharging Capacity / Ah"@en ;
+    schema:unitCode "A.h" ;
+    schema:unitText "ampere hour"@en ;
+    :latexFormula "Q_\\mathrm{dchg}^\\mathrm{sched}(t) = Q_\\mathrm{dchg}^\\mathrm{sched}(t_r) + \\frac{1}{3600}\\int_{t_r}^{t} \\max\\!\\bigl(-I(\\tau),\\,0\\bigr)\\,\\mathrm{d}\\tau,\\quad t_r = \\text{most recent schedule-defined assignment}"^^xsd:string ;
+    :latexSymbol "Q_\\mathrm{dchg}^\\mathrm{sched}"^^xsd:string ;
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Cumulative electric charge transferred out of the test object during discharging since the most recent schedule-defined assignment event, in ampere hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with discharging_capacity_ah. Where computed, it is the time integral of the magnitude of the negative part of current since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Discharge_Capacity), whose assignment behavior is operator-defined."@en .
+
+:schedule_discharging_energy_wh a owl:Class ;
+    rdfs:label "Schedule Discharging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
+    rdfs:comment "Cumulative electric energy transferred out of the test object during discharging since the most recent schedule-defined assignment event, in watt hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with discharging_energy_wh. Where computed, it is the time integral of instantaneous power magnitude over the discharge intervals (current < 0) since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Discharge_Energy), whose assignment behavior is operator-defined."@en ;
+    rdfs:seeAlso unit:W-HR ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:WattHour ],
+        sosa:ObservableProperty,
+        electrochemistry:electrochemistry_ca36cbf3_1fed_4b88_9177_b4e16ad00cf7 ;
+    skos:altLabel "schedule_discharging_energy_watt_hour"@en,
+        "schedule_discharging_energy_wh"@en ;
+    skos:definition "Cumulative electric energy transferred out of the test object during discharging since the most recent schedule-defined assignment event, in watt hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with discharging_energy_wh. Where computed, it is the time integral of instantaneous power magnitude over the discharge intervals (current < 0) since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Discharge_Energy), whose assignment behavior is operator-defined."@en ;
+    skos:notation "schedule_discharging_energy_wh" ;
+    skos:prefLabel "Schedule Discharging Energy / Wh"@en ;
+    skos:scopeNote "Assignment points are protocol-defined, so values are not comparable across tests without the schedule; not suitable for cross-test aggregation. Use discharging_energy_wh for the test-scoped quantity."@en ;
+    prov:wasDerivedFrom :current_ampere,
+        :test_time_second ;
+    schema:description "Cumulative electric energy transferred out of the test object during discharging since the most recent schedule-defined assignment event, in watt hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned)."@en ;
+    schema:measurementTechnique "Vendor accumulator integrated by the instrument between schedule-defined assignment events; equivalently, the time integral of instantaneous power magnitude over the discharge intervals (current < 0) since the most recent assignment."@en ;
+    schema:name "Schedule Discharging Energy / Wh"@en ;
+    schema:unitCode "W.h" ;
+    schema:unitText "watt hour"@en ;
+    :latexFormula "E_\\mathrm{dchg}^\\mathrm{sched}(t) = E_\\mathrm{dchg}^\\mathrm{sched}(t_r) + \\frac{1}{3600}\\int_{t_r}^{t} \\bigl|P(\\tau)\\bigr|\\,\\bigl[I(\\tau) < 0\\bigr]\\,\\mathrm{d}\\tau,\\quad t_r = \\text{most recent schedule-defined assignment}"^^xsd:string ;
+    :latexSymbol "E_\\mathrm{dchg}^\\mathrm{sched}"^^xsd:string ;
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Cumulative electric energy transferred out of the test object during discharging since the most recent schedule-defined assignment event, in watt hour. Assignment points are authored in the test program (per cycle, at scripted steps, or never): typically a reset to zero, though schedule controls may assign an arbitrary value or a formula result (e.g. Arbin MITS 'Set variable(s)' resets and 'Set value' assignments; confirmed by Arbin). The value changes discontinuously only at such a schedule-defined assignment. When the schedule defines no assignments, this quantity coincides with discharging_energy_wh. Where computed, it is the time integral of instantaneous power magnitude over the discharge intervals (current < 0) since the most recent assignment. Matches the accumulators exported by schedule-driven cyclers (e.g. Arbin MITS Discharge_Energy), whose assignment behavior is operator-defined."@en .
+
 :step_count a owl:Class ;
     rdfs:label "Step Count / 1"@en ;
+    qudt:hasQuantityKind quantitykind:Count ;
     rdfs:comment "Monotonically increasing sequential counter incremented by one each time a new step begins, for the duration of the test. Unlike Step ID, this counter never resets and never repeats, making it a unique identifier for each step execution across all cycles."@en ;
     rdfs:seeAlso unit:NUM ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -505,7 +645,6 @@ schema:unitText a owl:AnnotationProperty .
         "step_count_1"@en,
         "step_dimensionless"@en ;
     skos:definition "Monotonically increasing sequential counter incremented by one each time a new step begins, for the duration of the test. Unlike Step ID, this counter never resets and never repeats, making it a unique identifier for each step execution across all cycles."@en ;
-    skos:exactMatch quantitykind:Count ;
     skos:notation "step_count" ;
     skos:prefLabel "Step Count / 1"@en ;
     schema:description "Monotonically increasing sequential counter incremented by one each time a new step begins, for the duration of the test. Unlike Step ID, this counter never resets and never repeats, making it a unique identifier for each step execution across all cycles."@en ;
@@ -535,29 +674,31 @@ schema:unitText a owl:AnnotationProperty .
 
 :step_index a owl:Class ;
     rdfs:label "Step Index / 1"@en ;
+    dcterms:isReplacedBy :step_record_index ;
+    qudt:hasQuantityKind quantitykind:Count ;
     rdfs:comment "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en ;
-    rdfs:seeAlso unit:UNITLESS ;
+    rdfs:seeAlso unit:NUM ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
-            owl:someValuesFrom emmo:One ],
+            owl:someValuesFrom emmo:EMMO_5ebd5e01_0ed3_49a2_a30d_cd05cbe72978 ],
         sosa:ObservableProperty,
         emmo:EMMO_0cd58641_824c_4851_907f_f4c3be76630c ;
+    owl:deprecated true ;
     skos:altLabel "step_index"@en,
         "step_index_1"@en ;
     skos:definition "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en ;
-    skos:exactMatch quantitykind:Dimensionless ;
+    skos:historyNote "Deprecated in 1.3.0 (2026-07-17). Renamed to step_record_index to avoid collision with vendor 'Step Index' columns (e.g. Arbin Step_Index), which are program step identifiers mapping to step_id; the concept is unchanged."@en ;
     skos:notation "step_index" ;
     skos:prefLabel "Step Index / 1"@en ;
     schema:description "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en ;
     schema:name "Step Index / 1"@en ;
     schema:unitCode "1" ;
     schema:unitText "one"@en ;
-    :latexSymbol "j"^^xsd:string ;
-    :obligation "optional" ;
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en .
 
 :step_net_capacity_ah a owl:Class ;
     rdfs:label "Step Net Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Net charge transferred during the current test step, in ampere hour. Defined as step_charging_capacity_ah minus step_discharging_capacity_ah; the running signed integral of current from the step start, reset to zero at each step transition. Can be negative if more charge is extracted than injected during the step. Increases during charge intervals and decreases during discharge intervals within the step."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -568,7 +709,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "step_net_capacity_ah"@en,
         "step_net_capacity_ampere_hour"@en ;
     skos:definition "Net charge transferred during the current test step, in ampere hour. Defined as step_charging_capacity_ah minus step_discharging_capacity_ah; the running signed integral of current from the step start, reset to zero at each step transition. Can be negative if more charge is extracted than injected during the step. Increases during charge intervals and decreases during discharge intervals within the step."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "step_net_capacity_ah" ;
     skos:prefLabel "Step Net Capacity / Ah"@en ;
     prov:wasDerivedFrom :step_charging_capacity_ah,
@@ -585,6 +725,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :step_net_energy_wh a owl:Class ;
     rdfs:label "Step Net Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Net energy transferred during the current test step, in watt hour. Defined as step_charging_energy_wh minus step_discharging_energy_wh; the running signed integral of instantaneous power from the step start, reset to zero at each step transition. Can be negative if more energy is extracted than delivered during the step. Increases during charge intervals and decreases during discharge intervals within the step."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -595,7 +736,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "step_net_energy_watt_hour"@en,
         "step_net_energy_wh"@en ;
     skos:definition "Net energy transferred during the current test step, in watt hour. Defined as step_charging_energy_wh minus step_discharging_energy_wh; the running signed integral of instantaneous power from the step start, reset to zero at each step transition. Can be negative if more energy is extracted than delivered during the step. Increases during charge intervals and decreases during discharge intervals within the step."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "step_net_energy_wh" ;
     skos:prefLabel "Step Net Energy / Wh"@en ;
     prov:wasDerivedFrom :step_charging_energy_wh,
@@ -626,6 +766,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :surface_pressure_pa a owl:Class ;
     rdfs:label "Surface Pressure / Pa"@en ;
+    qudt:hasQuantityKind quantitykind:Pressure ;
     rdfs:comment "Pressure measured at the surface of the test object, in pascal. A measured quantity that may be nonzero even when no external pressure is actively applied, e.g. from cell swelling against a fixture. Distinguished from applied_pressure_pa, which is actively applied and controlled by an external agent."@en ;
     rdfs:seeAlso unit:PA ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -636,7 +777,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "surface_pressure_pa"@en,
         "surface_pressure_pascal"@en ;
     skos:definition "Pressure measured at the surface of the test object, in pascal. A measured quantity that may be nonzero even when no external pressure is actively applied, e.g. from cell swelling against a fixture. Distinguished from applied_pressure_pa, which is actively applied and controlled by an external agent."@en ;
-    skos:exactMatch quantitykind:Pressure ;
     skos:notation "surface_pressure_pa" ;
     skos:prefLabel "Surface Pressure / Pa"@en ;
     schema:description "Pressure measured at the surface of the test object, in pascal. A measured quantity that may be nonzero even when no external pressure is actively applied, e.g. from cell swelling against a fixture. Distinguished from applied_pressure_pa, which is actively applied and controlled by an external agent."@en ;
@@ -649,6 +789,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :surface_temperature_celsius a owl:Class ;
     rdfs:label "Surface Temperature / degC"@en ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
     rdfs:comment "Temperature measured at the surface of the test object, in degree Celsius, regardless of which sensor channel recorded it. Use this term when a column is explicitly a surface (skin) temperature without channel information; channel-indexed auxiliary sensors map to temperature_t1_celsius through temperature_t5_celsius, whose placement is setup-defined."@en ;
     rdfs:seeAlso unit:DEG_C ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -659,7 +800,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "surface_temperature_celsius"@en,
         "surface_temperature_degc"@en ;
     skos:definition "Temperature measured at the surface of the test object, in degree Celsius, regardless of which sensor channel recorded it. Use this term when a column is explicitly a surface (skin) temperature without channel information; channel-indexed auxiliary sensors map to temperature_t1_celsius through temperature_t5_celsius, whose placement is setup-defined."@en ;
-    skos:exactMatch quantitykind:Temperature ;
     skos:notation "surface_temperature_celsius" ;
     skos:prefLabel "Surface Temperature / degC"@en ;
     schema:description "Temperature measured at the surface of the test object, in degree Celsius, regardless of sensor channel."@en ;
@@ -672,6 +812,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :temperature_t1_celsius a owl:Class ;
     rdfs:label "Temperature T1 / degC"@en ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
     rdfs:comment "Temperature recorded by auxiliary temperature channel 1 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
     rdfs:seeAlso unit:DEG_C ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -684,7 +825,6 @@ schema:unitText a owl:AnnotationProperty .
         "temperature_t1_celsius"@en,
         "temperature_t1_degc"@en ;
     skos:definition "Temperature recorded by auxiliary temperature channel 1 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
-    skos:exactMatch quantitykind:Temperature ;
     skos:notation "temperature_t1_celsius" ;
     skos:prefLabel "Temperature T1 / degC"@en ;
     skos:scopeNote "Default mapping convention: a single unqualified temperature column from a cycler, or an unqualified numbered channel (T1), maps to temperature_t1_celsius. Columns explicitly designated as chamber, environment, or ambient temperature map to ambient_temperature_celsius; columns explicitly designated as surface (skin) temperature without channel information map to surface_temperature_celsius."@en ;
@@ -698,6 +838,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :temperature_t2_celsius a owl:Class ;
     rdfs:label "Temperature T2 / degC"@en ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
     rdfs:comment "Temperature recorded by auxiliary temperature channel 2 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
     rdfs:seeAlso unit:DEG_C ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -710,7 +851,6 @@ schema:unitText a owl:AnnotationProperty .
         "temperature_t2_celsius"@en,
         "temperature_t2_degc"@en ;
     skos:definition "Temperature recorded by auxiliary temperature channel 2 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
-    skos:exactMatch quantitykind:Temperature ;
     skos:notation "temperature_t2_celsius" ;
     skos:prefLabel "Temperature T2 / degC"@en ;
     schema:description "Temperature recorded by auxiliary temperature channel 2, in degree Celsius. Sensor placement is setup-defined; record it in accompanying metadata."@en ;
@@ -723,6 +863,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :temperature_t3_celsius a owl:Class ;
     rdfs:label "Temperature T3 / degC"@en ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
     rdfs:comment "Temperature recorded by auxiliary temperature channel 3 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
     rdfs:seeAlso unit:DEG_C ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -735,7 +876,6 @@ schema:unitText a owl:AnnotationProperty .
         "temperature_t3_celsius"@en,
         "temperature_t3_degc"@en ;
     skos:definition "Temperature recorded by auxiliary temperature channel 3 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
-    skos:exactMatch quantitykind:Temperature ;
     skos:notation "temperature_t3_celsius" ;
     skos:prefLabel "Temperature T3 / degC"@en ;
     schema:description "Temperature recorded by auxiliary temperature channel 3, in degree Celsius. Sensor placement is setup-defined; record it in accompanying metadata."@en ;
@@ -748,6 +888,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :temperature_t4_celsius a owl:Class ;
     rdfs:label "Temperature T4 / degC"@en ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
     rdfs:comment "Temperature recorded by auxiliary temperature channel 4 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
     rdfs:seeAlso unit:DEG_C ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -760,7 +901,6 @@ schema:unitText a owl:AnnotationProperty .
         "temperature_t4_celsius"@en,
         "temperature_t4_degc"@en ;
     skos:definition "Temperature recorded by auxiliary temperature channel 4 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
-    skos:exactMatch quantitykind:Temperature ;
     skos:notation "temperature_t4_celsius" ;
     skos:prefLabel "Temperature T4 / degC"@en ;
     schema:description "Temperature recorded by auxiliary temperature channel 4, in degree Celsius. Sensor placement is setup-defined; record it in accompanying metadata."@en ;
@@ -773,6 +913,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :temperature_t5_celsius a owl:Class ;
     rdfs:label "Temperature T5 / degC"@en ;
+    qudt:hasQuantityKind quantitykind:Temperature ;
     rdfs:comment "Temperature recorded by auxiliary temperature channel 5 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
     rdfs:seeAlso unit:DEG_C ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -785,7 +926,6 @@ schema:unitText a owl:AnnotationProperty .
         "temperature_t5_celsius"@en,
         "temperature_t5_degc"@en ;
     skos:definition "Temperature recorded by auxiliary temperature channel 5 of the test setup, in degree Celsius. Sensor placement (e.g. cell surface, terminal, or elsewhere) is setup-defined and not constrained by this term; record the placement in accompanying metadata. Where a channel is known to measure the surface temperature of the test object, see also surface_temperature_celsius."@en ;
-    skos:exactMatch quantitykind:Temperature ;
     skos:notation "temperature_t5_celsius" ;
     skos:prefLabel "Temperature T5 / degC"@en ;
     schema:description "Temperature recorded by auxiliary temperature channel 5, in degree Celsius. Sensor placement is setup-defined; record it in accompanying metadata."@en ;
@@ -799,6 +939,7 @@ schema:unitText a owl:AnnotationProperty .
 :test_time_millisecond a owl:Class ;
     rdfs:label "Test Time / ms"@en ;
     dcterms:isReplacedBy :test_time_second ;
+    qudt:hasQuantityKind quantitykind:Time ;
     rdfs:comment "Test time recorded in millisecond."@en ;
     rdfs:seeAlso unit:MilliSEC ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -810,7 +951,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "test_time_millisecond"@en,
         "test_time_ms"@en ;
     skos:definition "Test time recorded in millisecond."@en ;
-    skos:exactMatch quantitykind:Time ;
     skos:historyNote "Deprecated in favour of test_time_second: seconds are the canonical BDF time unit. Retained for legacy compatibility."@en ;
     skos:notation "test_time_millisecond" ;
     skos:prefLabel "Test Time / ms"@en ;
@@ -823,6 +963,7 @@ schema:unitText a owl:AnnotationProperty .
 :unix_time_millisecond a owl:Class ;
     rdfs:label "Unix Time / ms"@en ;
     dcterms:isReplacedBy :unix_time_second ;
+    qudt:hasQuantityKind quantitykind:Time ;
     rdfs:comment "Unix time recorded in millisecond."@en ;
     rdfs:seeAlso unit:MilliSEC ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -834,7 +975,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "unix_time_millisecond"@en,
         "unix_time_ms"@en ;
     skos:definition "Unix time recorded in millisecond."@en ;
-    skos:exactMatch quantitykind:Time ;
     skos:historyNote "Deprecated in favour of unix_time_second: seconds are the canonical BDF time unit. Retained for legacy compatibility."@en ;
     skos:notation "unix_time_millisecond" ;
     skos:prefLabel "Unix Time / ms"@en ;
@@ -844,8 +984,11 @@ schema:unitText a owl:AnnotationProperty .
     schema:unitText "millisecond"@en ;
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Unix time recorded in millisecond."@en .
 
+<https://github.com/battery-data-alliance> rdfs:label "Battery Data Alliance"@en .
+
 :charging_capacity_ah a owl:Class ;
     rdfs:label "Charging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Cumulative electric charge transferred into the test object during charging, in ampere hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during charge intervals; unchanged during rest or discharge. Note: differs from step-level Q charge as reported by some instruments (e.g. BioLogic EC-Lab), which reset to zero at each step boundary."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -856,7 +999,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "charging_capacity_ah"@en,
         "charging_capacity_ampere_hour"@en ;
     skos:definition "Cumulative electric charge transferred into the test object during charging, in ampere hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during charge intervals; unchanged during rest or discharge. Note: differs from step-level Q charge as reported by some instruments (e.g. BioLogic EC-Lab), which reset to zero at each step boundary."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "charging_capacity_ah" ;
     skos:prefLabel "Charging Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -872,6 +1014,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :charging_energy_wh a owl:Class ;
     rdfs:label "Charging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Cumulative energy transferred into the test object during charging, in watt hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during charge intervals; unchanged during rest or discharge."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -882,7 +1025,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "charging_energy_watt_hour"@en,
         "charging_energy_wh"@en ;
     skos:definition "Cumulative energy transferred into the test object during charging, in watt hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during charge intervals; unchanged during rest or discharge."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "charging_energy_wh" ;
     skos:prefLabel "Charging Energy / Wh"@en ;
     prov:wasDerivedFrom :power_watt,
@@ -898,18 +1040,18 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_charging_capacity_ah a owl:Class ;
     rdfs:label "Cycle Charging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Electric charge transferred into the test object during the charge portions of the current cycle, in ampere hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the time integral of the positive part of current from the start of the current cycle. Equivalent to the cycle-level charge capacity reported by some instruments (e.g. Arbin Charge_Capacity in cycle-reset export configurations), which reset at each cycle boundary."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:AmpereHour ],
         sosa:ObservableProperty,
-        electrochemistry:10763eb0_dbc9_4d34_bd1a_7b8996590d45 ;
+        electrochemistry:electrochemistry_10763eb0_dbc9_4d34_bd1a_7b8996590d45 ;
     skos:altLabel "cycle_charge_capacity_ah"@en,
         "cycle_charging_capacity_ah"@en,
         "cycle_charging_capacity_ampere_hour"@en ;
     skos:definition "Electric charge transferred into the test object during the charge portions of the current cycle, in ampere hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the time integral of the positive part of current from the start of the current cycle. Equivalent to the cycle-level charge capacity reported by some instruments (e.g. Arbin Charge_Capacity in cycle-reset export configurations), which reset at each cycle boundary."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "cycle_charging_capacity_ah" ;
     skos:prefLabel "Cycle Charging Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -926,18 +1068,18 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_charging_energy_wh a owl:Class ;
     rdfs:label "Cycle Charging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Energy transferred into the test object during the charge portions of the current cycle, in watt hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the time integral of instantaneous power over the charge intervals (current > 0) of the cycle. Equivalent to the cycle-level charge energy reported by some instruments (e.g. Arbin Charge_Energy in cycle-reset export configurations)."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:WattHour ],
         sosa:ObservableProperty,
-        electrochemistry:2ab7af60_da58_4243_b3bc_cbb2155cac53 ;
+        electrochemistry:electrochemistry_2ab7af60_da58_4243_b3bc_cbb2155cac53 ;
     skos:altLabel "cycle_charge_energy_wh"@en,
         "cycle_charging_energy_watt_hour"@en,
         "cycle_charging_energy_wh"@en ;
     skos:definition "Energy transferred into the test object during the charge portions of the current cycle, in watt hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the time integral of instantaneous power over the charge intervals (current > 0) of the cycle. Equivalent to the cycle-level charge energy reported by some instruments (e.g. Arbin Charge_Energy in cycle-reset export configurations)."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "cycle_charging_energy_wh" ;
     skos:prefLabel "Cycle Charging Energy / Wh"@en ;
     prov:wasDerivedFrom :cycle_count,
@@ -954,18 +1096,18 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_discharging_capacity_ah a owl:Class ;
     rdfs:label "Cycle Discharging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Electric charge transferred out of the test object during the discharge portions of the current cycle, in ampere hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the time integral of the negated negative part of current from the start of the current cycle. Equivalent to the cycle-level discharge capacity reported by some instruments (e.g. Arbin Discharge_Capacity in cycle-reset export configurations), which reset at each cycle boundary. Its end-of-cycle value is the discharge capacity of that cycle, the quantity conventionally plotted in capacity-fade curves."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:AmpereHour ],
         sosa:ObservableProperty,
-        electrochemistry:0141b5c2_9f15_46f4_82e6_92a104faa476 ;
+        electrochemistry:electrochemistry_0141b5c2_9f15_46f4_82e6_92a104faa476 ;
     skos:altLabel "cycle_discharge_capacity_ah"@en,
         "cycle_discharging_capacity_ah"@en,
         "cycle_discharging_capacity_ampere_hour"@en ;
     skos:definition "Electric charge transferred out of the test object during the discharge portions of the current cycle, in ampere hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the time integral of the negated negative part of current from the start of the current cycle. Equivalent to the cycle-level discharge capacity reported by some instruments (e.g. Arbin Discharge_Capacity in cycle-reset export configurations), which reset at each cycle boundary. Its end-of-cycle value is the discharge capacity of that cycle, the quantity conventionally plotted in capacity-fade curves."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "cycle_discharging_capacity_ah" ;
     skos:prefLabel "Cycle Discharging Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -982,18 +1124,18 @@ schema:unitText a owl:AnnotationProperty .
 
 :cycle_discharging_energy_wh a owl:Class ;
     rdfs:label "Cycle Discharging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Energy transferred out of the test object during the discharge portions of the current cycle, in watt hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the negated time integral of instantaneous power over the discharge intervals (current < 0) of the cycle. Equivalent to the cycle-level discharge energy reported by some instruments (e.g. Arbin Discharge_Energy in cycle-reset export configurations)."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
             owl:someValuesFrom emmo:WattHour ],
         sosa:ObservableProperty,
-        electrochemistry:ca36cbf3_1fed_4b88_9177_b4e16ad00cf7 ;
+        electrochemistry:electrochemistry_ca36cbf3_1fed_4b88_9177_b4e16ad00cf7 ;
     skos:altLabel "cycle_discharge_energy_wh"@en,
         "cycle_discharging_energy_watt_hour"@en,
         "cycle_discharging_energy_wh"@en ;
     skos:definition "Energy transferred out of the test object during the discharge portions of the current cycle, in watt hour. Non-negative (>= 0); resets to zero when cycle_count increments (cycle boundaries are instrument-defined; see cycle_count). Where computed, it is the negated time integral of instantaneous power over the discharge intervals (current < 0) of the cycle. Equivalent to the cycle-level discharge energy reported by some instruments (e.g. Arbin Discharge_Energy in cycle-reset export configurations)."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "cycle_discharging_energy_wh" ;
     skos:prefLabel "Cycle Discharging Energy / Wh"@en ;
     prov:wasDerivedFrom :cycle_count,
@@ -1010,6 +1152,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :discharging_capacity_ah a owl:Class ;
     rdfs:label "Discharging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Cumulative electric charge transferred out of the test object during discharging, in ampere hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during discharge intervals; unchanged during rest or charge. Note: differs from step-level Q discharge as reported by some instruments (e.g. BioLogic EC-Lab), which reset to zero at each step boundary."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1020,7 +1163,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "discharging_capacity_ah"@en,
         "discharging_capacity_ampere_hour"@en ;
     skos:definition "Cumulative electric charge transferred out of the test object during discharging, in ampere hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during discharge intervals; unchanged during rest or charge. Note: differs from step-level Q discharge as reported by some instruments (e.g. BioLogic EC-Lab), which reset to zero at each step boundary."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "discharging_capacity_ah" ;
     skos:prefLabel "Discharging Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -1036,6 +1178,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :discharging_energy_wh a owl:Class ;
     rdfs:label "Discharging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Cumulative energy transferred out of the test object during discharging, in watt hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during discharge intervals; unchanged during rest or charge."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1046,7 +1189,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "discharging_energy_watt_hour"@en,
         "discharging_energy_wh"@en ;
     skos:definition "Cumulative energy transferred out of the test object during discharging, in watt hour. Accumulates from the start of the test and never resets between steps or cycles. Increases only during discharge intervals; unchanged during rest or charge."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "discharging_energy_wh" ;
     skos:prefLabel "Discharging Energy / Wh"@en ;
     prov:wasDerivedFrom :power_watt,
@@ -1062,6 +1204,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :step_charging_capacity_ah a owl:Class ;
     rdfs:label "Step Charging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Electric charge transferred into the test object during the charge portion of the current test step, in ampere hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the time integral of the positive part of current over the step. Equivalent to the step-level charge capacity reported by some instruments (e.g. BioLogic EC-Lab Q charge), which reset at each step boundary."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1073,7 +1216,6 @@ schema:unitText a owl:AnnotationProperty .
         "step_charging_capacity_ah"@en,
         "step_charging_capacity_ampere_hour"@en ;
     skos:definition "Electric charge transferred into the test object during the charge portion of the current test step, in ampere hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the time integral of the positive part of current over the step. Equivalent to the step-level charge capacity reported by some instruments (e.g. BioLogic EC-Lab Q charge), which reset at each step boundary."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "step_charging_capacity_ah" ;
     skos:prefLabel "Step Charging Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -1090,6 +1232,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :step_charging_energy_wh a owl:Class ;
     rdfs:label "Step Charging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Energy transferred into the test object during the charge portion of the current test step, in watt hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the time integral of instantaneous power over the charge intervals (current > 0) of the step."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1101,7 +1244,6 @@ schema:unitText a owl:AnnotationProperty .
         "step_charging_energy_watt_hour"@en,
         "step_charging_energy_wh"@en ;
     skos:definition "Energy transferred into the test object during the charge portion of the current test step, in watt hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the time integral of instantaneous power over the charge intervals (current > 0) of the step."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "step_charging_energy_wh" ;
     skos:prefLabel "Step Charging Energy / Wh"@en ;
     prov:wasDerivedFrom :power_watt,
@@ -1119,6 +1261,7 @@ schema:unitText a owl:AnnotationProperty .
 :step_cumulative_capacity_ah a owl:Class ;
     rdfs:label "Step Cumulative Capacity / Ah"@en ;
     dcterms:replaces :step_capacity_ah ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Running accumulation of charge throughput within the current test step, in ampere hour: the time integral of the absolute current from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value. Instruments that export this quantity directly are accepted as-is; where it must be computed, it is the time integral of the absolute current over the step duration."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1130,7 +1273,6 @@ schema:unitText a owl:AnnotationProperty .
         "step_cumulative_capacity_ah"@en,
         "step_cumulative_capacity_ampere_hour"@en ;
     skos:definition "Running accumulation of charge throughput within the current test step, in ampere hour: the time integral of the absolute current from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value. Instruments that export this quantity directly are accepted as-is; where it must be computed, it is the time integral of the absolute current over the step duration."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "step_cumulative_capacity_ah" ;
     skos:prefLabel "Step Cumulative Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -1149,6 +1291,7 @@ schema:unitText a owl:AnnotationProperty .
 :step_cumulative_energy_wh a owl:Class ;
     rdfs:label "Step Cumulative Energy / Wh"@en ;
     dcterms:replaces :step_energy_wh ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Running accumulation of energy throughput within the current test step, in watt hour: the time integral of the current-signed instantaneous power (P times the sign of I) from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value. Instruments that export this quantity directly are accepted as-is; where it must be computed, it is the time integral of the current-signed instantaneous power over the step duration."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1160,7 +1303,6 @@ schema:unitText a owl:AnnotationProperty .
         "step_cumulative_energy_wh"@en,
         "step_energy_wh"@en ;
     skos:definition "Running accumulation of energy throughput within the current test step, in watt hour: the time integral of the current-signed instantaneous power (P times the sign of I) from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value. Instruments that export this quantity directly are accepted as-is; where it must be computed, it is the time integral of the current-signed instantaneous power over the step duration."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "step_cumulative_energy_wh" ;
     skos:prefLabel "Step Cumulative Energy / Wh"@en ;
     prov:wasDerivedFrom :power_watt,
@@ -1178,6 +1320,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :step_discharging_capacity_ah a owl:Class ;
     rdfs:label "Step Discharging Capacity / Ah"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Electric charge transferred out of the test object during the discharge portion of the current test step, in ampere hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the time integral of the negated negative part of current over the step. Equivalent to the step-level discharge capacity reported by some instruments (e.g. BioLogic EC-Lab Q discharge), which reset at each step boundary."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1189,7 +1332,6 @@ schema:unitText a owl:AnnotationProperty .
         "step_discharging_capacity_ah"@en,
         "step_discharging_capacity_ampere_hour"@en ;
     skos:definition "Electric charge transferred out of the test object during the discharge portion of the current test step, in ampere hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the time integral of the negated negative part of current over the step. Equivalent to the step-level discharge capacity reported by some instruments (e.g. BioLogic EC-Lab Q discharge), which reset at each step boundary."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:notation "step_discharging_capacity_ah" ;
     skos:prefLabel "Step Discharging Capacity / Ah"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -1206,6 +1348,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :step_discharging_energy_wh a owl:Class ;
     rdfs:label "Step Discharging Energy / Wh"@en ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Energy transferred out of the test object during the discharge portion of the current test step, in watt hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the negated time integral of instantaneous power over the discharge intervals (current < 0) of the step."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1217,7 +1360,6 @@ schema:unitText a owl:AnnotationProperty .
         "step_discharging_energy_watt_hour"@en,
         "step_discharging_energy_wh"@en ;
     skos:definition "Energy transferred out of the test object during the discharge portion of the current test step, in watt hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the negated time integral of instantaneous power over the discharge intervals (current < 0) of the step."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:notation "step_discharging_energy_wh" ;
     skos:prefLabel "Step Discharging Energy / Wh"@en ;
     prov:wasDerivedFrom :power_watt,
@@ -1232,8 +1374,34 @@ schema:unitText a owl:AnnotationProperty .
     :obligation "optional" ;
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Energy transferred out of the test object during the discharge portion of the current test step, in watt hour. Non-negative (≥ 0); resets to zero at each step transition. Where computed, it is the negated time integral of instantaneous power over the discharge intervals (current < 0) of the step."@en .
 
+:step_record_index a owl:Class ;
+    rdfs:label "Step Record Index / 1"@en ;
+    qudt:hasQuantityKind quantitykind:Count ;
+    rdfs:comment "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en ;
+    rdfs:seeAlso unit:NUM ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:EMMO_5ebd5e01_0ed3_49a2_a30d_cd05cbe72978 ],
+        sosa:ObservableProperty,
+        emmo:EMMO_0cd58641_824c_4851_907f_f4c3be76630c ;
+    skos:altLabel "step_index"@en,
+        "step_record_index"@en,
+        "step_record_index_1"@en ;
+    skos:definition "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en ;
+    skos:historyNote "Introduced in 1.3.0 (2026-07-17) as the new name of step_index, which is deprecated and redirects here via dcterms:isReplacedBy; the concept is unchanged."@en ;
+    skos:notation "step_record_index" ;
+    skos:prefLabel "Step Record Index / 1"@en ;
+    schema:description "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en ;
+    schema:name "Step Record Index / 1"@en ;
+    schema:unitCode "1" ;
+    schema:unitText "one"@en ;
+    :latexSymbol "j"^^xsd:string ;
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property."@en .
+
 :unix_time_second a owl:Class ;
     rdfs:label "Unix Time / s"@en ;
+    qudt:hasQuantityKind quantitykind:Time ;
     rdfs:comment "Timestamp expressed as Unix time, in second: seconds elapsed since 1970-01-01T00:00:00 UTC (the Unix epoch), excluding leap seconds. The value identifies an absolute instant and is independent of local time zone: the same physical moment has the same value everywhere, and local wall-clock times must be converted to UTC before encoding."@en ;
     rdfs:seeAlso unit:SEC ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1244,7 +1412,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "unix_time_s"@en,
         "unix_time_second"@en ;
     skos:definition "Timestamp expressed as Unix time, in second: seconds elapsed since 1970-01-01T00:00:00 UTC (the Unix epoch), excluding leap seconds. The value identifies an absolute instant and is independent of local time zone: the same physical moment has the same value everywhere, and local wall-clock times must be converted to UTC before encoding."@en ;
-    skos:exactMatch quantitykind:Time ;
     skos:notation "unix_time_second" ;
     skos:prefLabel "Unix Time / s"@en ;
     skos:scopeNote "A common conversion error is computing seconds since the epoch from a naive local wall-clock timestamp as if it were UTC, which shifts all values by the local UTC offset (including daylight-saving changes mid-test). Instruments that log local time must have their timestamps converted to UTC, not reinterpreted."@en ;
@@ -1258,6 +1425,7 @@ schema:unitText a owl:AnnotationProperty .
 
 :voltage_volt a owl:Class ;
     rdfs:label "Voltage / V"@en ;
+    qudt:hasQuantityKind quantitykind:Voltage ;
     rdfs:comment "Instantaneous voltage measured across the terminals of the test object, in volt."@en ;
     rdfs:seeAlso unit:V ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1268,7 +1436,6 @@ schema:unitText a owl:AnnotationProperty .
     skos:altLabel "voltage_v"@en,
         "voltage_volt"@en ;
     skos:definition "Instantaneous voltage measured across the terminals of the test object, in volt."@en ;
-    skos:exactMatch quantitykind:Voltage ;
     skos:notation "voltage_volt" ;
     skos:prefLabel "Voltage / V"@en ;
     schema:description "Instantaneous voltage measured across the terminals of the test object, in volt."@en ;
@@ -1281,27 +1448,33 @@ schema:unitText a owl:AnnotationProperty .
 
 emmo:Ampere a owl:Class .
 
-emmo:One a owl:Class .
-
 emmo:Volt a owl:Class .
 
 :imaginary_impedance_ohm a owl:Class ;
+    rdfs:label "Imaginary Impedance / ohm"@en ;
+    qudt:hasQuantityKind quantitykind:Impedance ;
+    rdfs:comment "The imaginary (reactive) component of the complex impedance, in ohm, as reported with the standard electrotechnical sign convention: negative for predominantly capacitive behaviour. Note that Nyquist plots in electrochemistry conventionally display the negated value on the vertical axis."@en ;
     rdfs:seeAlso unit:OHM ;
-    rdfs:subClassOf sosa:ObservableProperty,
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:Ohm ],
+        sosa:ObservableProperty,
         electrochemistry:electrochemistry_0089729b_5890_4c15_aa09_1244d41f8626 ;
     skos:altLabel "imaginary_impedance_ohm"@en ;
     skos:definition "The imaginary (reactive) component of the complex impedance, in ohm, as reported with the standard electrotechnical sign convention: negative for predominantly capacitive behaviour. Note that Nyquist plots in electrochemistry conventionally display the negated value on the vertical axis."@en ;
-    skos:exactMatch quantitykind:Impedance ;
     skos:notation "imaginary_impedance_ohm"@en ;
     skos:prefLabel "Imaginary Impedance / ohm"@en ;
     schema:description "The imaginary (reactive) component of the complex impedance, in ohm. Sign as reported: negative for predominantly capacitive behaviour."@en ;
+    schema:name "Imaginary Impedance / ohm"@en ;
     schema:unitCode "Ohm" ;
     schema:unitText "ohm"@en ;
     :latexSymbol "Z''"^^xsd:string ;
-    :obligation "optional" .
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "The imaginary (reactive) component of the complex impedance, in ohm, as reported with the standard electrotechnical sign convention: negative for predominantly capacitive behaviour. Note that Nyquist plots in electrochemistry conventionally display the negated value on the vertical axis."@en .
 
 :internal_resistance_ohm a owl:Class ;
     rdfs:label "Internal Resistance / ohm"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricResistance ;
     rdfs:comment "Internal resistance of the test object, in ohm, as reported by the instrument; the determination method is unspecified. Where the determination method is known, use the more specific dc_internal_resistance_ohm or ac_internal_resistance_ohm."@en ;
     rdfs:seeAlso unit:OHM ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1311,7 +1484,6 @@ emmo:Volt a owl:Class .
         electrochemistry:electrochemistry_f94678d6_1386_48fc_8e54_024921924401 ;
     skos:altLabel "internal_resistance_ohm"@en ;
     skos:definition "Internal resistance of the test object, in ohm, as reported by the instrument; the determination method is unspecified. Where the determination method is known, use the more specific dc_internal_resistance_ohm or ac_internal_resistance_ohm."@en ;
-    skos:exactMatch quantitykind:ElectricResistance ;
     skos:hiddenLabel "Internal Resistance / Ohm"@en ;
     skos:notation "internal_resistance_ohm" ;
     skos:prefLabel "Internal Resistance / ohm"@en ;
@@ -1324,23 +1496,31 @@ emmo:Volt a owl:Class .
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Internal resistance of the test object, in ohm, as reported by the instrument; the determination method is unspecified. Where the determination method is known, use the more specific dc_internal_resistance_ohm or ac_internal_resistance_ohm."@en .
 
 :real_impedance_ohm a owl:Class ;
+    rdfs:label "Real Impedance / ohm"@en ;
+    qudt:hasQuantityKind quantitykind:Impedance ;
+    rdfs:comment "The real (resistive) component of the complex impedance, in ohm."@en ;
     rdfs:seeAlso unit:OHM ;
-    rdfs:subClassOf sosa:ObservableProperty,
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:Ohm ],
+        sosa:ObservableProperty,
         electrochemistry:electrochemistry_abf986d2_90d5_4746_b42b_89dc7cc1bf0f ;
     skos:altLabel "real_impedance_ohm"@en ;
     skos:definition "The real (resistive) component of the complex impedance, in ohm."@en ;
-    skos:exactMatch quantitykind:Impedance ;
     skos:notation "real_impedance_ohm"@en ;
     skos:prefLabel "Real Impedance / ohm"@en ;
     schema:description "The real (resistive) component of the complex impedance, in ohm."@en ;
+    schema:name "Real Impedance / ohm"@en ;
     schema:unitCode "Ohm" ;
     schema:unitText "ohm"@en ;
     :latexSymbol "Z'"^^xsd:string ;
-    :obligation "optional" .
+    :obligation "optional" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "The real (resistive) component of the complex impedance, in ohm."@en .
 
 :step_capacity_ah a owl:Class ;
     rdfs:label "Step Capacity / Ah"@en ;
     dcterms:isReplacedBy :step_cumulative_capacity_ah ;
+    qudt:hasQuantityKind quantitykind:ElectricCharge ;
     rdfs:comment "Running accumulation of charge throughput within the current test step, in ampere hour: the time integral of the absolute current from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value."@en ;
     rdfs:seeAlso unit:A-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1352,7 +1532,6 @@ emmo:Volt a owl:Class .
     skos:altLabel "step_capacity_ah"@en,
         "step_capacity_ampere_hour"@en ;
     skos:definition "Running accumulation of charge throughput within the current test step, in ampere hour: the time integral of the absolute current from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value."@en ;
-    skos:exactMatch quantitykind:ElectricCharge ;
     skos:historyNote "Deprecated in 1.1.0 (2026-06-08). Renamed to step_cumulative_capacity_ah for consistency with the {charging, discharging, net, cumulative} convention; the concept is unchanged."@en ;
     skos:notation "step_capacity_ah" ;
     skos:prefLabel "Step Capacity / Ah"@en ;
@@ -1365,6 +1544,7 @@ emmo:Volt a owl:Class .
 :step_energy_wh a owl:Class ;
     rdfs:label "Step Energy / Wh"@en ;
     dcterms:isReplacedBy :step_cumulative_energy_wh ;
+    qudt:hasQuantityKind quantitykind:Energy ;
     rdfs:comment "Running accumulation of energy throughput within the current test step, in watt hour: the time integral of the current-signed instantaneous power (P times the sign of I) from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value."@en ;
     rdfs:seeAlso unit:W-HR ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1376,7 +1556,6 @@ emmo:Volt a owl:Class .
     skos:altLabel "step_energy_watt_hour"@en,
         "step_energy_wh"@en ;
     skos:definition "Running accumulation of energy throughput within the current test step, in watt hour: the time integral of the current-signed instantaneous power (P times the sign of I) from the step start, monotonically non-decreasing within the step and reset to zero at each step transition. The direction of transfer is indicated by step_type or the sign of current_ampere, not by this value."@en ;
-    skos:exactMatch quantitykind:Energy ;
     skos:historyNote "Deprecated in 1.1.0 (2026-06-08). Renamed to step_cumulative_energy_wh for consistency with the {charging, discharging, net, cumulative} convention; the concept is unchanged."@en ;
     skos:notation "step_energy_wh" ;
     skos:prefLabel "Step Energy / Wh"@en ;
@@ -1390,10 +1569,9 @@ emmo:MilliSecond a owl:Class .
 
 emmo:Second a owl:Class .
 
-emmo:Ohm a owl:Class .
-
 :cycle_count a owl:Class ;
     rdfs:label "Cycle Count / 1"@en ;
+    qudt:hasQuantityKind quantitykind:Count ;
     rdfs:comment "Cycle index used to segregate time-series data into quasi-periodic subsets, typically tracking performance evolution over aging. Must be a non-negative integer and monotonically non-decreasing within a test. No constraint is placed on the starting value: 0, 1, or any other non-negative integer are all valid. The starting value is instrument-defined and must be preserved as reported; converters must not renumber cycles."@en ;
     rdfs:seeAlso unit:NUM ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1405,7 +1583,6 @@ emmo:Ohm a owl:Class .
         "cycle_count_1"@en,
         "cycle_dimensionless"@en ;
     skos:definition "Cycle index used to segregate time-series data into quasi-periodic subsets, typically tracking performance evolution over aging. Must be a non-negative integer and monotonically non-decreasing within a test. No constraint is placed on the starting value: 0, 1, or any other non-negative integer are all valid. The starting value is instrument-defined and must be preserved as reported; converters must not renumber cycles."@en ;
-    skos:exactMatch quantitykind:Count ;
     skos:notation "cycle_count" ;
     skos:prefLabel "Cycle Count / 1"@en ;
     schema:description "Cycle index, non-negative integer, monotonically non-decreasing within a test. Starting value is instrument-defined (any non-negative integer); converters must not renumber cycles."@en ;
@@ -1417,12 +1594,17 @@ emmo:Ohm a owl:Class .
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Cycle index used to segregate time-series data into quasi-periodic subsets, typically tracking performance evolution over aging. Must be a non-negative integer and monotonically non-decreasing within a test. No constraint is placed on the starting value: 0, 1, or any other non-negative integer are all valid. The starting value is instrument-defined and must be preserved as reported; converters must not renumber cycles."@en .
 
 :step_time_second a owl:Class ;
+    rdfs:label "Step Time / s"@en ;
+    qudt:hasQuantityKind quantitykind:Time ;
+    rdfs:comment "Elapsed time since the beginning of the active test step, in second; resets to zero at each step transition."@en ;
     rdfs:seeAlso unit:SEC ;
-    rdfs:subClassOf sosa:ObservableProperty,
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:Second ],
+        sosa:ObservableProperty,
         electrochemistry:electrochemistry_80ca00f8_c891_4493_87a2_7d39b9d1e098 ;
     skos:altLabel "step_time_second"@en ;
     skos:definition "Elapsed time since the beginning of the active test step, in second; resets to zero at each step transition."@en ;
-    skos:exactMatch quantitykind:Time ;
     skos:notation "step_time_second"@en ;
     skos:prefLabel "Step Time / s"@en ;
     schema:description "Elapsed time since the beginning of the active test step, in second; resets to zero at each step transition."@en ;
@@ -1433,33 +1615,13 @@ emmo:Ohm a owl:Class .
     :obligation "optional" ;
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Elapsed time since the beginning of the active test step, in second; resets to zero at each step transition."@en .
 
-:test_time_second a owl:Class ;
-    rdfs:label "Test Time / s"@en ;
-    rdfs:comment "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en ;
-    rdfs:seeAlso unit:SEC ;
-    rdfs:subClassOf [ a owl:Restriction ;
-            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
-            owl:someValuesFrom emmo:Second ],
-        sosa:ObservableProperty,
-        electrochemistry:electrochemistry_27b3799c_250c_4332_8b71_7992c4a7bb05 ;
-    skos:altLabel "test_time_s"@en,
-        "test_time_second"@en ;
-    skos:definition "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en ;
-    skos:exactMatch quantitykind:Time ;
-    skos:notation "test_time_second" ;
-    skos:prefLabel "Test Time / s"@en ;
-    schema:description "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en ;
-    schema:name "Test Time / s"@en ;
-    schema:unitCode "s" ;
-    schema:unitText "second"@en ;
-    :latexSymbol "t"^^xsd:string ;
-    :obligation "required" ;
-    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en .
+emmo:Ohm a owl:Class .
 
 emmo:DegreeCelsius a owl:Class .
 
 :power_watt a owl:Class ;
     rdfs:label "Power / W"@en ;
+    qudt:hasQuantityKind quantitykind:Power ;
     rdfs:comment "Instantaneous power calculated as the product of voltage and current, in watt."@en ;
     rdfs:seeAlso unit:W ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1470,7 +1632,6 @@ emmo:DegreeCelsius a owl:Class .
     skos:altLabel "power_w"@en,
         "power_watt"@en ;
     skos:definition "Instantaneous power calculated as the product of voltage and current, in watt."@en ;
-    skos:exactMatch quantitykind:Power ;
     skos:notation "power_watt" ;
     skos:prefLabel "Power / W"@en ;
     prov:wasDerivedFrom :current_ampere,
@@ -1485,8 +1646,32 @@ emmo:DegreeCelsius a owl:Class .
     :obligation "optional" ;
     emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Instantaneous power calculated as the product of voltage and current, in watt."@en .
 
+:test_time_second a owl:Class ;
+    rdfs:label "Test Time / s"@en ;
+    qudt:hasQuantityKind quantitykind:Time ;
+    rdfs:comment "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en ;
+    rdfs:seeAlso unit:SEC ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty emmo:EMMO_bed1d005_b04e_4a90_94cf_02bc678a8569 ;
+            owl:someValuesFrom emmo:Second ],
+        sosa:ObservableProperty,
+        electrochemistry:electrochemistry_27b3799c_250c_4332_8b71_7992c4a7bb05 ;
+    skos:altLabel "test_time_s"@en,
+        "test_time_second"@en ;
+    skos:definition "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en ;
+    skos:notation "test_time_second" ;
+    skos:prefLabel "Test Time / s"@en ;
+    schema:description "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en ;
+    schema:name "Test Time / s"@en ;
+    schema:unitCode "s" ;
+    schema:unitText "second"@en ;
+    :latexSymbol "t"^^xsd:string ;
+    :obligation "required" ;
+    emmo:EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9 "Elapsed time since the start of the test, in second. Monotonically non-decreasing within a test; behaviour during pauses is instrument-defined and values must be preserved as reported."@en .
+
 :current_ampere a owl:Class ;
     rdfs:label "Current / A"@en ;
+    qudt:hasQuantityKind quantitykind:ElectricCurrent ;
     rdfs:comment "Instantaneous current flowing through the test object, in ampere. Sign convention: positive current charges the test object (current flows into it) and negative current discharges it; the charging and discharging capacity and energy quantities are defined by this convention."@en ;
     rdfs:seeAlso unit:A ;
     rdfs:subClassOf [ a owl:Restriction ;
@@ -1497,7 +1682,6 @@ emmo:DegreeCelsius a owl:Class .
     skos:altLabel "current_a"@en,
         "current_ampere"@en ;
     skos:definition "Instantaneous current flowing through the test object, in ampere. Sign convention: positive current charges the test object (current flows into it) and negative current discharges it; the charging and discharging capacity and energy quantities are defined by this convention."@en ;
-    skos:exactMatch quantitykind:ElectricCurrent ;
     skos:notation "current_ampere" ;
     skos:prefLabel "Current / A"@en ;
     schema:description "Instantaneous current flowing through the test object, in ampere. Sign convention: positive current charges the test object (current flows into it) and negative current discharges it; the charging and discharging capacity and energy quantities are defined by this convention."@en ;
