@@ -191,10 +191,6 @@ df = bdf.read("path/to/file.nda")
 # Force the NDA plugin explicitly
 df = bdf.read("path/to/file.nda", plugin="neware_nda")
 
-# Interactive exploration (plotly requires batterydf[plot]; bokeh requires batterydf[hvplot])
-bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
-bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
-
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)
 
