@@ -14,6 +14,8 @@ Polars is licensed under MIT: https://github.com/pola-rs/polars/blob/main/LICENS
 from __future__ import annotations
 
 import inspect
+import shutil
+import sys
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -726,7 +728,7 @@ class NDAParser(TableParser):
 
 
 class MDBParser(TableParser):
-    """Parser for Microsoft Access .mdb database files using polars-access-mdbtools.
+    """Parser for Microsoft Access .mdb database files.
 
     Always reads the ``Channel_Normal_Table`` table.
     """
@@ -738,6 +740,62 @@ class MDBParser(TableParser):
     base_exts: ClassVar[frozenset[str]] = frozenset({".mdb"})
     magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"\x00\x01\x00\x00Standard Jet DB"})
     is_text: ClassVar[bool] = False
+    table_name: ClassVar[str] = "Channel_Normal_Table"
+
+    @staticmethod
+    def _has_access_driver() -> bool:
+        try:
+            import pyodbc
+        except ImportError:
+            return False
+        return any("Microsoft Access Driver" in driver for driver in pyodbc.drivers())
+
+    @staticmethod
+    def _has_mdbtools() -> bool:
+        try:
+            import polars_access_mdbtools  # noqa: F401
+        except ImportError:
+            return False
+        return shutil.which("mdb-export") is not None and shutil.which("mdb-schema") is not None
+
+    @staticmethod
+    def _sort_by_data_point(df: pl.DataFrame) -> pl.DataFrame:
+        if "Data_Point" in df.columns:
+            return df.sort("Data_Point")
+        return df
+
+    @classmethod
+    def _read_with_pyodbc(cls, path: Path) -> pl.DataFrame:
+        import pyodbc
+
+        driver = next((driver for driver in pyodbc.drivers() if "Microsoft Access Driver" in driver), None)
+        if driver is None:
+            raise RuntimeError(cls._dependency_error())
+        conn = pyodbc.connect(rf"DRIVER={{{driver}}};DBQ={path.resolve()};")
+        try:
+            return pl.read_database(f"SELECT * FROM {cls.table_name}", conn)
+        finally:
+            conn.close()
+
+    @classmethod
+    def _read_with_mdbtools(cls, path: Path) -> pl.DataFrame:
+        import polars_access_mdbtools
+
+        return polars_access_mdbtools.read_table(str(path), cls.table_name)
+
+    @staticmethod
+    def _dependency_error() -> str:
+        if sys.platform == "win32":
+            return (
+                "MDBParser requires either the Microsoft Access ODBC driver or MDB Tools. "
+                "Install with `pip install batterydf[arbin_res]` and install the Microsoft Access Database Engine, "
+                "or install and make MDB Tools command-line utilities (`mdb-export` and `mdb-schema`) available on PATH."
+            )
+        return (
+            "MDBParser requires MDB Tools and the optional Arbin .res dependencies. "
+            "Install with `pip install batterydf[arbin_res]` and make MDB Tools command-line utilities "
+            "(`mdb-export` and `mdb-schema`) available on PATH."
+        )
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
         """Read an MDB file to a LazyFrame.
@@ -749,22 +807,14 @@ class MDBParser(TableParser):
             A polars LazyFrame containing the MDB data.
 
         Raises:
-            RuntimeError: If polars-access-mdbtools is not installed.
+            RuntimeError: If no MDB backend is available.
         """
-        try:
-            import polars_access_mdbtools
-        except ImportError as exc:
-            raise RuntimeError(
-                "MDBParser requires the optional Arbin .res dependencies. "
-                "Use Python >=3.11 and install with `pip install batterydf[arbin_res]`; "
-                "MDB Tools command-line utilities (including `mdb-schema`) must also be available on PATH."
-            ) from exc
-
         resolved = resolve_source(path)
-        df = polars_access_mdbtools.read_table(str(resolved), "Channel_Normal_Table")
-        if "Data_Point" in df.columns:
-            df = df.sort("Data_Point")
-        return df.lazy()
+        if sys.platform == "win32" and self._has_access_driver():
+            return self._sort_by_data_point(self._read_with_pyodbc(resolved)).lazy()
+        if self._has_mdbtools():
+            return self._sort_by_data_point(self._read_with_mdbtools(resolved)).lazy()
+        raise RuntimeError(self._dependency_error())
 
     def read_column_headings(self, path: str | Path) -> list[str]:
         """Extract column names from an MDB file.

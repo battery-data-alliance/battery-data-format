@@ -729,7 +729,7 @@ class TestNDAParser:
 
 
 class TestMDBParser:
-    """MDBParser, with polars-access-mdbtools mocked so no binary fixture or real dependency is needed."""
+    """MDBParser, with MDB backends mocked so no binary fixture or real dependency is needed."""
 
     @pytest.fixture
     def fake_polars_access_mdbtools(self, monkeypatch: pytest.MonkeyPatch):
@@ -747,23 +747,53 @@ class TestMDBParser:
         module = types.ModuleType("polars_access_mdbtools")
         module.read_table = fake_read_table  # type: ignore[attr-defined]
         monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: True))
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
         return calls
 
     def test_read_raw_missing_dependency_raises_runtime_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """_read_raw raises RuntimeError with install hint when polars_access_mdbtools is not importable."""
-        import builtins
-
-        real_import = builtins.__import__
-
-        def blocked_import(name: str, *args, **kwargs):
-            if name == "polars_access_mdbtools":
-                raise ImportError("no polars_access_mdbtools")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", blocked_import)
+        """_read_raw raises RuntimeError with install hints when no MDB backend is available."""
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: False))
         parser = MDBParser()
-        with pytest.raises(RuntimeError, match=r"batterydf\[arbin_res\].*mdb-schema"):
+        with pytest.raises(RuntimeError, match=r"batterydf\[arbin_res\].*mdb-export.*mdb-schema"):
             parser._read_raw("cell.res")
+
+    def test_read_raw_uses_pyodbc_first_on_windows(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """_read_raw prefers the Microsoft Access ODBC driver on Windows."""
+        import sys
+        import types
+
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        calls: list[str] = []
+
+        class FakeConnection:
+            def close(self) -> None:
+                calls.append("close")
+
+        def fake_connect(connection_string: str) -> FakeConnection:
+            calls.append(connection_string)
+            return FakeConnection()
+
+        def fake_read_database(query: str, conn: FakeConnection) -> pl.DataFrame:
+            calls.append(query)
+            return pl.DataFrame({"Data_Point": [2, 1], "Voltage": [3.2, 3.1]})
+
+        pyodbc = types.ModuleType("pyodbc")
+        pyodbc.drivers = lambda: ["Microsoft Access Driver (*.mdb, *.accdb)"]  # type: ignore[attr-defined]
+        pyodbc.connect = fake_connect  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "pyodbc", pyodbc)
+        monkeypatch.setattr("bdf.table_parsers.sys.platform", "win32")
+        monkeypatch.setattr(pl, "read_database", fake_read_database)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: False))
+
+        out = MDBParser()._read_raw(res_path).collect()
+
+        assert out["Data_Point"].to_list() == [1, 2]
+        assert calls[0].startswith("DRIVER={Microsoft Access Driver")
+        assert calls[1] == "SELECT * FROM Channel_Normal_Table"
+        assert calls[2] == "close"
 
     def test_read_raw_passes_resolved_local_path_to_polars_access_mdbtools(
         self, fake_polars_access_mdbtools, tmp_path: Path
@@ -803,6 +833,8 @@ class TestMDBParser:
         module = types.ModuleType("polars_access_mdbtools")
         module.read_table = fake_read_table  # type: ignore[attr-defined]
         monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: True))
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
 
         res_path = tmp_path / "cell.res"
         res_path.write_bytes(b"")
