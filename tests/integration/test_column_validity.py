@@ -555,6 +555,25 @@ class TestInstantaneousRangeCategorical:
     def test_dc_internal_resistance_ohm(self, cid: str, case: SampleCase, data_dir: Path) -> None:
         run_check(case, data_dir, "dc_internal_resistance_ohm", assert_nonneg_finite)
 
+    # schedule_* accumulators (ontology 1.3.0): resets and assignments are
+    # schedule-defined and legal anywhere, so the only assertable invariants
+    # are finiteness and non-negativity.
+    @pytest.mark.parametrize("cid,case", cases_for("schedule_charging_capacity_ah"))
+    def test_schedule_charging_capacity_ah(self, cid: str, case: SampleCase, data_dir: Path) -> None:
+        run_check(case, data_dir, "schedule_charging_capacity_ah", assert_nonneg_finite)
+
+    @pytest.mark.parametrize("cid,case", cases_for("schedule_discharging_capacity_ah"))
+    def test_schedule_discharging_capacity_ah(self, cid: str, case: SampleCase, data_dir: Path) -> None:
+        run_check(case, data_dir, "schedule_discharging_capacity_ah", assert_nonneg_finite)
+
+    @pytest.mark.parametrize("cid,case", cases_for("schedule_charging_energy_wh"))
+    def test_schedule_charging_energy_wh(self, cid: str, case: SampleCase, data_dir: Path) -> None:
+        run_check(case, data_dir, "schedule_charging_energy_wh", assert_nonneg_finite)
+
+    @pytest.mark.parametrize("cid,case", cases_for("schedule_discharging_energy_wh"))
+    def test_schedule_discharging_energy_wh(self, cid: str, case: SampleCase, data_dir: Path) -> None:
+        run_check(case, data_dir, "schedule_discharging_energy_wh", assert_nonneg_finite)
+
     @pytest.mark.parametrize("cid,case", cases_for("temperature_t1_celsius"))
     def test_temperature_t1_celsius(self, cid: str, case: SampleCase, data_dir: Path) -> None:
         run_check(case, data_dir, "temperature_t1_celsius", assert_temp_range)

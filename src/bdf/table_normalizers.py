@@ -685,10 +685,14 @@ ARBIN = TableNormalizer(
         Syn(hdr="Aux_Temperature_1 (C)"),
         Syn(hdr="Aux_Temperature_1 ({unit})"),
     ),
-    charging_capacity_ah=(Syn(hdr="Charge Capacity ({unit})"),),
-    discharging_capacity_ah=(Syn(hdr="Discharge Capacity ({unit})"),),
-    charging_energy_wh=(Syn(hdr="Charge Energy ({unit})"),),
-    discharging_energy_wh=(Syn(hdr="Discharge Energy ({unit})"),),
+    # Arbin's accumulators reset at operator-authored schedule points ('Set
+    # variable(s)') and can be assigned arbitrary values ('Set value'), per
+    # Arbin's MITS team, so they carry the schedule-scoped terms from ontology
+    # 1.3.0, not the never-resetting test-scoped ones.
+    schedule_charging_capacity_ah=(Syn(hdr="Charge Capacity ({unit})"),),
+    schedule_discharging_capacity_ah=(Syn(hdr="Discharge Capacity ({unit})"),),
+    schedule_charging_energy_wh=(Syn(hdr="Charge Energy ({unit})"),),
+    schedule_discharging_energy_wh=(Syn(hdr="Discharge Energy ({unit})"),),
     power_watt=(Syn(hdr="Power ({unit})"),),
     ac_internal_resistance_ohm=(Syn(hdr="ACR ({unit})"),),
     dc_internal_resistance_ohm=(Syn(hdr="Internal Resistance ({unit})"),),
