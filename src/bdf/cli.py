@@ -195,12 +195,9 @@ def clean(
     Accepts either BDF CSV/Parquet or a raw vendor file.
     """
     # Load BDF
-    import polars as pl
 
-    df_pl, _ = read(path, plugin=as_)
-    df = df_pl.to_pandas()
+    df, _ = read(path, plugin=as_)
     df, rep = clean_bdf(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=col)
-    df_pl = pl.from_pandas(df)
     save(df, out)
     typer.echo(str(rep))
     typer.echo(f"Saved: {out}")

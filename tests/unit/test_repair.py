@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
 
 from bdf.repair import (
@@ -184,7 +185,7 @@ def test_hampel_flags_spike_and_clean_series_flags_nothing():
     df = _smooth_df(spike_at=50)
     t = df["Test Time / s"]
     hampel = _hampel_mask(df["Voltage / V"], time_s=t, seconds=300.0, k=6.0)
-    assert bool(hampel.iloc[50])
+    assert bool(hampel[50])
     clean_v = _smooth_df()["Voltage / V"]
     assert not _hampel_mask(clean_v, time_s=t, seconds=300.0, k=6.0).any()
 
@@ -198,7 +199,7 @@ def test_slope_mask_needs_derivative_spread():
     # with any real spread in the derivative, the spike is flagged
     v = df["Voltage / V"] + 0.001 * np.sin(np.arange(len(df)))
     slope = _slope_mask(v, time_s=t, z=8.0)
-    assert bool(slope.iloc[50])
+    assert bool(slope[50])
 
 
 # ---- fix_time methods ----
@@ -357,3 +358,40 @@ def test_clean_report_str_contains_summary_lines():
     assert "Time fix: segment" in text
     assert "Outliers: drop (z>8)" in text
     assert "Per-column outliers: Voltage / V=1, Current / A=0" in text
+
+
+# ---- polars-native boundary (post-port) ----
+
+
+def test_clean_polars_in_polars_out():
+    df = pl.from_pandas(_smooth_df(spike_at=50))
+    out, rep = clean(df, time_fix="none", outlier="drop")
+    assert isinstance(out, pl.DataFrame)
+    assert rep.n_rows_out == 99
+
+
+def test_clean_lazy_in_lazy_out():
+    lf = pl.from_pandas(_smooth_df()).lazy()
+    out, rep = clean(lf, time_fix="segment", outlier="none")
+    assert isinstance(out, pl.LazyFrame)
+    assert rep.n_rows_out == 100
+
+
+def test_clean_pandas_in_pandas_out():
+    out, _ = clean(_smooth_df(), time_fix="none", outlier="none")
+    assert isinstance(out, pd.DataFrame)
+
+
+def test_fix_time_polars_in_polars_out():
+    df = pl.DataFrame({"Test Time / s": [0.0, 10.0, 3.0, 20.0]})
+    out = fix_time(df, method="segment")
+    assert isinstance(out, pl.DataFrame)
+    assert out["Test Time / s"].is_sorted()
+
+
+def test_clean_results_identical_across_kinds():
+    pdf = _smooth_df(spike_at=50)
+    out_pd, _ = clean(pdf, time_fix="segment", outlier="clip")
+    out_pl, _ = clean(pl.from_pandas(pdf), time_fix="segment", outlier="clip")
+    np.testing.assert_allclose(out_pd["Voltage / V"].to_numpy(), out_pl["Voltage / V"].to_numpy())
+    np.testing.assert_allclose(out_pd["Test Time / s"].to_numpy(), out_pl["Test Time / s"].to_numpy())
