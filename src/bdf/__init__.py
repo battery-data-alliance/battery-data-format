@@ -7,11 +7,11 @@ import warnings
 # mypy: ignore-errors
 from pathlib import Path
 from typing import Any, Literal, Optional
-from urllib.parse import urlparse
 
 import pandas as pd
 
 # light imports that never cause cycles
+from .file_utils import ensure_dir as _ensure_dir, is_url as _is_url
 from .io import read, save, scan  # spec-driven reader/serializer (the public read()/scan())
 from .plugins import detect  # spec-driven detection -> (plugin_id, Plugin)
 from .repair import CleanReport, clean  # public cleaning helpers
@@ -107,14 +107,6 @@ if _enable_short_warnings():
 # -------------------------------
 # small helpers
 # -------------------------------
-def _is_url(x: str) -> bool:
-    try:
-        u = urlparse(str(x))
-        return u.scheme in ("http", "https") and bool(u.netloc)
-    except Exception:
-        return False
-
-
 def _resolve_source(
     source: str | Path,
     *,
@@ -161,11 +153,6 @@ def _default_ingest_cache_dir() -> Path:
     if env:
         return Path(env).expanduser().resolve()
     return Path.home() / ".bdf" / "crawl"
-
-
-def _ensure_dir(path: Path) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 def _parse_github_tree(url: str) -> tuple[str, str, str, str] | None:

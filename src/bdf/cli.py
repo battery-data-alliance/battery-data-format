@@ -15,8 +15,8 @@ from . import (
 )
 from .io import read, save
 from .metadata import Creator, Dataset, RelatedIdentifier, save_jsonld
-from .repair import clean as clean_bdf
-from .visualize import plot as line_plot
+from .repair import DEFAULT_OUTLIER_COLS, clean as clean_bdf
+from .visualize import X_DEFAULT, Y_DEFAULT, plot as line_plot
 
 app = typer.Typer(help="Battery Data Format utilities")
 
@@ -188,7 +188,7 @@ def clean(
     time_fix: str = typer.Option("segment", help="segment|sort|drop|none"),
     outlier: str = typer.Option("none", help="none|drop|clip|interp"),
     z: float = typer.Option(8.0, help="Robust z threshold for outliers"),
-    col: List[str] = typer.Option(["Voltage / V", "Current / A"], help="Columns to clean for outliers"),
+    col: List[str] = typer.Option(list(DEFAULT_OUTLIER_COLS), help="Columns to clean for outliers"),
 ):
     """
     Clean a dataset by fixing non-monotonic time and removing/repairing outliers.
@@ -308,8 +308,8 @@ def convert(
 @app.command()
 def plot(
     path: str,
-    xdata: str = typer.Option("Test Time / s", help="BDF column for x-axis"),
-    ydata: List[str] = typer.Option(["Voltage / V"], help="One or more BDF columns for y-axis"),
+    xdata: str = typer.Option(X_DEFAULT, help="BDF column for x-axis"),
+    ydata: List[str] = typer.Option([Y_DEFAULT], help="One or more BDF columns for y-axis"),
     save: Optional[str] = typer.Option(None, "--save", "-s", help="Save figure to file"),
     show: bool = typer.Option(False, "--show/--no-show", help="Display window"),
     as_: Optional[str] = typer.Option(None, "--as", help="Force a specific plugin id (e.g., biologic_mpt)"),

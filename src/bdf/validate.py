@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import warnings
 from typing import Any, Dict, List
 
@@ -9,6 +8,7 @@ import pandas as pd
 
 from . import spec
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
+from .spec import _slugify
 
 __all__ = ["BDFValidationError", "validate_df"]
 
@@ -18,13 +18,6 @@ OPTIONAL = spec.COLUMN_ONTOLOGY.optional_labels()
 
 class BDFValidationError(Exception):
     """Raised when a DataFrame fails BDF validation."""
-
-
-_SLUG = re.compile(r"[^a-z0-9]+")
-
-
-def _slugify(text: str) -> str:
-    return _SLUG.sub("-", text.lower()).strip("-")
 
 
 # Algebraic identities the ontology defines via prov:wasDerivedFrom:
@@ -221,9 +214,10 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
     missing: List[str] = [c for c in REQUIRED if c not in canonical_present]
 
     # --- time monotonicity (warning-level) ---
+    time_label = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
     time_stats: Dict[str, Any] = {"present": False, "monotonic": True, "violations": 0, "min_drop": 0.0}
-    if "Test Time / s" in df.columns:
-        s = pd.to_numeric(df["Test Time / s"], errors="coerce")
+    if time_label in df.columns:
+        s = pd.to_numeric(df[time_label], errors="coerce")
         d = s.diff()
         # robust threshold (same idea as clean.py)
         eps = _compute_eps_from_diffs(d.fillna(0.0).to_numpy())
@@ -269,7 +263,7 @@ def _print_report(rep: Dict[str, Any]) -> None:
     ts = rep.get("time_stats", {})
     if ts.get("present") and not ts.get("monotonic", True):
         print(
-            f"   ⚠️ Non-monotonic 'Test Time / s': "
+            f"   ⚠️ Non-monotonic '{spec.COLUMN_ONTOLOGY.test_time_second.formatted_label}': "
             f"{ts['violations']} drops (min Δ = {ts['min_drop']:.6g} s, eps≈{ts['epsilon']:.6g})."
         )
         print("      Suggestion: bdf.clean(df, time_fix='segment') or bdf.repair.fix_time(df, method='auto').")
@@ -291,7 +285,8 @@ def validate_df(
     ts = rep.get("time_stats", {})
     if ts.get("present") and not ts.get("monotonic", True):
         warnings.warn(
-            f"Non-monotonic 'Test Time / s' detected: {ts['violations']} drops "
+            f"Non-monotonic '{spec.COLUMN_ONTOLOGY.test_time_second.formatted_label}' detected: "
+            f"{ts['violations']} drops "
             f"(min Δ = {ts['min_drop']:.6g} s). Consider bdf.repair.fix_time(...).",
             RuntimeWarning,
             stacklevel=2,
