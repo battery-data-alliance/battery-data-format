@@ -709,10 +709,13 @@ ARBIN_RES = TableNormalizer(
     step_id=(Syn(hdr="Step_Index"),),
     record_index=(Syn(hdr="Data_Point"),),
     step_time_second=(Syn(hdr="Step_Time", source_unit="s"),),
-    charging_capacity_ah=(Syn(hdr="Charge_Capacity", source_unit="Ah"),),
-    discharging_capacity_ah=(Syn(hdr="Discharge_Capacity", source_unit="Ah"),),
-    charging_energy_wh=(Syn(hdr="Charge_Energy", source_unit="Wh"),),
-    discharging_energy_wh=(Syn(hdr="Discharge_Energy", source_unit="Wh"),),
+    # Arbin accumulators reset at operator-defined schedule points, so they map
+    # to the schedule-scoped terms from ontology 1.3.0 (see the csv/xlsx
+    # normalizer above).
+    schedule_charging_capacity_ah=(Syn(hdr="Charge_Capacity", source_unit="Ah"),),
+    schedule_discharging_capacity_ah=(Syn(hdr="Discharge_Capacity", source_unit="Ah"),),
+    schedule_charging_energy_wh=(Syn(hdr="Charge_Energy", source_unit="Wh"),),
+    schedule_discharging_energy_wh=(Syn(hdr="Discharge_Energy", source_unit="Wh"),),
     dc_internal_resistance_ohm=(Syn(hdr="Internal_Resistance", source_unit="ohm"),),
     absolute_impedance_ohm=(Syn(hdr="AC_Impedance", source_unit="ohm"),),
     phase_degree=(Syn(hdr="ACI_Phase_Angle", source_unit="degree"),),
