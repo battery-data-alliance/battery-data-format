@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [Unreleased]
 ### Added
+- repair.py ported to polars-native internals: fix_time and clean now accept polars (eager or lazy) or pandas frames and return the same kind, with identical numeric results across input types (pinned by the characterization suite). mypy re-enabled on the module; the CLI clean command no longer round-trips through pandas.
 - Arbin normalizers (csv, xlsx) map Charge/Discharge Capacity and Energy to the schedule_* terms from ontology 1.3.0, reflecting the operator-defined reset behavior Arbin confirmed; the columns previously landed on the never-resetting test-scoped terms.
 - CI pipeline with lint/type/tests/docs and build/twine checks.
 - Sphinx docs with pydata theme and converted notebook examples.
