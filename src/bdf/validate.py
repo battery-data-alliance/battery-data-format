@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from . import spec
+from ._time_scale import detect_scale_mismatch
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .spec import _slugify
 
@@ -158,6 +159,37 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
                 if bad:
                     issues.append(f"'{counter_name}' has {bad} transitions that neither increment by 1 nor reset to 1.")
                     details.append({"check": "step_index_seq", "column": counter_name, "violations": bad})
+
+    # 5) elapsed-time vs wall-clock scale cross-check (GH #65): a column whose
+    # values are in the wrong unit is self-consistent, so only the comparison
+    # with the independently recorded wall clock reveals it.
+    if "unix_time_second" in cols:
+        wall = cols["unix_time_second"].to_numpy(dtype=float)
+        for name in ("test_time_second", "step_time_second"):
+            if name not in cols:
+                continue
+            mismatch = detect_scale_mismatch(cols[name].to_numpy(dtype=float), wall)
+            if mismatch is None:
+                continue
+            if mismatch.unit_name:
+                issues.append(
+                    f"'{name}' increments disagree with wall-clock ('unix_time_second') increments "
+                    f"by ~{mismatch.ratio:g}x: values appear to be {mismatch.unit_name}, not seconds."
+                )
+            else:
+                issues.append(
+                    f"'{name}' increments disagree with wall-clock ('unix_time_second') increments "
+                    f"by ~{mismatch.ratio:g}x (no known unit matches this ratio)."
+                )
+            details.append(
+                {
+                    "check": "time_scale",
+                    "column": name,
+                    "ratio": mismatch.ratio,
+                    "actual_unit": mismatch.unit_name,
+                    "n_samples": mismatch.n_samples,
+                }
+            )
 
     return {"issues": issues, "details": details}
 
