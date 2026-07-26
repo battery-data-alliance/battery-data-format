@@ -41,6 +41,26 @@ def test_validate_function_on_dataframe_and_path(tmp_path):
     assert rep_path["ok"] is True
 
 
+def test_validate_accepts_bdf_csv_without_bdf_filename_prefix(tmp_path):
+    """A file with BDF headers without bdf in path should still work."""
+    df = _base_df()
+    csv_path = tmp_path / "sample.csv"
+    df.to_csv(csv_path, index=False)
+
+    rep = validate(csv_path, report=False, raise_on_error=True)
+    assert rep["ok"] is True
+
+
+def test_validate_rejects_unrecognized_csv(tmp_path):
+    df = pd.DataFrame({"foo": [1, 2, 3], "bar": [4, 5, 6]})
+    csv_path = tmp_path / "garbage.csv"
+    df.to_csv(csv_path, index=False)
+
+    rep = validate(csv_path, report=False, raise_on_error=False)
+    assert rep["ok"] is False
+    assert rep["kind"] == "not_bdf_artifact"
+
+
 def test_validate_accepts_notation_headers(tmp_path):
     df = pd.DataFrame(
         {

@@ -6,13 +6,13 @@ import warnings
 
 # mypy: ignore-errors
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from urllib.parse import urlparse
 
 import pandas as pd
 
 # light imports that never cause cycles
-from .io import load, read, save  # spec-driven reader/serializer (the public read())
+from .io import read, save, scan  # spec-driven reader/serializer (the public read()/scan())
 from .plugins import detect  # spec-driven detection -> (plugin_id, Plugin)
 from .repair import CleanReport, clean  # public cleaning helpers
 from .table_normalizers import normalize  # spec-driven column normalizer
@@ -21,7 +21,7 @@ from .validate import BDFValidationError, validate_df  # error type + df validat
 __all__ = [
     # core I/O
     "read",
-    "load",
+    "scan",
     "save",
     "normalize",
     "validate",
@@ -355,64 +355,27 @@ def validate(
         p = Path(local_path)
         fname = p.name
 
-        # Only attempt to load files that look like BDF artifacts
-        def _looks_like_bdf_artifact(path: Path) -> bool:
-            # quick filename hint: *.bdf.csv, *.bdf.parquet, *.bdf.feather, *.bdf.json(.gz)
-            name_lc = path.name.lower()
-            if any(
-                name_lc.endswith(suf)
-                for suf in (
-                    ".bdf.csv",
-                    ".bdf.csv.gz",
-                    ".bdf.parquet",
-                    ".bdf.feather",
-                    ".bdf.json",
-                    ".bdf.json.gz",
-                )
-            ):
-                return True
-            # header sniff for CSV only (cheap and safe)
-            if name_lc.endswith(".csv") or name_lc.endswith(".csv.gz"):
-                try:
-                    with (
-                        gzip.open(path, "rt")
-                        if name_lc.endswith(".gz")
-                        else open(path, encoding="utf-8", errors="ignore")
-                    ) as f:
-                        head = "".join([f.readline() for _ in range(2)]).lower()
-                    header_line = head.splitlines()[0] if head else ""
-                    cols_l = {c.strip().lower() for c in header_line.split(",")}
-                    from . import spec
-
-                    for _, quantity_spec in spec.COLUMN_ONTOLOGY:
-                        if not quantity_spec.required or quantity_spec.deprecated:
-                            continue
-                        pref = quantity_spec.formatted_label.lower()
-                        notation = quantity_spec.effective_notation.lower()
-                        if pref not in cols_l and notation not in cols_l:
-                            return False
-                    return True
-                except Exception:
-                    return False
-            return False
-
-        # Optional gzip import for header sniff
-        import gzip as _maybe_gzip  # safe alias
-
-        gzip = _maybe_gzip
-
-        if not _looks_like_bdf_artifact(p):
+        # Check if file looks like bdf
+        try:
+            plugin_name, _plugin = detect(p)
+        except ValueError:
+            plugin_name = "None"
+            message = "Did not match any existing plugin"
+        else:
+            message = f"Matched plugin '{plugin_name}'"
+        if not plugin_name.startswith("bdf_"):
             return _bad_report(
                 kind="not_bdf_artifact",
-                detail=f"{fname} does not look like a BDF artifact (expected .bdf.<ext> or a BDF-style header).",
+                detail=f"{fname} does not look like a BDF artifact. {message}.",
                 file=fname,
             )
 
-        # Try to load with strict BDF IO (no transformations)
+        # Try to read the file
         try:
-            from .io import load as _load_bdf  # strict loader for BDF CSV/Parquet/Feather/JSON
+            from .io import read
 
-            df = _load_bdf(p)
+            df, _metadata = read(p)
+            df = df.to_pandas()
         except Exception as e:
             return _bad_report(
                 kind="io_error",
@@ -529,7 +492,7 @@ def ingest(
     recursive: bool = True,
     validate_existing: bool = True,
     validate_converted: bool = True,
-    include_optional: bool = True,
+    include_unknown: bool = False,
     plugin: str | None = None,
     incremental: bool = True,
     force: bool = False,
@@ -542,7 +505,7 @@ def ingest(
     cell_metadata_dir: str | Path | None = "batteries",
     doi_enrich: bool = True,
     doi_timeout: int = 15,
-    human: bool = False,
+    labels: Literal["preferred", "machine", "unchanged"] = "machine",
 ):
     """
     Convert raw vendor files to BDF and validate existing BDF artifacts.
@@ -567,7 +530,10 @@ def ingest(
     - refresh/cache_dir: refresh cached remote sources
     - doi_enrich: if True, enrich missing dataset metadata from DOI (DataCite, then Crossref)
     - doi_timeout: per-request timeout (seconds) for DOI lookups
-    - human: if True, serialize with human prefLabels; default writes skos:notation labels
+    - labels: Style of column names to use (default: "machine"):
+        "preferred": BDF preferred label, e.g. "Voltage / V"
+        "machine": BDF machine-readable label e.g. "voltage_volt"
+        "unchanged": Keep column names as-is
 
     Returns a summary dict with converted/validated/failed entries.
     When source is a list, the summary includes "sources"; when discover_collections
@@ -588,7 +554,7 @@ def ingest(
                     recursive=recursive,
                     validate_existing=validate_existing,
                     validate_converted=validate_converted,
-                    include_optional=include_optional,
+                    include_unknown=include_unknown,
                     plugin=plugin,
                     incremental=incremental,
                     force=force,
@@ -601,7 +567,7 @@ def ingest(
                     cell_metadata_dir=cell_metadata_dir,
                     doi_enrich=doi_enrich,
                     doi_timeout=doi_timeout,
-                    human=human,
+                    labels=labels,
                 )
                 results.append({"source": str(src), "summary": summary})
             except Exception as exc:
@@ -644,7 +610,7 @@ def ingest(
                     recursive=recursive,
                     validate_existing=validate_existing,
                     validate_converted=validate_converted,
-                    include_optional=include_optional,
+                    include_unknown=include_unknown,
                     plugin=plugin,
                     incremental=incremental,
                     force=force,
@@ -657,7 +623,7 @@ def ingest(
                     cell_metadata_dir=cell_metadata_dir,
                     doi_enrich=doi_enrich,
                     doi_timeout=doi_timeout,
-                    human=human,
+                    labels=labels,
                 )
                 results.append({"path": str(collection_root), "summary": summary})
             except Exception as exc:
@@ -783,8 +749,6 @@ def ingest(
         files = [f for f in file_root.glob(pattern) if f.is_file()]
     else:
         files = [p]
-
-    from .io import save as _save  # lazy import
 
     summary = {
         "converted": [],
@@ -1849,9 +1813,8 @@ def ingest(
                 if layout_mode == "flat" and not collection_metadata:
                     df_for_meta = None
                     try:
-                        from .io import load as _load_bdf  # lazy import
-
-                        df_for_meta = _load_bdf(output_used)
+                        df_for_meta, _metadata = read(output_used)
+                        df_for_meta = df_for_meta.to_pandas()
                     except Exception:
                         df_for_meta = None
                     try:
@@ -1887,13 +1850,12 @@ def ingest(
                 f,
                 plugin=plugin,
                 validate=validate_converted,
-                include_optional=include_optional,
-                lazy=False,
+                include_unknown=include_unknown,
             )
             df = df_pl.to_pandas()
             out_path = _output_path(f)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            _save(df, out_path, index=False, human=human)
+            save(df, out_path, labels=labels)
             converted_entry = {"path": str(f), "output": str(out_path)}
             if incremental:
                 key = _state_key(f)
