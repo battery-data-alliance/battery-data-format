@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional
 import pytest
 import requests
 
+import bdf
+
 # ============================================================
 # Configuration (env overrides)
 # ============================================================
@@ -306,91 +308,6 @@ def _iter_distributions(registry: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
                 return
 
 
-def _load_with_bdf(path: Path, plugin_slug: Optional[str]) -> Any:
-    """
-    Try common bdf entry points. Modify here if your API differs.
-    """
-    try:
-        import bdf  # type: ignore
-    except Exception as e:
-        pytest.skip(f"'bdf' not importable: {e}")
-
-    last_err: Optional[Exception] = None
-
-    if hasattr(bdf, "load"):
-        try:
-            return bdf.load(path)  # type: ignore[attr-defined]
-        except (ImportError, ModuleNotFoundError) as e:
-            pytest.skip(f"Optional dependency missing while loading {path}: {e}")
-        except Exception as e:
-            last_err = e
-
-    if hasattr(bdf, "read"):
-        try:
-            df_pl, _meta = bdf.read(path, plugin=plugin_slug, lazy=False)  # type: ignore[attr-defined]
-            return df_pl.to_pandas()
-        except (ImportError, ModuleNotFoundError) as e:
-            pytest.skip(f"Optional dependency missing while loading {path}: {e}")
-        except Exception as e:
-            last_err = e
-
-    if hasattr(bdf, "from_file"):
-        try:
-            return bdf.from_file(path, plugin=plugin_slug)  # type: ignore[attr-defined]
-        except (ImportError, ModuleNotFoundError) as e:
-            pytest.skip(f"Optional dependency missing while loading {path}: {e}")
-        except Exception as e:
-            last_err = e
-
-    raise AssertionError(
-        f"Could not load with 'bdf'. plugin={plugin_slug!r}, file={str(path)!r}. Last error: {last_err}"
-    )
-
-
-def _looks_nonempty(result: Any) -> bool:
-    try:
-        import pandas as pd  # noqa: F401
-    except Exception:
-        pd = None  # type: ignore
-
-    if result is None:
-        return False
-
-    if pd and "pandas" in str(type(result)) and hasattr(result, "empty"):
-        try:
-            return not bool(result.empty)  # type: ignore[attr-defined]
-        except Exception:
-            pass
-
-    if hasattr(result, "df"):
-        df = result.df
-        try:
-            if hasattr(df, "empty"):
-                return not bool(df.empty)
-            if hasattr(df, "__len__"):
-                return len(df) > 0  # type: ignore[arg-type]
-        except Exception:
-            pass
-
-    if hasattr(result, "to_dataframe"):
-        try:
-            df2 = result.to_dataframe()  # type: ignore
-            if hasattr(df2, "empty"):
-                return not bool(df2.empty)
-            if hasattr(df2, "__len__"):
-                return len(df2) > 0
-        except Exception:
-            pass
-
-    if hasattr(result, "__len__"):
-        try:
-            return len(result) > 0  # type: ignore[arg-type]
-        except Exception:
-            pass
-
-    return True  # Truthy object fallback
-
-
 # ============================================================
 # Collect cases once at import time
 # ============================================================
@@ -450,11 +367,13 @@ def test_registry_distribution_loads_with_bdf(case: Dict[str, Any]):
             keywords=case.get("dataset_keywords"),
         )
 
-    result = _load_with_bdf(local_file, plugin)
-    assert _looks_nonempty(result), (
-        f"Empty/invalid result for dataset={case.get('dataset_identifier')}, "
-        f"dist={case.get('distribution_id')}, plugin={plugin}, file={local_file}"
-    )
+    df, _metadata = bdf.read(local_file, plugin=plugin)
+    if df is None or df.is_empty():
+        msg = (
+            f"Empty/invalid result for dataset={case.get('dataset_identifier')}, "
+            f"dist={case.get('distribution_id')}, plugin={plugin}, file={local_file}"
+        )
+        raise AssertionError(msg)
 
 
 @pytest.mark.parametrize(
@@ -465,7 +384,7 @@ def test_registry_distribution_loads_with_bdf(case: Dict[str, Any]):
 def test_record_files_load_with_bdf(file_case: Dict[str, Any]):
     local_file = _download_file(file_case["download_url"], filename_hint=file_case.get("key"))
     plugin = _infer_plugin_from_filename(None, local_file)
-    result = _load_with_bdf(local_file, plugin)
-    assert _looks_nonempty(result), (
-        f"Empty/invalid result for record file key={file_case.get('key')}, plugin={plugin}, file={local_file}"
-    )
+    df, _metadata = bdf.read(local_file, plugin=plugin)
+    if df is None or df.is_empty():
+        msg = f"Empty/invalid result for record file key={file_case.get('key')}, plugin={plugin}, file={local_file}"
+        raise AssertionError(msg)

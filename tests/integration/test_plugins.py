@@ -142,6 +142,6 @@ def test_dump_edit_load_round_trip_used_by_io_read(tmp_path: Path) -> None:
     csv_path = tmp_path / "lab_data.csv"
     csv_path.write_text("MyVoltage(V),Current(mA)\n3.7,500\n3.8,510\n")
 
-    df, _metadata = io.read(csv_path, plugin=loaded["neware_csv"], validate=False, lazy=False)
+    df, _metadata = io.read(csv_path, plugin=loaded["neware_csv"], validate=False)
     assert "Voltage / V" in df.columns
     assert df["Voltage / V"].to_list() == pytest.approx([3.7, 3.8])

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import warnings
 from typing import Any, Dict, List
 
@@ -8,7 +7,9 @@ import numpy as np
 import pandas as pd
 
 from . import spec
+from ._time_scale import detect_scale_mismatch
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
+from .spec import _slugify
 
 __all__ = ["BDFValidationError", "validate_df"]
 
@@ -18,13 +19,6 @@ OPTIONAL = spec.COLUMN_ONTOLOGY.optional_labels()
 
 class BDFValidationError(Exception):
     """Raised when a DataFrame fails BDF validation."""
-
-
-_SLUG = re.compile(r"[^a-z0-9]+")
-
-
-def _slugify(text: str) -> str:
-    return _SLUG.sub("-", text.lower()).strip("-")
 
 
 # Algebraic identities the ontology defines via prov:wasDerivedFrom:
@@ -143,25 +137,59 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
                 issues.append(f"'cycle_count' is not monotonically non-decreasing ({drops} drops).")
                 details.append({"check": "monotonic", "column": "cycle_count", "violations": drops})
 
-    # 4) step_index: 1-based within-step point counter (resets to 1, else +1)
-    if "step_index" in cols:
-        v = cols["step_index"].to_numpy(dtype=float)
+    # 4) step_record_index (ex step_index, deprecated in ontology 1.3.0):
+    # 1-based within-step point counter (resets to 1, else +1). Data using the
+    # deprecated header still resolves via the deprecated term's mr name.
+    counter_name = next((n for n in ("step_record_index", "step_index") if n in cols), None)
+    if counter_name:
+        v = cols[counter_name].to_numpy(dtype=float)
         finite = v[np.isfinite(v)]
         if finite.size:
             mn = float(finite.min())
             if mn != 1.0:
                 issues.append(
-                    f"'step_index' never equals 1 (min={mn:g}); it looks like a program step "
+                    f"'{counter_name}' never equals 1 (min={mn:g}); it looks like a program step "
                     f"identifier (Step ID / Arbin Step_Index / Digatron Step), not the 1-based "
                     f"within-step point counter."
                 )
-                details.append({"check": "step_index_min", "column": "step_index", "min": mn})
+                details.append({"check": "step_index_min", "column": counter_name, "min": mn})
             elif v.size >= 2:
                 d = np.diff(v)
                 bad = int(np.nansum((d != 1.0) & (v[1:] != 1.0)))
                 if bad:
-                    issues.append(f"'step_index' has {bad} transitions that neither increment by 1 nor reset to 1.")
-                    details.append({"check": "step_index_seq", "column": "step_index", "violations": bad})
+                    issues.append(f"'{counter_name}' has {bad} transitions that neither increment by 1 nor reset to 1.")
+                    details.append({"check": "step_index_seq", "column": counter_name, "violations": bad})
+
+    # 5) elapsed-time vs wall-clock scale cross-check (GH #65): a column whose
+    # values are in the wrong unit is self-consistent, so only the comparison
+    # with the independently recorded wall clock reveals it.
+    if "unix_time_second" in cols:
+        wall = cols["unix_time_second"].to_numpy(dtype=float)
+        for name in ("test_time_second", "step_time_second"):
+            if name not in cols:
+                continue
+            mismatch = detect_scale_mismatch(cols[name].to_numpy(dtype=float), wall)
+            if mismatch is None:
+                continue
+            if mismatch.unit_name:
+                issues.append(
+                    f"'{name}' increments disagree with wall-clock ('unix_time_second') increments "
+                    f"by ~{mismatch.ratio:g}x: values appear to be {mismatch.unit_name}, not seconds."
+                )
+            else:
+                issues.append(
+                    f"'{name}' increments disagree with wall-clock ('unix_time_second') increments "
+                    f"by ~{mismatch.ratio:g}x (no known unit matches this ratio)."
+                )
+            details.append(
+                {
+                    "check": "time_scale",
+                    "column": name,
+                    "ratio": mismatch.ratio,
+                    "actual_unit": mismatch.unit_name,
+                    "n_samples": mismatch.n_samples,
+                }
+            )
 
     return {"issues": issues, "details": details}
 
@@ -218,9 +246,10 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
     missing: List[str] = [c for c in REQUIRED if c not in canonical_present]
 
     # --- time monotonicity (warning-level) ---
+    time_label = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
     time_stats: Dict[str, Any] = {"present": False, "monotonic": True, "violations": 0, "min_drop": 0.0}
-    if "Test Time / s" in df.columns:
-        s = pd.to_numeric(df["Test Time / s"], errors="coerce")
+    if time_label in df.columns:
+        s = pd.to_numeric(df[time_label], errors="coerce")
         d = s.diff()
         # robust threshold (same idea as clean.py)
         eps = _compute_eps_from_diffs(d.fillna(0.0).to_numpy())
@@ -266,7 +295,7 @@ def _print_report(rep: Dict[str, Any]) -> None:
     ts = rep.get("time_stats", {})
     if ts.get("present") and not ts.get("monotonic", True):
         print(
-            f"   ⚠️ Non-monotonic 'Test Time / s': "
+            f"   ⚠️ Non-monotonic '{spec.COLUMN_ONTOLOGY.test_time_second.formatted_label}': "
             f"{ts['violations']} drops (min Δ = {ts['min_drop']:.6g} s, eps≈{ts['epsilon']:.6g})."
         )
         print("      Suggestion: bdf.clean(df, time_fix='segment') or bdf.repair.fix_time(df, method='auto').")
@@ -288,7 +317,8 @@ def validate_df(
     ts = rep.get("time_stats", {})
     if ts.get("present") and not ts.get("monotonic", True):
         warnings.warn(
-            f"Non-monotonic 'Test Time / s' detected: {ts['violations']} drops "
+            f"Non-monotonic '{spec.COLUMN_ONTOLOGY.test_time_second.formatted_label}' detected: "
+            f"{ts['violations']} drops "
             f"(min Δ = {ts['min_drop']:.6g} s). Consider bdf.repair.fix_time(...).",
             RuntimeWarning,
             stacklevel=2,

@@ -41,6 +41,26 @@ def test_validate_function_on_dataframe_and_path(tmp_path):
     assert rep_path["ok"] is True
 
 
+def test_validate_accepts_bdf_csv_without_bdf_filename_prefix(tmp_path):
+    """A file with BDF headers without bdf in path should still work."""
+    df = _base_df()
+    csv_path = tmp_path / "sample.csv"
+    df.to_csv(csv_path, index=False)
+
+    rep = validate(csv_path, report=False, raise_on_error=True)
+    assert rep["ok"] is True
+
+
+def test_validate_rejects_unrecognized_csv(tmp_path):
+    df = pd.DataFrame({"foo": [1, 2, 3], "bar": [4, 5, 6]})
+    csv_path = tmp_path / "garbage.csv"
+    df.to_csv(csv_path, index=False)
+
+    rep = validate(csv_path, report=False, raise_on_error=False)
+    assert rep["ok"] is False
+    assert rep["kind"] == "not_bdf_artifact"
+
+
 def test_validate_accepts_notation_headers(tmp_path):
     df = pd.DataFrame(
         {
@@ -188,3 +208,35 @@ def test_time_stats_absent_when_no_time_column():
     assert rep["time_stats"]["present"] is False
     assert rep["ok"] is False
     assert "Test Time / s" in rep["missing"]
+
+
+def test_time_scale_mismatch_flagged():
+    """Elapsed time in ms under a seconds header disagrees with the wall clock (GH #65)."""
+    n = 30
+    df = pd.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 * 1e3 for i in range(n)],
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    with pytest.warns(RuntimeWarning, match="appear to be milliseconds"):
+        rep = validate_df(df, report=False, raise_on_error=False)
+    (detail,) = [d for d in rep["derived"]["details"] if d["check"] == "time_scale"]
+    assert detail["column"] == "test_time_second"
+    assert detail["actual_unit"] == "milliseconds"
+
+
+def test_time_scale_consistent_not_flagged():
+    n = 30
+    df = pd.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 for i in range(n)],
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert not any(d["check"] == "time_scale" for d in rep["derived"]["details"])

@@ -39,10 +39,10 @@ def test_cli_validate_success_and_failure(tmp_path: Path):
     assert fail.exit_code != 0
 
 
-def test_cli_clean_assume_bdf(tmp_path: Path):
+def test_cli_clean(tmp_path: Path):
     src = _make_sample_bdf(tmp_path)
     out = tmp_path / "cleaned.bdf.csv"
-    res = runner.invoke(app, ["clean", str(src), "--out", str(out), "--assume-bdf"])
+    res = runner.invoke(app, ["clean", str(src), "--out", str(out)])
     assert res.exit_code == 0
     assert out.exists()
 
@@ -76,7 +76,6 @@ def test_cli_convert_and_plot(tmp_path: Path, monkeypatch):
         [
             "plot",
             str(src),
-            "--assume-bdf",
             "--save",
             str(plot_path),
         ],

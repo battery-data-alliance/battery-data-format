@@ -34,7 +34,8 @@ _CYCLE_RESET_SIGNED = "CYCLE_RESET_SIGNED"
 _INT_FAMILY: dict[str, str] = {
     "record_index": _STRICT_INC,
     "step_count": _COUNTER_UNIQUE,
-    "step_index": _STEP_INDEX,
+    "step_index": _STEP_INDEX,  # deprecated in ontology 1.3.0, kept for legacy-label tests
+    "step_record_index": _STEP_INDEX,  # 1.3.0 replacement, same within-step counter shape
     "step_id": _WEAK_ID,
     "cycle_count": _COUNTER,
 }
