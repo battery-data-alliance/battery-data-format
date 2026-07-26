@@ -28,18 +28,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - Column spec is now ontology-driven (`bdf.spec.ColumnOntology`, synced from the published BDF ontology release); `bdf.normalize`, `bdf.units`, `bdf.detect`, and `bdf.data_sources` are removed in favor of `bdf.plugins`, `bdf.table_parsers`, `bdf.metadata_parsers`, and `bdf.table_normalizers`.
 - `fastnda` install extra renamed to `nda`.
 - `Quantity.unit_conversion` renamed to `convert_to`.
+- Arbin normalizers (csv, xlsx) map Charge/Discharge Capacity and Energy to the `schedule_*` columns (`Schedule Charging Capacity / Ah`, ...) from ontology 1.3.0, reflecting the operator-defined reset behavior Arbin confirmed; these columns previously landed on the never-resetting test-scoped terms.
+- `read()`/`scan()` raise `BDFValidationError` when an elapsed-time column's increments disagree with the recorded timestamps (e.g. milliseconds stored under a seconds header); pass `reconcile_time=True` to repair known unit factors or `validate=False` to load the data as-is.
 
 ### Added
 - BDF parsers/normalizers for BDF JSON, NDJSON, Arrow/Feather (IPC), XLSX.
 - Arbin MITS XLSX parser.
 - PyBaMM simulation-output table normalizer (`pybamm` plugin).
 - `validate` now checks ontology-defined derived-column consistency.
+- Time-scale detection (GH #65): elapsed-time columns are cross-checked against wall-clock increments on read, following the fsck model (detect loudly by default, repair only with the explicit `reconcile_time=True` flag; repairs are recorded under `metadata["time_reconciliation"]`). `validate` reports the same mismatch as a `time_scale` finding.
+- Ontology 1.3.0: `schedule_*` capacity/energy terms for schedule-driven accumulators and `step_record_index` (replacing the deprecated `step_index`).
 - Ontology release pinning with a bundled snapshot, `BDF_CACHE_DIR` cache override, and a daily auto-sync workflow.
 - New optional extras `excel`, `mat`, `mpr`, `yaml` for additional file formats, and an `all` bundle covering all user-facing feature extras.
 - Docs: example notebooks now execute live via myst-nb, plus a generated "Supported Plugins" reference page.
 
 ### Changed
 - I/O layer rebuilt on Polars.
+- `repair` and `validate` rebuilt on Polars: `fix_time`, `clean`, and `validate_df` accept polars (eager or lazy) or pandas frames and return matching kinds, with identical results across input types; the CLI no longer round-trips through pandas.
 - Dev and docs dependencies moved to PEP 735 dependency-groups; plotting deps moved into a new `plot` extra.
 - `save()` now validates via `ColumnOntology.validate_df`, which also warns on non-canonical BDF units.
 - `ColumnOntology.load_version()` now fetches and caches an uncached ontology release instead of raising.
@@ -59,9 +64,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [0.1.0] - 2026-02-10
 ### Added
-- Time reconciliation on read (GH #65): `bdf.read` cross-checks `Test Time / s` and `Step Time / s` increments against wall-clock (`Unix Time / s`) increments; a column stored in the wrong unit under a seconds header (e.g. a Digatron export holding milliseconds) is rescaled to seconds, recorded under `metadata["time_reconciliation"]`, and announced with a `UserWarning`. Disable with `reconcile_time=False`. `bdf.validate` reports the same mismatch as a `time_scale` finding without modifying data.
-- repair.py ported to polars-native internals: fix_time and clean now accept polars (eager or lazy) or pandas frames and return the same kind, with identical numeric results across input types (pinned by the characterization suite). mypy re-enabled on the module; the CLI clean command no longer round-trips through pandas.
-- Arbin normalizers (csv, xlsx) map Charge/Discharge Capacity and Energy to the schedule_* terms from ontology 1.3.0, reflecting the operator-defined reset behavior Arbin confirmed; the columns previously landed on the never-resetting test-scoped terms.
 - CI pipeline with lint/type/tests/docs and build/twine checks.
 - Sphinx docs with pydata theme and converted notebook examples.
 - Unit tests for IO, registry, validation, repair, CLI, and raw conversion.
