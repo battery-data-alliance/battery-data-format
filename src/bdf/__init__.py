@@ -362,7 +362,6 @@ def validate(
             from .io import read
 
             df, _metadata = read(p)
-            df = df.to_pandas()
         except Exception as e:
             return _bad_report(
                 kind="io_error",
