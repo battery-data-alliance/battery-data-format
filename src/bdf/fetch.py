@@ -379,12 +379,7 @@ def load_bdf_from_entry(entry: DatasetEntry):
         alt_urls=entry.alt_urls or None,
     )
 
-    if entry.is_bdf:
-        from .io import load as load_bdf  # lazy import to avoid cycles
-
-        df = load_bdf(path)
-    else:
-        df_pl, _meta = read_bdf(path, plugin=entry.plugin, validate=True, lazy=False)
-        df = df_pl.to_pandas()
+    df_pl, _meta = read_bdf(path, plugin=entry.plugin, validate=True)
+    df = df_pl.to_pandas()
 
     return path, df

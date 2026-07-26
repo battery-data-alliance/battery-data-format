@@ -6,6 +6,7 @@ from typing import Optional
 import pandas as pd
 
 from . import spec
+from .visualize import X_DEFAULT, Y_DEFAULT
 
 
 def _label_with_unit(name: str, unit: str) -> str:
@@ -169,8 +170,8 @@ def _plot_plotly(
 def explore(
     df: pd.DataFrame,
     *,
-    xdata: str = "Test Time / s",
-    ydata: str | Iterable[str] = "Voltage / V",
+    xdata: str = X_DEFAULT,
+    ydata: str | Iterable[str] = Y_DEFAULT,
     yydata: Optional[str | Iterable[str]] = None,
     xunit: Optional[str] = None,
     yunit: Optional[str] = None,

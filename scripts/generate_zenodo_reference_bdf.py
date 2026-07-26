@@ -350,7 +350,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     import bdf
-    from bdf.io import save as save_bdf
 
     args = parse_args()
     cache_dir = Path(args.cache_dir).resolve()
@@ -431,9 +430,9 @@ def main() -> int:
                 )
                 continue
 
-            df, _ = bdf.read(local_file, plugin=plugin, validate=False, lazy=False)
+            df, _ = bdf.read(local_file, plugin=plugin, validate=False)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            save_bdf(df.to_pandas(), out_path, index=False, human=args.human)
+            bdf.save(df, out_path, labels="preferred" if args.human else "machine")
             results.append(
                 CaseResult(
                     source=str(case.get("source")),

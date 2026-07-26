@@ -12,6 +12,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from .file_utils import ensure_dir as _ensure_dir, is_url as _is_url
+
 _GRAPH_CACHE: dict[str, Any] = {}
 
 
@@ -88,19 +90,6 @@ def _registry_key_from_url(url: str) -> Optional[str]:
         prefix = prefix[:-1]
     key_parts = prefix + [stem] if prefix else [stem]
     return "/".join(key_parts).lower()
-
-
-def _ensure_dir(path: Path) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def _is_url(value: str) -> bool:
-    try:
-        parsed = urlparse(value)
-    except Exception:
-        return False
-    return parsed.scheme in {"http", "https"}
 
 
 def _parse_github_tree(url: str) -> Optional[tuple[str, str, str, str]]:

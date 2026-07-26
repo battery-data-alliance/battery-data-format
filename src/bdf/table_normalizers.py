@@ -20,13 +20,12 @@ if TYPE_CHECKING:
     import pandas as pd  # noqa: F401
 
 from bdf._df_compat import coerce_dataframe  # noqa: E402
-from bdf.spec import COLUMN_ONTOLOGY, get_unit_conversion
+from bdf.spec import _UNIT_CAPTURE, COLUMN_ONTOLOGY, get_unit_conversion
 
 _logger = logging.getLogger(__name__)
 
 _DATE_COMPONENT_RE = re.compile(r"%[YymbBdej]")
 _TZ_COMPONENT_RE = re.compile(r"%:?[zZ]")
-_UNIT_CAPTURE = r"([A-Za-z0-9.·/*^%°℃ΩΩµμ⁰¹²³⁴⁵⁶⁷⁸⁹⁻ \-]+)"  # omega/ohm and mu/micro are different characters
 _DST_AMBIGUOUS_STRATEGY = "earliest"
 _DST_NON_EXISTENT_STRATEGY = "null"
 
@@ -537,9 +536,8 @@ class TableNormalizer(BaseModel):
         self,
         df: pl.LazyFrame,
         *,
-        include_optional: bool = True,
-        extra_columns: dict[str, str] | None = None,
         validate: bool = True,
+        include_unknown: bool = False,
         tz: str = "UTC",
     ) -> pl.LazyFrame:
         """Resolve headers → BDF columns, apply unit conversion, return df_out.
@@ -551,10 +549,9 @@ class TableNormalizer(BaseModel):
 
         Args:
             df: Input dataframe in any supported format.
-            include_optional: Include optional BDF columns in output.
-            extra_columns: Additional column rename mappings to apply.
             validate: Validate column names against the BDF ontology when True (default;
                 raises on missing required columns instead of warning).
+            include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
             tz: IANA timezone applied to naive (no embedded offset) ``unix_time_second``
                 datetime formats. Defaults to ``"UTC"``; emits a ``UserWarning`` when a
                 naive format is in play and ``tz`` is left at its default. Around
@@ -575,9 +572,6 @@ class TableNormalizer(BaseModel):
         headers = list(df.collect_schema().names())
 
         resolved = self.resolve(headers)
-
-        if not include_optional:
-            resolved = {mr: r for mr, r in resolved.items() if getattr(COLUMN_ONTOLOGY, mr).required}
 
         legacy_pairs = [
             (rc.source_header, getattr(COLUMN_ONTOLOGY, mr_name).formatted_label)
@@ -613,37 +607,16 @@ class TableNormalizer(BaseModel):
                 continue
             exprs.append(resolved_column.get_expr(mr_name, tz))
 
-        if extra_columns:
-            for src, out_name in extra_columns.items():
-                if src not in headers:
-                    warnings.warn(
-                        f"extra_columns source {src!r} not in DataFrame columns; skipping",
-                        UserWarning,
-                        stacklevel=3,
-                    )
-                    continue
-                exprs.append(pl.col(src).alias(out_name))
+        if include_unknown:
+            claimed_headers = {rc.source_header for rc in resolved.values()}
+            unknown = [h for h in headers if h not in claimed_headers]
+            exprs.extend([pl.col(h) for h in unknown])
 
-        if not exprs:
-            if validate:
-                COLUMN_ONTOLOGY.validate_df(df)
-            return df
+        if exprs:
+            df = df.select(exprs)
 
-        out = df.select(exprs)
-
-        if validate:
-            COLUMN_ONTOLOGY.validate_df(out)
-            return out
-
-        out_cols = set(out.collect_schema().names())
-        missing = [s.formatted_label for mr, s in COLUMN_ONTOLOGY if s.required and s.formatted_label not in out_cols]
-        if missing:
-            warnings.warn(
-                f"normalize: required BDF columns missing from output: {missing}",
-                UserWarning,
-                stacklevel=3,
-            )
-        return out
+        COLUMN_ONTOLOGY.validate_df(df, raise_on_error=validate)
+        return df
 
 
 # ---------------------------------------------------------------------------
@@ -1248,10 +1221,9 @@ def detect_normalizer(
 def normalize(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
     *,
-    include_optional: bool = True,
     normalizer: "TableNormalizer | dict[str, str] | None" = None,
-    extra_columns: dict[str, str] | None = None,
     validate: bool = True,
+    include_unknown: bool = False,
     tz: str = "UTC",
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
     """Map vendor columns to BDF canonical names with unit conversion and dtype casting.
@@ -1263,11 +1235,10 @@ def normalize(
 
     Args:
         df: Input dataframe in any supported format.
-        include_optional: Include optional BDF columns in output.
         normalizer: Explicit TableNormalizer, column map dict, or None for auto-detection.
-        extra_columns: Additional column rename mappings to apply.
         validate: Validate column names against the BDF ontology when True (default;
             raises on missing required columns instead of warning).
+        include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone applied to naive ``unix_time_second`` datetime formats. Defaults
             to ``"UTC"``; emits a ``UserWarning`` when a naive format is in play and ``tz``
             is left at its default. Around daylight-saving clock changes, repeated local
@@ -1294,7 +1265,7 @@ def normalize(
         norm = normalizer if isinstance(normalizer, TableNormalizer) else TableNormalizer.from_column_map(normalizer)
     else:
         best = detect_normalizer(headers, list(NORMALIZERS.values()))
-        if best is None and not extra_columns:
+        if best is None:
             if not validate:
                 return df
             norm = TableNormalizer()
@@ -1303,8 +1274,7 @@ def normalize(
 
     return norm.normalize(
         df,
-        include_optional=include_optional,
-        extra_columns=extra_columns,
         validate=validate,
+        include_unknown=include_unknown,
         tz=tz,
     )

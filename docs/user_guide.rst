@@ -9,7 +9,7 @@ Input formats
 .. code-block:: python
 
    import bdf
-   df, meta = bdf.read("raw_vendor.csv", plugin="neware_csv", lazy=False)
+   df, meta = bdf.read("raw_vendor.csv", plugin="neware_csv")
 
 The registered plugin ids are the keys of ``bdf.plugins.PLUGINS`` (use
 ``bdf.plugins.list_sources()`` to list them). See :doc:`plugins` for the full
@@ -41,7 +41,7 @@ Workflows
 
    import bdf
 
-   df, meta = bdf.read("raw_vendor.csv", lazy=False)
+   df, meta = bdf.read("raw_vendor.csv")
    df = df.to_pandas()  # clean/plot operate on pandas
    df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
    bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"])
@@ -63,7 +63,7 @@ For parse-only workflows:
 
 .. code-block:: python
 
-   df_raw, meta = bdf.read("raw_vendor.csv", normalize=False, validate=False, lazy=False)
+   df_raw, meta = bdf.read("raw_vendor.csv", normalize=False, validate=False)
 
 For collections:
 

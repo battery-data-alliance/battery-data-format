@@ -548,20 +548,6 @@ class TestNormalizerNormalize:
         assert "Voltage / V" in out.columns
         assert "Current / A" in out.columns
 
-    @pytest.mark.filterwarnings("ignore::UserWarning")
-    def test_normalize_include_optional_false_excludes_optional(self):
-        """normalize with include_optional=False excludes optional columns."""
-        n = TableNormalizer(
-            test_time_second=(Syn(hdr="t"),),
-            voltage_volt=(Syn(hdr="v"),),
-            current_ampere=(Syn(hdr="i"),),
-            cycle_count=(Syn(hdr="cycle"),),
-        )
-        df = pl.DataFrame({"t": [1.0], "v": [3.5], "i": [0.1], "cycle": [1.0]})
-        out = n.normalize(df, include_optional=False)
-        assert "Test Time / s" in out.columns
-        assert "Cycle Count / 1" not in out.columns
-
     def test_normalize_no_exprs_returns_df_unchanged(self):
         """normalize(validate=False) returns equivalent DataFrame when no columns match."""
         n = TableNormalizer(voltage_volt=(Syn(hdr="Voltage-{unit}"),))
@@ -570,24 +556,11 @@ class TestNormalizerNormalize:
         assert isinstance(out, pl.DataFrame)
         assert out.equals(df)
 
-    def test_normalize_extra_columns_passthrough(self, simple_df):
-        """normalize includes extra_columns with specified names."""
-        n = TableNormalizer(voltage_volt=(Syn(hdr="Voltage-{unit}"),))
-        out = n.normalize(simple_df, extra_columns={"Test-Time": "raw_time"}, validate=False)
-        assert "raw_time" in out.columns
-        assert out["raw_time"].to_list() == simple_df["Test-Time"].to_list()
-
-    def test_normalize_extra_columns_missing_warns(self, simple_df):
-        """normalize warns when extra_columns references missing source column."""
-        n = TableNormalizer(voltage_volt=(Syn(hdr="Voltage-{unit}"),))
-        with pytest.warns(UserWarning, match="not in DataFrame"):
-            n.normalize(simple_df, extra_columns={"ghost_col": "Out"}, validate=False)
-
     def test_normalize_missing_required_warns(self):
         """normalize(validate=False) warns when required BDF columns are missing."""
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
-        with pytest.warns(UserWarning, match="required BDF columns missing"):
+        with pytest.warns(UserWarning, match="Missing required BDF columns"):
             n.normalize(df, validate=False)
 
     def test_normalize_missing_required_validate_true_raises(self):
@@ -798,8 +771,8 @@ class TestNormalizeFn:
     def test_extra_columns_only_no_source(self):
         """normalize() with extra_columns passes through extra columns."""
         df = pl.DataFrame({"raw": [1.0, 2.0]})
-        out = normalize(df, extra_columns={"raw": "Raw Out"}, validate=False)
-        assert "Raw Out" in out.columns
+        out = normalize(df, include_unknown=True, validate=False)
+        assert "raw" in out.columns
 
     def test_lazyframe_passthrough_unchanged(self):
         """normalize(validate=False) on unknown LazyFrame returns it unchanged."""
