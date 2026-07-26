@@ -455,10 +455,10 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "step_id": ColExpect("Step Index", 1.0),
                 "record_index": ColExpect("Data Point", 1.0),
                 "step_time_second": ColExpect("Step Time (s)", 1.0),
-                "charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
-                "discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
-                "charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
-                "discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
+                "schedule_charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
+                "schedule_discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
+                "schedule_charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
+                "schedule_discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
                 "power_watt": ColExpect("Power (W)", 1.0),
                 "dc_internal_resistance_ohm": ColExpect("Internal Resistance (Ohm)", 1.0),
                 "ac_internal_resistance_ohm": ColExpect("ACR (Ohm)", 1.0),
@@ -467,26 +467,6 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             null_ok_columns=frozenset({"DC Internal Resistance / ohm", "AC Internal Resistance / ohm"}),
             known_validity_bugs={
                 "ac_internal_resistance_ohm": "ACR (Ohm) is entirely empty in this pulse-test export",
-                "charging_capacity_ah": (
-                    "Charge Capacity resets exactly once, at the step-9 boundary marking the "
-                    "end of initial conditioning and the start of the repeated pulse loop; "
-                    "globally cumulative everywhere else, so this is a single scripted "
-                    "counter reset in the test plan, not a per-step reset"
-                ),
-                "discharging_capacity_ah": (
-                    "Discharge Capacity resets at two specific steps (12 and 74) on every "
-                    "pass through the repeated pulse loop, not at the other ~60 step "
-                    "boundaries per loop; scripted resets at those two steps in the test "
-                    "plan, not a per-step reset"
-                ),
-                "charging_energy_wh": (
-                    "Charge Energy mirrors Charge Capacity: resets once at the step-9 "
-                    "boundary, globally cumulative elsewhere"
-                ),
-                "discharging_energy_wh": (
-                    "Discharge Energy mirrors Discharge Capacity: resets at specific steps "
-                    "within the repeated pulse loop, not at every step boundary"
-                ),
             },
             marks=(pytest.mark.network,),
         ),
@@ -581,10 +561,10 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 # NOTE: the four vendor accumulator expectations below disappear when the
                 # accumulator-unmap change (fix/derived-tolerance-and-arbin-accumulators)
                 # merges; drop them during that rebase.
-                "charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
-                "discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
-                "charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
-                "discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
+                "schedule_charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
+                "schedule_discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
+                "schedule_charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
+                "schedule_discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
             },
             null_ok_columns=frozenset({"DC Internal Resistance / ohm", "AC Internal Resistance / ohm"}),
             known_validity_bugs={
