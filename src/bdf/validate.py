@@ -4,9 +4,10 @@ import warnings
 from typing import Any, Dict, List
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from . import spec
+from ._df_compat import _classify_df, _to_polars_lazy
 from ._time_scale import detect_scale_mismatch
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .spec import _slugify
@@ -43,18 +44,19 @@ _MONOTONIC_NONDECREASING: tuple[str, ...] = (
 )
 
 
-def _canonical_series(df: pd.DataFrame) -> Dict[str, "pd.Series"]:
-    """Map canonical mr_name -> numeric Series for every recognised column.
+def _canonical_series(df: pl.DataFrame) -> Dict[str, np.ndarray]:
+    """Map canonical mr_name -> float64 numpy array for every recognised column.
 
     Resolves preferred labels ("Cumulative Capacity / Ah"), machine-readable
     notations ("cumulative_capacity_ah") and known vendor synonyms to the
     canonical quantity name, so derived checks work regardless of header style.
 
     Args:
-        df: DataFrame whose columns may use any accepted BDF header style.
+        df: Table whose columns may use any accepted BDF header style.
 
     Returns:
-        Mapping from canonical mr_name to a numeric-coerced Series.
+        Mapping from canonical mr_name to a numeric-coerced float64 array
+        (non-numeric values become NaN).
     """
     onto = spec.COLUMN_ONTOLOGY
     label_to_mr: Dict[str, str] = {}
@@ -63,15 +65,17 @@ def _canonical_series(df: pd.DataFrame) -> Dict[str, "pd.Series"]:
         label_to_mr.setdefault(s.effective_notation, q)
     synonym_idx = onto.base_synonym_index()
 
-    out: Dict[str, pd.Series] = {}
+    out: Dict[str, np.ndarray] = {}
     for col in df.columns:
         mr = label_to_mr.get(str(col)) or synonym_idx.get(_slugify(str(col)))
         if mr and mr not in out:
-            out[mr] = pd.to_numeric(df[col], errors="coerce")
+            series = df[col]
+            series = series.cast(pl.Float64, strict=False) if series.dtype == pl.Utf8 else series.cast(pl.Float64)
+            out[mr] = series.fill_null(float("nan")).to_numpy()
     return out
 
 
-def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
+def _check_derived(df: pl.DataFrame) -> Dict[str, Any]:
     """Check ontology-defined derived-column identities and monotonicity.
 
     All findings are warning-level: derived columns are optional, but when
@@ -93,8 +97,8 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
     for target, op, a, b in _DERIVED_IDENTITIES:
         if not (target in cols and a in cols and b in cols):
             continue
-        got = cols[target].to_numpy(dtype=float)
-        exp = (cols[a] + cols[b] if op == "+" else cols[a] - cols[b]).to_numpy(dtype=float)
+        got = cols[target]
+        exp = cols[a] + cols[b] if op == "+" else cols[a] - cols[b]
         valid = np.isfinite(got) & np.isfinite(exp)
         # scale-aware atol: 8-significant-digit CSV round-trips leave ~1e-8-of-scale
         # residue near zero-crossings, which a fixed atol=1e-9 misreads as violations.
@@ -110,7 +114,7 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
     for name in _MONOTONIC_NONDECREASING:
         if name not in cols:
             continue
-        v = cols[name].to_numpy(dtype=float)
+        v = cols[name]
         if v.size < 2:
             continue
         scale = float(np.nanmax(np.abs(v))) if np.isfinite(v).any() else 0.0
@@ -122,7 +126,7 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
 
     # 3) cycle_count: non-negative, integer-valued, monotonic non-decreasing
     if "cycle_count" in cols:
-        v = cols["cycle_count"].to_numpy(dtype=float)
+        v = cols["cycle_count"]
         finite = v[np.isfinite(v)]
         if finite.size:
             n_neg = int((finite < 0).sum())
@@ -142,7 +146,7 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
     # deprecated header still resolves via the deprecated term's mr name.
     counter_name = next((n for n in ("step_record_index", "step_index") if n in cols), None)
     if counter_name:
-        v = cols[counter_name].to_numpy(dtype=float)
+        v = cols[counter_name]
         finite = v[np.isfinite(v)]
         if finite.size:
             mn = float(finite.min())
@@ -164,11 +168,11 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
     # values are in the wrong unit is self-consistent, so only the comparison
     # with the independently recorded wall clock reveals it.
     if "unix_time_second" in cols:
-        wall = cols["unix_time_second"].to_numpy(dtype=float)
+        wall = cols["unix_time_second"]
         for name in ("test_time_second", "step_time_second"):
             if name not in cols:
                 continue
-            mismatch = detect_scale_mismatch(cols[name].to_numpy(dtype=float), wall)
+            mismatch = detect_scale_mismatch(cols[name], wall)
             if mismatch is None:
                 continue
             if mismatch.unit_name:
@@ -194,7 +198,7 @@ def _check_derived(df: pd.DataFrame) -> Dict[str, Any]:
     return {"issues": issues, "details": details}
 
 
-def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
+def _collect_report(df: pl.DataFrame) -> Dict[str, Any]:
     allowed = set(REQUIRED + OPTIONAL)
     synonym_idx = spec.COLUMN_ONTOLOGY.base_synonym_index()
     legacy_cols: List[str] = []
@@ -249,10 +253,12 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
     time_label = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
     time_stats: Dict[str, Any] = {"present": False, "monotonic": True, "violations": 0, "min_drop": 0.0}
     if time_label in df.columns:
-        s = pd.to_numeric(df[time_label], errors="coerce")
-        d = s.diff()
+        series = df[time_label]
+        series = series.cast(pl.Float64, strict=False) if series.dtype == pl.Utf8 else series.cast(pl.Float64)
+        t = series.fill_null(float("nan")).to_numpy()
+        d = np.diff(t, prepend=np.nan)
         # robust threshold (same idea as clean.py)
-        eps = _compute_eps_from_diffs(d.fillna(0.0).to_numpy())
+        eps = _compute_eps_from_diffs(np.nan_to_num(d, nan=0.0))
         bad = d < -eps
         n_bad = int(bad.sum())
         time_stats = {
@@ -260,7 +266,7 @@ def _collect_report(df: pd.DataFrame) -> Dict[str, Any]:
             "monotonic": (n_bad == 0),
             "violations": n_bad,
             "min_drop": float(d[bad].min()) if n_bad else 0.0,
-            "first_bad_index": int(bad[bad].index[0]) if n_bad else None,
+            "first_bad_index": int(np.nonzero(bad)[0][0]) if n_bad else None,
             "epsilon": float(eps),
         }
 
@@ -306,12 +312,14 @@ def _print_report(rep: Dict[str, Any]) -> None:
 
 
 def validate_df(
-    df: pd.DataFrame,
+    df,
     *,
     report: bool = False,
     raise_on_error: bool = True,
 ) -> Dict[str, Any]:
-    rep = _collect_report(df)
+    """Validate a BDF table; accepts polars (eager or lazy) or pandas frames."""
+    _classify_df(df)  # raise early on unsupported types
+    rep = _collect_report(_to_polars_lazy(df).collect())
 
     # Warning, not an error
     ts = rep.get("time_stats", {})

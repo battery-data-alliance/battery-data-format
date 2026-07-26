@@ -1,6 +1,7 @@
 import warnings
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from bdf import BDFValidationError, validate, validate_df
@@ -240,3 +241,37 @@ def test_time_scale_consistent_not_flagged():
     )
     rep = validate_df(df, report=False, raise_on_error=False)
     assert not any(d["check"] == "time_scale" for d in rep["derived"]["details"])
+
+
+# ---- polars-native boundary (post-port) ----
+
+
+def test_validate_df_accepts_polars_and_lazy():
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0, 2.0],
+            "Voltage / V": [3.7, 3.6, 3.5],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    for frame in (df, df.lazy()):
+        rep = validate_df(frame, report=False, raise_on_error=False)
+        assert rep["ok"] is True
+        assert rep["n_rows"] == 3
+
+
+def test_validate_df_reports_identical_across_kinds():
+    pdf = pd.DataFrame(
+        {
+            "Test Time / s": [0.0, 10.0, 3.0],
+            "Voltage / V": [3.7, 3.6, 3.5],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        rep_pd = validate_df(pdf, report=False, raise_on_error=False)
+        rep_pl = validate_df(pl.from_pandas(pdf), report=False, raise_on_error=False)
+    assert rep_pd["time_stats"] == rep_pl["time_stats"]
+    assert rep_pd["derived"] == rep_pl["derived"]
+    assert rep_pd["missing"] == rep_pl["missing"]
