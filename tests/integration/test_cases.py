@@ -558,9 +558,6 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "temperature_t1_celsius": ColExpect("Aux_Temperature_1 (C)", 1.0),
                 "dc_internal_resistance_ohm": ColExpect("Internal Resistance (Ohm)", 1.0),
                 "ac_internal_resistance_ohm": ColExpect("ACR (Ohm)", 1.0),
-                # NOTE: the four vendor accumulator expectations below disappear when the
-                # accumulator-unmap change (fix/derived-tolerance-and-arbin-accumulators)
-                # merges; drop them during that rebase.
                 "schedule_charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
                 "schedule_discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
                 "schedule_charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
@@ -569,12 +566,6 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             null_ok_columns=frozenset({"DC Internal Resistance / ohm", "AC Internal Resistance / ohm"}),
             known_validity_bugs={
                 "ac_internal_resistance_ohm": "ACR (Ohm) is entirely empty in this dynamic-load export",
-                # Schedule-authored accumulator resets (79 discharge / 1 charge, at scripted
-                # steps); removed along with the accumulator ColExpects at the unmap rebase.
-                "charging_capacity_ah": "Charge Capacity resets at schedule-defined steps",
-                "discharging_capacity_ah": "Discharge Capacity resets at schedule-defined steps",
-                "charging_energy_wh": "Charge Energy resets at schedule-defined steps",
-                "discharging_energy_wh": "Discharge Energy resets at schedule-defined steps",
             },
             marks=(
                 pytest.mark.network,
