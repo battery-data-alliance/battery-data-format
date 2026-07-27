@@ -1034,7 +1034,7 @@ class MprParser(TableParser):
 
         # Missing cycle number, sometimes there is only 0-indexed half cycle
         if ("cycle number" not in cols) and ("half cycle" in cols):
-            df = df.with_columns((pl.col("half cycle") // 2 + 1).alias("cycle number"))
+            df = df.with_columns((pl.col("half cycle") // 2).alias("cycle number"))
 
         # Missing uts/s - old xarray (2025.6.1, with python 3.10) doesnt have units on coords
         if "uts/s" not in cols and "uts" in cols:
