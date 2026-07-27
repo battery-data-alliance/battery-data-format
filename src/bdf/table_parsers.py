@@ -1008,11 +1008,14 @@ class MprParser(TableParser):
         resolved = resolve_source(path)
         dt = yadg.extractors.extract("eclab.mpr", str(resolved))
         ds = dt.to_dataset()
+        uncertainty_cols = {
+            n for var in ds.variables.values() for n in str(var.attrs.get("ancillary_variables", "")).split()
+        }
         df = pl.DataFrame(
             {
                 f"{name}/{str(var.attrs['units'])}" if "units" in var.attrs else str(name): var.to_numpy()
                 for name, var in ds.variables.items()
-                if not str(name).endswith("_err")
+                if str(name) not in uncertainty_cols and var.dims  # Must look like a column and not be uncertainty
             }
         )
         df = self._fix_missing_columns(df)
