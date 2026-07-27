@@ -596,6 +596,7 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "net_capacity_ah": ColExpect("(Q-Qo)/mA·h", 0.001),
                 "power_watt": ColExpect("Pwe/W", 1.0),
             },
+            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
         ),
     ),
     (
@@ -615,6 +616,7 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "current_ampere": ColExpect("I/mA", 0.001),
                 "step_id": ColExpect("Ns", 1.0),
             },
+            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
         ),
     ),
     (
@@ -637,6 +639,7 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "step_id": ColExpect("Ns", 1.0),
                 "cycle_count": ColExpect("cycle number", 1.0),
             },
+            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
         ),
     ),
     (

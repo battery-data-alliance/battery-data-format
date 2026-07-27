@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import warnings
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -979,7 +980,7 @@ class MatParser(TableParser):
 
 
 class MprParser(TableParser):
-    """Wraps fastnda for Biologic .mpr binary files."""
+    """Wraps yadg for Biologic .mpr binary files."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -992,7 +993,7 @@ class MprParser(TableParser):
         """Read Biologic MPR file to a LazyFrame using yadg.
 
         Args:
-            path: Local file path to .mpr.
+            path: Local file path or URL to .mpr.
 
         Returns:
             A polars LazyFrame containing the MPR data.
@@ -1022,6 +1023,8 @@ class MprParser(TableParser):
         """If current is missing and dq exists, recreate current."""
         cols = set(df.columns)
 
+        warning_list = []
+
         # Missing current (OCV or only dq present)
         current_cols = {"I/mA", "<I>/mA"}
         if not (current_cols & cols):
@@ -1029,16 +1032,22 @@ class MprParser(TableParser):
                 dt = df["uts/s"].diff().fill_null(float("inf"))
                 multiplier = 1000 if dq_col == "dQ/C" else 3600
                 df = df.with_columns((multiplier * df[dq_col] / dt).alias("I/mA"))
+                warning_list.append(f"No current column in original MPR, building from {dq_col} * diff(time).")
             else:
                 df = df.with_columns(pl.lit(0, dtype=pl.Float64).alias("I/mA"))
+                warning_list.append("No current column in original MPR, assuming 0 A.")
 
         # Missing cycle number, sometimes there is only 0-indexed half cycle
         if ("cycle number" not in cols) and ("half cycle" in cols):
             df = df.with_columns((pl.col("half cycle") // 2).alias("cycle number"))
+            warning_list.append("No cycle count column in original MPR, building from 'half cycle' // 2.")
 
         # Missing uts/s - old xarray (2025.6.1, with python 3.10) doesnt have units on coords
         if "uts/s" not in cols and "uts" in cols:
             df = df.rename({"uts": "uts/s"})
+
+        if warning_list:
+            warnings.warn(" ".join(warning_list), UserWarning, stacklevel=3)
 
         return df
 
