@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any, Literal, cast
 
 import pandas as pd
 import polars as pl
 
+from bdf._time_scale import detect_scale_mismatch
 from bdf.file_utils import open_compressed, strip_compression_suffix
 from bdf.plugins import PLUGINS, Plugin, detect
 from bdf.spec import COLUMN_ONTOLOGY
@@ -22,6 +24,7 @@ def _read(
     include_unknown: bool = False,
     lazy: bool = True,
     tz: str = "UTC",
+    reconcile_time: bool = False,
 ) -> tuple[pl.DataFrame | pl.LazyFrame, dict]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
@@ -56,7 +59,121 @@ def _read(
         **resolved_plugin.metadata_parser.parse(path),
     }
 
+    if normalize:
+        bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
+        if repairs:
+            metadata["time_reconciliation"] = repairs
+
     return bdf_df, metadata
+
+
+# Rows sampled for the elapsed-vs-wall-clock scale estimate; a uniform unit
+# error shows up in any contiguous slice, so bounding the sample keeps lazy
+# reads cheap on large files.
+_RECONCILE_SAMPLE_ROWS = 100_000
+
+
+def _reconcile_time_scale(
+    df: pl.DataFrame | pl.LazyFrame,
+    *,
+    reconcile_time: bool,
+    strict: bool,
+) -> tuple[pl.DataFrame | pl.LazyFrame, list[dict]]:
+    """Detect elapsed-time columns stored in the wrong unit; repair only on request.
+
+    Compares ``Test Time / s`` and ``Step Time / s`` increments against the
+    independently recorded wall clock (``Unix Time / s``). Detection always
+    runs; the fsck model applies to what happens on a mismatch:
+
+    - ``reconcile_time=True`` and the ratio matches a known unit factor (see
+      :data:`bdf._time_scale.KNOWN_SCALE_FACTORS`): the column is rescaled to
+      seconds, the repair is recorded, and a ``UserWarning`` announces it.
+    - otherwise, ``strict=True`` raises :class:`bdf.validate.BDFValidationError`
+      (loud failure, nothing modified) and ``strict=False`` downgrades to a
+      ``UserWarning``.
+
+    Args:
+        df: Normalized BDF frame (eager or lazy).
+        reconcile_time: Rescale columns whose mismatch matches a known unit factor.
+        strict: Raise on unrepaired mismatches instead of warning.
+
+    Returns:
+        Tuple of (possibly rescaled frame, list of repair records). The list is
+        empty when nothing was repaired.
+
+    Raises:
+        BDFValidationError: On an unrepaired mismatch when ``strict`` is True.
+    """
+    wall_label = COLUMN_ONTOLOGY.unix_time_second.formatted_label
+    elapsed_labels = (
+        COLUMN_ONTOLOGY.test_time_second.formatted_label,
+        COLUMN_ONTOLOGY.step_time_second.formatted_label,
+    )
+
+    columns = df.collect_schema().names() if isinstance(df, pl.LazyFrame) else df.columns
+    if wall_label not in columns:
+        return df, []
+    present = [lbl for lbl in elapsed_labels if lbl in columns]
+    if not present:
+        return df, []
+
+    sample = df.select([wall_label, *present]).head(_RECONCILE_SAMPLE_ROWS)
+    if isinstance(sample, pl.LazyFrame):
+        sample = sample.collect()
+    wall = sample[wall_label].cast(pl.Float64).to_numpy()
+
+    records: list[dict] = []
+    rescale: list[pl.Expr] = []
+    problems: list[str] = []
+    for label in present:
+        mismatch = detect_scale_mismatch(sample[label].cast(pl.Float64).to_numpy(), wall)
+        if mismatch is None:
+            continue
+        if mismatch.unit_name:
+            described = (
+                f"'{label}' values appear to be {mismatch.unit_name}, not the declared seconds "
+                f"(increments disagree with '{wall_label}' by ~{mismatch.ratio:g}x)"
+            )
+        else:
+            described = (
+                f"'{label}' increments disagree with '{wall_label}' increments by "
+                f"~{mismatch.ratio:g}x, which matches no known unit"
+            )
+        if reconcile_time and mismatch.factor is not None:
+            rescale.append(pl.col(label) / mismatch.factor)
+            records.append(
+                {
+                    "column": label,
+                    "declared_unit": "s",
+                    "actual_unit": mismatch.unit_name,
+                    "ratio_vs_wall_clock": mismatch.ratio,
+                    "n_samples": mismatch.n_samples,
+                    "action": f"divided by {mismatch.factor:g}",
+                }
+            )
+            warnings.warn(
+                f"{described}; rescaled to seconds as requested (reconcile_time=True). "
+                f"Recorded in metadata['time_reconciliation'].",
+                UserWarning,
+                stacklevel=4,
+            )
+        else:
+            problems.append(described)
+
+    if problems:
+        detail = "; ".join(problems)
+        if strict:
+            from bdf.validate import BDFValidationError
+
+            raise BDFValidationError(
+                f"Elapsed-time/wall-clock mismatch: {detail}. Pass reconcile_time=True to "
+                f"rescale known unit factors, or validate=False to load the data as-is."
+            )
+        warnings.warn(f"Elapsed-time/wall-clock mismatch: {detail}.", UserWarning, stacklevel=4)
+
+    if rescale:
+        df = df.with_columns(rescale)
+    return df, records
 
 
 def read(
@@ -67,6 +184,7 @@ def read(
     validate: bool = True,
     include_unknown: bool = False,
     tz: str = "UTC",
+    reconcile_time: bool = False,
 ) -> tuple[pl.DataFrame, dict]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
@@ -82,6 +200,12 @@ def read(
         include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
+        reconcile_time: Elapsed-time columns are cross-checked against wall-clock
+            increments when both are present (e.g. a vendor export storing milliseconds
+            under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
+            default (warns when ``validate=False``); pass ``reconcile_time=True`` to
+            explicitly rescale known unit factors, recorded under
+            ``metadata["time_reconciliation"]``. Only active when ``normalize=True``.
 
     Returns:
         Tuple of (df, metadata): the BDF table as a DataFrame, and a metadata dict with at
@@ -99,6 +223,7 @@ def read(
         include_unknown=include_unknown,
         lazy=False,
         tz=tz,
+        reconcile_time=reconcile_time,
     )
     return cast(pl.DataFrame, bdf_df), metadata
 
@@ -111,6 +236,7 @@ def scan(
     validate: bool = True,
     include_unknown: bool = False,
     tz: str = "UTC",
+    reconcile_time: bool = False,
 ) -> tuple[pl.LazyFrame, dict]:
     """Scan ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
@@ -131,6 +257,12 @@ def scan(
         include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
+        reconcile_time: Elapsed-time columns are cross-checked against wall-clock
+            increments when both are present (e.g. a vendor export storing milliseconds
+            under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
+            default (warns when ``validate=False``); pass ``reconcile_time=True`` to
+            explicitly rescale known unit factors, recorded under
+            ``metadata["time_reconciliation"]``. Only active when ``normalize=True``.
 
     Returns:
         Tuple of (df, metadata): the BDF table as a LazyFrame, and a metadata dict with at
@@ -148,6 +280,7 @@ def scan(
         include_unknown=include_unknown,
         lazy=True,
         tz=tz,
+        reconcile_time=reconcile_time,
     )
     return cast(pl.LazyFrame, bdf_df), metadata
 

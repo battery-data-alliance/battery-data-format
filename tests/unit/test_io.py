@@ -582,3 +582,97 @@ def test_save_labels(tmp_path: Path) -> None:
     # Unknown mode raises
     with pytest.raises(ValueError, match="Mode 'foo' not understood"):
         io.save(df_orig, p, labels="foo")  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# read()/scan() time reconciliation (GH #65)
+# ---------------------------------------------------------------------------
+
+
+def _write_bdf_csv_with_ms_test_time(tmp_path: Path, n: int = 30) -> Path:
+    """BDF artifact whose Test Time / s values are actually milliseconds."""
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 * 1e3 for i in range(n)],  # ms under a seconds header
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    path = tmp_path / "corrupted.bdf.csv"
+    df.write_csv(path)
+    return path
+
+
+def test_read_mismatch_raises_by_default(tmp_path: Path) -> None:
+    """fsck model: detection is on, repair is not - loud failure, data untouched."""
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.raises(BDFValidationError, match="appear to be milliseconds"):
+        read(path)
+
+
+def test_read_mismatch_warns_when_validate_false(tmp_path: Path) -> None:
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.warns(UserWarning, match="appear to be milliseconds"):
+        df, meta = read(path, validate=False)
+    # values loaded as-is, nothing repaired or recorded
+    assert df["Test Time / s"].to_list()[1] == 10_000.0
+    assert "time_reconciliation" not in meta
+
+
+def test_read_reconcile_time_true_repairs_and_records(tmp_path: Path) -> None:
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.warns(UserWarning, match="rescaled to seconds as requested"):
+        df, meta = read(path, reconcile_time=True)
+    assert df["Test Time / s"].to_list()[:3] == [0.0, 10.0, 20.0]
+    (record,) = meta["time_reconciliation"]
+    assert record["column"] == "Test Time / s"
+    assert record["actual_unit"] == "milliseconds"
+    assert record["action"] == "divided by 1000"
+
+
+def test_scan_reconcile_time_true_repairs_lazy(tmp_path: Path) -> None:
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.warns(UserWarning, match="rescaled to seconds as requested"):
+        lf, meta = scan(path, reconcile_time=True)
+    assert isinstance(lf, pl.LazyFrame)
+    assert lf.collect()["Test Time / s"].to_list()[1] == 10.0
+    assert meta["time_reconciliation"]
+
+
+def test_read_consistent_clocks_add_no_metadata(tmp_path: Path) -> None:
+    n = 30
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 for i in range(n)],
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    path = tmp_path / "clean.bdf.csv"
+    df.write_csv(path)
+    out, meta = read(path)
+    assert out["Test Time / s"].to_list()[1] == 10.0
+    assert "time_reconciliation" not in meta
+
+
+def test_read_unexplained_ratio_stays_loud_even_with_reconcile_time(tmp_path: Path) -> None:
+    """A ratio matching no known unit cannot be repaired, so it stays loud."""
+    n = 30
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [i * 370.0 for i in range(n)],  # 37x wall clock: no known unit
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    path = tmp_path / "odd.bdf.csv"
+    df.write_csv(path)
+    with pytest.raises(BDFValidationError, match="matches no known unit"):
+        read(path, reconcile_time=True)
+    with pytest.warns(UserWarning, match="matches no known unit"):
+        out, meta = read(path, validate=False)
+    assert out["Test Time / s"].to_list()[1] == 370.0
+    assert "time_reconciliation" not in meta
