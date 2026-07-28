@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import warnings
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -971,3 +972,95 @@ class MatParser(TableParser):
         var_names = self.normalizer.known_header_names()
         mat = self._load(Path(path), var_names)
         return [name for name in var_names if name in mat]
+
+
+# ---------------------------------------------------------------------------
+# MprParser
+# ---------------------------------------------------------------------------
+
+
+class MprParser(TableParser):
+    """Wraps yadg for Biologic .mpr binary files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["mpr"] = "mpr"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".mpr"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"BIO-LOGIC MODULAR FILE"})
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read Biologic MPR file to a LazyFrame using yadg.
+
+        Args:
+            path: Local file path or URL to .mpr.
+
+        Returns:
+            A polars LazyFrame containing the MPR data.
+
+        Raises:
+            RuntimeError: If yadg is not installed.
+        """
+        try:
+            import yadg  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("MprParser requires yadg. Install with `pip install yadg`.") from exc
+        resolved = resolve_source(path)
+        dt = yadg.extractors.extract("eclab.mpr", str(resolved))
+        ds = dt.to_dataset()
+        uncertainty_cols = {
+            n for var in ds.variables.values() for n in str(var.attrs.get("ancillary_variables", "")).split()
+        }
+        df = pl.DataFrame(
+            {
+                f"{name}/{str(var.attrs['units'])}" if "units" in var.attrs else str(name): var.to_numpy()
+                for name, var in ds.variables.items()
+                if str(name) not in uncertainty_cols and var.dims  # Must look like a column and not be uncertainty
+            }
+        )
+        df = self._fix_missing_columns(df)
+        return df.lazy()
+
+    @staticmethod
+    def _fix_missing_columns(df: pl.DataFrame) -> pl.DataFrame:
+        """If current is missing and dq exists, recreate current."""
+        cols = set(df.columns)
+
+        warning_list = []
+
+        # Missing current (OCV or only dq present)
+        current_cols = {"I/mA", "<I>/mA"}
+        if not (current_cols & cols):
+            if "uts/s" in cols and (dq_col := next((c for c in ("dq/mA·h", "dQ/mA·h", "dQ/C") if c in cols), None)):
+                dt = df["uts/s"].diff().fill_null(float("inf"))
+                multiplier = 1000 if dq_col == "dQ/C" else 3600
+                df = df.with_columns((multiplier * df[dq_col] / dt).alias("I/mA"))
+                warning_list.append(f"No current column in original MPR, building from {dq_col} * diff(time).")
+            else:
+                df = df.with_columns(pl.lit(0, dtype=pl.Float64).alias("I/mA"))
+                warning_list.append("No current column in original MPR, assuming 0 A.")
+
+        # Missing cycle number, sometimes there is only 0-indexed half cycle
+        if ("cycle number" not in cols) and ("half cycle" in cols):
+            df = df.with_columns((pl.col("half cycle") // 2).alias("cycle number"))
+            warning_list.append("No cycle count column in original MPR, building from 'half cycle' // 2.")
+
+        # Missing uts/s - old xarray (2025.6.1, with python 3.10) doesnt have units on coords
+        if "uts/s" not in cols and "uts" in cols:
+            df = df.rename({"uts": "uts/s"})
+
+        if warning_list:
+            warnings.warn(" ".join(warning_list), UserWarning, stacklevel=3)
+
+        return df
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from Biologic MPR file.
+
+        Args:
+            path: Local file path or URL to .mpr file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()
