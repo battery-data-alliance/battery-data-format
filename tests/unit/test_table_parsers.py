@@ -23,6 +23,8 @@ from bdf.table_parsers import (
     IpcParser,
     JsonParser,
     MatParser,
+    MDBParser,
+    MprParser,
     NDAParser,
     NdjsonParser,
     ParquetParser,
@@ -67,12 +69,19 @@ class TestMatchesMagicBytes:
     def test_nda_rejects_unrelated_bytes(self) -> None:
         assert NDAParser().matches_magic_bytes(b"PAR1") is False
 
+    def test_mdb_matches_jet_magic(self) -> None:
+        assert MDBParser().matches_magic_bytes(b"\x00\x01\x00\x00Standard Jet DB\x00\x00") is True
+
+    def test_mdb_rejects_unrelated_bytes(self) -> None:
+        assert MDBParser().matches_magic_bytes(b"NEWARE") is False
+
     def test_is_text_flags(self) -> None:
         assert DelimTxtParser().is_text is True
         assert ExcelParser().is_text is False
         assert MatParser().is_text is False
         assert ParquetParser().is_text is False
         assert NDAParser().is_text is False
+        assert MDBParser().is_text is False
 
 
 class TestDelimTxtTextPlausibilityGate:
@@ -912,6 +921,160 @@ class TestNDAParser:
         nda_path.write_bytes(b"")
         parser = NDAParser()
         assert parser.read_column_headings(nda_path) == ["a", "b"]
+
+
+class TestMDBParser:
+    """MDBParser, with MDB backends mocked so no binary fixture or real dependency is needed."""
+
+    @pytest.fixture
+    def fake_polars_access_mdbtools(self, monkeypatch: pytest.MonkeyPatch):
+        """Install a stub `polars_access_mdbtools` module exposing a spyable `read_table(path, table_name)`."""
+        import sys
+        import types
+
+        df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
+        calls: list[tuple[str, str]] = []
+
+        def fake_read_table(path: str, table_name: str) -> pl.DataFrame:
+            calls.append((path, table_name))
+            return df
+
+        module = types.ModuleType("polars_access_mdbtools")
+        module.read_table = fake_read_table  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: True))
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
+        return calls
+
+    def test_read_raw_missing_dependency_raises_runtime_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_read_raw raises RuntimeError with install hints when no MDB backend is available."""
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: False))
+        parser = MDBParser()
+        with pytest.raises(RuntimeError, match=r"batterydf\[arbin_res\].*mdb-export.*mdb-schema"):
+            parser._read_raw("cell.res")
+
+    def test_read_raw_uses_pyodbc_first_on_windows(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """_read_raw prefers the Microsoft Access ODBC driver on Windows."""
+        import sys
+        import types
+
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        calls: list[str] = []
+
+        class FakeConnection:
+            def close(self) -> None:
+                calls.append("close")
+
+        def fake_connect(connection_string: str) -> FakeConnection:
+            calls.append(connection_string)
+            return FakeConnection()
+
+        def fake_read_database(query: str, conn: FakeConnection) -> pl.DataFrame:
+            calls.append(query)
+            return pl.DataFrame({"Data_Point": [2, 1], "Voltage": [3.2, 3.1]})
+
+        pyodbc = types.ModuleType("pyodbc")
+        pyodbc.drivers = lambda: ["Microsoft Access Driver (*.mdb, *.accdb)"]  # type: ignore[attr-defined]
+        pyodbc.connect = fake_connect  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "pyodbc", pyodbc)
+        monkeypatch.setattr("bdf.table_parsers.sys.platform", "win32")
+        monkeypatch.setattr(pl, "read_database", fake_read_database)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: False))
+
+        out = MDBParser()._read_raw(res_path).collect()
+
+        assert out["Data_Point"].to_list() == [1, 2]
+        assert calls[0].startswith("DRIVER={Microsoft Access Driver")
+        assert calls[1] == "SELECT * FROM Channel_Normal_Table"
+        assert calls[2] == "close"
+
+    def test_read_raw_passes_resolved_local_path_to_polars_access_mdbtools(
+        self, fake_polars_access_mdbtools, tmp_path: Path
+    ) -> None:
+        """_read_raw resolves a local path and forwards it as a string to polars_access_mdbtools.read_table."""
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        lf = parser._read_raw(res_path)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+        assert fake_polars_access_mdbtools == [(str(res_path), "Channel_Normal_Table")]
+
+    def test_read_raw_resolves_url_via_fetch_url(
+        self, fake_polars_access_mdbtools, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """_read_raw downloads URL sources through fetch_url before handing the local path to polars_access_mdbtools."""
+        cached = tmp_path / "downloaded.res"
+        cached.write_bytes(b"")
+        monkeypatch.setattr("bdf.fetch.fetch_url", lambda url: cached)
+        parser = MDBParser()
+        parser._read_raw("https://example.com/cell.res")
+        assert fake_polars_access_mdbtools == [(str(cached), "Channel_Normal_Table")]
+
+    def test_read_raw_sorts_channel_normal_table_by_data_point(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """_read_raw sorts Arbin MDB rows by Data_Point because mdbtools may return storage order."""
+        import sys
+        import types
+
+        df = pl.DataFrame({"Data_Point": [3, 1, 2], "Voltage": [3.3, 3.1, 3.2]})
+
+        def fake_read_table(path: str, table_name: str) -> pl.DataFrame:
+            return df
+
+        module = types.ModuleType("polars_access_mdbtools")
+        module.read_table = fake_read_table  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: True))
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
+
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        out = parser._read_raw(res_path).collect()
+        assert out["Data_Point"].to_list() == [1, 2, 3]
+        assert out["Voltage"].to_list() == [3.1, 3.2, 3.3]
+
+    def test_read_column_headings_returns_schema_names(self, fake_polars_access_mdbtools, tmp_path: Path) -> None:
+        """read_column_headings reflects polars_access_mdbtools' column names without requiring data rows."""
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        assert parser.read_column_headings(res_path) == ["a", "b"]
+
+
+class TestMprParser:
+    """Unit tests for logic in mpr parser."""
+
+    def test_rebuild_current(self):
+        df = pl.DataFrame({"uts/s": [0.0, 1.0], "dq/mA·h": [0.0, 0.1]})
+        with pytest.warns(UserWarning, match="No current column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "I/mA" in df.columns
+        assert df["I/mA"].to_list() == [0.0, 360.0]
+
+    def test_zero_current(self):
+        df = pl.DataFrame({"uts/s": [0.0, 1.0]})
+        with pytest.warns(UserWarning, match="No current column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "I/mA" in df.columns
+        assert df["I/mA"].to_list() == [0.0, 0.0]
+
+    def test_rebuild_cycles(self):
+        df = pl.DataFrame(
+            {
+                "uts/s": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                "I/mA": [0.1, -0.1, 0.1, -0.1, 0.1, -0.1],
+                "half cycle": [0, 1, 2, 3, 4, 5],
+            }
+        )
+        with pytest.warns(UserWarning, match="No cycle count column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "cycle number" in df.columns
+        assert df["cycle number"].to_list() == [0, 0, 1, 1, 2, 2]
 
 
 class TestExcelSheetPattern:

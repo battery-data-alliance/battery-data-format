@@ -1,8 +1,9 @@
-"""Table parsers: ``TableParser``, ``DelimTxtParser``, ``ExcelParser``, ``MatParser``.
+"""Table parsers: ``TableParser``, ``DelimTxtParser``, ``ExcelParser``, ``MatParser``, ``MDBParser``.
 
 Each parser wraps polars (DelimTxtParser, ExcelParser) or scipy (MatParser) file parsers
 and turns a source (local path or ``http(s)://`` URL) → :class:`polars.LazyFrame` for one
-file-format family, keyed by a ``kind`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``).
+file-format family, keyed by a ``kind`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``
+/ ``"mdb"``).
 A parser carries a :class:`~bdf.table_normalizers.TableNormalizer` field (default empty): its
 :meth:`read` returns the normalized frame, and a MAT parser sources its variable names
 from that normalizer. A blank normalizer degrades to a raw mechanics-only read.
@@ -14,6 +15,9 @@ from __future__ import annotations
 
 import inspect
 import re
+import shutil
+import sys
+import warnings
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -888,6 +892,112 @@ class NDAParser(TableParser):
 
 
 # ---------------------------------------------------------------------------
+# MDBParser
+# ---------------------------------------------------------------------------
+
+
+class MDBParser(TableParser):
+    """Parser for Microsoft Access .mdb database files.
+
+    Always reads the ``Channel_Normal_Table`` table.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["mdb"] = "mdb"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".mdb"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"\x00\x01\x00\x00Standard Jet DB"})
+    is_text: ClassVar[bool] = False
+    table_name: ClassVar[str] = "Channel_Normal_Table"
+
+    @staticmethod
+    def _has_access_driver() -> bool:
+        try:
+            import pyodbc
+        except ImportError:
+            return False
+        return any("Microsoft Access Driver" in driver for driver in pyodbc.drivers())
+
+    @staticmethod
+    def _has_mdbtools() -> bool:
+        try:
+            import polars_access_mdbtools  # noqa: F401
+        except ImportError:
+            return False
+        return shutil.which("mdb-export") is not None and shutil.which("mdb-schema") is not None
+
+    @staticmethod
+    def _sort_by_data_point(df: pl.DataFrame) -> pl.DataFrame:
+        if "Data_Point" in df.columns:
+            return df.sort("Data_Point")
+        return df
+
+    @classmethod
+    def _read_with_pyodbc(cls, path: Path) -> pl.DataFrame:
+        import pyodbc
+
+        driver = next((driver for driver in pyodbc.drivers() if "Microsoft Access Driver" in driver), None)
+        if driver is None:
+            raise RuntimeError(cls._dependency_error())
+        conn = pyodbc.connect(rf"DRIVER={{{driver}}};DBQ={path.resolve()};")
+        try:
+            return pl.read_database(f"SELECT * FROM {cls.table_name}", conn)
+        finally:
+            conn.close()
+
+    @classmethod
+    def _read_with_mdbtools(cls, path: Path) -> pl.DataFrame:
+        import polars_access_mdbtools
+
+        return polars_access_mdbtools.read_table(str(path), cls.table_name)
+
+    @staticmethod
+    def _dependency_error() -> str:
+        if sys.platform == "win32":
+            return (
+                "MDBParser requires either the Microsoft Access ODBC driver or MDB Tools. "
+                "Install with `pip install batterydf[arbin_res]` and install the Microsoft Access Database Engine, "
+                "or install and make MDB Tools command-line utilities (`mdb-export` and `mdb-schema`) available on PATH."
+            )
+        return (
+            "MDBParser requires MDB Tools and the optional Arbin .res dependencies. "
+            "Install with `pip install batterydf[arbin_res]` and make MDB Tools command-line utilities "
+            "(`mdb-export` and `mdb-schema`) available on PATH."
+        )
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read an MDB file to a LazyFrame.
+
+        Args:
+            path: Local file path or URL to .mdb file.
+
+        Returns:
+            A polars LazyFrame containing the MDB data.
+
+        Raises:
+            RuntimeError: If no MDB backend is available.
+        """
+        resolved = resolve_source(path)
+        if sys.platform == "win32" and self._has_access_driver():
+            return self._sort_by_data_point(self._read_with_pyodbc(resolved)).lazy()
+        if self._has_mdbtools():
+            return self._sort_by_data_point(self._read_with_mdbtools(resolved)).lazy()
+        raise RuntimeError(self._dependency_error())
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from an MDB file.
+
+        Args:
+            path: Local file path or URL to .mdb or .res file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
 # MatParser
 # ---------------------------------------------------------------------------
 
@@ -971,3 +1081,95 @@ class MatParser(TableParser):
         var_names = self.normalizer.known_header_names()
         mat = self._load(Path(path), var_names)
         return [name for name in var_names if name in mat]
+
+
+# ---------------------------------------------------------------------------
+# MprParser
+# ---------------------------------------------------------------------------
+
+
+class MprParser(TableParser):
+    """Wraps yadg for Biologic .mpr binary files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["mpr"] = "mpr"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".mpr"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"BIO-LOGIC MODULAR FILE"})
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read Biologic MPR file to a LazyFrame using yadg.
+
+        Args:
+            path: Local file path or URL to .mpr.
+
+        Returns:
+            A polars LazyFrame containing the MPR data.
+
+        Raises:
+            RuntimeError: If yadg is not installed.
+        """
+        try:
+            import yadg  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("MprParser requires yadg. Install with `pip install yadg`.") from exc
+        resolved = resolve_source(path)
+        dt = yadg.extractors.extract("eclab.mpr", str(resolved))
+        ds = dt.to_dataset()
+        uncertainty_cols = {
+            n for var in ds.variables.values() for n in str(var.attrs.get("ancillary_variables", "")).split()
+        }
+        df = pl.DataFrame(
+            {
+                f"{name}/{str(var.attrs['units'])}" if "units" in var.attrs else str(name): var.to_numpy()
+                for name, var in ds.variables.items()
+                if str(name) not in uncertainty_cols and var.dims  # Must look like a column and not be uncertainty
+            }
+        )
+        df = self._fix_missing_columns(df)
+        return df.lazy()
+
+    @staticmethod
+    def _fix_missing_columns(df: pl.DataFrame) -> pl.DataFrame:
+        """If current is missing and dq exists, recreate current."""
+        cols = set(df.columns)
+
+        warning_list = []
+
+        # Missing current (OCV or only dq present)
+        current_cols = {"I/mA", "<I>/mA"}
+        if not (current_cols & cols):
+            if "uts/s" in cols and (dq_col := next((c for c in ("dq/mA·h", "dQ/mA·h", "dQ/C") if c in cols), None)):
+                dt = df["uts/s"].diff().fill_null(float("inf"))
+                multiplier = 1000 if dq_col == "dQ/C" else 3600
+                df = df.with_columns((multiplier * df[dq_col] / dt).alias("I/mA"))
+                warning_list.append(f"No current column in original MPR, building from {dq_col} * diff(time).")
+            else:
+                df = df.with_columns(pl.lit(0, dtype=pl.Float64).alias("I/mA"))
+                warning_list.append("No current column in original MPR, assuming 0 A.")
+
+        # Missing cycle number, sometimes there is only 0-indexed half cycle
+        if ("cycle number" not in cols) and ("half cycle" in cols):
+            df = df.with_columns((pl.col("half cycle") // 2).alias("cycle number"))
+            warning_list.append("No cycle count column in original MPR, building from 'half cycle' // 2.")
+
+        # Missing uts/s - old xarray (2025.6.1, with python 3.10) doesnt have units on coords
+        if "uts/s" not in cols and "uts" in cols:
+            df = df.rename({"uts": "uts/s"})
+
+        if warning_list:
+            warnings.warn(" ".join(warning_list), UserWarning, stacklevel=3)
+
+        return df
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from Biologic MPR file.
+
+        Args:
+            path: Local file path or URL to .mpr file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()

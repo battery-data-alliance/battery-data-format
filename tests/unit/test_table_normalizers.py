@@ -117,6 +117,15 @@ class TestSyn:
         with pytest.raises(ValidationError):
             s.hdr = "y"
 
+    def test_reverse_sign(self):
+        """Reverse sign multiplies col by -1."""
+        assert Syn(hdr="x").match("x", None) == (1.0, 0.0)
+        assert Syn(hdr="y", reverse_sign=True).match("y", None) == (-1.0, 0.0)
+
+        # Reverse sign should not affect the offset, which is applied after scaling.
+        assert Syn(hdr="Temp-{unit}").match("Temp-degC", "K") == (1.0, 273.15)
+        assert Syn(hdr="Temp-{unit}", reverse_sign=True).match("Temp-degC", "K") == (-1.0, 273.15)
+
 
 class TestDateTimeSyn:
     def test_construction(self):
@@ -652,6 +661,13 @@ class TestNormalizerNormalize:
             out = n.normalize(df, validate=False)
         assert "Step ID" in out.columns
         assert out["Step ID"].dtype == pl.Int64
+
+    def test_normalize_with_reverse_sign(self):
+        """normalize negates values matched by a reverse_sign synonym."""
+        n = TableNormalizer(current_ampere=(Syn(hdr="i", reverse_sign=True),))
+        df = pl.DataFrame({"i": [0.1, -0.2]})
+        out = n.normalize(df, validate=False)
+        assert out["Current / A"].to_list() == [-0.1, 0.2]
 
 
 class TestNormalizerFromColumnMap:

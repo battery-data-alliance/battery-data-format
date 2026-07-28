@@ -48,9 +48,13 @@ bdf-update-snapshot = "bdf.spec:_update_snapshot_cli"
 [project.optional-dependencies]
 # Extra file types
 nda = ["fastnda>=1.2.0"]
-mpr = ["yadg>=6.2.0,<7.0.0"]
+mpr = ["yadg>=6.2.0"]
 excel = ["fastexcel>=0.20.2", "xlsxwriter>=3.2.9"]
 mat = ["scipy>=1.15.3"]
+arbin_res = [
+  "polars-access-mdbtools==0.1.2; python_version >= '3.11'",
+  "pyodbc; sys_platform == 'win32'",
+]
 yaml = ["pyyaml>=6.0.3"]
 
 # Plotting

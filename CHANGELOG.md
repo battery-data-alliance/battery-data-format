@@ -34,6 +34,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 ### Added
 - BDF parsers/normalizers for BDF JSON, NDJSON, Arrow/Feather (IPC), XLSX.
 - Arbin MITS XLSX parser.
+- Arbin `.res` parser (Access/MDB, via pyodbc on Windows or MDB Tools elsewhere; `arbin_res` extra). Contributed by @Abbta.
+- BioLogic `.mpr` binary parser via yadg (`mpr` extra), including the EIS quantities; adds a `reverse_sign` option to normalizer synonyms.
 - PyBaMM simulation-output table normalizer (`pybamm` plugin).
 - `validate` now checks ontology-defined derived-column consistency.
 - Time-scale detection (GH #65): elapsed-time columns are cross-checked against wall-clock increments on read, following the fsck model (detect loudly by default, repair only with the explicit `reconcile_time=True` flag; repairs are recorded under `metadata["time_reconciliation"]`). `validate` reports the same mismatch as a `time_scale` finding.

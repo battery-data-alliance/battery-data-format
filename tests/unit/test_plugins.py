@@ -81,6 +81,7 @@ class TestPluginDict:
         """All built-in plugins are accessible in PLUGINS without suggestions."""
         expected_ids = {
             "arbin_csv",
+            "arbin_res",
             "basytec_txt",
             "biologic_mpt",
             "digatron_csv",

@@ -57,6 +57,9 @@ class Syn(BaseModel):
     """Fixed source unit for exact, non-templated aliases."""
     legacy: bool = False
     """Raise a warning that this column is legacy and has been converted."""
+    reverse_sign: bool = False
+    """Flip sign of column in addition to unit conversion
+    e.g. negative impedance or discharge-positive current columns."""
 
     @model_validator(mode="before")
     @classmethod
@@ -89,12 +92,15 @@ class Syn(BaseModel):
             m = re.fullmatch(pattern, header)
             if m is None:
                 return None
-            return get_unit_conversion(m.group(1), bdf_unit)
-        if self.hdr.strip() != header.strip():
-            return None
-        if self.source_unit is not None:
-            return get_unit_conversion(self.source_unit, bdf_unit)
-        return (1.0, 0.0)
+            result = get_unit_conversion(m.group(1), bdf_unit)
+        else:
+            if self.hdr.strip() != header.strip():
+                return None
+            result = get_unit_conversion(self.source_unit, bdf_unit) if self.source_unit is not None else (1.0, 0.0)
+        if not self.reverse_sign or result is None:
+            return result
+        scale, offset = result
+        return (-scale, offset)
 
     def exact_match(self, header: str) -> bool:
         """Test exact case-insensitive match against header.
@@ -627,6 +633,8 @@ class TableNormalizer(BaseModel):
 # several file formats (e.g. ``"neware"`` backs both the CSV and XLSX sources).
 # ---------------------------------------------------------------------------
 
+_ACCESS_UNIX_EPOCH_DAYS = 25569.0
+_SECONDS_PER_DAY = 86400.0
 _ARBIN_DT_FMTS = (
     "%m/%d/%Y %H:%M:%S%.f",
     "%m/%d/%Y %H:%M:%S",
@@ -698,6 +706,35 @@ ARBIN = TableNormalizer(
     dc_internal_resistance_ohm=(Syn(hdr="Internal Resistance ({unit})"),),
 )
 
+ARBIN_RES = TableNormalizer(
+    test_time_second=(Syn(hdr="Test_Time", source_unit="s"),),
+    voltage_volt=(Syn(hdr="Voltage", source_unit="V"),),
+    current_ampere=(Syn(hdr="Current", source_unit="A"),),
+    # Access day-fraction datetimes are naive local wall-clock; this fixed
+    # scale/offset treats them as UTC (no tz support on the ResolvedColumn
+    # path). Acceptable for the .res use case; revisit if tz-correct absolute
+    # time is needed.
+    unix_time_second=ResolvedColumn(
+        source_header="DateTime",
+        scale=_SECONDS_PER_DAY,
+        offset=-_ACCESS_UNIX_EPOCH_DAYS * _SECONDS_PER_DAY,
+    ),
+    cycle_count=(Syn(hdr="Cycle_Index"),),
+    step_id=(Syn(hdr="Step_Index"),),
+    record_index=(Syn(hdr="Data_Point"),),
+    step_time_second=(Syn(hdr="Step_Time", source_unit="s"),),
+    # Arbin accumulators reset at operator-defined schedule points, so they map
+    # to the schedule-scoped terms from ontology 1.3.0 (see the csv/xlsx
+    # normalizer above).
+    schedule_charging_capacity_ah=(Syn(hdr="Charge_Capacity", source_unit="Ah"),),
+    schedule_discharging_capacity_ah=(Syn(hdr="Discharge_Capacity", source_unit="Ah"),),
+    schedule_charging_energy_wh=(Syn(hdr="Charge_Energy", source_unit="Wh"),),
+    schedule_discharging_energy_wh=(Syn(hdr="Discharge_Energy", source_unit="Wh"),),
+    dc_internal_resistance_ohm=(Syn(hdr="Internal_Resistance", source_unit="ohm"),),
+    absolute_impedance_ohm=(Syn(hdr="AC_Impedance", source_unit="ohm"),),
+    phase_degree=(Syn(hdr="ACI_Phase_Angle", source_unit="degree"),),
+)
+
 BASYTEC = TableNormalizer(
     test_time_second=(
         Syn(hdr="Time[{unit}]", assumed=True),
@@ -733,6 +770,7 @@ BASYTEC = TableNormalizer(
 )
 
 BIOLOGIC = TableNormalizer(
+    unix_time_second=(Syn(hdr="uts/s"),),
     test_time_second=(
         Syn(hdr="time/{unit}"),
         Syn(hdr="time / {unit}", assumed=True),
@@ -742,7 +780,7 @@ BIOLOGIC = TableNormalizer(
     ),
     voltage_volt=(
         Syn(hdr="Ecell/{unit}"),
-        Syn(hdr="Ewe/{unit}", assumed=True),
+        Syn(hdr="Ewe/{unit}"),
         Syn(hdr="u/{unit}", assumed=True),
         Syn(hdr="u[{unit}]", assumed=True),
         Syn(hdr="Ewe ({unit})", assumed=True),
@@ -781,8 +819,16 @@ BIOLOGIC = TableNormalizer(
     discharging_energy_wh=(Syn(hdr="Energy discharge/{unit}"),),
     cumulative_energy_wh=(Syn(hdr="|Energy|/{unit}", assumed=True),),
     net_energy_wh=(Syn(hdr="Energy/{unit}"),),
-    power_watt=(Syn(hdr="P/{unit}"),),
+    power_watt=(
+        Syn(hdr="P/{unit}"),
+        Syn(hdr="Pwe/{unit}"),
+    ),
     internal_resistance_ohm=(Syn(hdr="R/{unit}"),),
+    frequency_hertz=(Syn(hdr="freq/{unit}"),),
+    real_impedance_ohm=(Syn(hdr="Re(Z)/{unit}"),),
+    imaginary_impedance_ohm=(Syn(hdr="-Im(Z)/{unit}", reverse_sign=True),),
+    phase_degree=(Syn(hdr="Phase(Z)/{unit}"),),
+    absolute_impedance_ohm=(Syn(hdr="|Z|/{unit}"),),
 )
 
 DIGATRON = TableNormalizer(
@@ -1163,6 +1209,7 @@ BDF_NORMALIZER = _build_bdf_normalizer()
 
 NORMALIZERS: dict[str, TableNormalizer] = {
     "arbin": ARBIN,
+    "arbin_res": ARBIN_RES,
     "basytec": BASYTEC,
     "biologic": BIOLOGIC,
     "digatron": DIGATRON,

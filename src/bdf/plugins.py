@@ -39,6 +39,8 @@ from .table_parsers import (
     IpcParser,
     JsonParser,
     MatParser,
+    MDBParser,
+    MprParser,
     NDAParser,
     NdjsonParser,
     ParquetParser,
@@ -54,7 +56,16 @@ except ImportError as _exc:
     _YAML_IMPORT_ERROR = _exc
 
 TableParserUnion = Annotated[
-    DelimTxtParser | ExcelParser | IpcParser | JsonParser | MatParser | NDAParser | NdjsonParser | ParquetParser,
+    DelimTxtParser
+    | ExcelParser
+    | IpcParser
+    | JsonParser
+    | MatParser
+    | MDBParser
+    | MprParser
+    | NDAParser
+    | NdjsonParser
+    | ParquetParser,
     Field(discriminator="kind"),
 ]
 MetadataUnion = Annotated[
@@ -143,6 +154,13 @@ ARBIN_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["arbin"]),
 )
 
+ARBIN_RES = Plugin(
+    table_parser=MDBParser(
+        normalizer=NORMALIZERS["arbin_res"],
+        unique_exts=frozenset({".res"}),
+    ),
+)
+
 BASYTEC_TXT = Plugin(
     table_parser=DelimTxtParser(
         normalizer=NORMALIZERS["basytec"],
@@ -170,6 +188,8 @@ BIOLOGIC_MPT = Plugin(
         regex_patterns=MetadataSchema[re.Pattern[str]](start_time=re.compile(r"Acquisition started on\s*:\s*(.+)")),
     ),
 )
+
+BIOLOGIC_MPR = Plugin(table_parser=MprParser(normalizer=NORMALIZERS["biologic"]))
 
 DIGATRON_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["digatron"]),
@@ -229,8 +249,10 @@ BDF_XLSX = Plugin(table_parser=ExcelParser(normalizer=BDF_NORMALIZER))
 PLUGINS: dict[str, Plugin] = PluginDict(
     {
         "arbin_csv": ARBIN_CSV,
+        "arbin_res": ARBIN_RES,
         "basytec_txt": BASYTEC_TXT,
         "biologic_mpt": BIOLOGIC_MPT,
+        "biologic_mpr": BIOLOGIC_MPR,
         "digatron_csv": DIGATRON_CSV,
         "landt_csv": LANDT_CSV,
         "landt_txt": LANDT_TXT,
