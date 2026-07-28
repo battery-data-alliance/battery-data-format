@@ -633,6 +633,8 @@ class TableNormalizer(BaseModel):
 # several file formats (e.g. ``"neware"`` backs both the CSV and XLSX sources).
 # ---------------------------------------------------------------------------
 
+_ACCESS_UNIX_EPOCH_DAYS = 25569.0
+_SECONDS_PER_DAY = 86400.0
 _ARBIN_DT_FMTS = (
     "%m/%d/%Y %H:%M:%S%.f",
     "%m/%d/%Y %H:%M:%S",
@@ -702,6 +704,35 @@ ARBIN = TableNormalizer(
     power_watt=(Syn(hdr="Power ({unit})"),),
     ac_internal_resistance_ohm=(Syn(hdr="ACR ({unit})"),),
     dc_internal_resistance_ohm=(Syn(hdr="Internal Resistance ({unit})"),),
+)
+
+ARBIN_RES = TableNormalizer(
+    test_time_second=(Syn(hdr="Test_Time", source_unit="s"),),
+    voltage_volt=(Syn(hdr="Voltage", source_unit="V"),),
+    current_ampere=(Syn(hdr="Current", source_unit="A"),),
+    # Access day-fraction datetimes are naive local wall-clock; this fixed
+    # scale/offset treats them as UTC (no tz support on the ResolvedColumn
+    # path). Acceptable for the .res use case; revisit if tz-correct absolute
+    # time is needed.
+    unix_time_second=ResolvedColumn(
+        source_header="DateTime",
+        scale=_SECONDS_PER_DAY,
+        offset=-_ACCESS_UNIX_EPOCH_DAYS * _SECONDS_PER_DAY,
+    ),
+    cycle_count=(Syn(hdr="Cycle_Index"),),
+    step_id=(Syn(hdr="Step_Index"),),
+    record_index=(Syn(hdr="Data_Point"),),
+    step_time_second=(Syn(hdr="Step_Time", source_unit="s"),),
+    # Arbin accumulators reset at operator-defined schedule points, so they map
+    # to the schedule-scoped terms from ontology 1.3.0 (see the csv/xlsx
+    # normalizer above).
+    schedule_charging_capacity_ah=(Syn(hdr="Charge_Capacity", source_unit="Ah"),),
+    schedule_discharging_capacity_ah=(Syn(hdr="Discharge_Capacity", source_unit="Ah"),),
+    schedule_charging_energy_wh=(Syn(hdr="Charge_Energy", source_unit="Wh"),),
+    schedule_discharging_energy_wh=(Syn(hdr="Discharge_Energy", source_unit="Wh"),),
+    dc_internal_resistance_ohm=(Syn(hdr="Internal_Resistance", source_unit="ohm"),),
+    absolute_impedance_ohm=(Syn(hdr="AC_Impedance", source_unit="ohm"),),
+    phase_degree=(Syn(hdr="ACI_Phase_Angle", source_unit="degree"),),
 )
 
 BASYTEC = TableNormalizer(
@@ -1178,6 +1209,7 @@ BDF_NORMALIZER = _build_bdf_normalizer()
 
 NORMALIZERS: dict[str, TableNormalizer] = {
     "arbin": ARBIN,
+    "arbin_res": ARBIN_RES,
     "basytec": BASYTEC,
     "biologic": BIOLOGIC,
     "digatron": DIGATRON,

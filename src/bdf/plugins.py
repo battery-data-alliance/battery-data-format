@@ -39,6 +39,7 @@ from .table_parsers import (
     IpcParser,
     JsonParser,
     MatParser,
+    MDBParser,
     MprParser,
     NDAParser,
     NdjsonParser,
@@ -60,6 +61,7 @@ TableParserUnion = Annotated[
     | IpcParser
     | JsonParser
     | MatParser
+    | MDBParser
     | MprParser
     | NDAParser
     | NdjsonParser
@@ -152,6 +154,13 @@ ARBIN_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["arbin"]),
 )
 
+ARBIN_RES = Plugin(
+    table_parser=MDBParser(
+        normalizer=NORMALIZERS["arbin_res"],
+        unique_exts=frozenset({".res"}),
+    ),
+)
+
 BASYTEC_TXT = Plugin(
     table_parser=DelimTxtParser(
         normalizer=NORMALIZERS["basytec"],
@@ -240,6 +249,7 @@ BDF_XLSX = Plugin(table_parser=ExcelParser(normalizer=BDF_NORMALIZER))
 PLUGINS: dict[str, Plugin] = PluginDict(
     {
         "arbin_csv": ARBIN_CSV,
+        "arbin_res": ARBIN_RES,
         "basytec_txt": BASYTEC_TXT,
         "biologic_mpt": BIOLOGIC_MPT,
         "biologic_mpr": BIOLOGIC_MPR,

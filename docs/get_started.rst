@@ -49,6 +49,8 @@ Extras (combine as needed, for example ``pip install "batterydf[nda,plot]"``):
      - Excel support via the fast ``calamine`` engine.
    * - ``mat``
      - MATLAB .mat support.
+   * - ``arbin``
+     - Arbin .res support.
    * - ``yaml``
      - YAML plugin definitions.
    * - ``plot``
