@@ -1043,6 +1043,8 @@ class TestMDBParser:
         res_path.write_bytes(b"")
         parser = MDBParser()
         assert parser.read_column_headings(res_path) == ["a", "b"]
+
+
 class TestExcelSheetPattern:
     """ExcelParser.sheet_pattern: regex-based sheet selection for variable sheet names."""
 

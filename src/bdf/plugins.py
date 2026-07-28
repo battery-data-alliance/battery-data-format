@@ -55,7 +55,15 @@ except ImportError as _exc:
     _YAML_IMPORT_ERROR = _exc
 
 TableParserUnion = Annotated[
-    DelimTxtParser | ExcelParser | IpcParser | JsonParser | MatParser | MDBParser | NDAParser | NdjsonParser | ParquetParser,
+    DelimTxtParser
+    | ExcelParser
+    | IpcParser
+    | JsonParser
+    | MatParser
+    | MDBParser
+    | NDAParser
+    | NdjsonParser
+    | ParquetParser,
     Field(discriminator="kind"),
 ]
 MetadataUnion = Annotated[

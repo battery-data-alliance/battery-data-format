@@ -700,6 +700,10 @@ ARBIN_RES = TableNormalizer(
     test_time_second=(Syn(hdr="Test_Time", source_unit="s"),),
     voltage_volt=(Syn(hdr="Voltage", source_unit="V"),),
     current_ampere=(Syn(hdr="Current", source_unit="A"),),
+    # Access day-fraction datetimes are naive local wall-clock; this fixed
+    # scale/offset treats them as UTC (no tz support on the ResolvedColumn
+    # path). Acceptable for the .res use case; revisit if tz-correct absolute
+    # time is needed.
     unix_time_second=ResolvedColumn(
         source_header="DateTime",
         scale=_SECONDS_PER_DAY,

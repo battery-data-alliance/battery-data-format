@@ -14,9 +14,9 @@ Polars is licensed under MIT: https://github.com/pola-rs/polars/blob/main/LICENS
 from __future__ import annotations
 
 import inspect
+import re
 import shutil
 import sys
-import re
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
