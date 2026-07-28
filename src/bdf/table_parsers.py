@@ -857,7 +857,7 @@ class NDAParser(TableParser):
     kind: Literal["nda"] = "nda"
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".nda", ".ndax"})
-    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"NEWARE"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"NEWARE", b"PK"})
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
         """Read Neware NDA file to a LazyFrame using fastnda.
