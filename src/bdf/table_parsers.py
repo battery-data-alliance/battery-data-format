@@ -845,11 +845,11 @@ class IpcParser(TableParser):
 
 
 # ---------------------------------------------------------------------------
-# NDAParser
+# NdaParser
 # ---------------------------------------------------------------------------
 
 
-class NDAParser(TableParser):
+class NdaParser(TableParser):
     """Wraps fastnda for Neware .nda / .ndax binary files."""
 
     model_config = ConfigDict(frozen=True)
@@ -874,7 +874,7 @@ class NDAParser(TableParser):
         try:
             import fastnda  # type: ignore
         except ImportError as exc:
-            raise RuntimeError("NDAParser requires fastnda. Install with `pip install fastnda`.") from exc
+            raise RuntimeError("NdaParser requires fastnda. Install with `pip install fastnda`.") from exc
         resolved = resolve_source(path)
         df = fastnda.read(str(resolved))
         return df.lazy()
