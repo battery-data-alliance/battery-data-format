@@ -40,6 +40,7 @@ from .table_parsers import (
     JsonParser,
     MatParser,
     MDBParser,
+    MprParser,
     NDAParser,
     NdjsonParser,
     ParquetParser,
@@ -61,6 +62,7 @@ TableParserUnion = Annotated[
     | JsonParser
     | MatParser
     | MDBParser
+    | MprParser
     | NDAParser
     | NdjsonParser
     | ParquetParser,
@@ -187,6 +189,8 @@ BIOLOGIC_MPT = Plugin(
     ),
 )
 
+BIOLOGIC_MPR = Plugin(table_parser=MprParser(normalizer=NORMALIZERS["biologic"]))
+
 DIGATRON_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["digatron"]),
 )
@@ -248,6 +252,7 @@ PLUGINS: dict[str, Plugin] = PluginDict(
         "arbin_res": ARBIN_RES,
         "basytec_txt": BASYTEC_TXT,
         "biologic_mpt": BIOLOGIC_MPT,
+        "biologic_mpr": BIOLOGIC_MPR,
         "digatron_csv": DIGATRON_CSV,
         "landt_csv": LANDT_CSV,
         "landt_txt": LANDT_TXT,

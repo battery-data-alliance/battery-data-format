@@ -262,7 +262,7 @@ requires-dist = [
     { name = "scipy", marker = "extra == 'mat'", specifier = ">=1.15.3" },
     { name = "typer", specifier = ">=0.12" },
     { name = "xlsxwriter", marker = "extra == 'excel'", specifier = ">=3.2.9" },
-    { name = "yadg", marker = "extra == 'mpr'", specifier = ">=6.2.0,<7.0.0" },
+    { name = "yadg", marker = "extra == 'mpr'", specifier = ">=6.2.0" },
 ]
 provides-extras = ["nda", "mpr", "excel", "mat", "arbin-res", "yaml", "plot", "hvplot", "all"]
 

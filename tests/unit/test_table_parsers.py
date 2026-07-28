@@ -24,6 +24,7 @@ from bdf.table_parsers import (
     JsonParser,
     MatParser,
     MDBParser,
+    MprParser,
     NDAParser,
     NdjsonParser,
     ParquetParser,
@@ -1043,6 +1044,37 @@ class TestMDBParser:
         res_path.write_bytes(b"")
         parser = MDBParser()
         assert parser.read_column_headings(res_path) == ["a", "b"]
+
+
+class TestMprParser:
+    """Unit tests for logic in mpr parser."""
+
+    def test_rebuild_current(self):
+        df = pl.DataFrame({"uts/s": [0.0, 1.0], "dq/mA·h": [0.0, 0.1]})
+        with pytest.warns(UserWarning, match="No current column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "I/mA" in df.columns
+        assert df["I/mA"].to_list() == [0.0, 360.0]
+
+    def test_zero_current(self):
+        df = pl.DataFrame({"uts/s": [0.0, 1.0]})
+        with pytest.warns(UserWarning, match="No current column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "I/mA" in df.columns
+        assert df["I/mA"].to_list() == [0.0, 0.0]
+
+    def test_rebuild_cycles(self):
+        df = pl.DataFrame(
+            {
+                "uts/s": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                "I/mA": [0.1, -0.1, 0.1, -0.1, 0.1, -0.1],
+                "half cycle": [0, 1, 2, 3, 4, 5],
+            }
+        )
+        with pytest.warns(UserWarning, match="No cycle count column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "cycle number" in df.columns
+        assert df["cycle number"].to_list() == [0, 0, 1, 1, 2, 2]
 
 
 class TestExcelSheetPattern:
