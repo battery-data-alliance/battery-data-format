@@ -50,6 +50,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - Dev and docs dependencies moved to PEP 735 dependency-groups; plotting deps moved into a new `plot` extra.
 - `save()` now validates via `ColumnOntology.validate_df`, which also warns on non-canonical BDF units.
 - `ColumnOntology.load_version()` now fetches and caches an uncached ontology release instead of raising.
+- `NDAParser` renamed to `NdaParser`; its magic-byte check now recognizes the `.ndax` zip container.
 
 ### Fixed
 - Unix-time conversion is now datetime-resolution-safe: previously assumed nanosecond storage and returned values 1000x too small on pandas builds that yield `[us]`/`[s]`/`[ms]` datetimes.
