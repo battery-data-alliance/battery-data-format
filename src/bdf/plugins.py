@@ -41,7 +41,7 @@ from .table_parsers import (
     MatParser,
     MDBParser,
     MprParser,
-    NDAParser,
+    NdaParser,
     NdjsonParser,
     ParquetParser,
 )
@@ -63,7 +63,7 @@ TableParserUnion = Annotated[
     | MatParser
     | MDBParser
     | MprParser
-    | NDAParser
+    | NdaParser
     | NdjsonParser
     | ParquetParser,
     Field(discriminator="kind"),
@@ -231,7 +231,7 @@ NOVONIX_CSV = Plugin(
     metadata_parser=TxtPreambleParser(magic=("[summary]", "[data]", "novonix uhpc data file", "novonix")),
 )
 
-NEWARE_NDA = Plugin(table_parser=NDAParser(normalizer=NDA_NORMALIZER))
+NEWARE_NDA = Plugin(table_parser=NdaParser(normalizer=NDA_NORMALIZER))
 
 BDF_CSV = Plugin(
     table_parser=DelimTxtParser(

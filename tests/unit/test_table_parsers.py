@@ -25,7 +25,7 @@ from bdf.table_parsers import (
     MatParser,
     MDBParser,
     MprParser,
-    NDAParser,
+    NdaParser,
     NdjsonParser,
     ParquetParser,
     TableParser,
@@ -64,10 +64,10 @@ class TestMatchesMagicBytes:
         assert ParquetParser().matches_magic_bytes(b"NEWARE") is False
 
     def test_nda_matches_neware_magic(self) -> None:
-        assert NDAParser().matches_magic_bytes(b"NEWARErest") is True
+        assert NdaParser().matches_magic_bytes(b"NEWARErest") is True
 
     def test_nda_rejects_unrelated_bytes(self) -> None:
-        assert NDAParser().matches_magic_bytes(b"PAR1") is False
+        assert NdaParser().matches_magic_bytes(b"PAR1") is False
 
     def test_mdb_matches_jet_magic(self) -> None:
         assert MDBParser().matches_magic_bytes(b"\x00\x01\x00\x00Standard Jet DB\x00\x00") is True
@@ -80,7 +80,7 @@ class TestMatchesMagicBytes:
         assert ExcelParser().is_text is False
         assert MatParser().is_text is False
         assert ParquetParser().is_text is False
-        assert NDAParser().is_text is False
+        assert NdaParser().is_text is False
         assert MDBParser().is_text is False
 
 
@@ -857,8 +857,8 @@ class TestIpcParser:
         assert lf.collect_schema().names() == ["a", "b"]
 
 
-class TestNDAParser:
-    """NDAParser, with fastnda mocked so no binary fixture or real dependency is needed."""
+class TestNdaParser:
+    """NdaParser, with fastnda mocked so no binary fixture or real dependency is needed."""
 
     @pytest.fixture
     def fake_fastnda(self, monkeypatch: pytest.MonkeyPatch):
@@ -890,7 +890,7 @@ class TestNDAParser:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", blocked_import)
-        parser = NDAParser()
+        parser = NdaParser()
         with pytest.raises(RuntimeError, match="fastnda"):
             parser._read_raw("cell.nda")
 
@@ -898,7 +898,7 @@ class TestNDAParser:
         """_read_raw resolves a local path and forwards it as a string to fastnda.read."""
         nda_path = tmp_path / "cell.nda"
         nda_path.write_bytes(b"")
-        parser = NDAParser()
+        parser = NdaParser()
         lf = parser._read_raw(nda_path)
         assert isinstance(lf, pl.LazyFrame)
         assert lf.collect_schema().names() == ["a", "b"]
@@ -911,7 +911,7 @@ class TestNDAParser:
         cached = tmp_path / "downloaded.nda"
         cached.write_bytes(b"")
         monkeypatch.setattr("bdf.fetch.fetch_url", lambda url: cached)
-        parser = NDAParser()
+        parser = NdaParser()
         parser._read_raw("https://example.com/cell.nda")
         assert fake_fastnda == [str(cached)]
 
@@ -919,7 +919,7 @@ class TestNDAParser:
         """read_column_headings reflects fastnda's column names without requiring data rows."""
         nda_path = tmp_path / "cell.nda"
         nda_path.write_bytes(b"")
-        parser = NDAParser()
+        parser = NdaParser()
         assert parser.read_column_headings(nda_path) == ["a", "b"]
 
 

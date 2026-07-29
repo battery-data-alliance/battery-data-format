@@ -845,11 +845,11 @@ class IpcParser(TableParser):
 
 
 # ---------------------------------------------------------------------------
-# NDAParser
+# NdaParser
 # ---------------------------------------------------------------------------
 
 
-class NDAParser(TableParser):
+class NdaParser(TableParser):
     """Wraps fastnda for Neware .nda / .ndax binary files."""
 
     model_config = ConfigDict(frozen=True)
@@ -857,7 +857,7 @@ class NDAParser(TableParser):
     kind: Literal["nda"] = "nda"
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".nda", ".ndax"})
-    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"NEWARE"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"NEWARE", b"PK"})
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
         """Read Neware NDA file to a LazyFrame using fastnda.
@@ -874,7 +874,7 @@ class NDAParser(TableParser):
         try:
             import fastnda  # type: ignore
         except ImportError as exc:
-            raise RuntimeError("NDAParser requires fastnda. Install with `pip install fastnda`.") from exc
+            raise RuntimeError("NdaParser requires fastnda. Install with `pip install fastnda`.") from exc
         resolved = resolve_source(path)
         df = fastnda.read(str(resolved))
         return df.lazy()
