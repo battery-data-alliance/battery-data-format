@@ -70,7 +70,7 @@ hvplot = [
 
 # Bundle of all user-facing feature extras
 all = [
-  "batterydf[nda,mpr,excel,mat,yaml,plot,hvplot]",
+  "batterydf[nda,mpr,excel,mat,arbin_res,yaml,plot,hvplot]",
 ]
 
 [dependency-groups]

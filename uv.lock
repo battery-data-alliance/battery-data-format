@@ -154,6 +154,8 @@ all = [
     { name = "hvplot" },
     { name = "matplotlib" },
     { name = "plotly" },
+    { name = "polars-access-mdbtools" },
+    { name = "pyodbc", marker = "sys_platform == 'win32'" },
     { name = "pyyaml" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -238,7 +240,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "batterydf", extras = ["nda", "mpr", "excel", "mat", "yaml", "plot", "hvplot"], marker = "extra == 'all'" },
+    { name = "batterydf", extras = ["nda", "mpr", "excel", "mat", "arbin-res", "yaml", "plot", "hvplot"], marker = "extra == 'all'" },
     { name = "bokeh", marker = "extra == 'hvplot'" },
     { name = "fastexcel", marker = "extra == 'excel'", specifier = ">=0.20.2" },
     { name = "fastnda", marker = "extra == 'nda'", specifier = ">=1.2.0" },
