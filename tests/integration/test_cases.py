@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
@@ -695,12 +694,6 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "schedule_charging_energy_wh": ColExpect("Charge_Energy", 1.0),
                 "schedule_discharging_energy_wh": ColExpect("Discharge_Energy", 1.0),
             },
-            marks=(
-                pytest.mark.skipif(
-                    sys.version_info < (3, 11),
-                    reason="polars-access-mdbtools 0.1.2 requires Python >=3.11",
-                ),
-            ),
         ),
     ),
     (
