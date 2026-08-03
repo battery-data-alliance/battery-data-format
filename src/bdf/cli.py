@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -19,6 +21,16 @@ from .repair import DEFAULT_OUTLIER_COLS, clean as clean_bdf
 from .visualize import X_DEFAULT, Y_DEFAULT, plot as line_plot
 
 app = typer.Typer(help="Battery Data Format utilities")
+
+
+def _stdin_to_tmp() -> Path:
+    """Buffer stdin into a temp file so the detection pipeline can seek and reread it."""
+    data = sys.stdin.buffer.read()
+    if not data:
+        raise typer.BadParameter("stdin is empty")
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(data)
+    return Path(tmp.name)
 
 
 def _version_callback(value: bool) -> None:
@@ -177,7 +189,7 @@ def meta_jsonld(
             df = None  # okay: JSON-LD will omit per-column metadata
 
     out_path = save_jsonld(meta, data, out_path=out, df=df, csvw_schema_url=schema_url)
-    typer.echo(f"Wrote metadata: {out_path}")
+    typer.echo(f"Wrote metadata: {out_path}", err=True)
 
 
 @app.command()
@@ -200,20 +212,24 @@ def clean(
     df, rep = clean_bdf(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=col)
     save(df, out)
     typer.echo(str(rep))
-    typer.echo(f"Saved: {out}")
+    typer.echo(f"Saved: {out}", err=True)
 
 
 @app.command()
 def validate(
-    path: str,
+    path: str = typer.Argument(..., help="File to validate, or '-' to read from stdin"),
     strict: bool = typer.Option(False, help="Raise error (non-zero exit) on invalid BDF"),
     json: bool = typer.Option(False, help="Output machine-readable JSON report"),
 ):
     """
     Validate a CSV/Parquet file against the BDF schema and basic sanity checks.
+
+    The report goes to stdout; operational errors go to stderr.
+    Exit codes: 0 valid, 1 invalid, 2 could not read the input.
     """
+    src: str | Path = _stdin_to_tmp() if path == "-" else path
     try:
-        report = validate_any(path, report=not json, raise_on_error=strict)
+        report = validate_any(src, report=not json, raise_on_error=strict)
     except BDFValidationError as e:
         if json:
             import json as _json
@@ -223,8 +239,11 @@ def validate(
             print(f"[bdf] INVALID\n{e}")
         raise typer.Exit(code=1) from None
     except Exception as e:
-        print(f"[bdf] Error reading file: {e}")
+        typer.echo(f"[bdf] Error reading file: {e}", err=True)
         raise typer.Exit(code=2) from e
+    finally:
+        if path == "-":
+            Path(src).unlink(missing_ok=True)
 
     ok = bool(report.get("ok"))
     if json:
@@ -275,8 +294,8 @@ def templates(
 
 @app.command()
 def convert(
-    path: str,
-    to: str = "bdf.csv",
+    path: str = typer.Argument(..., help="Raw vendor file or BDF artifact, or '-' to read from stdin"),
+    to: str = typer.Option("bdf.csv", "--to", help="Output path, or '-' to write BDF CSV to stdout"),
     as_: Optional[str] = typer.Option(None, "--as", help="Force a specific plugin id for raw input"),
     include_unknown: bool = typer.Option(
         False, "--include-unknown", help="Keep columns outside the BDF spec in the output"
@@ -291,15 +310,30 @@ def convert(
 ):
     """
     Convert a raw vendor file or existing BDF artifact to another BDF artifact.
+
+    Data goes to the output path (stdout with '--to -'); status messages go to stderr.
+    Stdin input has no filename, so detection relies on content; use --as if it is ambiguous.
     """
     if human is not None:
         labels = "preferred" if human else "machine"
     if labels not in ("preferred", "machine", "unchanged"):
         raise typer.BadParameter("--labels must be one of: preferred, machine, unchanged")
 
-    df, _ = read(path, plugin=as_, validate=validate, include_unknown=include_unknown)
-    save(df, to, validate=validate, labels=labels)
-    print(f"[bdf] wrote {to}")
+    src: str | Path = _stdin_to_tmp() if path == "-" else path
+    try:
+        df, _ = read(src, plugin=as_, validate=validate, include_unknown=include_unknown)
+    finally:
+        if path == "-":
+            Path(src).unlink(missing_ok=True)
+
+    if to == "-":
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "out.bdf.csv"
+            save(df, out, validate=validate, labels=labels)
+            sys.stdout.buffer.write(out.read_bytes())
+    else:
+        save(df, to, validate=validate, labels=labels)
+        typer.echo(f"[bdf] wrote {to}", err=True)
 
 
 @app.command()
@@ -323,4 +357,4 @@ def plot(
 
     # Draw the plot
     line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")
-    print(f"[bdf] plotted {', '.join(ydata)} vs {xdata}" + (f" -> {save}" if save else ""))
+    typer.echo(f"[bdf] plotted {', '.join(ydata)} vs {xdata}" + (f" -> {save}" if save else ""), err=True)
