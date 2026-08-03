@@ -42,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - Ontology 1.3.0: `schedule_*` capacity/energy terms for schedule-driven accumulators and `step_record_index` (replacing the deprecated `step_index`).
 - Ontology release pinning with a bundled snapshot, `BDF_CACHE_DIR` cache override, and a daily auto-sync workflow.
 - New optional extras `excel`, `mat`, `mpr`, `yaml` for additional file formats, and an `all` bundle covering all user-facing feature extras.
+- CLI piping: `convert` and `validate` accept `-` to read from stdin, and `convert --to -` writes BDF CSV to stdout; status messages go to stderr. Exit codes: 0 valid, 1 invalid, 2 unreadable.
 - Docs: example notebooks now execute live via myst-nb, plus a generated "Supported Plugins" reference page.
 
 ### Changed
@@ -53,6 +54,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `NDAParser` renamed to `NdaParser`; its magic-byte check now recognizes the `.ndax` zip container.
 
 ### Fixed
+- `arbin_res` extra is now part of the `all` bundle, and its mdbtools backend supports Python 3.10 (polars-access-mdbtools 0.1.3).
 - Unix-time conversion is now datetime-resolution-safe: previously assumed nanosecond storage and returned values 1000x too small on pandas builds that yield `[us]`/`[s]`/`[ms]` datetimes.
 - `ingest` now lowercases the cell id in per-cell metadata directory paths, stable on case-sensitive filesystems.
 - Compound file extensions (e.g. `.bdf.csv.gz`) no longer fail to match a plugin.
