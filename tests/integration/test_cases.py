@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
@@ -664,6 +665,67 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "imaginary_impedance_ohm": ColExpect("-Im(Z)/Ω", -1.0),
                 "absolute_impedance_ohm": ColExpect("|Z|/Ω", 1.0),
                 "phase_degree": ColExpect("Phase(Z)/deg", 1.0),
+            },
+        ),
+    ),
+    (
+        "arbin_res/mits7-0",
+        SampleCase(
+            source="res/mits7-0.res.gz",
+            plugin_id="arbin_res",
+            ext_ids=frozenset({"arbin_res"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_res",
+            detect_id="arbin_res",
+            deciding_stage="ext",
+            expected_columns={
+                "unix_time_second": ColExpect("DateTime", 60 * 60 * 24),
+                "test_time_second": ColExpect("Test_Time", 1.0),
+                "step_time_second": ColExpect("Step_Time", 1.0),
+                "record_index": ColExpect("Data_Point", 1.0),
+                "voltage_volt": ColExpect("Voltage", 1.0),
+                "current_ampere": ColExpect("Current", 1.0),
+                "cycle_count": ColExpect("Cycle_Index", 1.0),
+                "step_id": ColExpect("Step_Index", 1.0),
+                "dc_internal_resistance_ohm": ColExpect("Internal_Resistance", 1.0),
+                "absolute_impedance_ohm": ColExpect("AC_Impedance", 1.0),
+                "phase_degree": ColExpect("ACI_Phase_Angle", 1.0),
+                "schedule_charging_capacity_ah": ColExpect("Charge_Capacity", 1.0),
+                "schedule_discharging_capacity_ah": ColExpect("Discharge_Capacity", 1.0),
+                "schedule_charging_energy_wh": ColExpect("Charge_Energy", 1.0),
+                "schedule_discharging_energy_wh": ColExpect("Discharge_Energy", 1.0),
+            },
+            marks=(
+                pytest.mark.skipif(
+                    sys.version_info < (3, 11),
+                    reason="polars-access-mdbtools 0.1.2 requires Python >=3.11",
+                ),
+            ),
+        ),
+    ),
+    (
+        "ndax/filetype14-0",
+        SampleCase(
+            source="nda/filetype14-0.ndax",
+            plugin_id="neware_nda",
+            ext_ids=frozenset({"neware_nda"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="neware_nda",
+            detect_id="neware_nda",
+            deciding_stage="ext",
+            expected_columns={
+                "record_index": ColExpect("index", 1.0),
+                "unix_time_second": ColExpect("unix_time_s", 1.0),
+                "test_time_second": ColExpect("total_time_s", 1.0),
+                "step_time_second": ColExpect("step_time_s", 1.0),
+                "voltage_volt": ColExpect("voltage_V", 1.0),
+                "current_ampere": ColExpect("current_mA", 0.001),
+                "step_net_capacity_ah": ColExpect("capacity_mAh", 0.001),
+                "step_net_energy_wh": ColExpect("energy_mWh", 0.001),
+                "step_count": ColExpect("step_count", 1.0),
+                "step_id": ColExpect("step_index", 1.0),
+                "step_type": ColExpect("step_type", 1.0),
+                "cycle_count": ColExpect("cycle_count", 1.0),
             },
         ),
     ),
