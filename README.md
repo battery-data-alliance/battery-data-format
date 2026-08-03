@@ -168,7 +168,7 @@ pip install batterydf[nda]       # Neware .nda/.ndax (using fastnda)
 pip install batterydf[mpr]       # BioLogic .mpr (using yadg)
 pip install batterydf[excel]     # Excel (using calamine)
 pip install batterydf[mat]       # MATLAB .mat files (using scipy)
-pip install batterydf[arbin_res] # Arbin .res files (using pyodbc or mdbtools; mdbtools backend needs Python 3.11+)
+pip install batterydf[arbin_res] # Arbin .res files (using pyodbc or mdbtools)
 pip install batterydf[plot]      # For plotting with matplotlib/plotly
 pip install batterydf[hvplot]    # For plotting with bokeh/holoviews
 pip install batterydf[yaml]      # For YAML plugin definitions
