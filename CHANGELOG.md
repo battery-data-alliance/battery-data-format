@@ -67,6 +67,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `validate()` now uses plugin detection to decide whether a file is a BDF artifact.
 - `.json` artifacts are now valid standalone JSON (a records array via `write_json`); previously `save()` wrote JSON-Lines under the `.json` extension, producing files that failed to parse as JSON outside pandas. Use the new `.ndjson` format for JSON-Lines output.
 
+### Known limitations
+- `save()` writes a `.metadata.json` sidecar that `read()` does not yet read back; the typed metadata object (GH #48, tracked in #91) will close the loop.
+
 ## [0.1.0] - 2026-02-10
 ### Added
 - CI pipeline with lint/type/tests/docs and build/twine checks.
