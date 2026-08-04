@@ -199,7 +199,7 @@ class JsonSidecarParser(MetadataParser):
         Returns:
             Path to the .json sidecar file (same name, .json suffix).
         """
-        return Path(path).with_suffix(".json")
+        return Path(path).with_suffix(".metadata.json")
 
     def matches(self, path: str | Path) -> bool:
         """Return True when the ``.json`` sidecar file exists.
