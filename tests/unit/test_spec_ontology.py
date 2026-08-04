@@ -9,7 +9,7 @@ import polars as pl
 import pytest
 from pydantic import ValidationError
 
-from bdf import spec
+from bdf import BDFValidationError, spec
 from bdf.spec import (
     COLUMN_ONTOLOGY,
     ColumnOntology,
@@ -858,16 +858,12 @@ def test_validate_df_passes_with_lazyframe(required_df: pl.DataFrame) -> None:
 
 
 def test_validate_df_raises_when_required_column_missing(required_df: pl.DataFrame) -> None:
-    from bdf.validate import BDFValidationError
-
     df = required_df.drop("Voltage / V")
     with pytest.raises(BDFValidationError, match="Voltage / V"):
         spec.COLUMN_ONTOLOGY.validate_df(df)
 
 
 def test_validate_df_raises_listing_all_missing_required_columns() -> None:
-    from bdf.validate import BDFValidationError
-
     df = pl.DataFrame({"Test Time / s": [0.0]})
     with pytest.raises(BDFValidationError) as exc_info:
         spec.COLUMN_ONTOLOGY.validate_df(df)
@@ -931,8 +927,6 @@ def test_validate_df_accepts_lazyframe_and_returns_it(required_df: pl.DataFrame)
 
 
 def test_validate_df_raises_on_missing_columns_with_pandas_input() -> None:
-    from bdf.validate import BDFValidationError
-
     pdf = pd.DataFrame({"Test Time / s": [0.0]})
     with pytest.raises(BDFValidationError):
         spec.COLUMN_ONTOLOGY.validate_df(pdf)

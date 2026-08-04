@@ -697,7 +697,7 @@ class ColumnOntology:
             if extra:
                 detail += f"; unrecognized columns present: {sorted(extra)}"
             if raise_on_error:
-                from bdf.validate import BDFValidationError  # lazy — validate imports spec
+                from ._errors import BDFValidationError
 
                 raise BDFValidationError(detail)
             warnings.warn(detail, UserWarning, stacklevel=2)
