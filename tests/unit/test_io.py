@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import warnings
 from pathlib import Path
 from types import SimpleNamespace
@@ -676,3 +677,21 @@ def test_read_unexplained_ratio_stays_loud_even_with_reconcile_time(tmp_path: Pa
         out, meta = read(path, validate=False)
     assert out["Test Time / s"].to_list()[1] == 370.0
     assert "time_reconciliation" not in meta
+
+
+def test_save_metadata(tmp_path: Path) -> None:
+    """Check metadata can be saved and read."""
+    df_orig = pl.DataFrame(
+        {
+            "Test Time / s": [1.0, 2.0, 3.0],
+            "Voltage / V": [4.0, 4.1, 4.2],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    p = tmp_path / "data.bdf.parquet"
+    p_meta = tmp_path / "data.bdf.metadata.json"
+    io.save(df_orig, p, metadata={"foo": "bar"})
+    assert p.exists()
+    assert p_meta.exists()
+    metadata = json.loads(p_meta.read_text())
+    assert metadata == {"foo": "bar"}
