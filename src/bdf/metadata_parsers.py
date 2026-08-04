@@ -176,7 +176,8 @@ class TxtPreambleParser(MetadataParser):
 
 
 class JsonSidecarParser(MetadataParser):
-    """Reads metadata from a JSON file adjacent to the data file (``path.with_suffix(".json")``).
+    """Reads metadata from a JSON file adjacent to the data file
+    (``path.with_suffix(".metadata.json")``).
 
     ``key_synonyms`` holds an ordered tuple of candidate JSON keys per set field;
     :meth:`parse` returns the value of the first synonym key present in the JSON.
@@ -197,18 +198,18 @@ class JsonSidecarParser(MetadataParser):
             path: Local file path to the data file.
 
         Returns:
-            Path to the .json sidecar file (same name, .json suffix).
+            Path to the .json sidecar file (same name, .metadata.json suffix).
         """
         return Path(path).with_suffix(".metadata.json")
 
     def matches(self, path: str | Path) -> bool:
-        """Return True when the ``.json`` sidecar file exists.
+        """Return True when the ``.metadata.json`` sidecar file exists.
 
         Args:
             path: Local file path to the data file.
 
         Returns:
-            True if the .json sidecar file exists.
+            True if the .metadata.json sidecar file exists.
         """
         return self._sidecar(path).exists()
 
