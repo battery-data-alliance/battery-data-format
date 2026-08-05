@@ -21,12 +21,34 @@ def _stdin_to_tmp() -> Path:
     return Path(tmp.name)
 
 
+def _ontology_version() -> str:
+    """Read owl:versionInfo from the bundled snapshot with regex."""
+    import importlib.resources
+    import re
+
+    try:
+        raw = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl").read_text(encoding="utf-8")
+        # rdflib's ttl serializer separates blocks with a blank line
+        # make sure its in the ontology block to avoid picking up different versions
+        for block in raw.split("\n\n"):
+            if "a owl:Ontology" in block:
+                match = re.search(r'owl:versionInfo\s+"([^"]+)"', block)
+                if match:
+                    return match.group(1)
+    except Exception:
+        pass
+
+    # If the regex fails, fall back to building the ontology properly
+    from .spec import COLUMN_ONTOLOGY
+
+    return COLUMN_ONTOLOGY.ontology_version
+
+
 def _version_callback(value: bool) -> None:
     if value:
         from . import __version__
-        from .spec import COLUMN_ONTOLOGY
 
-        typer.echo(f"bdf {__version__} (ontology snapshot {COLUMN_ONTOLOGY.ontology_version})")
+        typer.echo(f"bdf {__version__} (ontology snapshot {_ontology_version()})")
         raise typer.Exit()
 
 
