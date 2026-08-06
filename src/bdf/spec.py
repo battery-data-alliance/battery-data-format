@@ -1,25 +1,4 @@
-# src/bdf/spec.py
-from __future__ import annotations
-
-import contextlib
-import hashlib
-import importlib.resources
-import re
-import tempfile
-import warnings
-from pathlib import Path
-from typing import Any, Literal, cast
-
-import pint
-import polars as pl
-from pydantic import BaseModel, field_validator, model_validator
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDF, SKOS
-
-from bdf._df_compat import coerce_dataframe
-
-"""
-Single source of truth for BDF canonical columns.
+"""Single source of truth for BDF canonical columns.
 
 Each entry defines:
 - unit: pint-compatible canonical unit
@@ -33,6 +12,27 @@ Notes:
 - Slugs are lowercase with non-alnum -> "-" (same slugger as normalizer).
 - Synonyms are unit-agnostic ("voltage" not "voltage#v"); the normalizer parses units.
 """
+
+from __future__ import annotations
+
+import contextlib
+import hashlib
+import importlib.resources
+import re
+import tempfile
+import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
+
+import pint
+from pydantic import BaseModel, field_validator, model_validator
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDF, SKOS
+
+from bdf._df_compat import coerce_dataframe
+
+if TYPE_CHECKING:
+    import polars as pl
 
 # --------- Constants ----------
 
@@ -626,8 +626,7 @@ class ColumnOntology:
         Returns:
             Validated DataFrame coerced back to the original input type.
         """
-        lf = cast(pl.LazyFrame, df)  # guaranteed by @coerce_dataframe
-        cols = set(lf.collect_schema().names())
+        cols = set(df.collect_schema().names())
 
         canonical: set[str] = set()
         required_by_label: dict[str, str] = {}  # formatted_label -> mr_name
@@ -704,7 +703,7 @@ class ColumnOntology:
         elif extra:
             warnings.warn(f"Non-BDF columns present: {sorted(extra)}", UserWarning, stacklevel=2)
 
-        return lf
+        return df
 
     def quantity_from_label(self, label: str) -> tuple[Quantity, str | None] | None:
         """Return (Quantity, unit) for the given label, or None if not found.
