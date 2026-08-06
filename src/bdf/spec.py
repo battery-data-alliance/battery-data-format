@@ -24,7 +24,6 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import pint
 from pydantic import BaseModel, field_validator, model_validator
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDF, SKOS
@@ -32,7 +31,10 @@ from rdflib.namespace import OWL, RDF, SKOS
 from bdf._df_compat import coerce_dataframe
 
 if TYPE_CHECKING:
+    import pint
     import polars as pl
+
+    ureg: pint.UnitRegistry
 
 # --------- Constants ----------
 
@@ -70,13 +72,14 @@ _BDF_RELEASE_URL_TMPL = (
     "battery-data-format-ontology/{version}/battery-data-format.ttl"
 )
 
-ureg: pint.UnitRegistry = pint.UnitRegistry()
+_ureg: pint.UnitRegistry | None = None
 
 
-def _pint_understands(alias: str, canonical: str) -> bool:
+def _pint_understands(reg: pint.UnitRegistry, alias: str, canonical: str) -> bool:
     """True if pint already parses `alias` to the same value as `canonical`.
 
     Args:
+        reg: Registry to resolve both unit strings against.
         alias: Candidate unit string (e.g. a UCUM code).
         canonical: Known-good pint unit string to compare against.
 
@@ -84,9 +87,11 @@ def _pint_understands(alias: str, canonical: str) -> bool:
         True if pint resolves `alias` to the same quantity as `canonical`
         both at 0 and 1 (catching offset units, not just dimensionality).
     """
+    import pint
+
     try:
-        a0, c0 = ureg.Quantity(0, alias), ureg.Quantity(0, canonical)
-        a1, c1 = ureg.Quantity(1, alias), ureg.Quantity(1, canonical)
+        a0, c0 = reg.Quantity(0, alias), reg.Quantity(0, canonical)
+        a1, c1 = reg.Quantity(1, alias), reg.Quantity(1, canonical)
         return (
             abs(a0.to(c0.units).magnitude - c0.magnitude) < 1e-9
             and abs(a1.to(c1.units).magnitude - c1.magnitude) < 1e-9
@@ -94,18 +99,39 @@ def _pint_understands(alias: str, canonical: str) -> bool:
     except (pint.errors.PintError, AssertionError):
         # PintError covers undefined/incompatible units; AssertionError covers
         # strings pint's parser chokes on internally (e.g. "℃" / ℃), which
-        # would otherwise escape and crash module import on pint >= 0.25.
+        # would otherwise escape and crash registry construction on pint >= 0.25.
         return False
 
 
-for _alias, _canonical in _UNIT_ALIAS.items():
-    if _pint_understands(_alias, _canonical):
-        continue
-    # @alias adds another name to the existing unit (preserving offset
-    # behavior for affine units like degC), unlike `name = degC`, which
-    # would silently define a new non-offset unit.
-    with contextlib.suppress(Exception):
-        ureg.define(f"@alias {_canonical} = {_alias}")
+def _get_ureg() -> pint.UnitRegistry:
+    """Return the shared unit registry, build on first use then cache.
+
+    Returns:
+        UnitRegistry with the BDF unit aliases defined.
+    """
+    global _ureg
+    if _ureg is None:
+        import pint
+
+        reg: pint.UnitRegistry = pint.UnitRegistry()
+        for alias, canonical in _UNIT_ALIAS.items():
+            if _pint_understands(reg, alias, canonical):
+                continue
+            # @alias adds another name to the existing unit (preserving offset
+            # behavior for affine units like degC), unlike `name = degC`, which
+            # would silently define a new non-offset unit.
+            with contextlib.suppress(Exception):
+                reg.define(f"@alias {canonical} = {alias}")
+        _ureg = reg
+    return _ureg
+
+
+def __getattr__(name: str) -> Any:
+    """Get lazily built module attributes."""
+    if name == "ureg":
+        return _get_ureg()
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 # --------- Helper functions ----------
@@ -180,13 +206,17 @@ def get_unit_conversion(src_unit: str | None, dst_unit: str | None) -> tuple[flo
         return (1.0, 0.0)
     if src_bare in ("C", "c") and dst_bare in _TEMPERATURE_DST_UNITS:
         src_bare = "degC"
+
+    import pint
+
+    reg = _get_ureg()
     try:
-        qty_dst = ureg.Quantity(1, dst_bare)
+        qty_dst = reg.Quantity(1, dst_bare)
         tgt_units = qty_dst.units
-        if ureg.Quantity(1, src_bare).dimensionality != qty_dst.dimensionality:
+        if reg.Quantity(1, src_bare).dimensionality != qty_dst.dimensionality:
             return None
-        at_zero = float(ureg.Quantity(0, src_bare).to(tgt_units).magnitude)
-        at_one = float(ureg.Quantity(1, src_bare).to(tgt_units).magnitude)
+        at_zero = float(reg.Quantity(0, src_bare).to(tgt_units).magnitude)
+        at_one = float(reg.Quantity(1, src_bare).to(tgt_units).magnitude)
         scale = round(at_one - at_zero, 15)
         offset = round(at_zero, 15)
         return (scale, offset)

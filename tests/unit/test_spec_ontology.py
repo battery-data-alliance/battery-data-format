@@ -136,11 +136,11 @@ def test_normalize_unit_ucum_codes_are_case_sensitive(raw: str, expected: str) -
 )
 def test_pint_understands(alias: str, canonical: str, expected: bool) -> None:
     """_pint_understands compares actual conversion values at 0 and 1, not just dimensionality."""
-    assert spec._pint_understands(alias, canonical) is expected
+    assert spec._pint_understands(spec._get_ureg(), alias, canonical) is expected
 
 
 def test_pint_understands_never_propagates_on_pathological_alias() -> None:
-    """U+2103 (℃) must yield a bool, never raise -- so module import can't crash.
+    """U+2103 (℃) must yield a bool, never raise -- so reg construction can't crash.
 
     pint's parser handles this character inconsistently across platforms: on
     some it parses ℃ natively as degree_Celsius (returning True), on others it
@@ -148,7 +148,7 @@ def test_pint_understands_never_propagates_on_pathological_alias() -> None:
     is therefore platform-dependent; what matters is that _pint_understands
     swallows the failure and returns a bool instead of letting it escape.
     """
-    assert isinstance(spec._pint_understands("℃", "degC"), bool)
+    assert isinstance(spec._pint_understands(spec._get_ureg(), "℃", "degC"), bool)
 
 
 @pytest.mark.parametrize(
