@@ -8,18 +8,6 @@ from typing import List, Optional
 import typer
 from rich import print
 
-from . import (
-    BDFValidationError,
-    detect as detect_source,
-    ingest as ingest_bdf,
-    templates as templates_api,
-    validate as validate_any,
-)
-from .io import read, save
-from .metadata import Creator, Dataset, RelatedIdentifier, save_jsonld
-from .repair import DEFAULT_OUTLIER_COLS, clean as clean_bdf
-from .visualize import X_DEFAULT, Y_DEFAULT, plot as line_plot
-
 app = typer.Typer(help="Battery Data Format utilities")
 
 
@@ -33,12 +21,34 @@ def _stdin_to_tmp() -> Path:
     return Path(tmp.name)
 
 
+def _ontology_version() -> str:
+    """Read owl:versionInfo from the bundled snapshot with regex."""
+    import importlib.resources
+    import re
+
+    try:
+        raw = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl").read_text(encoding="utf-8")
+        # rdflib's ttl serializer separates blocks with a blank line
+        # make sure its in the ontology block to avoid picking up different versions
+        for block in raw.split("\n\n"):
+            if "a owl:Ontology" in block:
+                match = re.search(r'owl:versionInfo\s+"([^"]+)"', block)
+                if match:
+                    return match.group(1)
+    except Exception:
+        pass
+
+    # If the regex fails, fall back to building the ontology properly
+    from .spec import COLUMN_ONTOLOGY
+
+    return COLUMN_ONTOLOGY.ontology_version
+
+
 def _version_callback(value: bool) -> None:
     if value:
         from . import __version__
-        from .spec import COLUMN_ONTOLOGY
 
-        typer.echo(f"bdf {__version__} (ontology snapshot {COLUMN_ONTOLOGY.ontology_version})")
+        typer.echo(f"bdf {__version__} (ontology snapshot {_ontology_version()})")
         raise typer.Exit()
 
 
@@ -94,11 +104,13 @@ def ingest(
     """
     Convert raw vendor files to BDF and emit metadata sidecars.
     """
+    from ._ingest import ingest
+
     if human is not None:
         labels = "preferred" if human else "machine"
     if labels not in ("preferred", "machine", "unchanged"):
         raise typer.BadParameter("--labels must be one of: preferred, machine, unchanged")
-    summary = ingest_bdf(
+    summary = ingest(
         source,
         out_dir=out_dir,
         format=format,
@@ -147,6 +159,9 @@ def meta_jsonld(
     Build a JSON-LD sidecar that describes the dataset (schema.org) and the BDF table (CSVW),
     ready for Zenodo and linked to the BDF CSVW table schema.
     """
+    from .io import read
+    from .metadata import Creator, Dataset, RelatedIdentifier, save_jsonld
+
     # Parse creators
     creators: List[Creator] = []
     for spec in creator:
@@ -200,16 +215,20 @@ def clean(
     time_fix: str = typer.Option("segment", help="segment|sort|drop|none"),
     outlier: str = typer.Option("none", help="none|drop|clip|interp"),
     z: float = typer.Option(8.0, help="Robust z threshold for outliers"),
-    col: List[str] = typer.Option(list(DEFAULT_OUTLIER_COLS), help="Columns to clean for outliers"),
+    col: Optional[List[str]] = typer.Option(None, help="Columns to clean for outliers [default: voltage and current]"),
 ):
     """
     Clean a dataset by fixing non-monotonic time and removing/repairing outliers.
     Accepts either BDF CSV/Parquet or a raw vendor file.
     """
-    # Load BDF
+    from .io import read, save
+    from .repair import DEFAULT_OUTLIER_COLS, clean
 
+    cols = list(col) if col else list(DEFAULT_OUTLIER_COLS)
+
+    # Load BDF
     df, _ = read(path, plugin=as_)
-    df, rep = clean_bdf(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=col)
+    df, rep = clean(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=cols)
     save(df, out)
     typer.echo(str(rep))
     typer.echo(f"Saved: {out}", err=True)
@@ -227,9 +246,12 @@ def validate(
     The report goes to stdout; operational errors go to stderr.
     Exit codes: 0 valid, 1 invalid, 2 could not read the input.
     """
+    from ._errors import BDFValidationError
+    from ._validate import validate
+
     src: str | Path = _stdin_to_tmp() if path == "-" else path
     try:
-        report = validate_any(src, report=not json, raise_on_error=strict)
+        report = validate(src, report=not json, raise_on_error=strict)
     except BDFValidationError as e:
         if json:
             import json as _json
@@ -268,7 +290,9 @@ def validate(
 
 @app.command()
 def detect(path: str):
-    plugin_id, _plugin = detect_source(path)
+    from .plugins import detect
+
+    plugin_id, _plugin = detect(path)
     print(plugin_id)
 
 
@@ -283,7 +307,9 @@ def templates(
     """
     Create sidecar metadata templates with REQUIRED/OPTIONAL placeholders.
     """
-    result = templates_api(*names, root=root, overwrite=overwrite)
+    from ._templates import templates
+
+    result = templates(*names, root=root, overwrite=overwrite)
     created = result.get("created") or []
     skipped = result.get("skipped") or []
     for p in created:
@@ -314,6 +340,8 @@ def convert(
     Data goes to the output path (stdout with '--to -'); status messages go to stderr.
     Stdin input has no filename, so detection relies on content; use --as if it is ambiguous.
     """
+    from .io import read, save
+
     if human is not None:
         labels = "preferred" if human else "machine"
     if labels not in ("preferred", "machine", "unchanged"):
@@ -339,8 +367,8 @@ def convert(
 @app.command()
 def plot(
     path: str,
-    xdata: str = typer.Option(X_DEFAULT, help="BDF column for x-axis"),
-    ydata: List[str] = typer.Option([Y_DEFAULT], help="One or more BDF columns for y-axis"),
+    xdata: Optional[str] = typer.Option(None, help="BDF column for x-axis [default: test time]"),
+    ydata: Optional[List[str]] = typer.Option(None, help="One or more BDF columns for y-axis [default: voltage]"),
     save: Optional[str] = typer.Option(None, "--save", "-s", help="Save figure to file"),
     show: bool = typer.Option(False, "--show/--no-show", help="Display window"),
     as_: Optional[str] = typer.Option(None, "--as", help="Force a specific plugin id (e.g., biologic_mpt)"),
@@ -348,13 +376,19 @@ def plot(
     """
     Plot a BDF-normalized dataset. If the file isn't already BDF, auto-detect and convert on the fly.
     """
+    from .io import read
+    from .visualize import X_DEFAULT, Y_DEFAULT, plot
+
     p = Path(path)
     if not p.exists():
         raise typer.BadParameter(f"File not found: {p}")
+
+    x = xdata or X_DEFAULT
+    ys = list(ydata) if ydata else [Y_DEFAULT]
 
     df, _metadata = read(p, plugin=as_)
     df = df.to_pandas()
 
     # Draw the plot
-    line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")
-    typer.echo(f"[bdf] plotted {', '.join(ydata)} vs {xdata}" + (f" -> {save}" if save else ""), err=True)
+    plot(df, xdata=x, ydata=ys, save=save, show=show, title=f"{', '.join(ys)} vs {x}")
+    typer.echo(f"[bdf] plotted {', '.join(ys)} vs {x}" + (f" -> {save}" if save else ""), err=True)
