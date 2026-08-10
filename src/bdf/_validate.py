@@ -1,25 +1,26 @@
 from __future__ import annotations
 
 import warnings
+
+# mypy: ignore-errors
+from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
 import polars as pl
 
-from . import spec
+import bdf.spec as spec
+
 from ._df_compat import _classify_df, _to_polars_lazy
+from ._errors import BDFValidationError
 from ._time_scale import detect_scale_mismatch
+from .file_utils import is_url
+from .plugins import detect  # spec-driven detection -> (plugin_id, Plugin)
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .spec import _slugify
 
-__all__ = ["BDFValidationError", "validate_df"]
-
 REQUIRED = spec.COLUMN_ONTOLOGY.required_labels()
 OPTIONAL = spec.COLUMN_ONTOLOGY.optional_labels()
-
-
-class BDFValidationError(Exception):
-    """Raised when a DataFrame fails BDF validation."""
 
 
 # Algebraic identities the ontology defines via prov:wasDerivedFrom:
@@ -73,6 +74,45 @@ def _canonical_series(df: pl.DataFrame) -> Dict[str, np.ndarray]:
             series = series.cast(pl.Float64, strict=False) if series.dtype == pl.Utf8 else series.cast(pl.Float64)
             out[mr] = series.fill_null(float("nan")).to_numpy()
     return out
+
+
+def _resolve_source(
+    source: str | Path,
+    *,
+    registry_path: str | Path | None = None,
+) -> tuple[Path, str | None]:
+    """
+    Return a local Path for the source and an optional plugin hint.
+    Source may be: local path, http(s) URL, or dataset id from the registry.
+    """
+    s = str(source)
+
+    # 1) existing file path
+    p = Path(s)
+    if p.exists():
+        return p, None
+
+    # 2) URL -> cache it
+    if is_url(s):
+        from .fetch import fetch_url  # lazy
+
+        path = fetch_url(s)
+        return path, None
+
+    # 3) dataset id from registry
+    from ._registry import get_entry as _get_entry, load_registry as _load_registry  # lazy
+
+    reg = _load_registry(registry_path)
+    entry = _get_entry(reg, s)  # raises if not found/ambiguous
+    url = entry["url"]
+    plugin_hint = entry.get("plugin")
+    sha256 = entry.get("sha256")
+    filename = entry.get("filename")
+
+    from .fetch import fetch_url  # lazy
+
+    path = fetch_url(url, sha256=sha256, filename=filename)
+    return path, plugin_hint
 
 
 def _check_derived(df: pl.DataFrame) -> Dict[str, Any]:
@@ -357,3 +397,83 @@ def validate_df(
         raise BDFValidationError(f"Missing required columns: {rep['missing']}")
 
     return rep
+
+
+def validate(
+    obj,
+    *,
+    report: bool = False,
+    raise_on_error: bool = False,  # <- default False so notebooks don’t crash
+    registry_path: str | Path | None = None,
+):
+    """
+    Validate a BDF DataFrame, a local file path, an HTTP/HTTPS URL, or a dataset id.
+
+    Behavior:
+      - DataFrame: validate as-is (no transformations).
+      - Path/URL/id: only treated as a *BDF artifact* (strict). We do NOT vendor-parse
+        or normalize here. If it doesn’t look like BDF, you’ll get an 'ok=False' report.
+
+    Returns:
+      dict report with at least:
+        {"ok": True, "issues": [...]}   or   {"ok": False, "kind": "...", "detail": "..."}
+    """
+
+    # small local helpers (kept inside to avoid extra imports at module load time)
+    def _bad_report(kind: str, detail: str, **extra):
+        r = {"ok": False, "kind": kind, "detail": detail}
+        if extra:
+            r.update(extra)
+        if report:
+            print(f"Validation failed: {detail}")
+        if raise_on_error:
+            raise BDFValidationError(detail)
+        return r
+
+    # Direct DataFrame path
+    import pandas as pd
+
+    if isinstance(obj, pd.DataFrame):
+        return validate_df(obj, report=report, raise_on_error=raise_on_error)
+
+    # Resolve path/URL/registry id to a local path
+    if isinstance(obj, (str, Path)):
+        local_path, _ = _resolve_source(obj, registry_path=registry_path)
+        p = Path(local_path)
+        fname = p.name
+
+        # Check if file looks like bdf
+        try:
+            plugin_name, _plugin = detect(p)
+        except ValueError:
+            plugin_name = "None"
+            message = "Did not match any existing plugin"
+        else:
+            message = f"Matched plugin '{plugin_name}'"
+        if not plugin_name.startswith("bdf_"):
+            return _bad_report(
+                kind="not_bdf_artifact",
+                detail=f"{fname} does not look like a BDF artifact. {message}.",
+                file=fname,
+            )
+
+        # Try to read the file
+        try:
+            from .io import read
+
+            df, _metadata = read(p)
+        except Exception as e:
+            return _bad_report(
+                kind="io_error",
+                detail=f"Failed to load BDF artifact {fname}: {e}",
+                file=fname,
+            )
+
+        # Validate columns/units only; do NOT normalize or modify
+        return validate_df(df, report=report, raise_on_error=raise_on_error)
+
+    # Anything else: wrong type
+    return _bad_report(
+        kind="type_error",
+        detail="validate() expects a pandas DataFrame, a file path (str/Path), a URL, or a dataset id.",
+    )

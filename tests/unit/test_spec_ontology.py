@@ -9,7 +9,7 @@ import polars as pl
 import pytest
 from pydantic import ValidationError
 
-from bdf import spec
+from bdf import BDFValidationError, spec
 from bdf.spec import (
     COLUMN_ONTOLOGY,
     ColumnOntology,
@@ -136,11 +136,11 @@ def test_normalize_unit_ucum_codes_are_case_sensitive(raw: str, expected: str) -
 )
 def test_pint_understands(alias: str, canonical: str, expected: bool) -> None:
     """_pint_understands compares actual conversion values at 0 and 1, not just dimensionality."""
-    assert spec._pint_understands(alias, canonical) is expected
+    assert spec._pint_understands(spec._get_ureg(), alias, canonical) is expected
 
 
 def test_pint_understands_never_propagates_on_pathological_alias() -> None:
-    """U+2103 (℃) must yield a bool, never raise -- so module import can't crash.
+    """U+2103 (℃) must yield a bool, never raise -- so reg construction can't crash.
 
     pint's parser handles this character inconsistently across platforms: on
     some it parses ℃ natively as degree_Celsius (returning True), on others it
@@ -148,7 +148,7 @@ def test_pint_understands_never_propagates_on_pathological_alias() -> None:
     is therefore platform-dependent; what matters is that _pint_understands
     swallows the failure and returns a bool instead of letting it escape.
     """
-    assert isinstance(spec._pint_understands("℃", "degC"), bool)
+    assert isinstance(spec._pint_understands(spec._get_ureg(), "℃", "degC"), bool)
 
 
 @pytest.mark.parametrize(
@@ -858,16 +858,12 @@ def test_validate_df_passes_with_lazyframe(required_df: pl.DataFrame) -> None:
 
 
 def test_validate_df_raises_when_required_column_missing(required_df: pl.DataFrame) -> None:
-    from bdf.validate import BDFValidationError
-
     df = required_df.drop("Voltage / V")
     with pytest.raises(BDFValidationError, match="Voltage / V"):
         spec.COLUMN_ONTOLOGY.validate_df(df)
 
 
 def test_validate_df_raises_listing_all_missing_required_columns() -> None:
-    from bdf.validate import BDFValidationError
-
     df = pl.DataFrame({"Test Time / s": [0.0]})
     with pytest.raises(BDFValidationError) as exc_info:
         spec.COLUMN_ONTOLOGY.validate_df(df)
@@ -931,8 +927,6 @@ def test_validate_df_accepts_lazyframe_and_returns_it(required_df: pl.DataFrame)
 
 
 def test_validate_df_raises_on_missing_columns_with_pandas_input() -> None:
-    from bdf.validate import BDFValidationError
-
     pdf = pd.DataFrame({"Test Time / s": [0.0]})
     with pytest.raises(BDFValidationError):
         spec.COLUMN_ONTOLOGY.validate_df(pdf)

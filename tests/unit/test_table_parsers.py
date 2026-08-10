@@ -587,8 +587,6 @@ class TestReadValidate:
 
     def test_tableparser_read_validate_true_raises_for_missing_required(self, tmp_path: Path) -> None:
         """TableParser.read(validate=True) raises BDFValidationError when required columns are absent."""
-        from bdf.validate import BDFValidationError
-
         p = tmp_path / "data.csv"
         rows = "\n".join(f"{i},{3.5 + i / 10}" for i in range(6))
         p.write_text(f"time,voltage\n{rows}\n")
@@ -598,7 +596,7 @@ class TestReadValidate:
                 voltage_volt=(Syn(hdr="voltage"),),
             ),
         )
-        with pytest.raises(BDFValidationError, match="Missing required BDF columns"):
+        with pytest.raises(bdf.BDFValidationError, match="Missing required BDF columns"):
             parser.read(p, validate=True).collect()
 
     def test_tableparser_read_validate_true_lazy_returns_lazyframe(self, tmp_path: Path) -> None:
