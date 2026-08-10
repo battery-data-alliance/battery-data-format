@@ -30,7 +30,7 @@ def test_import_bdf_does_not_load_heavy_dependencies() -> None:
     import_code = (
         "import sys, bdf\n"
         "HEAVY_DEPS = ('pandas', 'polars', 'matplotlib', 'rdflib', 'requests', 'scipy', 'plotly')\n"
-        "print([name for name in sys.argv[1:] if name in sys.modules])\n"
+        "print([name for name in HEAVY_DEPS if name in sys.modules])\n"
     )
     result = subprocess.run(
         [
