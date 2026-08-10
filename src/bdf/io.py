@@ -315,18 +315,6 @@ def _detect_format(path: Path) -> str:
     raise ValueError(f"Unknown BDF artifact format: {path.name}")
 
 
-def _meta_sidecar(path: Path) -> Path:
-    """Return the metadata sidecar path for a BDF artifact path.
-
-    Args:
-        path: BDF artifact file path.
-
-    Returns:
-        Path with ``.metadata.json`` appended to the file name.
-    """
-    return path.with_name(path.name + ".metadata.json")
-
-
 def save(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
     pathlike: str | Path,
@@ -397,4 +385,7 @@ def save(
             target.close()
 
     if metadata:
-        _meta_sidecar(p).write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        p.with_suffix(".metadata.json").write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
