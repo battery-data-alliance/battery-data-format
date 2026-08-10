@@ -27,6 +27,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - CLI: `clean` and `plot` no longer take `--assume-bdf`.
 - Column spec is now ontology-driven (`bdf.spec.ColumnOntology`, synced from the published BDF ontology release); `bdf.normalize`, `bdf.units`, `bdf.detect`, and `bdf.data_sources` are removed in favor of `bdf.plugins`, `bdf.table_parsers`, `bdf.metadata_parsers`, and `bdf.table_normalizers`.
 - `fastnda` install extra renamed to `nda`.
+- Module paths `bdf.validate`, `bdf.templates`, and `bdf.ingest` renamed to private submodules; the `validate()`, `templates()`, and `ingest()` functions are unchanged and remain importable from the `bdf` namespace. Fixes module/function name collisions.
 - `Quantity.unit_conversion` renamed to `convert_to`.
 - Arbin normalizers (csv, xlsx) map Charge/Discharge Capacity and Energy to the `schedule_*` columns (`Schedule Charging Capacity / Ah`, ...) from ontology 1.3.0, reflecting the operator-defined reset behavior Arbin confirmed; these columns previously landed on the never-resetting test-scoped terms.
 - `read()`/`scan()` raise `BDFValidationError` when an elapsed-time column's increments disagree with the recorded timestamps (e.g. milliseconds stored under a seconds header); pass `reconcile_time=True` to repair known unit factors or `validate=False` to load the data as-is.
@@ -52,6 +53,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `save()` now validates via `ColumnOntology.validate_df`, which also warns on non-canonical BDF units.
 - `ColumnOntology.load_version()` now fetches and caches an uncached ontology release instead of raising.
 - `NDAParser` renamed to `NdaParser`; its magic-byte check now recognizes the `.ndax` zip container.
+- Package import is lazy: `import bdf` completes in ~0.15 s without loading pandas/polars/scipy; heavy dependencies import on first use, making CLI startup near-instant.
+- `save()` names the metadata sidecar by replacing the final extension (`x.bdf.parquet` -> `x.bdf.metadata.json`) instead of appending to the full filename.
 
 ### Fixed
 - `arbin_res` extra is now part of the `all` bundle, and its mdbtools backend supports Python 3.10 (polars-access-mdbtools 0.1.3).
