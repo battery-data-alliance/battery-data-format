@@ -1,8 +1,9 @@
-"""Table parsers: ``TableParser``, ``DelimTxtParser``, ``ExcelParser``, ``MatParser``.
+"""Table parsers: ``TableParser``, ``DelimTxtParser``, ``ExcelParser``, ``MatParser``, ``MDBParser``.
 
 Each parser wraps polars (DelimTxtParser, ExcelParser) or scipy (MatParser) file parsers
 and turns a source (local path or ``http(s)://`` URL) → :class:`polars.LazyFrame` for one
-file-format family, keyed by a ``kind`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``).
+file-format family, keyed by a ``kind`` discriminator (``"txt"`` / ``"excel"`` / ``"mat"``
+/ ``"mdb"``).
 A parser carries a :class:`~bdf.table_normalizers.TableNormalizer` field (default empty): its
 :meth:`read` returns the normalized frame, and a MAT parser sources its variable names
 from that normalizer. A blank normalizer degrades to a raw mechanics-only read.
@@ -13,6 +14,10 @@ Polars is licensed under MIT: https://github.com/pola-rs/polars/blob/main/LICENS
 from __future__ import annotations
 
 import inspect
+import re
+import shutil
+import sys
+import warnings
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -158,8 +163,7 @@ class TableParser(BaseModel):
         *,
         normalize: bool = True,
         validate: bool = True,
-        include_optional: bool = True,
-        extra_columns: dict[str, str] | None = None,
+        include_unknown: bool = False,
         lazy: bool = True,
         tz: str = "UTC",
     ) -> pl.LazyFrame | pl.DataFrame:
@@ -175,8 +179,7 @@ class TableParser(BaseModel):
             path: Local file path or http(s) URL.
             normalize: Apply column normalization when True.
             validate: Validate column names against BDF ontology when True (default).
-            include_optional: Include optional BDF columns in output.
-            extra_columns: Additional column rename mappings.
+            include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
             lazy: Return a LazyFrame when True (default); collect to a DataFrame when False.
             tz: IANA timezone applied to naive ``unix_time_second`` datetime formats.
                 Defaults to ``"UTC"``; see ``TableNormalizer.normalize``.
@@ -191,8 +194,7 @@ class TableParser(BaseModel):
         lf = self._read_raw(resolved)
         result = self.normalizer.normalize(
             lf,
-            include_optional=include_optional,
-            extra_columns=extra_columns,
+            include_unknown=include_unknown,
             validate=validate,
             tz=tz,
         )
@@ -539,6 +541,15 @@ class ExcelParser(TableParser):
         default=None,
         description=_polars_param_desc(pl.read_excel, "sheet_name"),
     )
+    sheet_pattern: str | None = Field(
+        default=None,
+        description=(
+            "Case-insensitive regex matched against the workbook's sheet names; the first "
+            "matching sheet is read. For vendors whose data-sheet name varies per export "
+            "(e.g. Arbin's Channel_1-002 / Channel-6_1 / Channel_6_1). Mutually exclusive "
+            "with sheet_id/sheet_name."
+        ),
+    )
     has_header: bool = Field(
         default=True,
         description=_polars_param_desc(pl.read_excel, "has_header"),
@@ -576,7 +587,39 @@ class ExcelParser(TableParser):
                 "If your data has no headers, read directly with polars.read_excel(..., has_header=False) "
                 "then normalize with the TableNormalizer.normalize() method."
             )
+        if self.sheet_pattern is not None and (self.sheet_id is not None or self.sheet_name is not None):
+            raise ValueError("sheet_pattern is mutually exclusive with sheet_id/sheet_name")
         return self
+
+    def _resolve_sheet_name(self, path: Path) -> str:
+        """Resolve ``sheet_pattern`` to a concrete sheet name for ``path``.
+
+        Args:
+            path: Local file path whose sheet names are enumerated.
+
+        Returns:
+            The first sheet name matching ``sheet_pattern`` (case-insensitive).
+
+        Raises:
+            ValueError: If no sheet matches the pattern.
+        """
+        import fastexcel
+
+        assert self.sheet_pattern is not None  # guarded by the single caller
+        sheets = fastexcel.read_excel(path).sheet_names
+        pattern = re.compile(self.sheet_pattern, re.IGNORECASE)
+        matches = [name for name in sheets if pattern.search(name)]
+        if not matches:
+            raise ValueError(f"no sheet matching {self.sheet_pattern!r} in {path.name!r}; sheets: {sheets}")
+        if len(matches) > 1:
+            # e.g. a multi-channel Arbin export in one workbook: silently reading the
+            # first channel would drop the others' data. Mirror the multi-sheet error
+            # in _read_sheet and make the caller choose.
+            raise ValueError(
+                f"multiple sheets match {self.sheet_pattern!r} in {path.name!r}: {matches}; "
+                "specify `sheet_name` or `sheet_id` to disambiguate."
+            )
+        return matches[0]
 
     def _read_sheet(self, path: str | Path, *, read_options: dict[str, Any], **extra: Any) -> pl.DataFrame:
         """Run ``pl.read_excel`` with the reader's sheet/column config and assert a single sheet.
@@ -597,6 +640,8 @@ class ExcelParser(TableParser):
             kwargs["sheet_id"] = self.sheet_id
         if self.sheet_name is not None:
             kwargs["sheet_name"] = self.sheet_name
+        if self.sheet_pattern is not None:
+            kwargs["sheet_name"] = self._resolve_sheet_name(Path(path))
         if self.columns is not None:
             kwargs["columns"] = self.columns
         if read_options:
@@ -631,7 +676,7 @@ class ExcelParser(TableParser):
         Returns:
             List of column header names from the specified sheet.
         """
-        return self._read_sheet(Path(path), read_options={**(self.read_options or {}), "n_rows": 0}).columns
+        return self._read_sheet(resolve_source(path), read_options={**(self.read_options or {}), "n_rows": 0}).columns
 
 
 # ---------------------------------------------------------------------------
@@ -673,11 +718,138 @@ class ParquetParser(TableParser):
 
 
 # ---------------------------------------------------------------------------
-# NDAParser
+# JsonParser
 # ---------------------------------------------------------------------------
 
 
-class NDAParser(TableParser):
+class JsonParser(TableParser):
+    """Wraps json load and :func:`polars.from_dict`
+
+    :func:`polars.read_json` can ONLY read records-oriented json
+    :func:`polars.LazyFrame(dict)` works both records-oriented and list-oriented
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["json"] = "json"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".json"})
+    is_text: ClassVar[bool] = True
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read json file to a LazyFrame. Cannot be truly lazy.
+
+        Args:
+            path: Local file path or URL to json file.
+
+        Returns:
+            A polars LazyFrame containing the json data.
+        """
+        import json
+
+        with Path(path).open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return pl.LazyFrame(data)
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from json file.
+
+        Args:
+            path: Local file path or URL to json file.
+
+        Returns:
+            List of column names.
+        """
+        import json
+
+        with Path(path).open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return pl.LazyFrame(data).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# NdjsonParser
+# ---------------------------------------------------------------------------
+
+
+class NdjsonParser(TableParser):
+    """Wraps :func:`polars.scan_ndjson` for .ndjson files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["ndjson"] = "ndjson"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".ndjson"})
+    is_text: ClassVar[bool] = True
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read ndjson file to a LazyFrame.
+
+        Args:
+            path: Local file path or URL to ndjson file.
+
+        Returns:
+            A polars LazyFrame containing the ndjson data.
+        """
+        return pl.scan_ndjson(path)
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from ndjson file.
+
+        Args:
+            path: Local file path or URL to ndjson file.
+
+        Returns:
+            List of column names.
+        """
+        return pl.scan_ndjson(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# IpcParser
+# ---------------------------------------------------------------------------
+
+
+class IpcParser(TableParser):
+    """Wraps :func:`polars.scan_ipc` for .ipc/.arrow/.feather files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["ipc"] = "ipc"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".ipc", ".arrow", ".feather", ".ftr"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"ARROW1"})
+    is_text: ClassVar[bool] = False
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read IPC file to a LazyFrame.
+
+        Args:
+            path: Local file path or URL to IPC file.
+
+        Returns:
+            A polars LazyFrame containing the IPC data.
+        """
+        return pl.scan_ipc(path)
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from IPC file.
+
+        Args:
+            path: Local file path or URL to IPC file.
+
+        Returns:
+            List of column names.
+        """
+        return pl.scan_ipc(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# NdaParser
+# ---------------------------------------------------------------------------
+
+
+class NdaParser(TableParser):
     """Wraps fastnda for Neware .nda / .ndax binary files."""
 
     model_config = ConfigDict(frozen=True)
@@ -685,7 +857,7 @@ class NDAParser(TableParser):
     kind: Literal["nda"] = "nda"
 
     base_exts: ClassVar[frozenset[str]] = frozenset({".nda", ".ndax"})
-    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"NEWARE"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"NEWARE", b"PK"})
 
     def _read_raw(self, path: str | Path) -> pl.LazyFrame:
         """Read Neware NDA file to a LazyFrame using fastnda.
@@ -702,7 +874,7 @@ class NDAParser(TableParser):
         try:
             import fastnda  # type: ignore
         except ImportError as exc:
-            raise RuntimeError("NDAParser requires fastnda. Install with `pip install fastnda`.") from exc
+            raise RuntimeError("NdaParser requires fastnda. Install with `pip install fastnda`.") from exc
         resolved = resolve_source(path)
         df = fastnda.read(str(resolved))
         return df.lazy()
@@ -712,6 +884,112 @@ class NDAParser(TableParser):
 
         Args:
             path: Local file path or URL to .nda or .ndax file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()
+
+
+# ---------------------------------------------------------------------------
+# MDBParser
+# ---------------------------------------------------------------------------
+
+
+class MDBParser(TableParser):
+    """Parser for Microsoft Access .mdb database files.
+
+    Always reads the ``Channel_Normal_Table`` table.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["mdb"] = "mdb"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".mdb"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"\x00\x01\x00\x00Standard Jet DB"})
+    is_text: ClassVar[bool] = False
+    table_name: ClassVar[str] = "Channel_Normal_Table"
+
+    @staticmethod
+    def _has_access_driver() -> bool:
+        try:
+            import pyodbc
+        except ImportError:
+            return False
+        return any("Microsoft Access Driver" in driver for driver in pyodbc.drivers())
+
+    @staticmethod
+    def _has_mdbtools() -> bool:
+        try:
+            import polars_access_mdbtools  # noqa: F401
+        except ImportError:
+            return False
+        return shutil.which("mdb-export") is not None and shutil.which("mdb-schema") is not None
+
+    @staticmethod
+    def _sort_by_data_point(df: pl.DataFrame) -> pl.DataFrame:
+        if "Data_Point" in df.columns:
+            return df.sort("Data_Point")
+        return df
+
+    @classmethod
+    def _read_with_pyodbc(cls, path: Path) -> pl.DataFrame:
+        import pyodbc
+
+        driver = next((driver for driver in pyodbc.drivers() if "Microsoft Access Driver" in driver), None)
+        if driver is None:
+            raise RuntimeError(cls._dependency_error())
+        conn = pyodbc.connect(rf"DRIVER={{{driver}}};DBQ={path.resolve()};")
+        try:
+            return pl.read_database(f"SELECT * FROM {cls.table_name}", conn)
+        finally:
+            conn.close()
+
+    @classmethod
+    def _read_with_mdbtools(cls, path: Path) -> pl.DataFrame:
+        import polars_access_mdbtools
+
+        return polars_access_mdbtools.read_table(str(path), cls.table_name)
+
+    @staticmethod
+    def _dependency_error() -> str:
+        if sys.platform == "win32":
+            return (
+                "MDBParser requires either the Microsoft Access ODBC driver or MDB Tools. "
+                "Install with `pip install batterydf[arbin_res]` and install the Microsoft Access Database Engine, "
+                "or install and make MDB Tools command-line utilities (`mdb-export` and `mdb-schema`) available on PATH."
+            )
+        return (
+            "MDBParser requires MDB Tools and the optional Arbin .res dependencies. "
+            "Install with `pip install batterydf[arbin_res]` and make MDB Tools command-line utilities "
+            "(`mdb-export` and `mdb-schema`) available on PATH."
+        )
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read an MDB file to a LazyFrame.
+
+        Args:
+            path: Local file path or URL to .mdb file.
+
+        Returns:
+            A polars LazyFrame containing the MDB data.
+
+        Raises:
+            RuntimeError: If no MDB backend is available.
+        """
+        resolved = resolve_source(path)
+        if sys.platform == "win32" and self._has_access_driver():
+            return self._sort_by_data_point(self._read_with_pyodbc(resolved)).lazy()
+        if self._has_mdbtools():
+            return self._sort_by_data_point(self._read_with_mdbtools(resolved)).lazy()
+        raise RuntimeError(self._dependency_error())
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from an MDB file.
+
+        Args:
+            path: Local file path or URL to .mdb or .res file.
 
         Returns:
             List of column names.
@@ -803,3 +1081,95 @@ class MatParser(TableParser):
         var_names = self.normalizer.known_header_names()
         mat = self._load(Path(path), var_names)
         return [name for name in var_names if name in mat]
+
+
+# ---------------------------------------------------------------------------
+# MprParser
+# ---------------------------------------------------------------------------
+
+
+class MprParser(TableParser):
+    """Wraps yadg for Biologic .mpr binary files."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal["mpr"] = "mpr"
+
+    base_exts: ClassVar[frozenset[str]] = frozenset({".mpr"})
+    magic_bytes: ClassVar[frozenset[bytes]] = frozenset({b"BIO-LOGIC MODULAR FILE"})
+
+    def _read_raw(self, path: str | Path) -> pl.LazyFrame:
+        """Read Biologic MPR file to a LazyFrame using yadg.
+
+        Args:
+            path: Local file path or URL to .mpr.
+
+        Returns:
+            A polars LazyFrame containing the MPR data.
+
+        Raises:
+            RuntimeError: If yadg is not installed.
+        """
+        try:
+            import yadg  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("MprParser requires yadg. Install with `pip install yadg`.") from exc
+        resolved = resolve_source(path)
+        dt = yadg.extractors.extract("eclab.mpr", str(resolved))
+        ds = dt.to_dataset()
+        uncertainty_cols = {
+            n for var in ds.variables.values() for n in str(var.attrs.get("ancillary_variables", "")).split()
+        }
+        df = pl.DataFrame(
+            {
+                f"{name}/{str(var.attrs['units'])}" if "units" in var.attrs else str(name): var.to_numpy()
+                for name, var in ds.variables.items()
+                if str(name) not in uncertainty_cols and var.dims  # Must look like a column and not be uncertainty
+            }
+        )
+        df = self._fix_missing_columns(df)
+        return df.lazy()
+
+    @staticmethod
+    def _fix_missing_columns(df: pl.DataFrame) -> pl.DataFrame:
+        """If current is missing and dq exists, recreate current."""
+        cols = set(df.columns)
+
+        warning_list = []
+
+        # Missing current (OCV or only dq present)
+        current_cols = {"I/mA", "<I>/mA"}
+        if not (current_cols & cols):
+            if "uts/s" in cols and (dq_col := next((c for c in ("dq/mA·h", "dQ/mA·h", "dQ/C") if c in cols), None)):
+                dt = df["uts/s"].diff().fill_null(float("inf"))
+                multiplier = 1000 if dq_col == "dQ/C" else 3600
+                df = df.with_columns((multiplier * df[dq_col] / dt).alias("I/mA"))
+                warning_list.append(f"No current column in original MPR, building from {dq_col} * diff(time).")
+            else:
+                df = df.with_columns(pl.lit(0, dtype=pl.Float64).alias("I/mA"))
+                warning_list.append("No current column in original MPR, assuming 0 A.")
+
+        # Missing cycle number, sometimes there is only 0-indexed half cycle
+        if ("cycle number" not in cols) and ("half cycle" in cols):
+            df = df.with_columns((pl.col("half cycle") // 2).alias("cycle number"))
+            warning_list.append("No cycle count column in original MPR, building from 'half cycle' // 2.")
+
+        # Missing uts/s - old xarray (2025.6.1, with python 3.10) doesnt have units on coords
+        if "uts/s" not in cols and "uts" in cols:
+            df = df.rename({"uts": "uts/s"})
+
+        if warning_list:
+            warnings.warn(" ".join(warning_list), UserWarning, stacklevel=3)
+
+        return df
+
+    def read_column_headings(self, path: str | Path) -> list[str]:
+        """Extract column names from Biologic MPR file.
+
+        Args:
+            path: Local file path or URL to .mpr file.
+
+        Returns:
+            List of column names.
+        """
+        return self._read_raw(path).collect_schema().names()

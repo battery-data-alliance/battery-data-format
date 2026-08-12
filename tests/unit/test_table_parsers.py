@@ -8,13 +8,28 @@ tests run over the real files under ``tests/data/`` and skip when absent.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
 
+import bdf
 from bdf.table_normalizers import ResolvedColumn, Syn, TableNormalizer
-from bdf.table_parsers import DelimTxtParser, ExcelParser, MatParser, NDAParser, ParquetParser, TableParser
+from bdf.table_parsers import (
+    DelimTxtParser,
+    ExcelParser,
+    IpcParser,
+    JsonParser,
+    MatParser,
+    MDBParser,
+    MprParser,
+    NdaParser,
+    NdjsonParser,
+    ParquetParser,
+    TableParser,
+)
 
 
 class TestMatchesExt:
@@ -49,17 +64,24 @@ class TestMatchesMagicBytes:
         assert ParquetParser().matches_magic_bytes(b"NEWARE") is False
 
     def test_nda_matches_neware_magic(self) -> None:
-        assert NDAParser().matches_magic_bytes(b"NEWARErest") is True
+        assert NdaParser().matches_magic_bytes(b"NEWARErest") is True
 
     def test_nda_rejects_unrelated_bytes(self) -> None:
-        assert NDAParser().matches_magic_bytes(b"PAR1") is False
+        assert NdaParser().matches_magic_bytes(b"PAR1") is False
+
+    def test_mdb_matches_jet_magic(self) -> None:
+        assert MDBParser().matches_magic_bytes(b"\x00\x01\x00\x00Standard Jet DB\x00\x00") is True
+
+    def test_mdb_rejects_unrelated_bytes(self) -> None:
+        assert MDBParser().matches_magic_bytes(b"NEWARE") is False
 
     def test_is_text_flags(self) -> None:
         assert DelimTxtParser().is_text is True
         assert ExcelParser().is_text is False
         assert MatParser().is_text is False
         assert ParquetParser().is_text is False
-        assert NDAParser().is_text is False
+        assert NdaParser().is_text is False
+        assert MDBParser().is_text is False
 
 
 class TestDelimTxtTextPlausibilityGate:
@@ -565,8 +587,6 @@ class TestReadValidate:
 
     def test_tableparser_read_validate_true_raises_for_missing_required(self, tmp_path: Path) -> None:
         """TableParser.read(validate=True) raises BDFValidationError when required columns are absent."""
-        from bdf.validate import BDFValidationError
-
         p = tmp_path / "data.csv"
         rows = "\n".join(f"{i},{3.5 + i / 10}" for i in range(6))
         p.write_text(f"time,voltage\n{rows}\n")
@@ -576,7 +596,7 @@ class TestReadValidate:
                 voltage_volt=(Syn(hdr="voltage"),),
             ),
         )
-        with pytest.raises(BDFValidationError, match="Missing required BDF columns"):
+        with pytest.raises(bdf.BDFValidationError, match="Missing required BDF columns"):
             parser.read(p, validate=True).collect()
 
     def test_tableparser_read_validate_true_lazy_returns_lazyframe(self, tmp_path: Path) -> None:
@@ -613,7 +633,7 @@ class TestReadValidate:
         assert "Test Time / s" in result.columns
 
     def test_tableparser_read_lazy_false_collects_raw_frame(self, tmp_path: Path) -> None:
-        """TableParser.read(normalize=False, lazy=False) collects the raw frame to a DataFrame."""
+        """TableParser.read(normalize=False) collects the raw frame to a DataFrame."""
 
         p = tmp_path / "data.csv"
         rows = "\n".join(f"{i},{3.5 + i / 10},0.1" for i in range(6))
@@ -654,9 +674,189 @@ class TestParquetParser:
         assert "Current / A" in df.columns
         assert pytest.approx(df["Current / A"][0]) == 0.5
 
+    def test_read_raw_without_extension(self, tmp_path: Path) -> None:
+        """ParquetParser._read_raw works without extension (using magic bytes)."""
+        p = tmp_path / "data"
+        pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_parquet(p)
+        lf, _metadata = bdf.read(p, normalize=False)
+        assert isinstance(lf, pl.DataFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
 
-class TestNDAParser:
-    """NDAParser, with fastnda mocked so no binary fixture or real dependency is needed."""
+
+class TestJsonParser:
+    def test_read_raw(self, tmp_path: Path) -> None:
+        """JsonParser._read_raw returns LazyFrame with correct column names."""
+        p = tmp_path / "data.json"
+        pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_json(p)
+        parser = JsonParser()
+        lf = parser._read_raw(p)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+
+    def test_read_column_headings(self, tmp_path: Path) -> None:
+        """JsonParser.read_column_headings returns column names without data rows."""
+        p = tmp_path / "data.json"
+        pl.DataFrame({"x": [1], "y": [2]}).write_json(p)
+        parser = JsonParser()
+        assert parser.read_column_headings(p) == ["x", "y"]
+
+    def test_read_normalized(self, tmp_path: Path) -> None:
+        """JsonParser applies normalizer to produce BDF columns with correct scaling."""
+        p = tmp_path / "data.json"
+        pl.DataFrame({"voltage_V": [3.7], "current_mA": [500.0]}).write_json(p)
+        norm = TableNormalizer(
+            voltage_volt=(Syn(hdr="voltage_{unit}"),),
+            current_ampere=(Syn(hdr="current_{unit}"),),
+        )
+        parser = JsonParser(normalizer=norm)
+        df = parser.read(p, validate=False).collect()
+        assert "Voltage / V" in df.columns
+        assert "Current / A" in df.columns
+        assert pytest.approx(df["Current / A"][0]) == 0.5
+
+    def test_read_raw_column_oriented(self, tmp_path: Path) -> None:
+        """JsonParser._read_raw works for both record-oriented and list-oriented json."""
+        parser = JsonParser()
+
+        p_record = tmp_path / "data_record.json"
+        data_record = [
+            {"a": 1.0, "b": 3.0},
+            {"a": 2.0, "b": 4.0},
+        ]
+        with p_record.open("w") as f:
+            json.dump(data_record, f)
+        lf = parser._read_raw(p_record)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+        df = lf.collect()
+        assert len(df) == 2
+
+        p_list = tmp_path / "data_list.json"
+        data_list = {
+            "a": [1.0, 2.0],
+            "b": [3.0, 4.0],
+        }
+        with p_list.open("w") as f:
+            json.dump(data_list, f)
+        lf = parser._read_raw(p_list)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+        df = lf.collect()
+        assert len(df) == 2
+
+    def test_special_characters(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Spy on Path.open to check encodings used
+        original_open = Path.open
+        calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+        def spy_open(self: Path, *args: Any, **kwargs: Any) -> object:
+            calls.append((args, kwargs))
+            return original_open(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", spy_open)
+
+        # Open file with special characters and assert they do not become garbled
+        parser = JsonParser()
+        p_record = tmp_path / "data_record.json"
+        data_record = [
+            {"q [µA·h]": 1.0, "R [Ω]": 2.0, "sweep [mV s⁻¹]": 3.0, "T1 [°C]": 4.0, "T2 [℃]": 5.0},
+            {"q [µA·h]": 1.1, "R [Ω]": 2.1, "sweep [mV s⁻¹]": 3.1, "T1 [°C]": 4.1, "T2 [℃]": 5.1},
+        ]
+        with p_record.open("w", encoding="utf-8") as f:
+            json.dump(data_record, f, ensure_ascii=False)
+        lf = parser._read_raw(p_record)
+        assert isinstance(lf, pl.LazyFrame)
+        df = lf.collect()
+        assert len(df) == 2
+        assert all(col in df.columns for col in ["q [µA·h]", "R [Ω]", "sweep [mV s⁻¹]", "T1 [°C]", "T2 [℃]"])
+        columns = lf = parser.read_column_headings(p_record)
+        assert columns == ["q [µA·h]", "R [Ω]", "sweep [mV s⁻¹]", "T1 [°C]", "T2 [℃]"]
+
+        # Assert that all Path.open was explicitly given utf-8 encoding
+        # Otherwise Linux CI runners pass this test whether or not encoding was given
+        assert calls, "Path.open was never called"
+        for args, kwargs in calls:
+            mode = args[0] if args else kwargs.get("mode", "r")
+            if "b" in mode:
+                continue
+            encoding = args[1] if len(args) > 1 else kwargs.get("encoding")
+            assert encoding == "utf-8", f"opened in text mode without encoding='utf-8': args={args} kwargs={kwargs}"
+
+
+class TestNdjsonParser:
+    def test_read_raw(self, tmp_path: Path) -> None:
+        """NdjsonParser._read_raw returns LazyFrame with correct column names."""
+        p = tmp_path / "data.ndjson"
+        pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_ndjson(p)
+        parser = NdjsonParser()
+        lf = parser._read_raw(p)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+
+    def test_read_column_headings(self, tmp_path: Path) -> None:
+        """NdjsonParser.read_column_headings returns column names without data rows."""
+        p = tmp_path / "data.ndjson"
+        pl.DataFrame({"x": [1], "y": [2]}).write_ndjson(p)
+        parser = NdjsonParser()
+        assert parser.read_column_headings(p) == ["x", "y"]
+
+    def test_read_normalized(self, tmp_path: Path) -> None:
+        """NdjsonParser applies normalizer to produce BDF columns with correct scaling."""
+        p = tmp_path / "data.ndjson"
+        pl.DataFrame({"voltage_V": [3.7], "current_mA": [500.0]}).write_ndjson(p)
+        norm = TableNormalizer(
+            voltage_volt=(Syn(hdr="voltage_{unit}"),),
+            current_ampere=(Syn(hdr="current_{unit}"),),
+        )
+        parser = NdjsonParser(normalizer=norm)
+        df = parser.read(p, validate=False).collect()
+        assert "Voltage / V" in df.columns
+        assert "Current / A" in df.columns
+        assert pytest.approx(df["Current / A"][0]) == 0.5
+
+
+class TestIpcParser:
+    def test_read_raw(self, tmp_path: Path) -> None:
+        """IpcParser._read_raw returns LazyFrame with correct column names."""
+        p = tmp_path / "data.ipc"
+        pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_ipc(p)
+        parser = IpcParser()
+        lf = parser._read_raw(p)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+
+    def test_read_column_headings(self, tmp_path: Path) -> None:
+        """IpcParser.read_column_headings returns column names without data rows."""
+        p = tmp_path / "data.ipc"
+        pl.DataFrame({"x": [1], "y": [2]}).write_ipc(p)
+        parser = IpcParser()
+        assert parser.read_column_headings(p) == ["x", "y"]
+
+    def test_read_normalized(self, tmp_path: Path) -> None:
+        """IpcParser applies normalizer to produce BDF columns with correct scaling."""
+        p = tmp_path / "data.ipc"
+        pl.DataFrame({"voltage_V": [3.7], "current_mA": [500.0]}).write_ipc(p)
+        norm = TableNormalizer(
+            voltage_volt=(Syn(hdr="voltage_{unit}"),),
+            current_ampere=(Syn(hdr="current_{unit}"),),
+        )
+        parser = IpcParser(normalizer=norm)
+        df = parser.read(p, validate=False).collect()
+        assert "Voltage / V" in df.columns
+        assert "Current / A" in df.columns
+        assert pytest.approx(df["Current / A"][0]) == 0.5
+
+    def test_read_raw_without_extension(self, tmp_path: Path) -> None:
+        """IpcParser._read_raw works without extension (using magic bytes)."""
+        p = tmp_path / "data"
+        pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]}).write_ipc(p)
+        lf, _metadata = bdf.read(p, normalize=False)
+        assert isinstance(lf, pl.DataFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+
+
+class TestNdaParser:
+    """NdaParser, with fastnda mocked so no binary fixture or real dependency is needed."""
 
     @pytest.fixture
     def fake_fastnda(self, monkeypatch: pytest.MonkeyPatch):
@@ -688,7 +888,7 @@ class TestNDAParser:
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", blocked_import)
-        parser = NDAParser()
+        parser = NdaParser()
         with pytest.raises(RuntimeError, match="fastnda"):
             parser._read_raw("cell.nda")
 
@@ -696,7 +896,7 @@ class TestNDAParser:
         """_read_raw resolves a local path and forwards it as a string to fastnda.read."""
         nda_path = tmp_path / "cell.nda"
         nda_path.write_bytes(b"")
-        parser = NDAParser()
+        parser = NdaParser()
         lf = parser._read_raw(nda_path)
         assert isinstance(lf, pl.LazyFrame)
         assert lf.collect_schema().names() == ["a", "b"]
@@ -709,7 +909,7 @@ class TestNDAParser:
         cached = tmp_path / "downloaded.nda"
         cached.write_bytes(b"")
         monkeypatch.setattr("bdf.fetch.fetch_url", lambda url: cached)
-        parser = NDAParser()
+        parser = NdaParser()
         parser._read_raw("https://example.com/cell.nda")
         assert fake_fastnda == [str(cached)]
 
@@ -717,5 +917,221 @@ class TestNDAParser:
         """read_column_headings reflects fastnda's column names without requiring data rows."""
         nda_path = tmp_path / "cell.nda"
         nda_path.write_bytes(b"")
-        parser = NDAParser()
+        parser = NdaParser()
         assert parser.read_column_headings(nda_path) == ["a", "b"]
+
+
+class TestMDBParser:
+    """MDBParser, with MDB backends mocked so no binary fixture or real dependency is needed."""
+
+    @pytest.fixture
+    def fake_polars_access_mdbtools(self, monkeypatch: pytest.MonkeyPatch):
+        """Install a stub `polars_access_mdbtools` module exposing a spyable `read_table(path, table_name)`."""
+        import sys
+        import types
+
+        df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
+        calls: list[tuple[str, str]] = []
+
+        def fake_read_table(path: str, table_name: str) -> pl.DataFrame:
+            calls.append((path, table_name))
+            return df
+
+        module = types.ModuleType("polars_access_mdbtools")
+        module.read_table = fake_read_table  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: True))
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
+        return calls
+
+    def test_read_raw_missing_dependency_raises_runtime_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_read_raw raises RuntimeError with install hints when no MDB backend is available."""
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: False))
+        parser = MDBParser()
+        with pytest.raises(RuntimeError, match=r"batterydf\[arbin_res\].*mdb-export.*mdb-schema"):
+            parser._read_raw("cell.res")
+
+    def test_read_raw_uses_pyodbc_first_on_windows(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """_read_raw prefers the Microsoft Access ODBC driver on Windows."""
+        import sys
+        import types
+
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        calls: list[str] = []
+
+        class FakeConnection:
+            def close(self) -> None:
+                calls.append("close")
+
+        def fake_connect(connection_string: str) -> FakeConnection:
+            calls.append(connection_string)
+            return FakeConnection()
+
+        def fake_read_database(query: str, conn: FakeConnection) -> pl.DataFrame:
+            calls.append(query)
+            return pl.DataFrame({"Data_Point": [2, 1], "Voltage": [3.2, 3.1]})
+
+        pyodbc = types.ModuleType("pyodbc")
+        pyodbc.drivers = lambda: ["Microsoft Access Driver (*.mdb, *.accdb)"]  # type: ignore[attr-defined]
+        pyodbc.connect = fake_connect  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "pyodbc", pyodbc)
+        monkeypatch.setattr("bdf.table_parsers.sys.platform", "win32")
+        monkeypatch.setattr(pl, "read_database", fake_read_database)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: False))
+
+        out = MDBParser()._read_raw(res_path).collect()
+
+        assert out["Data_Point"].to_list() == [1, 2]
+        assert calls[0].startswith("DRIVER={Microsoft Access Driver")
+        assert calls[1] == "SELECT * FROM Channel_Normal_Table"
+        assert calls[2] == "close"
+
+    def test_read_raw_passes_resolved_local_path_to_polars_access_mdbtools(
+        self, fake_polars_access_mdbtools, tmp_path: Path
+    ) -> None:
+        """_read_raw resolves a local path and forwards it as a string to polars_access_mdbtools.read_table."""
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        lf = parser._read_raw(res_path)
+        assert isinstance(lf, pl.LazyFrame)
+        assert lf.collect_schema().names() == ["a", "b"]
+        assert fake_polars_access_mdbtools == [(str(res_path), "Channel_Normal_Table")]
+
+    def test_read_raw_resolves_url_via_fetch_url(
+        self, fake_polars_access_mdbtools, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """_read_raw downloads URL sources through fetch_url before handing the local path to polars_access_mdbtools."""
+        cached = tmp_path / "downloaded.res"
+        cached.write_bytes(b"")
+        monkeypatch.setattr("bdf.fetch.fetch_url", lambda url: cached)
+        parser = MDBParser()
+        parser._read_raw("https://example.com/cell.res")
+        assert fake_polars_access_mdbtools == [(str(cached), "Channel_Normal_Table")]
+
+    def test_read_raw_sorts_channel_normal_table_by_data_point(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """_read_raw sorts Arbin MDB rows by Data_Point because mdbtools may return storage order."""
+        import sys
+        import types
+
+        df = pl.DataFrame({"Data_Point": [3, 1, 2], "Voltage": [3.3, 3.1, 3.2]})
+
+        def fake_read_table(path: str, table_name: str) -> pl.DataFrame:
+            return df
+
+        module = types.ModuleType("polars_access_mdbtools")
+        module.read_table = fake_read_table  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "polars_access_mdbtools", module)
+        monkeypatch.setattr(MDBParser, "_has_mdbtools", staticmethod(lambda: True))
+        monkeypatch.setattr(MDBParser, "_has_access_driver", staticmethod(lambda: False))
+
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        out = parser._read_raw(res_path).collect()
+        assert out["Data_Point"].to_list() == [1, 2, 3]
+        assert out["Voltage"].to_list() == [3.1, 3.2, 3.3]
+
+    def test_read_column_headings_returns_schema_names(self, fake_polars_access_mdbtools, tmp_path: Path) -> None:
+        """read_column_headings reflects polars_access_mdbtools' column names without requiring data rows."""
+        res_path = tmp_path / "cell.res"
+        res_path.write_bytes(b"")
+        parser = MDBParser()
+        assert parser.read_column_headings(res_path) == ["a", "b"]
+
+
+class TestMprParser:
+    """Unit tests for logic in mpr parser."""
+
+    def test_rebuild_current(self):
+        df = pl.DataFrame({"uts/s": [0.0, 1.0], "dq/mA·h": [0.0, 0.1]})
+        with pytest.warns(UserWarning, match="No current column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "I/mA" in df.columns
+        assert df["I/mA"].to_list() == [0.0, 360.0]
+
+    def test_zero_current(self):
+        df = pl.DataFrame({"uts/s": [0.0, 1.0]})
+        with pytest.warns(UserWarning, match="No current column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "I/mA" in df.columns
+        assert df["I/mA"].to_list() == [0.0, 0.0]
+
+    def test_rebuild_cycles(self):
+        df = pl.DataFrame(
+            {
+                "uts/s": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                "I/mA": [0.1, -0.1, 0.1, -0.1, 0.1, -0.1],
+                "half cycle": [0, 1, 2, 3, 4, 5],
+            }
+        )
+        with pytest.warns(UserWarning, match="No cycle count column in original MPR"):
+            df = MprParser._fix_missing_columns(df)
+        assert "cycle number" in df.columns
+        assert df["cycle number"].to_list() == [0, 0, 1, 1, 2, 2]
+
+
+class TestExcelSheetPattern:
+    """ExcelParser.sheet_pattern: regex-based sheet selection for variable sheet names."""
+
+    @staticmethod
+    def _arbin_workbook(tmp_path):
+        openpyxl = pytest.importorskip("openpyxl")
+        wb = openpyxl.Workbook()
+        gi = wb.active
+        gi.title = "Global_Info"
+        gi.append(["Schedule", "HPPC_test.sdx"])
+        ch = wb.create_sheet("Channel_1-002")
+        ch.append(["Data_Point", "Test_Time(s)", "Voltage(V)", "Current(A)"])
+        ch.append([1, 0.0, 3.6, 0.5])
+        wb.create_sheet("ACIM_chan_1").append(["Frequency", "Zreal", "Zimg"])
+        path = tmp_path / "arbin.xlsx"
+        wb.save(path)
+        return path
+
+    def test_pattern_selects_matching_sheet(self, tmp_path):
+        pytest.importorskip("fastexcel")
+        path = self._arbin_workbook(tmp_path)
+        parser = ExcelParser(sheet_pattern=r"^Channel[_-]")
+        assert parser.read_column_headings(path) == ["Data_Point", "Test_Time(s)", "Voltage(V)", "Current(A)"]
+
+    def test_pattern_skips_non_matching_sheets(self, tmp_path):
+        """Global_Info and ACIM_chan_* must not match the channel pattern."""
+        pytest.importorskip("fastexcel")
+        path = self._arbin_workbook(tmp_path)
+        parser = ExcelParser(sheet_pattern=r"^Channel[_-]")
+        assert "Frequency" not in parser.read_column_headings(path)
+
+    def test_no_matching_sheet_raises_with_sheet_list(self, tmp_path):
+        pytest.importorskip("fastexcel")
+        path = self._arbin_workbook(tmp_path)
+        parser = ExcelParser(sheet_pattern=r"^record$")
+        with pytest.raises(ValueError, match="no sheet matching"):
+            parser.read_column_headings(path)
+
+    def test_pattern_mutually_exclusive_with_sheet_name(self):
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            ExcelParser(sheet_pattern=r"^Channel", sheet_name="record")
+
+    def test_pattern_mutually_exclusive_with_sheet_id(self):
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            ExcelParser(sheet_pattern=r"^Channel", sheet_id=1)
+
+    def test_multiple_matching_sheets_raise(self, tmp_path):
+        """A multi-channel workbook must not silently read only the first channel."""
+        openpyxl = pytest.importorskip("openpyxl")
+        pytest.importorskip("fastexcel")
+        wb = openpyxl.Workbook()
+        wb.active.title = "Global_Info"
+        for ch in ("Channel_1-001", "Channel_1-002"):
+            ws = wb.create_sheet(ch)
+            ws.append(["Test_Time(s)", "Voltage(V)"])
+        path = tmp_path / "two_channels.xlsx"
+        wb.save(path)
+        parser = ExcelParser(sheet_pattern=r"^Channel[_-]")
+        with pytest.raises(ValueError, match="multiple sheets match"):
+            parser.read_column_headings(path)

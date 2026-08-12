@@ -51,11 +51,7 @@ def test_matches_magic_bytes_for_own_plugin(cid: str, case: SampleCase, data_dir
 
 @pytest.mark.parametrize(
     "cid,case",
-    [
-        pytest.param(cid, c, id=cid, marks=c.marks)
-        for cid, c in ALL_CASES
-        if not c.plugin_id.endswith(("_xlsx", "_parquet", "_nda"))
-    ],
+    [pytest.param(cid, c, id=cid, marks=c.marks) for cid, c in ALL_CASES if PLUGINS[c.plugin_id].table_parser.is_text],
 )
 def test_text_format_passes_delim_txt_gate(cid: str, case: SampleCase, data_dir: Path) -> None:
     """Real text-vendor files pass DelimTxtParser's text-plausibility gate too (they're all is_text=True)."""
@@ -68,7 +64,7 @@ def test_text_format_passes_delim_txt_gate(cid: str, case: SampleCase, data_dir:
     [
         pytest.param(cid, c, id=cid, marks=c.marks)
         for cid, c in ALL_CASES
-        if c.plugin_id.endswith(("_xlsx", "_parquet", "_nda"))
+        if not PLUGINS[c.plugin_id].table_parser.is_text
     ],
 )
 def test_binary_format_fails_delim_txt_gate(cid: str, case: SampleCase, data_dir: Path) -> None:
@@ -142,6 +138,6 @@ def test_dump_edit_load_round_trip_used_by_io_read(tmp_path: Path) -> None:
     csv_path = tmp_path / "lab_data.csv"
     csv_path.write_text("MyVoltage(V),Current(mA)\n3.7,500\n3.8,510\n")
 
-    df, _metadata = io.read(csv_path, plugin=loaded["neware_csv"], validate=False, lazy=False)
+    df, _metadata = io.read(csv_path, plugin=loaded["neware_csv"], validate=False)
     assert "Voltage / V" in df.columns
     assert df["Voltage / V"].to_list() == pytest.approx([3.7, 3.8])

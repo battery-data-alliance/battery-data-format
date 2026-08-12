@@ -1,25 +1,4 @@
-# src/bdf/spec.py
-from __future__ import annotations
-
-import contextlib
-import hashlib
-import importlib.resources
-import re
-import tempfile
-import warnings
-from pathlib import Path
-from typing import Any, cast
-
-import pint
-import polars as pl
-from pydantic import BaseModel, field_validator, model_validator
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDF, SKOS
-
-from bdf._df_compat import coerce_dataframe
-
-"""
-Single source of truth for BDF canonical columns.
+"""Single source of truth for BDF canonical columns.
 
 Each entry defines:
 - unit: pint-compatible canonical unit
@@ -33,6 +12,29 @@ Notes:
 - Slugs are lowercase with non-alnum -> "-" (same slugger as normalizer).
 - Synonyms are unit-agnostic ("voltage" not "voltage#v"); the normalizer parses units.
 """
+
+from __future__ import annotations
+
+import contextlib
+import hashlib
+import importlib.resources
+import re
+import tempfile
+import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
+
+from pydantic import BaseModel, field_validator, model_validator
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDF, SKOS
+
+from bdf._df_compat import coerce_dataframe
+
+if TYPE_CHECKING:
+    import pint
+    import polars as pl
+
+    ureg: pint.UnitRegistry
 
 # --------- Constants ----------
 
@@ -70,13 +72,14 @@ _BDF_RELEASE_URL_TMPL = (
     "battery-data-format-ontology/{version}/battery-data-format.ttl"
 )
 
-ureg: pint.UnitRegistry = pint.UnitRegistry()
+_ureg: pint.UnitRegistry | None = None
 
 
-def _pint_understands(alias: str, canonical: str) -> bool:
+def _pint_understands(reg: pint.UnitRegistry, alias: str, canonical: str) -> bool:
     """True if pint already parses `alias` to the same value as `canonical`.
 
     Args:
+        reg: Registry to resolve both unit strings against.
         alias: Candidate unit string (e.g. a UCUM code).
         canonical: Known-good pint unit string to compare against.
 
@@ -84,9 +87,11 @@ def _pint_understands(alias: str, canonical: str) -> bool:
         True if pint resolves `alias` to the same quantity as `canonical`
         both at 0 and 1 (catching offset units, not just dimensionality).
     """
+    import pint
+
     try:
-        a0, c0 = ureg.Quantity(0, alias), ureg.Quantity(0, canonical)
-        a1, c1 = ureg.Quantity(1, alias), ureg.Quantity(1, canonical)
+        a0, c0 = reg.Quantity(0, alias), reg.Quantity(0, canonical)
+        a1, c1 = reg.Quantity(1, alias), reg.Quantity(1, canonical)
         return (
             abs(a0.to(c0.units).magnitude - c0.magnitude) < 1e-9
             and abs(a1.to(c1.units).magnitude - c1.magnitude) < 1e-9
@@ -94,18 +99,39 @@ def _pint_understands(alias: str, canonical: str) -> bool:
     except (pint.errors.PintError, AssertionError):
         # PintError covers undefined/incompatible units; AssertionError covers
         # strings pint's parser chokes on internally (e.g. "℃" / ℃), which
-        # would otherwise escape and crash module import on pint >= 0.25.
+        # would otherwise escape and crash registry construction on pint >= 0.25.
         return False
 
 
-for _alias, _canonical in _UNIT_ALIAS.items():
-    if _pint_understands(_alias, _canonical):
-        continue
-    # @alias adds another name to the existing unit (preserving offset
-    # behavior for affine units like degC), unlike `name = degC`, which
-    # would silently define a new non-offset unit.
-    with contextlib.suppress(Exception):
-        ureg.define(f"@alias {_canonical} = {_alias}")
+def _get_ureg() -> pint.UnitRegistry:
+    """Return the shared unit registry, build on first use then cache.
+
+    Returns:
+        UnitRegistry with the BDF unit aliases defined.
+    """
+    global _ureg
+    if _ureg is None:
+        import pint
+
+        reg: pint.UnitRegistry = pint.UnitRegistry()
+        for alias, canonical in _UNIT_ALIAS.items():
+            if _pint_understands(reg, alias, canonical):
+                continue
+            # @alias adds another name to the existing unit (preserving offset
+            # behavior for affine units like degC), unlike `name = degC`, which
+            # would silently define a new non-offset unit.
+            with contextlib.suppress(Exception):
+                reg.define(f"@alias {canonical} = {alias}")
+        _ureg = reg
+    return _ureg
+
+
+def __getattr__(name: str) -> Any:
+    """Get lazily built module attributes."""
+    if name == "ureg":
+        return _get_ureg()
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 # --------- Helper functions ----------
@@ -157,6 +183,9 @@ def parse_label(label: str) -> tuple[str, str] | None:
     return base, unit
 
 
+_UNIT_CAPTURE = r"([A-Za-z0-9.·/*^%°℃ΩΩµμ⁰¹²³⁴⁵⁶⁷⁸⁹⁻ \-]+)"  # omega/ohm and mu/micro are different characters
+
+
 def get_unit_conversion(src_unit: str | None, dst_unit: str | None) -> tuple[float, float] | None:
     """Return (scale, offset) for src→dst unit conversion, None if incompatible.
 
@@ -177,13 +206,17 @@ def get_unit_conversion(src_unit: str | None, dst_unit: str | None) -> tuple[flo
         return (1.0, 0.0)
     if src_bare in ("C", "c") and dst_bare in _TEMPERATURE_DST_UNITS:
         src_bare = "degC"
+
+    import pint
+
+    reg = _get_ureg()
     try:
-        qty_dst = ureg.Quantity(1, dst_bare)
+        qty_dst = reg.Quantity(1, dst_bare)
         tgt_units = qty_dst.units
-        if ureg.Quantity(1, src_bare).dimensionality != qty_dst.dimensionality:
+        if reg.Quantity(1, src_bare).dimensionality != qty_dst.dimensionality:
             return None
-        at_zero = float(ureg.Quantity(0, src_bare).to(tgt_units).magnitude)
-        at_one = float(ureg.Quantity(1, src_bare).to(tgt_units).magnitude)
+        at_zero = float(reg.Quantity(0, src_bare).to(tgt_units).magnitude)
+        at_one = float(reg.Quantity(1, src_bare).to(tgt_units).magnitude)
         scale = round(at_one - at_zero, 15)
         offset = round(at_zero, 15)
         return (scale, offset)
@@ -603,43 +636,104 @@ class ColumnOntology:
         return tuple(q.formatted_label for _, q in self if not q.required and not q.deprecated)
 
     @coerce_dataframe
-    def validate_df(self, df: pl.LazyFrame) -> pl.LazyFrame:
+    def validate_df(self, df: pl.LazyFrame, *, raise_on_error: bool = True) -> pl.LazyFrame:
         """Check ``df`` column names against BDF canonical labels.
 
         Accepts pandas DataFrame, polars DataFrame, or polars LazyFrame.
-        Raises ``BDFValidationError`` if required columns are absent.
-        Warns (``UserWarning``) if extra non-BDF columns are present.
+        Warns (``UserWarning``) if extra non-BDF columns, deprecated/legacy BDF labels, or
+        non-canonical-unit BDF labels are present. Missing required columns raise
+        ``BDFValidationError`` by default; pass ``raise_on_error=False`` to warn instead. A
+        column counts as satisfying a required quantity if it matches that quantity's
+        preferred label, machine-readable name, a deprecated/legacy label that replaces it
+        (e.g. ``"Test Time / ms"`` for ``"Test Time / s"``), or its label with a
+        unit-compatible-but-non-canonical unit (e.g. ``"Voltage / mV"`` for ``"Voltage / V"``).
 
         Args:
             df: DataFrame to validate (pandas or polars).
+            raise_on_error: Raise ``BDFValidationError`` on missing required columns (default
+                True); False emits a ``UserWarning`` instead.
 
         Returns:
             Validated DataFrame coerced back to the original input type.
         """
-        lf = cast(pl.LazyFrame, df)  # guaranteed by @coerce_dataframe
-        cols = set(lf.collect_schema().names())
+        cols = set(df.collect_schema().names())
 
         canonical: set[str] = set()
-        required: set[str] = set()
-        for _, q in self:
+        required_by_label: dict[str, str] = {}  # formatted_label -> mr_name
+        for mr_name, q in self:
             if q.deprecated:
                 continue
-            lbl = q.formatted_label
-            canonical.add(lbl)
+            canonical.add(q.formatted_label)
+            canonical.add(q.effective_notation)
             if q.required:
-                required.add(lbl)
+                required_by_label[q.formatted_label] = mr_name
 
-        missing = required - cols
+        missing = {
+            lbl
+            for lbl, mr_name in required_by_label.items()
+            if lbl not in cols and self[mr_name].effective_notation not in cols
+        }
+
+        legacy_pairs: list[tuple[str, str]] = []
+        handled: set[str] = set()
+        for _, q in self:
+            if not q.deprecated or not q.replaced_by:
+                continue
+            hit = next((lbl for lbl in (q.formatted_label, q.effective_notation) if lbl in cols), None)
+            if hit is None:
+                continue
+            replacement = self[q.replaced_by].formatted_label if q.replaced_by in self else None
+            if replacement is None:
+                continue
+            legacy_pairs.append((hit, replacement))
+            missing.discard(replacement)
+            handled.add(hit)
+
+        if legacy_pairs:
+            detail = ", ".join(f"{old!r} -> {new!r}" for old, new in legacy_pairs)
+            warnings.warn(
+                f"Legacy BDF column labels detected: {detail}. Update to preferred labels.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        non_canonical_units: list[tuple[str, str]] = []
+        for _, q in self:
+            if q.deprecated or q.unit is None or "{unit}" not in q.label_template:
+                continue
+            parts = q.label_template.split("{unit}")
+            pattern = _UNIT_CAPTURE.join(re.escape(p) for p in parts)
+            for c in cols - canonical - handled:
+                m = re.fullmatch(pattern, c)
+                if m is None or get_unit_conversion(m.group(1), q.unit) is None:
+                    continue
+                non_canonical_units.append((c, q.formatted_label))
+                handled.add(c)
+                missing.discard(q.formatted_label)
+
+        if non_canonical_units:
+            detail = ", ".join(f"{c!r} (canonical: {canon!r})" for c, canon in non_canonical_units)
+            warnings.warn(
+                f"Columns not using the canonical BDF unit: {detail}",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        extra = cols - canonical - handled
+
         if missing:
-            from bdf.validate import BDFValidationError  # lazy — validate imports spec
+            detail = f"Missing required BDF columns: {sorted(missing)}"
+            if extra:
+                detail += f"; unrecognized columns present: {sorted(extra)}"
+            if raise_on_error:
+                from ._errors import BDFValidationError
 
-            raise BDFValidationError(f"Missing required BDF columns: {sorted(missing)}")
-
-        extra = cols - canonical
-        if extra:
+                raise BDFValidationError(detail)
+            warnings.warn(detail, UserWarning, stacklevel=2)
+        elif extra:
             warnings.warn(f"Non-BDF columns present: {sorted(extra)}", UserWarning, stacklevel=2)
 
-        return lf
+        return df
 
     def quantity_from_label(self, label: str) -> tuple[Quantity, str | None] | None:
         """Return (Quantity, unit) for the given label, or None if not found.
@@ -708,6 +802,45 @@ class ColumnOntology:
                 if first_deprecated is None:
                     first_deprecated = mr_name
         return first_deprecated
+
+    @coerce_dataframe
+    def rename_labels(self, df: pl.LazyFrame, mode: Literal["preferred", "machine", "unchanged"]) -> pl.LazyFrame:
+        """Rename BDF columns between preferred-label and machine-readable notation.
+
+        E.g. ``"Voltage / V"`` <-> ``"voltage_volt"``.
+        Columns outside the BDF spec are left as-is and warn.
+
+        Args:
+            df: DataFrame (pandas|polars|lazy) with BDF columns.
+            mode: Target column style.
+                "preferred": Rename to BDF preferred label, e.g. "Voltage / V".
+                "machine": Rename to BDF machine-readable notation, e.g. "voltage_volt".
+                "unchanged": Leave columns as-is.
+
+        Returns:
+            DataFrame of the same type, with matched columns renamed.
+        """
+        if mode == "unchanged":
+            return df
+        if mode == "preferred":
+            mapping_source = {q.effective_notation: q.formatted_label for _, q in self if not q.deprecated}
+            already_target = {q.formatted_label for _, q in self if not q.deprecated}
+        elif mode == "machine":
+            mapping_source = {q.formatted_label: q.effective_notation for _, q in self if not q.deprecated}
+            already_target = {q.effective_notation for _, q in self if not q.deprecated}
+        else:
+            msg = f"Mode '{mode}' not understood. Use 'preferred', 'machine', or 'unchanged'."
+            raise ValueError(msg)
+        cols = df.collect_schema().names()
+        mapping = {c: mapping_source[c] for c in cols if c in mapping_source}
+        unmatched = [c for c in cols if c not in mapping_source and c not in already_target]
+        if unmatched:
+            warnings.warn(
+                f"The following columns could not be converted to '{mode}' and were left as-is: {unmatched}",
+                UserWarning,
+                stacklevel=2,
+            )
+        return df.rename(mapping) if mapping else df
 
     @classmethod
     def from_graph(cls, g: Any) -> "ColumnOntology":

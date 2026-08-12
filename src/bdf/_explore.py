@@ -6,6 +6,7 @@ from typing import Optional
 import pandas as pd
 
 from . import spec
+from .visualize import X_DEFAULT, Y_DEFAULT
 
 
 def _label_with_unit(name: str, unit: str) -> str:
@@ -113,7 +114,7 @@ def _plot_plotly(
         import plotly.graph_objects as go  # type: ignore
     except Exception as e:
         raise RuntimeError(
-            "bdf.explore(..., backend='plotly') requires plotly. Install with `pip install batterydf[plotly]`."
+            "bdf.explore(..., backend='plotly') requires plotly. Install with `pip install batterydf[plot]`."
         ) from e
 
     mode = "lines"
@@ -169,8 +170,8 @@ def _plot_plotly(
 def explore(
     df: pd.DataFrame,
     *,
-    xdata: str = "Test Time / s",
-    ydata: str | Iterable[str] = "Voltage / V",
+    xdata: str = X_DEFAULT,
+    ydata: str | Iterable[str] = Y_DEFAULT,
     yydata: Optional[str | Iterable[str]] = None,
     xunit: Optional[str] = None,
     yunit: Optional[str] = None,

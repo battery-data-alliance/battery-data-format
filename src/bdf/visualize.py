@@ -4,13 +4,12 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Dict, Optional, Tuple, Union
 
-import matplotlib.pyplot as plt
 import pandas as pd
 
 from bdf import spec
 
-X_DEFAULT = "Test Time / s"
-Y_DEFAULT = "Voltage / V"
+X_DEFAULT = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
+Y_DEFAULT = spec.COLUMN_ONTOLOGY.voltage_volt.formatted_label
 
 # ---------- helpers ----------
 
@@ -107,6 +106,8 @@ def plot(
       - Unit conversion via xunit/yunit/yyunit (spec.get_unit_conversion)
       - Primary axis data is always drawn on top of secondary axis data.
     """
+    import matplotlib.pyplot as plt
+
     ys = _to_list(ydata)
     yys = _to_list(yydata)
     if not ys and not yys:

@@ -33,7 +33,7 @@ Install
 
 PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
 
-Extras (combine as needed, for example ``pip install "batterydf[hvplot]"``):
+Extras (combine as needed, for example ``pip install "batterydf[nda,plot]"``):
 
 .. list-table::
    :header-rows: 1
@@ -41,20 +41,27 @@ Extras (combine as needed, for example ``pip install "batterydf[hvplot]"``):
 
    * - Extra
      - Adds
+   * - ``nda``
+     - Neware .nda/.ndax support (fastnda backend, requires numpy>=2.2).
+   * - ``mpr``
+     - BioLogic .mpr support (via yadg).
+   * - ``excel``
+     - Excel support via the fast ``calamine`` engine.
+   * - ``mat``
+     - MATLAB .mat support.
+   * - ``arbin``
+     - Arbin .res support.
+   * - ``yaml``
+     - YAML plugin definitions.
+   * - ``plot``
+     - Static (matplotlib) interactive (plotly) plotting.
    * - ``hvplot``
      - Interactive exploration with Bokeh/HoloViews.
-   * - ``polars``
-     - Polars support plus the fast NDA backend (requires numpy>=2.2).
-   * - ``numpy2``
-     - Forces numpy 2.x (recommended for fastnda).
-   * - ``dev``
-     - Test and lint tooling for contributors.
-   * - ``docs``
-     - Sphinx docs toolchain.
-   * - ``fastnda``
-     - Fast NDA backend (requires numpy>=2.2).
+   * - ``all``
+     - Every extra above.
 
-Plotly interactive plots and Neware NDA support are included in the base install.
+Dev-only tooling (tests, linting, docs) are in ``[dependency-groups]``,
+clone the repo and use `uv sync` -- see ``CONTRIBUTING.md`` for more info.
 
 Quickstart notebook
 -------------------
@@ -72,7 +79,7 @@ First steps
    import bdf
 
    # read() returns (frame, metadata); the frame is a polars frame
-   df, meta = bdf.read("raw_vendor.csv", lazy=False)  # auto-detect and normalize
+   df, meta = bdf.read("raw_vendor.csv")  # auto-detect and normalize
    df = df.to_pandas()  # the validate/plot helpers operate on pandas
    report = bdf.validate(df, report=True, raise_on_error=False)
    bdf.plot(df, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
@@ -86,4 +93,4 @@ The other functions are for advanced workflows:
 - ``bdf.read(..., normalize=False)``: inspect raw vendor columns without normalization.
 - ``bdf.normalize``: normalize a DataFrame you already have in memory.
 - ``bdf.validate``: validate a DataFrame or BDF artifact without re-reading.
-- ``bdf.load`` / ``bdf.save``: read/write BDF artifacts directly as pandas DataFrames.
+- ``bdf.save``: write a BDF DataFrame to a file.

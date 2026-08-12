@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import json
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pandas as pd
 import polars as pl
 import pytest
+from polars.testing import assert_frame_equal, assert_series_equal
 
-from bdf import io
-from bdf.io import read
+from bdf import BDFValidationError, io
+from bdf.io import read, scan
 from bdf.plugins import Plugin
 from bdf.table_normalizers import TableNormalizer
 from bdf.table_parsers import DelimTxtParser
@@ -18,23 +20,61 @@ from bdf.table_parsers import DelimTxtParser
 def test_detect_format_known_and_unknown(tmp_path: Path):
     assert io._detect_format(tmp_path / "file.bdf.csv") == "csv"
     assert io._detect_format(tmp_path / "file.bdf.parquet") == "parquet"
+    assert io._detect_format(tmp_path / "file.bdf.pq") == "parquet"
     assert io._detect_format(tmp_path / "file.bdf.json") == "json"
+    assert io._detect_format(tmp_path / "file.bdf.ndjson") == "ndjson"
+    assert io._detect_format(tmp_path / "file.bdf.feather") == "ipc"
+    assert io._detect_format(tmp_path / "file.bdf.arrow") == "ipc"
+    assert io._detect_format(tmp_path / "file.bdf.ipc") == "ipc"
+    assert io._detect_format(tmp_path / "file.bdf.xlsx") == "xlsx"
+
+    assert io._detect_format(tmp_path / "file.bdf.csv.gz") == "csv"
+    assert io._detect_format(tmp_path / "file.bdf.csv.bz2") == "csv"
+    assert io._detect_format(tmp_path / "file.bdf.csv.xz") == "csv"
+    assert io._detect_format(tmp_path / "file.bdf.csv.zst") == "csv"
 
 
-def test_save_and_load_roundtrip_csv_parquet_json(tmp_path: Path):
-    df = pd.DataFrame(
+def test_save_and_load_roundtrips(tmp_path: Path):
+    df = pl.DataFrame(
         {
-            "Test Time / s": [0, 1, 2],
+            "Test Time / s": [0.0, 1.0, 2.0],
             "Voltage / V": [3.7, 3.6, 3.5],
             "Current / A": [0.1, 0.1, 0.1],
         }
     )
 
-    for fname in ("sample.bdf.csv", "sample.bdf.parquet", "sample.bdf.json"):
-        path = tmp_path / fname
-        io.save(df, path, index=False)
-        loaded = io.load(path)
-        pd.testing.assert_frame_equal(df, loaded)
+    exts = [".csv", ".parquet", ".json", ".ndjson", ".feather", ".arrow", ".ipc", ".xlsx"]
+    comps = ["", ".gz", ".bz2", ".xz", ".zst"]
+
+    for ext in exts:
+        for comp in comps:
+            path = tmp_path / ("data.bdf" + ext + comp)
+            if ext == ".xlsx" and comp:
+                with pytest.raises(ValueError, match="Compression is not supported for xlsx"):
+                    io.save(df, path)
+            else:
+                io.save(df, path)
+                loaded, _metadata = io.read(path)
+                assert_frame_equal(df, loaded)
+
+
+def test_compression_compresses(tmp_path: Path):
+    df = pl.DataFrame(
+        {  # Need more datapoints for compression to be able to do anything
+            "Test Time / s": pl.linear_space(0, 1000, 1000, eager=True),
+            "Voltage / V": pl.linear_space(3.5, 4.2, 1000, eager=True),
+            "Current / A": pl.linear_space(1.0, 1.0, 1000, eager=True),
+        }
+    )
+    path = tmp_path / "data.bdf.csv"
+    io.save(df, path)
+    uncompressed_size = path.stat().st_size
+
+    comps = [".gz", ".bz2", ".xz", ".zst"]
+    for comp in comps:
+        path = tmp_path / ("data.bdf.csv" + comp)
+        io.save(df, path)
+        assert path.stat().st_size < uncompressed_size
 
 
 def test_detect_format_unknown_raises(tmp_path: Path):
@@ -44,33 +84,169 @@ def test_detect_format_unknown_raises(tmp_path: Path):
         io._detect_format(bad)
 
 
-def test_save_defaults_to_notation_and_human_opt_in(tmp_path: Path):
-    df = pd.DataFrame(
+def test_save_validation(tmp_path: Path):
+    df_v = pl.DataFrame({"Voltage / V": [3.7, 3.6, 3.5]})
+    path = tmp_path / "sample.bdf.csv"
+
+    # With validate will fail
+    with pytest.raises(BDFValidationError):
+        io.save(df_v, path)
+
+    # Without validation, it will save
+    io.save(df_v, path, validate=False)
+
+    # Reading with validation fails
+    with pytest.raises(BDFValidationError):
+        io.read(path)
+
+    # Reading without validation works
+    loaded, _metadata = io.read(path, validate=False)
+    assert_frame_equal(df_v, loaded)
+
+    # Non-standard column
+    df_mv = pl.DataFrame({"Voltage / mV": [3.7, 3.6, 3.5]})
+
+    # Validate will fail (missing cols)
+    with pytest.raises(BDFValidationError):
+        io.save(df_mv, path)
+
+    # No validate saves as-is
+    io.save(df_mv, path, validate=False)
+    loaded, _metadata = io.read(path, validate=False, normalize=False)
+    assert "Voltage / mV" in loaded.columns
+    loaded = loaded.cast({"Voltage / mV": pl.Float64})
+    assert_frame_equal(df_mv, loaded)
+
+    # No validate will still normalize name/units reading back by default
+    io.save(df_mv, path, validate=False)
+    loaded, _metadata = io.read(path, validate=False)
+    assert "Voltage / V" in loaded.columns
+    loaded = loaded.with_columns((pl.col("Voltage / V") * 1000).alias("Voltage / mV"))
+    assert_series_equal(df_mv["Voltage / mV"], loaded["Voltage / mV"])
+
+
+def test_save_with_extra_cols(tmp_path: Path):
+    """Save should keep additional columns by default."""
+    df = pl.DataFrame(
         {
-            "Test Time / s": [0, 1],
+            "Test Time / s": [0.0, 1.0],
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+            "Thing I Just Calculated / %": [30.0, 40.0],
+        }
+    )
+    path = tmp_path / "sample.bdf.parquet"
+    with pytest.warns(UserWarning, match="Non-BDF columns present"):
+        io.save(df, path)
+
+    # Raw data contains extra column
+    df2 = pl.read_parquet(path)
+    assert_frame_equal(df, df2)
+
+
+def test_save_legacy_warns(tmp_path: Path):
+    df = pl.DataFrame(
+        {
+            "Test Time / ms": [0.0, 1.0],
             "Voltage / V": [3.7, 3.6],
             "Current / A": [0.1, 0.1],
         }
     )
+    path = tmp_path / "sample.bdf.csv"
+    with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+        io.save(df, path)
+    with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+        io.save(df, path, validate=False)
 
-    machine_path = tmp_path / "machine.bdf.csv"
-    io.save(df, machine_path, index=False)
-    raw_machine = pd.read_csv(machine_path)
-    assert "test_time_second" in raw_machine.columns
-    assert "voltage_volt" in raw_machine.columns
-    assert "current_ampere" in raw_machine.columns
 
-    loaded = io.load(machine_path)
-    assert "Test Time / s" in loaded.columns
-    assert "Voltage / V" in loaded.columns
-    assert "Current / A" in loaded.columns
+def test_save_missing_col_warns(tmp_path: Path):
+    df = pl.DataFrame(
+        {
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+        }
+    )
+    path = tmp_path / "sample.bdf.csv"
+    with pytest.raises(BDFValidationError):
+        io.save(df, path)
+    with pytest.warns(UserWarning, match="Missing required BDF columns: \['Test Time / s'\]"):
+        io.save(df, path, validate=False)
 
-    human_path = tmp_path / "human.bdf.csv"
-    io.save(df, human_path, index=False, human=True)
-    raw_human = pd.read_csv(human_path)
-    assert "Test Time / s" in raw_human.columns
-    assert "Voltage / V" in raw_human.columns
-    assert "Current / A" in raw_human.columns
+
+def test_save_extra_col_warns(tmp_path: Path):
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0],
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+            "foo": [1, 2],
+        }
+    )
+    path = tmp_path / "sample.bdf.csv"
+    with pytest.warns(UserWarning, match="Non-BDF columns present"):
+        io.save(df, path)
+    with pytest.warns(UserWarning, match="Non-BDF columns present"):
+        io.save(df, path, validate=False)
+
+
+def test_save_non_canonical_units_warns(tmp_path: Path):
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0],
+            "Voltage / mV": [3.7, 3.6],
+            "Current / uA": [0.1, 0.1],
+        }
+    )
+    path = tmp_path / "sample.bdf.csv"
+    with pytest.warns(UserWarning, match="Columns not using the canonical BDF unit"):
+        io.save(df, path)
+
+
+def test_save_bad_columns_errors(tmp_path: Path):
+    # Bad columns error contains both missing and unrecognized columns
+    df = pl.DataFrame(
+        {
+            "test_time_s": [0.0, 1.0],
+            "voltage_millivolt": [3.7, 3.6],
+            "current_microampere": [0.1, 0.1],
+        }
+    )
+    path = tmp_path / "sample.bdf.csv"
+    with pytest.raises(
+        BDFValidationError, match=r"(?=.*Missing required BDF columns)(?=.*unrecognized columns present)"
+    ):
+        io.save(df, path)
+
+
+def test_save_good_columns_dont_warn(tmp_path: Path):
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0],
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+        }
+    )
+    path = tmp_path / "sample.bdf.csv"
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        io.save(df, path)
+        io.save(df, path, validate=False)
+        io.save(df, path, labels="machine")
+        io.save(df, path, labels="preferred")
+
+    df = pl.DataFrame(
+        {
+            "test_time_second": [0.0, 1.0],
+            "voltage_volt": [3.7, 3.6],
+            "current_ampere": [0.1, 0.1],
+        }
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        io.save(df, path)
+        io.save(df, path, validate=False)
+        io.save(df, path, labels="machine")
+        io.save(df, path, labels="preferred")
 
 
 @pytest.mark.parametrize("fname", ["roundtrip.bdf.csv", "roundtrip.bdf.parquet"])
@@ -81,7 +257,7 @@ def test_save_default_artifact_read_validate_roundtrip(tmp_path: Path, fname: st
         tmp_path: Temporary directory for the artifact.
         fname: Artifact filename under test.
     """
-    df = pd.DataFrame(
+    df = pl.DataFrame(
         {
             "Test Time / s": [0, 1],
             "Voltage / V": [3.7, 3.6],
@@ -90,8 +266,8 @@ def test_save_default_artifact_read_validate_roundtrip(tmp_path: Path, fname: st
     )
 
     path = tmp_path / fname
-    io.save(df, path, index=False)
-    loaded, meta = io.read(path, lazy=False)
+    io.save(df, path)
+    loaded, meta = io.read(path)
 
     assert meta["source"] in {"bdf_csv", "bdf_parquet"}
     assert isinstance(loaded, pl.DataFrame)
@@ -169,25 +345,43 @@ def test_read_plugin_invalid_type_raises(tmp_path: Path) -> None:
 
 
 def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespace, tmp_path: Path) -> None:
-    """read() forwards path + the six read-shaping kwargs (incl. lazy, tz) verbatim, nothing else."""
+    """read() forwards path + the five read-shaping kwargs verbatim, plus lazy=False."""
     p = tmp_path / "f.csv"
     read(
         p,
         plugin=read_mocks.plugin,
+        validate=False,
+        normalize=False,
+        include_unknown=True,
+        tz="America/New_York",
+    )
+    read_mocks.table_read.assert_called_once_with(
+        p,
+        validate=False,
+        normalize=False,
+        include_unknown=True,
+        lazy=False,
+        tz="America/New_York",
+    )
+
+
+def test_scan_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespace, tmp_path: Path) -> None:
+    """scan() forwards path + the four read-shaping kwargs verbatim, plus lazy=True."""
+    p = tmp_path / "f.csv"
+    scan(
+        p,
+        plugin=read_mocks.plugin,
         normalize=False,
         validate=False,
-        include_optional=False,
-        extra_columns={"a": "b"},
-        lazy=False,
+        include_unknown=False,
         tz="America/New_York",
     )
     read_mocks.table_read.assert_called_once_with(
         p,
         normalize=False,
         validate=False,
-        include_optional=False,
-        extra_columns={"a": "b"},
-        lazy=False,
+        include_unknown=False,
+        lazy=True,
         tz="America/New_York",
     )
 
@@ -206,25 +400,298 @@ def test_read_returns_table_parser_frame_unchanged(read_mocks: SimpleNamespace, 
     sentinel = pl.DataFrame({"x": [1, 2]})
     read_mocks.table_read.return_value = sentinel
     p = tmp_path / "f.csv"
-    result, _ = read(p, plugin=read_mocks.plugin, lazy=False)
+    result, _ = read(p, plugin=read_mocks.plugin)
     assert result is sentinel
 
 
-class TestDeprecatedLabelRedirects:
-    """Load and save paths route deprecated labels via dcterms:isReplacedBy."""
+def test_read_bdf_files(tmp_path: Path) -> None:
+    """Read bdf from various files."""
+    df1 = pl.DataFrame(
+        {
+            "Test Time / s": [1.0, 2.0, 3.0],
+            "Voltage / V": [4.0, 4.1, 4.2],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
 
-    def test_canonicalize_renames_to_replacement(self):
-        """Regression: step_capacity_ah was renamed to its own deprecated pref label
-        instead of the replacement's."""
-        df = pd.DataFrame({"step_capacity_ah": [0.5], "test_time_second": [0.0]})
-        out, legacy = io.canonicalize_legacy_labels(df)
-        assert "Step Cumulative Capacity / Ah" in out.columns
-        assert "Step Capacity / Ah" not in out.columns
-        assert "step_capacity_ah" in legacy
+    for extra_ext in ("", ".bdf", ".a.b.c", ".a.b.c.bdf"):
+        p = tmp_path / f"data{extra_ext}.csv"
+        df1.write_csv(p)
+        df2, _metadata = io.read(p)
+        assert_frame_equal(df1, df2)
 
-    def test_label_maps_route_deprecated_notation_to_replacement_pref(self):
-        """The save-path label maps must also honor the replacement link."""
-        _, machine_to_pref = io._label_maps()
-        assert machine_to_pref["step_capacity_ah"] == "Step Cumulative Capacity / Ah"
-        assert machine_to_pref["step_energy_wh"] == "Step Cumulative Energy / Wh"
-        assert machine_to_pref["test_time_millisecond"] == "Test Time / s"
+        p = tmp_path / f"data{extra_ext}.parquet"
+        df1.write_parquet(p)
+        df2, _metadata = io.read(p)
+        assert_frame_equal(df1, df2)
+
+        p = tmp_path / f"data{extra_ext}.json"
+        df1.write_json(p)
+        df2, _metadata = io.read(p)
+        assert_frame_equal(df1, df2)
+
+        p = tmp_path / f"data{extra_ext}.ndjson"
+        df1.write_ndjson(p)
+        df2, _metadata = io.read(p)
+        assert_frame_equal(df1, df2)
+
+        p = tmp_path / f"data{extra_ext}.ipc"
+        df1.write_ipc(p)
+        df2, _metadata = io.read(p)
+        assert_frame_equal(df1, df2)
+
+        p = tmp_path / f"data{extra_ext}.arrow"
+        df1.write_ipc(p)
+        df2, _metadata = io.read(p)
+        assert_frame_equal(df1, df2)
+
+        p = tmp_path / f"data{extra_ext}.feather"
+        df1.write_ipc(p)
+        df2, _metadata = io.read(p)
+        assert_frame_equal(df1, df2)
+
+
+def test_read_with_unknown(tmp_path: Path) -> None:
+    """Test reading with unknown columns."""
+    df1 = pl.DataFrame(
+        {
+            "Test Time / s": [1.0, 2.0, 3.0],
+            "Voltage / V": [4.0, 4.1, 4.2],
+            "Current / A": [0.1, 0.1, 0.1],
+            "foo": [1, 2, 3],
+            "bar": ["b", "a", "r"],
+        }
+    )
+    p = tmp_path / "data.parquet"
+    df1.write_parquet(p)
+
+    df2, _metadata = io.read(p)
+    assert "foo" not in df2.columns
+    assert "bar" not in df2.columns
+
+    df2, _metadata = io.read(p, include_unknown=True)
+    assert "foo" in df2.columns
+    assert "bar" in df2.columns
+    assert_frame_equal(df1, df2)
+
+
+def test_roundtrip_with_unknown(tmp_path: Path) -> None:
+    """Test reading with unknown columns."""
+    df1 = pl.DataFrame(
+        {
+            "Test Time / s": [1.0, 2.0, 3.0],
+            "Voltage / V": [4.0, 4.1, 4.2],
+            "Current / A": [0.1, 0.1, 0.1],
+            "foo": [1, 2, 3],
+            "bar": ["b", "a", "r"],
+        }
+    )
+    p1 = tmp_path / "data.parquet"
+    df1.write_parquet(p1)
+
+    df2, _metadata = io.read(p1, include_unknown=True)
+    assert "foo" in df2.columns
+    assert "bar" in df2.columns
+
+    # Save always includes unknown
+    p2 = tmp_path / "data.parquet"
+    io.save(df2, p2)
+    df3, _metadata = io.read(p2, include_unknown=True)
+    assert "foo" in df3.columns
+    assert "bar" in df3.columns
+    assert_frame_equal(df1, df3)
+
+    # Saving/reading unknown works with other files/compression
+    p3 = tmp_path / "data.ndjson.gz"
+    io.save(df3, p3)
+    df4, _metadata = io.read(p3, include_unknown=True)
+    assert "foo" in df4.columns
+    assert "bar" in df4.columns
+    assert_frame_equal(df1, df4)
+
+
+def test_save_labels(tmp_path: Path) -> None:
+    """Test saving with different labels."""
+    df_orig = pl.DataFrame(
+        {
+            "Test Time / s": [1.0, 2.0, 3.0],
+            "Voltage / V": [4.0, 4.1, 4.2],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    p = tmp_path / "data.parquet"
+
+    def assert_preferred() -> None:
+        assert "Test Time / s" in df.columns
+        assert "Voltage / V" in df.columns
+        assert "Current / A" in df.columns
+
+    def assert_machine() -> None:
+        assert "test_time_second" in df.columns
+        assert "voltage_volt" in df.columns
+        assert "current_ampere" in df.columns
+
+    # Unchanged by default
+    io.save(df_orig, p)
+    df = pl.read_parquet(p)
+    assert_preferred()
+
+    # Explicit unchanged
+    io.save(df_orig, p, labels="unchanged")
+    df = pl.read_parquet(p)
+    assert_preferred()
+
+    # Explicit machine-readable
+    io.save(df_orig, p, labels="machine")
+    df = pl.read_parquet(p)
+    assert_machine()
+
+    # Explicit human-readable
+    io.save(df_orig, p, labels="preferred")
+    df = pl.read_parquet(p)
+    assert_preferred()
+
+    # Test starting from machine-readable
+    df_orig = pl.DataFrame(
+        {
+            "test_time_second": [1.0, 2.0, 3.0],
+            "voltage_volt": [4.0, 4.1, 4.2],
+            "current_ampere": [0.1, 0.1, 0.1],
+        }
+    )
+
+    # Unchanged by default
+    io.save(df_orig, p)
+    df = pl.read_parquet(p)
+    assert_machine()
+
+    # Explicit unchanged
+    io.save(df_orig, p, labels="unchanged")
+    df = pl.read_parquet(p)
+    assert_machine()
+
+    # Explicit machine-readable
+    io.save(df_orig, p, labels="machine")
+    df = pl.read_parquet(p)
+    assert_machine()
+
+    # Explicit preferred
+    io.save(df_orig, p, labels="preferred")
+    df = pl.read_parquet(p)
+    assert_preferred()
+
+    # Unknown mode raises
+    with pytest.raises(ValueError, match="Mode 'foo' not understood"):
+        io.save(df_orig, p, labels="foo")  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# read()/scan() time reconciliation (GH #65)
+# ---------------------------------------------------------------------------
+
+
+def _write_bdf_csv_with_ms_test_time(tmp_path: Path, n: int = 30) -> Path:
+    """BDF artifact whose Test Time / s values are actually milliseconds."""
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 * 1e3 for i in range(n)],  # ms under a seconds header
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    path = tmp_path / "corrupted.bdf.csv"
+    df.write_csv(path)
+    return path
+
+
+def test_read_mismatch_raises_by_default(tmp_path: Path) -> None:
+    """fsck model: detection is on, repair is not - loud failure, data untouched."""
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.raises(BDFValidationError, match="appear to be milliseconds"):
+        read(path)
+
+
+def test_read_mismatch_warns_when_validate_false(tmp_path: Path) -> None:
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.warns(UserWarning, match="appear to be milliseconds"):
+        df, meta = read(path, validate=False)
+    # values loaded as-is, nothing repaired or recorded
+    assert df["Test Time / s"].to_list()[1] == 10_000.0
+    assert "time_reconciliation" not in meta
+
+
+def test_read_reconcile_time_true_repairs_and_records(tmp_path: Path) -> None:
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.warns(UserWarning, match="rescaled to seconds as requested"):
+        df, meta = read(path, reconcile_time=True)
+    assert df["Test Time / s"].to_list()[:3] == [0.0, 10.0, 20.0]
+    (record,) = meta["time_reconciliation"]
+    assert record["column"] == "Test Time / s"
+    assert record["actual_unit"] == "milliseconds"
+    assert record["action"] == "divided by 1000"
+
+
+def test_scan_reconcile_time_true_repairs_lazy(tmp_path: Path) -> None:
+    path = _write_bdf_csv_with_ms_test_time(tmp_path)
+    with pytest.warns(UserWarning, match="rescaled to seconds as requested"):
+        lf, meta = scan(path, reconcile_time=True)
+    assert isinstance(lf, pl.LazyFrame)
+    assert lf.collect()["Test Time / s"].to_list()[1] == 10.0
+    assert meta["time_reconciliation"]
+
+
+def test_read_consistent_clocks_add_no_metadata(tmp_path: Path) -> None:
+    n = 30
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 for i in range(n)],
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    path = tmp_path / "clean.bdf.csv"
+    df.write_csv(path)
+    out, meta = read(path)
+    assert out["Test Time / s"].to_list()[1] == 10.0
+    assert "time_reconciliation" not in meta
+
+
+def test_read_unexplained_ratio_stays_loud_even_with_reconcile_time(tmp_path: Path) -> None:
+    """A ratio matching no known unit cannot be repaired, so it stays loud."""
+    n = 30
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [i * 370.0 for i in range(n)],  # 37x wall clock: no known unit
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    path = tmp_path / "odd.bdf.csv"
+    df.write_csv(path)
+    with pytest.raises(BDFValidationError, match="matches no known unit"):
+        read(path, reconcile_time=True)
+    with pytest.warns(UserWarning, match="matches no known unit"):
+        out, meta = read(path, validate=False)
+    assert out["Test Time / s"].to_list()[1] == 370.0
+    assert "time_reconciliation" not in meta
+
+
+def test_save_metadata(tmp_path: Path) -> None:
+    """Check metadata can be saved and read."""
+    df_orig = pl.DataFrame(
+        {
+            "Test Time / s": [1.0, 2.0, 3.0],
+            "Voltage / V": [4.0, 4.1, 4.2],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    p = tmp_path / "data.bdf.parquet"
+    p_meta = tmp_path / "data.bdf.metadata.json"
+    io.save(df_orig, p, metadata={"foo": "bar"})
+    assert p.exists()
+    assert p_meta.exists()
+    metadata = json.loads(p_meta.read_text())
+    assert metadata == {"foo": "bar"}

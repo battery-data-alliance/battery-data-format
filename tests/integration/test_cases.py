@@ -36,6 +36,14 @@ _ZENODO_NEWARE_TIME_BUG_URL = (
 )
 _ZENODO_MACCOR_URL = f"{_ZENODO_BASE}/faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.csv/content"
 _ZENODO_ARBIN_URL = f"{_ZENODO_BASE}/shandong__nacr32140-mp10__2023-10-10__pulse__25degC__arbin.CSV/content"
+_ZENODO_XLSX_BASE = "https://zenodo.org/api/records/21337233/files"
+_ZENODO_ARBIN_XLSX_OCV_URL = f"{_ZENODO_XLSX_BASE}/UCCS__ANR26650M1B-A002__2021__OCV-S4__-25degC__Arbin.xlsx/content"
+_ZENODO_ARBIN_XLSX_CAP_URL = (
+    f"{_ZENODO_XLSX_BASE}/Stanford__IFPR26650-YX05__20231012__Capacity__25degC__Arbin.xlsx/content"
+)
+_ZENODO_ARBIN_XLSX_EIS_URL = (
+    f"{_ZENODO_XLSX_BASE}/Oxford__SLPBB142124-01__20240812__DynamicMBTF__25degC__Arbin__Wb1.xlsx/content"
+)
 
 
 class ColExpect(NamedTuple):
@@ -447,10 +455,10 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "step_id": ColExpect("Step Index", 1.0),
                 "record_index": ColExpect("Data Point", 1.0),
                 "step_time_second": ColExpect("Step Time (s)", 1.0),
-                "charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
-                "discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
-                "charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
-                "discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
+                "schedule_charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
+                "schedule_discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
+                "schedule_charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
+                "schedule_discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
                 "power_watt": ColExpect("Power (W)", 1.0),
                 "dc_internal_resistance_ohm": ColExpect("Internal Resistance (Ohm)", 1.0),
                 "ac_internal_resistance_ohm": ColExpect("ACR (Ohm)", 1.0),
@@ -459,28 +467,259 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             null_ok_columns=frozenset({"DC Internal Resistance / ohm", "AC Internal Resistance / ohm"}),
             known_validity_bugs={
                 "ac_internal_resistance_ohm": "ACR (Ohm) is entirely empty in this pulse-test export",
-                "charging_capacity_ah": (
-                    "Charge Capacity resets exactly once, at the step-9 boundary marking the "
-                    "end of initial conditioning and the start of the repeated pulse loop; "
-                    "globally cumulative everywhere else, so this is a single scripted "
-                    "counter reset in the test plan, not a per-step reset"
-                ),
-                "discharging_capacity_ah": (
-                    "Discharge Capacity resets at two specific steps (12 and 74) on every "
-                    "pass through the repeated pulse loop, not at the other ~60 step "
-                    "boundaries per loop; scripted resets at those two steps in the test "
-                    "plan, not a per-step reset"
-                ),
-                "charging_energy_wh": (
-                    "Charge Energy mirrors Charge Capacity: resets once at the step-9 "
-                    "boundary, globally cumulative elsewhere"
-                ),
-                "discharging_energy_wh": (
-                    "Discharge Energy mirrors Discharge Capacity: resets at specific steps "
-                    "within the repeated pulse loop, not at every step boundary"
-                ),
             },
             marks=(pytest.mark.network,),
+        ),
+    ),
+    (
+        "arbin_xlsx/zenodo_21337233_ocv_micro",
+        SampleCase(
+            source=_ZENODO_ARBIN_XLSX_OCV_URL,
+            is_url=True,
+            plugin_id="arbin_xlsx",
+            ext_ids=frozenset({"neware_xlsx", "arbin_xlsx", "bdf_xlsx"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_xlsx",
+            detect_id="arbin_xlsx",
+            deciding_stage="columns",
+            expected_columns={
+                # underscore header dialect (older MITS Excel); 39-row micro-fixture
+                "test_time_second": ColExpect("Test_Time(s)", 1.0),
+                "voltage_volt": ColExpect("Voltage(V)", 1.0),
+                "current_ampere": ColExpect("Current(A)", 1.0),
+                "unix_time_second": ColExpect("Date_Time", 1.0, is_datetime=True),
+                "cycle_count": ColExpect("Cycle_Index", 1.0),
+                "step_id": ColExpect("Step_Index", 1.0),
+                "record_index": ColExpect("Data_Point", 1.0),
+                "step_time_second": ColExpect("Step_Time(s)", 1.0),
+            },
+            marks=(
+                pytest.mark.network,
+                pytest.mark.skipif(
+                    pytest.importorskip("fastexcel", reason="fastexcel not installed") is None,
+                    reason="fastexcel not installed",
+                ),
+            ),
+        ),
+    ),
+    (
+        "arbin_xlsx/zenodo_21337233_capacity",
+        SampleCase(
+            source=_ZENODO_ARBIN_XLSX_CAP_URL,
+            is_url=True,
+            plugin_id="arbin_xlsx",
+            ext_ids=frozenset({"neware_xlsx", "arbin_xlsx", "bdf_xlsx"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_xlsx",
+            detect_id="arbin_xlsx",
+            deciding_stage="columns",
+            expected_columns={
+                # underscore dialect without Data_Point (lithiumwerks-style export)
+                "test_time_second": ColExpect("Test_Time(s)", 1.0),
+                "voltage_volt": ColExpect("Voltage(V)", 1.0),
+                "current_ampere": ColExpect("Current(A)", 1.0),
+                "unix_time_second": ColExpect("Date_Time", 1.0, is_datetime=True),
+                "cycle_count": ColExpect("Cycle_Index", 1.0),
+                "step_id": ColExpect("Step_Index", 1.0),
+                "step_time_second": ColExpect("Step_Time(s)", 1.0),
+            },
+            marks=(
+                pytest.mark.network,
+                pytest.mark.skipif(
+                    pytest.importorskip("fastexcel", reason="fastexcel not installed") is None,
+                    reason="fastexcel not installed",
+                ),
+            ),
+        ),
+    ),
+    (
+        "arbin_xlsx/zenodo_21337233_dynamic_eis",
+        SampleCase(
+            source=_ZENODO_ARBIN_XLSX_EIS_URL,
+            is_url=True,
+            plugin_id="arbin_xlsx",
+            ext_ids=frozenset({"neware_xlsx", "arbin_xlsx", "bdf_xlsx"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_xlsx",
+            detect_id="arbin_xlsx",
+            deciding_stage="columns",
+            expected_columns={
+                # space header dialect (newer MITS Excel); multi-sheet workbook whose
+                # ACIM_chan (EIS) and Statistics sheets must be ignored by the parser
+                "test_time_second": ColExpect("Test Time (s)", 1.0),
+                "voltage_volt": ColExpect("Voltage (V)", 1.0),
+                "current_ampere": ColExpect("Current (A)", 1.0),
+                "unix_time_second": ColExpect("Date Time", 1.0, is_datetime=True),
+                "cycle_count": ColExpect("Cycle Index", 1.0),
+                "step_id": ColExpect("Step Index", 1.0),
+                "record_index": ColExpect("Data Point", 1.0),
+                "step_time_second": ColExpect("Step Time (s)", 1.0),
+                "power_watt": ColExpect("Power (W)", 1.0),
+                "temperature_t1_celsius": ColExpect("Aux_Temperature_1 (C)", 1.0),
+                "dc_internal_resistance_ohm": ColExpect("Internal Resistance (Ohm)", 1.0),
+                "ac_internal_resistance_ohm": ColExpect("ACR (Ohm)", 1.0),
+                "schedule_charging_capacity_ah": ColExpect("Charge Capacity (Ah)", 1.0),
+                "schedule_discharging_capacity_ah": ColExpect("Discharge Capacity (Ah)", 1.0),
+                "schedule_charging_energy_wh": ColExpect("Charge Energy (Wh)", 1.0),
+                "schedule_discharging_energy_wh": ColExpect("Discharge Energy (Wh)", 1.0),
+            },
+            null_ok_columns=frozenset({"DC Internal Resistance / ohm", "AC Internal Resistance / ohm"}),
+            known_validity_bugs={
+                "ac_internal_resistance_ohm": "ACR (Ohm) is entirely empty in this dynamic-load export",
+            },
+            marks=(
+                pytest.mark.network,
+                pytest.mark.skipif(
+                    pytest.importorskip("fastexcel", reason="fastexcel not installed") is None,
+                    reason="fastexcel not installed",
+                ),
+            ),
+        ),
+    ),
+    (
+        "biologic_mpr/gcpl-0",
+        SampleCase(
+            source="mpr/GCPL-0.mpr",
+            plugin_id="biologic_mpr",
+            ext_ids=frozenset({"biologic_mpr"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="biologic_mpr",
+            detect_id="biologic_mpr",
+            deciding_stage="ext",
+            expected_columns={
+                "unix_time_second": ColExpect("uts/s", 1.0),
+                "test_time_second": ColExpect("time/s", 1.0),
+                "voltage_volt": ColExpect("Ewe/V", 1.0),
+                "current_ampere": ColExpect("I/mA", 0.001),
+                "cycle_count": ColExpect("cycle number", 1.0),
+                "step_id": ColExpect("Ns", 1.0),
+                "net_capacity_ah": ColExpect("(Q-Qo)/mA·h", 0.001),
+                "power_watt": ColExpect("Pwe/W", 1.0),
+            },
+            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+        ),
+    ),
+    (
+        "biologic_mpr/mb-0",
+        SampleCase(
+            source="mpr/MB-0.mpr",
+            plugin_id="biologic_mpr",
+            ext_ids=frozenset({"biologic_mpr"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="biologic_mpr",
+            detect_id="biologic_mpr",
+            deciding_stage="ext",
+            expected_columns={
+                "unix_time_second": ColExpect("uts/s", 1.0),
+                "test_time_second": ColExpect("time/s", 1.0),
+                "voltage_volt": ColExpect("Ewe/V", 1.0),
+                "current_ampere": ColExpect("I/mA", 0.001),
+                "step_id": ColExpect("Ns", 1.0),
+            },
+            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+        ),
+    ),
+    (
+        "biologic_mpr/mb-1",
+        SampleCase(
+            source="mpr/MB-1.mpr",
+            plugin_id="biologic_mpr",
+            ext_ids=frozenset({"biologic_mpr"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="biologic_mpr",
+            detect_id="biologic_mpr",
+            deciding_stage="ext",
+            expected_columns={
+                "unix_time_second": ColExpect("uts/s", 1.0),
+                "test_time_second": ColExpect("time/s", 1.0),
+                "voltage_volt": ColExpect("Ewe/V", 1.0),
+                "current_ampere": ColExpect("I/mA", 0.001),
+                "net_capacity_ah": ColExpect("(Q-Qo)/mA·h", 0.001),
+                "power_watt": ColExpect("Pwe/W", 1.0),
+                "step_id": ColExpect("Ns", 1.0),
+                "cycle_count": ColExpect("cycle number", 1.0),
+            },
+            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+        ),
+    ),
+    (
+        "biologic_mpr/peis-0",
+        SampleCase(
+            source="mpr/PEIS-0.mpr",
+            plugin_id="biologic_mpr",
+            ext_ids=frozenset({"biologic_mpr"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="biologic_mpr",
+            detect_id="biologic_mpr",
+            deciding_stage="ext",
+            expected_columns={
+                "unix_time_second": ColExpect("uts/s", 1.0),
+                "test_time_second": ColExpect("time/s", 1.0),
+                "voltage_volt": ColExpect("Ewe/V", 1.0),
+                "current_ampere": ColExpect("I/mA", 0.001),
+                "cycle_count": ColExpect("cycle number", 1.0),
+                "step_id": ColExpect("Ns", 1.0),
+                "frequency_hertz": ColExpect("freq/Hz", 1.0),
+                "real_impedance_ohm": ColExpect("Re(Z)/Ω", 1.0),
+                "imaginary_impedance_ohm": ColExpect("-Im(Z)/Ω", -1.0),
+                "absolute_impedance_ohm": ColExpect("|Z|/Ω", 1.0),
+                "phase_degree": ColExpect("Phase(Z)/deg", 1.0),
+            },
+        ),
+    ),
+    (
+        "arbin_res/mits7-0",
+        SampleCase(
+            source="res/mits7-0.res.gz",
+            plugin_id="arbin_res",
+            ext_ids=frozenset({"arbin_res"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="arbin_res",
+            detect_id="arbin_res",
+            deciding_stage="ext",
+            expected_columns={
+                "unix_time_second": ColExpect("DateTime", 60 * 60 * 24),
+                "test_time_second": ColExpect("Test_Time", 1.0),
+                "step_time_second": ColExpect("Step_Time", 1.0),
+                "record_index": ColExpect("Data_Point", 1.0),
+                "voltage_volt": ColExpect("Voltage", 1.0),
+                "current_ampere": ColExpect("Current", 1.0),
+                "cycle_count": ColExpect("Cycle_Index", 1.0),
+                "step_id": ColExpect("Step_Index", 1.0),
+                "dc_internal_resistance_ohm": ColExpect("Internal_Resistance", 1.0),
+                "absolute_impedance_ohm": ColExpect("AC_Impedance", 1.0),
+                "phase_degree": ColExpect("ACI_Phase_Angle", 1.0),
+                "schedule_charging_capacity_ah": ColExpect("Charge_Capacity", 1.0),
+                "schedule_discharging_capacity_ah": ColExpect("Discharge_Capacity", 1.0),
+                "schedule_charging_energy_wh": ColExpect("Charge_Energy", 1.0),
+                "schedule_discharging_energy_wh": ColExpect("Discharge_Energy", 1.0),
+            },
+        ),
+    ),
+    (
+        "ndax/filetype14-0",
+        SampleCase(
+            source="nda/filetype14-0.ndax",
+            plugin_id="neware_nda",
+            ext_ids=frozenset({"neware_nda"}),
+            meta_ids=frozenset(PLUGINS),
+            cols_id="neware_nda",
+            detect_id="neware_nda",
+            deciding_stage="ext",
+            expected_columns={
+                "record_index": ColExpect("index", 1.0),
+                "unix_time_second": ColExpect("unix_time_s", 1.0),
+                "test_time_second": ColExpect("total_time_s", 1.0),
+                "step_time_second": ColExpect("step_time_s", 1.0),
+                "voltage_volt": ColExpect("voltage_V", 1.0),
+                "current_ampere": ColExpect("current_mA", 0.001),
+                "step_net_capacity_ah": ColExpect("capacity_mAh", 0.001),
+                "step_net_energy_wh": ColExpect("energy_mWh", 0.001),
+                "step_count": ColExpect("step_count", 1.0),
+                "step_id": ColExpect("step_index", 1.0),
+                "step_type": ColExpect("step_type", 1.0),
+                "cycle_count": ColExpect("cycle_count", 1.0),
+            },
         ),
     ),
 ]

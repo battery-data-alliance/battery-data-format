@@ -41,9 +41,9 @@ source .venv/bin/activate  # macOS/Linux
 .venv\Scripts\activate      # Windows
 ```
 
-Install dependencies:
+Install dependencies (requires pip>=25.1 for `--group`):
 ```bash
-python -m pip install -e ".[dev,docs]"
+python -m pip install -e . --group dev --group docs
 ```
 
 Install and run pre-commit:

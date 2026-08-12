@@ -9,6 +9,7 @@ import polars as pl
 import pytest
 from pydantic import ValidationError
 
+from bdf import BDFValidationError
 from bdf.spec import COLUMN_ONTOLOGY
 from bdf.table_normalizers import (
     BDF_NORMALIZER,
@@ -17,6 +18,7 @@ from bdf.table_normalizers import (
     ResolvedColumn,
     Syn,
     TableNormalizer,
+    _build_bdf_normalizer,
     normalize,
 )
 
@@ -115,6 +117,15 @@ class TestSyn:
         s = Syn(hdr="x")
         with pytest.raises(ValidationError):
             s.hdr = "y"
+
+    def test_reverse_sign(self):
+        """Reverse sign multiplies col by -1."""
+        assert Syn(hdr="x").match("x", None) == (1.0, 0.0)
+        assert Syn(hdr="y", reverse_sign=True).match("y", None) == (-1.0, 0.0)
+
+        # Reverse sign should not affect the offset, which is applied after scaling.
+        assert Syn(hdr="Temp-{unit}").match("Temp-degC", "K") == (1.0, 273.15)
+        assert Syn(hdr="Temp-{unit}", reverse_sign=True).match("Temp-degC", "K") == (-1.0, 273.15)
 
 
 class TestDateTimeSyn:
@@ -547,20 +558,6 @@ class TestNormalizerNormalize:
         assert "Voltage / V" in out.columns
         assert "Current / A" in out.columns
 
-    @pytest.mark.filterwarnings("ignore::UserWarning")
-    def test_normalize_include_optional_false_excludes_optional(self):
-        """normalize with include_optional=False excludes optional columns."""
-        n = TableNormalizer(
-            test_time_second=(Syn(hdr="t"),),
-            voltage_volt=(Syn(hdr="v"),),
-            current_ampere=(Syn(hdr="i"),),
-            cycle_count=(Syn(hdr="cycle"),),
-        )
-        df = pl.DataFrame({"t": [1.0], "v": [3.5], "i": [0.1], "cycle": [1.0]})
-        out = n.normalize(df, include_optional=False)
-        assert "Test Time / s" in out.columns
-        assert "Cycle Count / 1" not in out.columns
-
     def test_normalize_no_exprs_returns_df_unchanged(self):
         """normalize(validate=False) returns equivalent DataFrame when no columns match."""
         n = TableNormalizer(voltage_volt=(Syn(hdr="Voltage-{unit}"),))
@@ -569,30 +566,15 @@ class TestNormalizerNormalize:
         assert isinstance(out, pl.DataFrame)
         assert out.equals(df)
 
-    def test_normalize_extra_columns_passthrough(self, simple_df):
-        """normalize includes extra_columns with specified names."""
-        n = TableNormalizer(voltage_volt=(Syn(hdr="Voltage-{unit}"),))
-        out = n.normalize(simple_df, extra_columns={"Test-Time": "raw_time"}, validate=False)
-        assert "raw_time" in out.columns
-        assert out["raw_time"].to_list() == simple_df["Test-Time"].to_list()
-
-    def test_normalize_extra_columns_missing_warns(self, simple_df):
-        """normalize warns when extra_columns references missing source column."""
-        n = TableNormalizer(voltage_volt=(Syn(hdr="Voltage-{unit}"),))
-        with pytest.warns(UserWarning, match="not in DataFrame"):
-            n.normalize(simple_df, extra_columns={"ghost_col": "Out"}, validate=False)
-
     def test_normalize_missing_required_warns(self):
         """normalize(validate=False) warns when required BDF columns are missing."""
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
-        with pytest.warns(UserWarning, match="required BDF columns missing"):
+        with pytest.warns(UserWarning, match="Missing required BDF columns"):
             n.normalize(df, validate=False)
 
     def test_normalize_missing_required_validate_true_raises(self):
         """normalize(validate=True) raises BDFValidationError when required BDF columns are missing."""
-        from bdf.validate import BDFValidationError
-
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
         with pytest.raises(BDFValidationError, match="Missing required BDF columns"):
@@ -605,8 +587,6 @@ class TestNormalizerNormalize:
 
     def test_normalize_validate_true_does_not_also_warn(self, recwarn):
         """normalize(validate=True) raises without also emitting the soft missing-columns warning."""
-        from bdf.validate import BDFValidationError
-
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
         with pytest.raises(BDFValidationError):
@@ -678,6 +658,13 @@ class TestNormalizerNormalize:
             out = n.normalize(df, validate=False)
         assert "Step ID" in out.columns
         assert out["Step ID"].dtype == pl.Int64
+
+    def test_normalize_with_reverse_sign(self):
+        """normalize negates values matched by a reverse_sign synonym."""
+        n = TableNormalizer(current_ampere=(Syn(hdr="i", reverse_sign=True),))
+        df = pl.DataFrame({"i": [0.1, -0.2]})
+        out = n.normalize(df, validate=False)
+        assert out["Current / A"].to_list() == [-0.1, 0.2]
 
 
 class TestNormalizerFromColumnMap:
@@ -797,8 +784,8 @@ class TestNormalizeFn:
     def test_extra_columns_only_no_source(self):
         """normalize() with extra_columns passes through extra columns."""
         df = pl.DataFrame({"raw": [1.0, 2.0]})
-        out = normalize(df, extra_columns={"raw": "Raw Out"}, validate=False)
-        assert "Raw Out" in out.columns
+        out = normalize(df, include_unknown=True, validate=False)
+        assert "raw" in out.columns
 
     def test_lazyframe_passthrough_unchanged(self):
         """normalize(validate=False) on unknown LazyFrame returns it unchanged."""
@@ -809,8 +796,6 @@ class TestNormalizeFn:
 
     def test_validate_true_raises_when_no_normalizer_detected(self):
         """normalize(validate=True) raises BDFValidationError even when no normalizer auto-detects."""
-        from bdf.validate import BDFValidationError
-
         df = pl.DataFrame({"unknown_col": [1.0, 2.0]})
         with pytest.raises(BDFValidationError, match="Missing required BDF columns"):
             normalize(df, validate=True)
@@ -929,6 +914,63 @@ class TestBDFNormalizer:
         out = BDF_NORMALIZER.normalize(lf, validate=True).collect()
         assert out["Test Time / s"][0] == pytest.approx(1.5)
         assert out.columns == ["Test Time / s", "Voltage / V", "Current / A"]
+
+    def test_bdf_normalizer_warns_for_legacy_cols(self):
+        df = pl.DataFrame({"test_time_millisecond": [1000.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+        df = pl.DataFrame({"Test Time / ms": [1000.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+    def test_bdf_normalizer_does_not_warn_for_good_cols(self):
+        df = pl.DataFrame({"test_time_second": [1.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+        df = pl.DataFrame({"Test Time / s": [1.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = BDF_NORMALIZER.normalize(df)
+        assert "Test Time / s" in out.columns
+        assert out["Test Time / s"][0] == 1.0
+
+    def test_bdf_normalizer_legacy_detection_is_order_independent(self, monkeypatch):
+        """_build_bdf_normalizer must not depend on COLUMN_ONTOLOGY's iteration order.
+
+        The normaliser appends synonyms to a list and iterates through them when matching
+        columns. Legacy detection should work independent of this order.
+        """
+        reversed_quantities = dict(reversed(list(COLUMN_ONTOLOGY._quantities.items())))
+        monkeypatch.setattr(COLUMN_ONTOLOGY, "_quantities", reversed_quantities)
+
+        reversed_normalizer = _build_bdf_normalizer()
+        df = pl.DataFrame({"test_time_millisecond": [1000.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = reversed_normalizer.normalize(df)
+        assert out["Test Time / s"][0] == 1.0
+        df = pl.DataFrame({"Test Time / ms": [1000.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
+            out = reversed_normalizer.normalize(df)
+        assert out["Test Time / s"][0] == 1.0
+
+        df = pl.DataFrame({"test_time_second": [1.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = reversed_normalizer.normalize(df)
+        df = pl.DataFrame({"Test Time / s": [1.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Error if any warnings happen
+            out = reversed_normalizer.normalize(df)
+        assert out["Test Time / s"][0] == 1.0
 
 
 class TestTimezoneHandling:

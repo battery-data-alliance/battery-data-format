@@ -1,6 +1,7 @@
 import warnings
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from bdf import BDFValidationError, validate, validate_df
@@ -39,6 +40,26 @@ def test_validate_function_on_dataframe_and_path(tmp_path):
 
     rep_path = validate(csv_path, report=False, raise_on_error=True)
     assert rep_path["ok"] is True
+
+
+def test_validate_accepts_bdf_csv_without_bdf_filename_prefix(tmp_path):
+    """A file with BDF headers without bdf in path should still work."""
+    df = _base_df()
+    csv_path = tmp_path / "sample.csv"
+    df.to_csv(csv_path, index=False)
+
+    rep = validate(csv_path, report=False, raise_on_error=True)
+    assert rep["ok"] is True
+
+
+def test_validate_rejects_unrecognized_csv(tmp_path):
+    df = pd.DataFrame({"foo": [1, 2, 3], "bar": [4, 5, 6]})
+    csv_path = tmp_path / "garbage.csv"
+    df.to_csv(csv_path, index=False)
+
+    rep = validate(csv_path, report=False, raise_on_error=False)
+    assert rep["ok"] is False
+    assert rep["kind"] == "not_bdf_artifact"
 
 
 def test_validate_accepts_notation_headers(tmp_path):
@@ -122,3 +143,135 @@ def test_derived_identity_still_catches_gross_violation():
     df["net_capacity_ah"] = df["charging_capacity_ah"] + df["discharging_capacity_ah"]
     rep = validate_df(df, report=False, raise_on_error=False)
     assert any(d["check"] == "identity" for d in rep["derived"]["details"])
+
+
+# ---------------------------------------------------------------------------
+# Characterization tests for the polars port (0.2.0 API freeze).
+# These pin the report structure and warning behavior of validate_df so the
+# pandas -> polars port can be verified as behavior-identical.
+# ---------------------------------------------------------------------------
+
+
+def test_report_has_stable_shape_and_keys():
+    rep = validate_df(_base_df(), report=False, raise_on_error=False)
+    assert set(rep.keys()) == {
+        "ok",
+        "missing",
+        "extras",
+        "required",
+        "optional",
+        "legacy_labels",
+        "n_rows",
+        "n_cols",
+        "time_stats",
+        "derived",
+    }
+    assert rep["ok"] is True
+    assert rep["n_rows"] == 3
+    assert rep["n_cols"] == 3
+    assert rep["missing"] == []
+    assert rep["extras"] == []
+    assert set(rep["derived"].keys()) == {"issues", "details"}
+
+
+def test_time_stats_monotonic_shape():
+    rep = validate_df(_base_df(), report=False, raise_on_error=False)
+    ts = rep["time_stats"]
+    assert ts["present"] is True
+    assert ts["monotonic"] is True
+    assert ts["violations"] == 0
+    assert ts["min_drop"] == 0.0
+
+
+def test_time_stats_nonmonotonic_fields_and_warning():
+    df = _base_df()
+    df["Test Time / s"] = [0.0, 10.0, 3.0]
+    with pytest.warns(RuntimeWarning, match="Non-monotonic"):
+        rep = validate_df(df, report=False, raise_on_error=False)
+    ts = rep["time_stats"]
+    assert ts["monotonic"] is False
+    assert ts["violations"] == 1
+    assert ts["min_drop"] == -7.0
+    assert ts["first_bad_index"] == 2
+
+
+def test_unknown_columns_reported_as_extras():
+    df = _base_df()
+    df["Totally Custom / X"] = [1, 2, 3]
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert rep["extras"] == ["Totally Custom / X"]
+    assert rep["ok"] is True  # extras are allowed
+
+
+def test_time_stats_absent_when_no_time_column():
+    df = pd.DataFrame({"Voltage / V": [3.7], "Current / A": [0.1]})
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert rep["time_stats"]["present"] is False
+    assert rep["ok"] is False
+    assert "Test Time / s" in rep["missing"]
+
+
+def test_time_scale_mismatch_flagged():
+    """Elapsed time in ms under a seconds header disagrees with the wall clock (GH #65)."""
+    n = 30
+    df = pd.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 * 1e3 for i in range(n)],
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    with pytest.warns(RuntimeWarning, match="appear to be milliseconds"):
+        rep = validate_df(df, report=False, raise_on_error=False)
+    (detail,) = [d for d in rep["derived"]["details"] if d["check"] == "time_scale"]
+    assert detail["column"] == "test_time_second"
+    assert detail["actual_unit"] == "milliseconds"
+
+
+def test_time_scale_consistent_not_flagged():
+    n = 30
+    df = pd.DataFrame(
+        {
+            "Test Time / s": [i * 10.0 for i in range(n)],
+            "Unix Time / s": [1.7e9 + i * 10.0 for i in range(n)],
+            "Voltage / V": [3.7] * n,
+            "Current / A": [0.1] * n,
+        }
+    )
+    rep = validate_df(df, report=False, raise_on_error=False)
+    assert not any(d["check"] == "time_scale" for d in rep["derived"]["details"])
+
+
+# ---- polars-native boundary (post-port) ----
+
+
+def test_validate_df_accepts_polars_and_lazy():
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0, 2.0],
+            "Voltage / V": [3.7, 3.6, 3.5],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    for frame in (df, df.lazy()):
+        rep = validate_df(frame, report=False, raise_on_error=False)
+        assert rep["ok"] is True
+        assert rep["n_rows"] == 3
+
+
+def test_validate_df_reports_identical_across_kinds():
+    pdf = pd.DataFrame(
+        {
+            "Test Time / s": [0.0, 10.0, 3.0],
+            "Voltage / V": [3.7, 3.6, 3.5],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        rep_pd = validate_df(pdf, report=False, raise_on_error=False)
+        rep_pl = validate_df(pl.from_pandas(pdf), report=False, raise_on_error=False)
+    assert rep_pd["time_stats"] == rep_pl["time_stats"]
+    assert rep_pd["derived"] == rep_pl["derived"]
+    assert rep_pd["missing"] == rep_pl["missing"]
