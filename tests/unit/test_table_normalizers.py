@@ -9,6 +9,7 @@ import polars as pl
 import pytest
 from pydantic import ValidationError
 
+from bdf import BDFValidationError
 from bdf.spec import COLUMN_ONTOLOGY
 from bdf.table_normalizers import (
     BDF_NORMALIZER,
@@ -574,8 +575,6 @@ class TestNormalizerNormalize:
 
     def test_normalize_missing_required_validate_true_raises(self):
         """normalize(validate=True) raises BDFValidationError when required BDF columns are missing."""
-        from bdf.validate import BDFValidationError
-
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
         with pytest.raises(BDFValidationError, match="Missing required BDF columns"):
@@ -588,8 +587,6 @@ class TestNormalizerNormalize:
 
     def test_normalize_validate_true_does_not_also_warn(self, recwarn):
         """normalize(validate=True) raises without also emitting the soft missing-columns warning."""
-        from bdf.validate import BDFValidationError
-
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
         with pytest.raises(BDFValidationError):
@@ -799,8 +796,6 @@ class TestNormalizeFn:
 
     def test_validate_true_raises_when_no_normalizer_detected(self):
         """normalize(validate=True) raises BDFValidationError even when no normalizer auto-detects."""
-        from bdf.validate import BDFValidationError
-
         df = pl.DataFrame({"unknown_col": [1.0, 2.0]})
         with pytest.raises(BDFValidationError, match="Missing required BDF columns"):
             normalize(df, validate=True)

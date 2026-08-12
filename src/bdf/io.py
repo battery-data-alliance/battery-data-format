@@ -4,9 +4,10 @@ from __future__ import annotations
 import json
 import warnings
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 import polars as pl
 
 from bdf._time_scale import detect_scale_mismatch
@@ -88,7 +89,7 @@ def _reconcile_time_scale(
     - ``reconcile_time=True`` and the ratio matches a known unit factor (see
       :data:`bdf._time_scale.KNOWN_SCALE_FACTORS`): the column is rescaled to
       seconds, the repair is recorded, and a ``UserWarning`` announces it.
-    - otherwise, ``strict=True`` raises :class:`bdf.validate.BDFValidationError`
+    - otherwise, ``strict=True`` raises :class:`BDFValidationError`
       (loud failure, nothing modified) and ``strict=False`` downgrades to a
       ``UserWarning``.
 
@@ -163,7 +164,7 @@ def _reconcile_time_scale(
     if problems:
         detail = "; ".join(problems)
         if strict:
-            from bdf.validate import BDFValidationError
+            from ._errors import BDFValidationError
 
             raise BDFValidationError(
                 f"Elapsed-time/wall-clock mismatch: {detail}. Pass reconcile_time=True to "
@@ -314,18 +315,6 @@ def _detect_format(path: Path) -> str:
     raise ValueError(f"Unknown BDF artifact format: {path.name}")
 
 
-def _meta_sidecar(path: Path) -> Path:
-    """Return the metadata sidecar path for a BDF artifact path.
-
-    Args:
-        path: BDF artifact file path.
-
-    Returns:
-        Path with ``.metadata.json`` appended to the file name.
-    """
-    return path.with_name(path.name + ".metadata.json")
-
-
 def save(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
     pathlike: str | Path,
@@ -363,8 +352,8 @@ def save(
 
     if isinstance(df, pl.LazyFrame):
         df = df.collect()
-    elif isinstance(df, pd.DataFrame):
-        df = pl.from_pandas(df)
+    elif not isinstance(df, pl.DataFrame):
+        df = pl.DataFrame(df)
 
     COLUMN_ONTOLOGY.validate_df(df, raise_on_error=validate)
 
@@ -396,4 +385,7 @@ def save(
             target.close()
 
     if metadata:
-        _meta_sidecar(p).write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        p.with_suffix(".metadata.json").write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )

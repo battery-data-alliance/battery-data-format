@@ -85,7 +85,7 @@ def _metadata_parser_lines(metadata_parser) -> list[str]:
             head += f" (decoded as {_lit(metadata_parser.encoding)})"
         return ["- " + head]
     if isinstance(metadata_parser, JsonSidecarParser):
-        return [f"- **Metadata parser:** {_lit('json_sidecar')} -- adjacent ``.json`` file"]
+        return [f"- **Metadata parser:** {_lit('json_sidecar')} -- adjacent ``.metadata.json`` file"]
     return ["- **Metadata parser:** none"]
 
 
