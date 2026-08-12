@@ -4,7 +4,7 @@
 
 It is well known that organizing, cleaning, and preparing battery data for analytics takes significant time and effort, creating a high barrier to leveraging advances in battery modeling for battery development cycles.
 
-[A 2024 Forrester study](https://25090789.fs1.hubspotusercontent-eu1.net/hubfs/25090789/FORRESTER%20DRAFT_PLACEHOLDER.pdf) surveyed 165 decision-makers in the automotive industry responsible for EV battery testing, validation, and development in the US and Europe. Among the respondents, 57% cited deciphering complex relationships in vast, multiparameter datasets as a significant barrier to battery validation, and 61% estimated months to years of time savings from AI-powered cell characterization testing that leverages standardized data sets.
+[A 2024 Forrester study](https://www.monolithai.com/ev-battery-validation-ai-study) surveyed 165 decision-makers in the automotive industry responsible for EV battery testing, validation, and development in the US and Europe. Among the respondents, 57% cited deciphering complex relationships in vast, multiparameter datasets as a significant barrier to battery validation, and 61% estimated months to years of time savings from AI-powered cell characterization testing that leverages standardized data sets.
 
 ## Goal of launching the BDF
 
@@ -42,7 +42,7 @@ What that buys you in practice:
 2. **Required quantities**  
 
 <!-- BEGIN GENERATED: bdf-terms-required -->
-<!-- Generated from BDF ontology 1.2.0 by scripts/generate_docs.py - do not edit by hand. -->
+<!-- Generated from BDF ontology 1.3.0 by scripts/generate_docs.py - do not edit by hand. -->
 | Preferred Label | Machine-readable name | IRI | Description |
 |---|---|---|---|
 | Current / A | `current_ampere` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere](https://w3id.org/battery-data-alliance/ontology/battery-data-format#current_ampere) | Instantaneous current flowing through the test object, in ampere. Sign convention: positive current charges the test object (current flows into it) and negative current discharges it; the charging and discharging capacity and energy quantities are defined by this convention. |
@@ -54,7 +54,7 @@ What that buys you in practice:
 3. **Recommended quantities**
 
 <!-- BEGIN GENERATED: bdf-terms-recommended -->
-<!-- Generated from BDF ontology 1.2.0 by scripts/generate_docs.py - do not edit by hand. -->
+<!-- Generated from BDF ontology 1.3.0 by scripts/generate_docs.py - do not edit by hand. -->
 | Preferred Label | Machine-readable name | IRI | Description |
 |---|---|---|---|
 | Ambient Temperature / degC | `ambient_temperature_celsius` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius](https://w3id.org/battery-data-alliance/ontology/battery-data-format#ambient_temperature_celsius) | Ambient temperature recorded during testing, in degree Celsius. |
@@ -67,9 +67,9 @@ What that buys you in practice:
 4. **Optional quantities**
 
 <!-- BEGIN GENERATED: bdf-terms-optional -->
-<!-- Generated from BDF ontology 1.2.0 by scripts/generate_docs.py - do not edit by hand. -->
+<!-- Generated from BDF ontology 1.3.0 by scripts/generate_docs.py - do not edit by hand. -->
 <details>
-<summary><b>47 optional quantities</b> &mdash; click to expand</summary>
+<summary><b>51 optional quantities</b> &mdash; click to expand</summary>
 
 | Preferred Label | Machine-readable name | IRI | Description |
 |---|---|---|---|
@@ -101,6 +101,10 @@ What that buys you in practice:
 | Power / W | `power_watt` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#power_watt](https://w3id.org/battery-data-alliance/ontology/battery-data-format#power_watt) | Instantaneous power calculated as the product of voltage and current, in watt. |
 | Real Impedance / ohm | `real_impedance_ohm` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#real_impedance_ohm](https://w3id.org/battery-data-alliance/ontology/battery-data-format#real_impedance_ohm) | The real (resistive) component of the complex impedance, in ohm. |
 | Record Index / 1 | `record_index` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#record_index](https://w3id.org/battery-data-alliance/ontology/battery-data-format#record_index) | An ordinal, dimensionless integer used to order data records within a time-series dataset, incremented by one for each recorded record and carrying no physical or quantitative meaning. |
+| Schedule Charging Capacity / Ah | `schedule_charging_capacity_ah` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_charging_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_charging_capacity_ah) | Cumulative electric charge transferred into the test object during charging since the most recent schedule-defined assignment event, in ampere hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned). |
+| Schedule Charging Energy / Wh | `schedule_charging_energy_wh` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_charging_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_charging_energy_wh) | Cumulative electric energy transferred into the test object during charging since the most recent schedule-defined assignment event, in watt hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned). |
+| Schedule Discharging Capacity / Ah | `schedule_discharging_capacity_ah` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_discharging_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_discharging_capacity_ah) | Cumulative electric charge transferred out of the test object during discharging since the most recent schedule-defined assignment event, in ampere hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned). |
+| Schedule Discharging Energy / Wh | `schedule_discharging_energy_wh` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_discharging_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#schedule_discharging_energy_wh) | Cumulative electric energy transferred out of the test object during discharging since the most recent schedule-defined assignment event, in watt hour. Changes discontinuously only at schedule-defined assignments (typically a reset to zero; any value may be assigned). |
 | Step Charging Capacity / Ah | `step_charging_capacity_ah` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_charging_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_charging_capacity_ah) | Electric charge transferred into the test object during the charge portion of the current test step, in ampere hour. Non-negative; resets to zero at each step transition. |
 | Step Charging Energy / Wh | `step_charging_energy_wh` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_charging_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_charging_energy_wh) | Energy transferred into the test object during the charge portion of the current test step, in watt hour. Non-negative; resets to zero at each step transition. |
 | Step Cumulative Capacity / Ah | `step_cumulative_capacity_ah` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_cumulative_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_cumulative_capacity_ah) | Running accumulation of charge throughput within the current test step, in ampere hour. Monotonically non-decreasing within the step; resets to zero at each step transition. |
@@ -108,9 +112,9 @@ What that buys you in practice:
 | Step Discharging Capacity / Ah | `step_discharging_capacity_ah` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_discharging_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_discharging_capacity_ah) | Electric charge transferred out of the test object during the discharge portion of the current test step, in ampere hour. Non-negative; resets to zero at each step transition. |
 | Step Discharging Energy / Wh | `step_discharging_energy_wh` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_discharging_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_discharging_energy_wh) | Energy transferred out of the test object during the discharge portion of the current test step, in watt hour. Non-negative; resets to zero at each step transition. |
 | Step ID | `step_id` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_id](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_id) | The step identifier as defined in the test program or schedule file. Values are instrument-defined and are not required to be contiguous or monotonically increasing; the same step ID may recur in successive cycles. Known equivalents: Arbin Step_Index, Neware Step_ID, Digatron Step, BioLogic Ns. |
-| Step Index / 1 | `step_index` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_index) | 1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property. |
 | Step Net Capacity / Ah | `step_net_capacity_ah` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_net_capacity_ah](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_net_capacity_ah) | Running net capacity within the current test step: step_charging_capacity_ah - step_discharging_capacity_ah. Can be negative; resets to zero at each step transition. |
 | Step Net Energy / Wh | `step_net_energy_wh` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_net_energy_wh](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_net_energy_wh) | Running net energy within the current test step: step_charging_energy_wh - step_discharging_energy_wh. Can be negative; resets to zero at each step transition. |
+| Step Record Index / 1 | `step_record_index` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_record_index](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_record_index) | 1-based positional counter for data points within a step. Resets to 1 at the start of each new step and increments by 1 for each subsequent recorded data point. Always derivable from the data; not typically exported directly by cycler software. This is the within-step data-point counter, not the program step identifier: an instrument column named 'Step Index' (e.g. Arbin Step_Index) maps to step_id, not to this property. |
 | Step Time / s | `step_time_second` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_time_second](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_time_second) | Elapsed time since the beginning of the active test step, in second; resets to zero at each step transition. |
 | Step Type | `step_type` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_type](https://w3id.org/battery-data-alliance/ontology/battery-data-format#step_type) | A string label describing the operational mode of the current test step, as reported by the cycler software. Common values include CC_CHG, CC_DCH, CV_CHG, CCCV_CHG, REST, OCV, EIS. |
 | Surface Pressure / Pa | `surface_pressure_pa` | [https://w3id.org/battery-data-alliance/ontology/battery-data-format#surface_pressure_pa](https://w3id.org/battery-data-alliance/ontology/battery-data-format#surface_pressure_pa) | Pressure measured at the surface of the test object, in pascal. A measured quantity that may be nonzero even when no external pressure is actively applied, e.g. from cell swelling against a fixture. Distinguished from applied_pressure_pa, which is actively applied and controlled by an external agent. |
@@ -151,28 +155,27 @@ What that buys you in practice:
 
 The **Battery Data Format (.bdf)** is a step toward unifying and accelerating battery research and development. By adopting this open-source standard, we can foster collaboration, enhance model interoperability, and unlock the full potential of data-driven battery innovation.
 
-## Install the Pyton Package
+## Install the Python Package
 
 ```bash
 pip install batterydf
-# Neware .nda/.ndax support is included in base
-# Interactive plotting (hvplot/bokeh)
-pip install batterydf[hvplot]
-# Polars + fast NDA backend
-pip install batterydf[polars]
-# Force numpy 2.x (combine as needed, e.g. batterydf[polars,numpy2])
-pip install batterydf[numpy2]
-# for docs/dev: pip install -e .[dev,docs]
+```
+
+Optional extras add support for specific vendor formats or plotting backends.
+Combine as needed, e.g. `batterydf[nda,plot]`, or use `batterydf[all]` to get everything:
+```bash
+pip install batterydf[nda]       # Neware .nda/.ndax (using fastnda)
+pip install batterydf[mpr]       # BioLogic .mpr (using yadg)
+pip install batterydf[excel]     # Excel (using calamine)
+pip install batterydf[mat]       # MATLAB .mat files (using scipy)
+pip install batterydf[arbin_res] # Arbin .res files (using pyodbc or mdbtools)
+pip install batterydf[plot]      # For plotting with matplotlib/plotly
+pip install batterydf[hvplot]    # For plotting with bokeh/holoviews
+pip install batterydf[yaml]      # For YAML plugin definitions
+pip install batterydf[all]       # Everything above
 ```
 
 PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
-
-Optional fast NDA backend (Python >=3.10, numpy >=2.2 required):
-```bash
-pip install fastnda
-```
-Note: fastnda requires numpy >=2.2. If you need fastnda, install with the numpy 2.x extra,
-for example `batterydf[polars,numpy2]` or `batterydf[numpy2]`.
 
 ### Quickstart
 
@@ -182,15 +185,11 @@ import bdf
 # Read raw or BDF; plugin auto-detects
 df = bdf.read("path/to/file.bdf.csv")
 
-# Read Neware .nda/.ndax (supported by default)
+# Read Neware .nda/.ndax (requires fastnda: pip install batterydf[nda])
 df = bdf.read("path/to/file.nda")
 
-# Force the fast NDA backend if installed
-df = bdf.read("path/to/file.nda", plugin="neware-nda-fast")
-
-# Interactive exploration (plotly included in base; bokeh requires batterydf[hvplot])
-bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
-bdf.explore(df, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
+# Force the NDA plugin explicitly
+df = bdf.read("path/to/file.nda", plugin="neware_nda")
 
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)
@@ -201,7 +200,7 @@ df_clean, rep = bdf.clean(df, time_fix="segment", outlier="none")
 # Plot
 bdf.plot(df_clean, xdata="Test Time / s", ydata=["Voltage / V"], save="plot.png")
 
-# Interactive exploration (plotly included in base; bokeh requires batterydf[hvplot])
+# Interactive exploration (plotly requires batterydf[plot]; bokeh requires batterydf[hvplot])
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="bokeh")
 bdf.explore(df_clean, xdata="Test Time / s", ydata="Voltage / V", yydata="Current / A", backend="plotly")
 
@@ -233,10 +232,27 @@ You should use the Preferred Label for your column headings. This is the label t
 
 ### What is the difference between the preferred label and the machine-readable name?
 
-The preferred label is designed to be readable for humans and adhere to IUPAC / SI guidelines for quantity notation. But the preferred label contains some characters (e.g. spaces and slashes) that can create difficulty for some machines. The machine-readable name is designed to be an alias for referring to the quantity in software. It is linked to the preferred label in both the BDF applicaiton ontology and the CSVW table schema. 
+The preferred label is designed to be readable for humans and adhere to IUPAC / SI guidelines for quantity notation. But the preferred label contains some characters (e.g. spaces and slashes) that can create difficulty for some machines. The machine-readable name is designed to be an alias for referring to the quantity in software. It is linked to the preferred label in both the BDF application ontology and the CSVW table schema.
 
 ### Why do we use a slash between the quantity and the unit?
 
 This is the notation that is recommended by authoritative bodies like IUPAC and SI. The slash comes from the fact that quantities are the product of a value and a unit, and they obey the rules of algebra. For example, if we say that `Voltage = 4.2 V` and divide both sides of the equation by the unit, we get `Voltage / V = 4.2`
 
 ### How can I check if my file is a valid instance of BDF?
+
+Use the built-in validator. From Python:
+
+```python
+import bdf
+
+df = bdf.read("path/to/file.bdf.csv")
+report = bdf.validate(df, report=True, raise_on_error=False)
+```
+
+Or from the command line:
+
+```bash
+bdf validate path/to/file.bdf.csv
+```
+
+The validator checks column headers and units against the BDF ontology, structural rules such as time monotonicity, and the ontology-defined relationships between derived columns (e.g. that cumulative capacity equals charging plus discharging capacity).

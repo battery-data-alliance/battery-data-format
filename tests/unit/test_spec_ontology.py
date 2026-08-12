@@ -9,7 +9,7 @@ import polars as pl
 import pytest
 from pydantic import ValidationError
 
-from bdf import spec
+from bdf import BDFValidationError, spec
 from bdf.spec import (
     COLUMN_ONTOLOGY,
     ColumnOntology,
@@ -136,11 +136,11 @@ def test_normalize_unit_ucum_codes_are_case_sensitive(raw: str, expected: str) -
 )
 def test_pint_understands(alias: str, canonical: str, expected: bool) -> None:
     """_pint_understands compares actual conversion values at 0 and 1, not just dimensionality."""
-    assert spec._pint_understands(alias, canonical) is expected
+    assert spec._pint_understands(spec._get_ureg(), alias, canonical) is expected
 
 
 def test_pint_understands_never_propagates_on_pathological_alias() -> None:
-    """U+2103 (℃) must yield a bool, never raise -- so module import can't crash.
+    """U+2103 (℃) must yield a bool, never raise -- so reg construction can't crash.
 
     pint's parser handles this character inconsistently across platforms: on
     some it parses ℃ natively as degree_Celsius (returning True), on others it
@@ -148,7 +148,7 @@ def test_pint_understands_never_propagates_on_pathological_alias() -> None:
     is therefore platform-dependent; what matters is that _pint_understands
     swallows the failure and returns a bool instead of letting it escape.
     """
-    assert isinstance(spec._pint_understands("℃", "degC"), bool)
+    assert isinstance(spec._pint_understands(spec._get_ureg(), "℃", "degC"), bool)
 
 
 @pytest.mark.parametrize(
@@ -200,6 +200,20 @@ def test_pint_understands_never_propagates_on_pathological_alias() -> None:
         # "Cel" (UCUM unitCode casing) converts with the correct offset
         ("Cel", "K", (1.0, 273.15)),
         ("Cel", "degC", (1.0, 0.0)),
+        # Units with special characters
+        ("℃", "degC", (1.0, 0.0)),
+        ("°C", "degC", (1.0, 0.0)),
+        ("mA*h", "Ah", (1.0e-3, 0.0)),
+        ("mA·h", "Ah", (1.0e-3, 0.0)),
+        ("mA h", "Ah", (1.0e-3, 0.0)),
+        ("mA  h", "Ah", (1.0e-3, 0.0)),
+        ("V s⁻¹", "V/s", (1.0, 0.0)),
+        ("V / s", "V/s", (1.0, 0.0)),
+        ("V s^-1", "V/s", (1.0, 0.0)),
+        ("µA", "A", (1.0e-6, 0.0)),
+        ("μA", "A", (1.0e-6, 0.0)),
+        ("Ω", "ohm", (1.0, 0.0)),
+        ("Ω", "ohm", (1.0, 0.0)),
     ],
 )
 def test_get_unit_conversion(src: str | None, dst: str, expected: tuple[float, float] | None) -> None:
@@ -445,6 +459,26 @@ def test_base_synonym_index_includes_label_notation_and_synonyms() -> None:
     assert idx["custom-notation"] == "custom_q"
     assert idx["alias-one"] == "custom_q"
     assert idx["alias-two"] == "custom_q"
+
+
+def test_base_synonym_index_vendor_step_disambiguation() -> None:
+    """A raw 'Step Index'/'Step'/'Ns' header must resolve to step_id, not a record counter.
+
+    Per the ontology, 'Step Index' (Arbin), 'Step' (Digatron) and 'Ns' (BioLogic)
+    are program step identifiers (step_id). Without the override, the deprecated
+    step_index synonym redirects the 'step-index' slug to step_record_index via
+    isReplacedBy, silently relabeling vendor step ids as per-step record
+    counters. Canonically labelled data ('Step Record Index / 1') must still
+    resolve to step_record_index.
+    """
+    idx = spec.COLUMN_ONTOLOGY.base_synonym_index()
+    assert idx["step-index"] == "step_id"
+    assert idx["step"] == "step_id"
+    assert idx["ns"] == "step_id"
+    assert idx["cycle-index"] == "cycle_count"
+    # canonical step_record_index label ("Step Record Index / 1") is unaffected
+    assert idx["step-record-index-1"] == "step_record_index"
+    assert idx["step-record-index"] == "step_record_index"
 
 
 @pytest.mark.parametrize(
@@ -737,11 +771,30 @@ def test_get_snapshot_writes_to_dest(tmp_path: Path) -> None:
     assert dest.stat().st_size > 0
 
 
+def _bundled_snapshot_version() -> str:
+    """Parse owl:versionInfo out of the bundled snapshot TTL."""
+    import re
+    from importlib.resources import files
+
+    ttl = (files("bdf.data") / "bdf-ontology-snapshot.ttl").read_text(encoding="utf-8")
+    m = re.search(r'owl:versionInfo\s+"([0-9.]+)"', ttl)
+    assert m, "bundled snapshot carries no owl:versionInfo"
+    return m.group(1)
+
+
 @pytest.mark.network
 @pytest.mark.live_network
-def test_bundled_snapshot_is_up_to_date(tmp_path: Path) -> None:
-    """Bundled snapshot matches live ontology. Run `bdf-update-snapshot` if this fails."""
-    fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl")
+def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
+    """Bundled snapshot is byte-equivalent (per-quantity) to the ontology release it declares.
+
+    Deliberately pinned to the snapshot's own version rather than the live (latest
+    deployed) ontology: ontology main legitimately runs ahead of the latest release
+    during release-prep windows (version bumps are deferred to the release PR there),
+    so bundled-vs-live is not a stable invariant. Run `bdf-update-snapshot` after a
+    new ontology release to advance the snapshot.
+    """
+    version = _bundled_snapshot_version()
+    fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl", version=version)
 
     fresh = ColumnOntology({})
     fresh.load_ttl(fresh_path)
@@ -751,7 +804,34 @@ def test_bundled_snapshot_is_up_to_date(tmp_path: Path) -> None:
     fresh_quantities = {name: (q.unit, q.label_template) for name, q in fresh}
     bundled_quantities = {name: (q.unit, q.label_template) for name, q in bundled}
 
-    assert fresh_quantities == bundled_quantities, "Bundled snapshot is stale. Run `bdf-update-snapshot` to regenerate."
+    assert fresh_quantities == bundled_quantities, (
+        f"Bundled snapshot does not match ontology release {version}. Run `bdf-update-snapshot` to regenerate."
+    )
+
+
+@pytest.mark.network
+@pytest.mark.live_network
+def test_live_ontology_is_superset_of_bundled(tmp_path: Path) -> None:
+    """Live ontology main never loses or alters a quantity the bundled release has.
+
+    The live graph may carry ADDITIONAL terms (unreleased release-prep work upstream);
+    that is expected and tolerated. What must never happen is an existing quantity
+    disappearing or changing unit/label upstream without a coordinated release.
+    """
+    fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl")
+
+    fresh = ColumnOntology({})
+    fresh.load_ttl(fresh_path)
+
+    bundled = ColumnOntology.build()
+
+    fresh_quantities = {name: (q.unit, q.label_template) for name, q in fresh}
+    for name, q in bundled:
+        assert name in fresh_quantities, f"quantity {name!r} vanished from the live ontology"
+        assert fresh_quantities[name] == (q.unit, q.label_template), (
+            f"quantity {name!r} changed upstream without a release: "
+            f"live {fresh_quantities[name]} != bundled {(q.unit, q.label_template)}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -798,16 +878,12 @@ def test_validate_df_passes_with_lazyframe(required_df: pl.DataFrame) -> None:
 
 
 def test_validate_df_raises_when_required_column_missing(required_df: pl.DataFrame) -> None:
-    from bdf.validate import BDFValidationError
-
     df = required_df.drop("Voltage / V")
     with pytest.raises(BDFValidationError, match="Voltage / V"):
         spec.COLUMN_ONTOLOGY.validate_df(df)
 
 
 def test_validate_df_raises_listing_all_missing_required_columns() -> None:
-    from bdf.validate import BDFValidationError
-
     df = pl.DataFrame({"Test Time / s": [0.0]})
     with pytest.raises(BDFValidationError) as exc_info:
         spec.COLUMN_ONTOLOGY.validate_df(df)
@@ -871,8 +947,6 @@ def test_validate_df_accepts_lazyframe_and_returns_it(required_df: pl.DataFrame)
 
 
 def test_validate_df_raises_on_missing_columns_with_pandas_input() -> None:
-    from bdf.validate import BDFValidationError
-
     pdf = pd.DataFrame({"Test Time / s": [0.0]})
     with pytest.raises(BDFValidationError):
         spec.COLUMN_ONTOLOGY.validate_df(pdf)
@@ -955,3 +1029,55 @@ class TestFormattedLabel:
         """A literal {unit} placeholder is not substituted when unit is None."""
         q = Quantity(unit=None, label_template="X / {unit}", mr_name="x", iri="x", synonyms=[])
         assert q.formatted_label == "X / {unit}"
+
+
+# ---------------------------------------------------------------------------
+# dcterms:isReplacedBy -> Quantity.replaced_by
+# ---------------------------------------------------------------------------
+
+_REPLACED_BY_TTL = """\
+@prefix : <https://w3id.org/battery-data-alliance/ontology/battery-data-format#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <https://schema.org/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+:old_thing_ah rdf:type owl:Class ;
+    owl:deprecated "true"^^<http://www.w3.org/2001/XMLSchema#boolean> ;
+    dcterms:isReplacedBy :new_thing_ah ;
+    skos:prefLabel "Old Thing / Ah"@en ;
+    schema:unitCode "A.h" .
+
+:orphan_ms rdf:type owl:Class ;
+    owl:deprecated "true"^^<http://www.w3.org/2001/XMLSchema#boolean> ;
+    skos:prefLabel "Orphan / ms"@en ;
+    schema:unitCode "ms" .
+
+:new_thing_ah rdf:type owl:Class ;
+    skos:prefLabel "New Thing / Ah"@en ;
+    schema:unitCode "A.h" .
+"""
+
+
+def test_replaced_by_extracted_from_isreplacedby_link() -> None:
+    """A deprecated term's dcterms:isReplacedBy fragment lands in Quantity.replaced_by."""
+    onto = ColumnOntology.from_graph(spec._graph_from_bytes(_REPLACED_BY_TTL.encode("utf-8"), format="turtle"))
+    assert onto.old_thing_ah.replaced_by == "new_thing_ah"
+    assert onto.new_thing_ah.replaced_by == ""
+
+
+def test_replaced_by_empty_without_link() -> None:
+    """A deprecated term without an isReplacedBy link keeps replaced_by empty (heuristic fallback)."""
+    onto = ColumnOntology.from_graph(spec._graph_from_bytes(_REPLACED_BY_TTL.encode("utf-8"), format="turtle"))
+    assert onto.orphan_ms.replaced_by == ""
+
+
+def test_every_deprecated_quantity_has_replacement() -> None:
+    """Bundled snapshot invariant: every deprecated term links a non-deprecated replacement."""
+    for mr, q in COLUMN_ONTOLOGY:
+        if not q.deprecated:
+            continue
+        assert q.replaced_by, f"{mr} is deprecated but carries no dcterms:isReplacedBy"
+        target = COLUMN_ONTOLOGY.get(q.replaced_by)
+        assert target is not None and not target.deprecated, f"{mr} -> {q.replaced_by}"

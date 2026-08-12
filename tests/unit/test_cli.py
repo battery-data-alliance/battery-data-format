@@ -39,10 +39,10 @@ def test_cli_validate_success_and_failure(tmp_path: Path):
     assert fail.exit_code != 0
 
 
-def test_cli_clean_assume_bdf(tmp_path: Path):
+def test_cli_clean(tmp_path: Path):
     src = _make_sample_bdf(tmp_path)
     out = tmp_path / "cleaned.bdf.csv"
-    res = runner.invoke(app, ["clean", str(src), "--out", str(out), "--assume-bdf"])
+    res = runner.invoke(app, ["clean", str(src), "--out", str(out)])
     assert res.exit_code == 0
     assert out.exists()
 
@@ -76,7 +76,6 @@ def test_cli_convert_and_plot(tmp_path: Path, monkeypatch):
         [
             "plot",
             str(src),
-            "--assume-bdf",
             "--save",
             str(plot_path),
         ],
@@ -135,3 +134,38 @@ def test_cli_ingest_existing_bdf(tmp_path: Path, monkeypatch):
     assert res.exit_code == 0
     out = root / "timeseries" / "sample.bdf.csv"
     assert out.exists()
+
+
+_SAMPLE_CSV = "Test Time / s,Voltage / V,Current / A\n0,3.7,0.1\n1,3.6,0.1\n2,3.5,0.1\n"
+
+
+def test_cli_validate_stdin():
+    ok = runner.invoke(app, ["validate", "-"], input=_SAMPLE_CSV)
+    assert ok.exit_code == 0
+
+    fail = runner.invoke(app, ["validate", "-"], input="garbage,,\n1,2\n")
+    assert fail.exit_code != 0
+
+
+def test_cli_validate_json_stdout_is_pure_json():
+    res = runner.invoke(app, ["validate", "-", "--json"], input=_SAMPLE_CSV)
+    assert res.exit_code == 0
+    report = json.loads(res.stdout)
+    assert report["ok"] is True
+
+
+def test_cli_convert_stdin_to_stdout():
+    res = runner.invoke(app, ["convert", "-", "--to", "-"], input=_SAMPLE_CSV)
+    assert res.exit_code == 0
+    lines = res.stdout.strip().splitlines()
+    assert lines[0] == "test_time_second,voltage_volt,current_ampere"
+    assert len(lines) == 4
+
+
+def test_cli_convert_status_goes_to_stderr(tmp_path: Path):
+    src = _make_sample_bdf(tmp_path)
+    out = tmp_path / "piped.bdf.csv"
+    res = runner.invoke(app, ["convert", str(src), "--to", str(out)])
+    assert res.exit_code == 0
+    assert out.exists()
+    assert "wrote" not in res.stdout

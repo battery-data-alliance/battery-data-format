@@ -20,13 +20,12 @@ if TYPE_CHECKING:
     import pandas as pd  # noqa: F401
 
 from bdf._df_compat import coerce_dataframe  # noqa: E402
-from bdf.spec import COLUMN_ONTOLOGY, get_unit_conversion
+from bdf.spec import _UNIT_CAPTURE, COLUMN_ONTOLOGY, get_unit_conversion
 
 _logger = logging.getLogger(__name__)
 
 _DATE_COMPONENT_RE = re.compile(r"%[YymbBdej]")
 _TZ_COMPONENT_RE = re.compile(r"%:?[zZ]")
-_UNIT_CAPTURE = r"([A-Za-z0-9./]+)"
 _DST_AMBIGUOUS_STRATEGY = "earliest"
 _DST_NON_EXISTENT_STRATEGY = "null"
 
@@ -56,6 +55,11 @@ class Syn(BaseModel):
     """True when no real-file sample exercises this synonym (see test_synonym_coverage)."""
     source_unit: str | None = None
     """Fixed source unit for exact, non-templated aliases."""
+    legacy: bool = False
+    """Raise a warning that this column is legacy and has been converted."""
+    reverse_sign: bool = False
+    """Flip sign of column in addition to unit conversion
+    e.g. negative impedance or discharge-positive current columns."""
 
     @model_validator(mode="before")
     @classmethod
@@ -88,12 +92,15 @@ class Syn(BaseModel):
             m = re.fullmatch(pattern, header)
             if m is None:
                 return None
-            return get_unit_conversion(m.group(1), bdf_unit)
-        if self.hdr.strip() != header.strip():
-            return None
-        if self.source_unit is not None:
-            return get_unit_conversion(self.source_unit, bdf_unit)
-        return (1.0, 0.0)
+            result = get_unit_conversion(m.group(1), bdf_unit)
+        else:
+            if self.hdr.strip() != header.strip():
+                return None
+            result = get_unit_conversion(self.source_unit, bdf_unit) if self.source_unit is not None else (1.0, 0.0)
+        if not self.reverse_sign or result is None:
+            return result
+        scale, offset = result
+        return (-scale, offset)
 
     def exact_match(self, header: str) -> bool:
         """Test exact case-insensitive match against header.
@@ -130,6 +137,7 @@ class ResolvedColumn(BaseModel):
     datetime_fmts: tuple[str, ...] = Field(
         default=(), description="Datetime format strings for parsing timestamp columns."
     )
+    legacy: bool = False  # Resolved from a legacy column, warn user
 
     @classmethod
     def from_bdf_label(cls, bdf_label_key: str, src_header: str) -> tuple[str, ResolvedColumn]:
@@ -197,6 +205,7 @@ class ResolvedColumn(BaseModel):
                         source_header=header,
                         scale=scale,
                         offset=offset,
+                        legacy=syn.legacy,
                     )
         return None
 
@@ -350,15 +359,17 @@ class TableNormalizer(BaseModel):
     step_id: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_type: tuple[SynUnion, ...] | ResolvedColumn | None = None
     ambient_temperature_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    step_record_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
     record_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_time_second: tuple[SynUnion, ...] | ResolvedColumn | None = None
     charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     cycle_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     cycle_discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     net_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_net_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
     cycle_net_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
@@ -368,9 +379,11 @@ class TableNormalizer(BaseModel):
     charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     cycle_charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     cycle_discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    schedule_discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     net_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     step_net_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
     cycle_net_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
@@ -529,9 +542,8 @@ class TableNormalizer(BaseModel):
         self,
         df: pl.LazyFrame,
         *,
-        include_optional: bool = True,
-        extra_columns: dict[str, str] | None = None,
         validate: bool = True,
+        include_unknown: bool = False,
         tz: str = "UTC",
     ) -> pl.LazyFrame:
         """Resolve headers → BDF columns, apply unit conversion, return df_out.
@@ -543,10 +555,9 @@ class TableNormalizer(BaseModel):
 
         Args:
             df: Input dataframe in any supported format.
-            include_optional: Include optional BDF columns in output.
-            extra_columns: Additional column rename mappings to apply.
             validate: Validate column names against the BDF ontology when True (default;
                 raises on missing required columns instead of warning).
+            include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
             tz: IANA timezone applied to naive (no embedded offset) ``unix_time_second``
                 datetime formats. Defaults to ``"UTC"``; emits a ``UserWarning`` when a
                 naive format is in play and ``tz`` is left at its default. Around
@@ -568,8 +579,18 @@ class TableNormalizer(BaseModel):
 
         resolved = self.resolve(headers)
 
-        if not include_optional:
-            resolved = {mr: r for mr, r in resolved.items() if getattr(COLUMN_ONTOLOGY, mr).required}
+        legacy_pairs = [
+            (rc.source_header, getattr(COLUMN_ONTOLOGY, mr_name).formatted_label)
+            for mr_name, rc in resolved.items()
+            if rc.legacy
+        ]
+        if legacy_pairs:
+            detail = ", ".join(f"{old!r} -> {new!r}" for old, new in legacy_pairs)
+            warnings.warn(
+                f"Legacy BDF column labels detected and normalized to preferred labels: {detail}",
+                UserWarning,
+                stacklevel=3,
+            )
 
         unix_rc = resolved.get("unix_time_second")
         if unix_rc is not None and unix_rc.datetime_fmts and tz == "UTC":
@@ -592,37 +613,16 @@ class TableNormalizer(BaseModel):
                 continue
             exprs.append(resolved_column.get_expr(mr_name, tz))
 
-        if extra_columns:
-            for src, out_name in extra_columns.items():
-                if src not in headers:
-                    warnings.warn(
-                        f"extra_columns source {src!r} not in DataFrame columns; skipping",
-                        UserWarning,
-                        stacklevel=3,
-                    )
-                    continue
-                exprs.append(pl.col(src).alias(out_name))
+        if include_unknown:
+            claimed_headers = {rc.source_header for rc in resolved.values()}
+            unknown = [h for h in headers if h not in claimed_headers]
+            exprs.extend([pl.col(h) for h in unknown])
 
-        if not exprs:
-            if validate:
-                COLUMN_ONTOLOGY.validate_df(df)
-            return df
+        if exprs:
+            df = df.select(exprs)
 
-        out = df.select(exprs)
-
-        if validate:
-            COLUMN_ONTOLOGY.validate_df(out)
-            return out
-
-        out_cols = set(out.collect_schema().names())
-        missing = [s.formatted_label for mr, s in COLUMN_ONTOLOGY if s.required and s.formatted_label not in out_cols]
-        if missing:
-            warnings.warn(
-                f"normalize: required BDF columns missing from output: {missing}",
-                UserWarning,
-                stacklevel=3,
-            )
-        return out
+        COLUMN_ONTOLOGY.validate_df(df, raise_on_error=validate)
+        return df
 
 
 # ---------------------------------------------------------------------------
@@ -633,7 +633,15 @@ class TableNormalizer(BaseModel):
 # several file formats (e.g. ``"neware"`` backs both the CSV and XLSX sources).
 # ---------------------------------------------------------------------------
 
-_ARBIN_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_ACCESS_UNIX_EPOCH_DAYS = 25569.0
+_SECONDS_PER_DAY = 86400.0
+_ARBIN_DT_FMTS = (
+    "%m/%d/%Y %H:%M:%S%.f",
+    "%m/%d/%Y %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S%.f",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y/%m/%d %H:%M:%S",
+)
 _DIGATRON_DT_FMTS = (
     "%Y-%m-%d %H:%M:%S%.f%:z",
     "%Y-%m-%d %H:%M:%S%:z",
@@ -644,26 +652,90 @@ _LANDT_DT_FMTS = ("%Y-%m-%d %H:%M:%S",)
 _MACCOR_DT_FMTS = ("%d-%b-%y %I:%M:%S %p", "%d-%b-%y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y %H:%M")
 _NEWARE_DT_FMTS = ("%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
 
+# Arbin exports use two header dialects: MITS CSV/newer Excel use spaces before the
+# parenthesised unit ("Test Time (s)"); older MITS Excel uses underscores and no space
+# ("Test_Time(s)"). Both are covered below and share this one normalizer across the
+# arbin_csv and arbin_xlsx plugins.
 ARBIN = TableNormalizer(
-    test_time_second=(Syn(hdr="Test Time ({unit})"),),
-    voltage_volt=(Syn(hdr="Voltage ({unit})"),),
-    current_ampere=(Syn(hdr="Current ({unit})"),),
-    unix_time_second=(DateTimeSyn(syn=Syn(hdr="Date Time"), fmts=_ARBIN_DT_FMTS),),
-    cycle_count=(Syn(hdr="Cycle Index"),),
-    step_id=(Syn(hdr="Step Index"),),
-    record_index=(Syn(hdr="Data Point"),),
-    step_time_second=(Syn(hdr="Step Time ({unit})"),),
+    test_time_second=(
+        Syn(hdr="Test Time ({unit})"),
+        Syn(hdr="Test_Time({unit})"),
+    ),
+    voltage_volt=(
+        Syn(hdr="Voltage ({unit})"),
+        Syn(hdr="Voltage({unit})"),
+    ),
+    current_ampere=(
+        Syn(hdr="Current ({unit})"),
+        Syn(hdr="Current({unit})"),
+    ),
+    unix_time_second=(
+        DateTimeSyn(syn=Syn(hdr="Date Time"), fmts=_ARBIN_DT_FMTS),
+        DateTimeSyn(syn=Syn(hdr="Date_Time"), fmts=_ARBIN_DT_FMTS),
+    ),
+    cycle_count=(
+        Syn(hdr="Cycle Index"),
+        Syn(hdr="Cycle_Index"),
+    ),
+    step_id=(
+        Syn(hdr="Step Index"),
+        Syn(hdr="Step_Index"),
+    ),
+    record_index=(
+        Syn(hdr="Data Point"),
+        Syn(hdr="Data_Point"),
+    ),
+    step_time_second=(
+        Syn(hdr="Step Time ({unit})"),
+        Syn(hdr="Step_Time({unit})"),
+    ),
     temperature_t1_celsius=(
         Syn(hdr="Aux_Temperature_1 (C)"),
         Syn(hdr="Aux_Temperature_1 ({unit})"),
     ),
-    charging_capacity_ah=(Syn(hdr="Charge Capacity ({unit})"),),
-    discharging_capacity_ah=(Syn(hdr="Discharge Capacity ({unit})"),),
-    charging_energy_wh=(Syn(hdr="Charge Energy ({unit})"),),
-    discharging_energy_wh=(Syn(hdr="Discharge Energy ({unit})"),),
+    # Arbin's accumulators reset at operator-authored schedule points ('Set
+    # variable(s)') and can be assigned arbitrary values ('Set value'), per
+    # Arbin's MITS team, so they carry the schedule-scoped terms from ontology
+    # 1.3.0, not the never-resetting test-scoped ones.
+    schedule_charging_capacity_ah=(Syn(hdr="Charge Capacity ({unit})"),),
+    schedule_discharging_capacity_ah=(Syn(hdr="Discharge Capacity ({unit})"),),
+    schedule_charging_energy_wh=(Syn(hdr="Charge Energy ({unit})"),),
+    schedule_discharging_energy_wh=(Syn(hdr="Discharge Energy ({unit})"),),
     power_watt=(Syn(hdr="Power ({unit})"),),
     ac_internal_resistance_ohm=(Syn(hdr="ACR ({unit})"),),
     dc_internal_resistance_ohm=(Syn(hdr="Internal Resistance ({unit})"),),
+)
+
+# All synonyms are assumed=True until a .res sample lands in the test corpus
+# (Abbta's CC-BY file from PR #60 is the candidate; tracked in the follow-up
+# issue). The synonym-coverage gate requires recorded headers otherwise.
+ARBIN_RES = TableNormalizer(
+    test_time_second=(Syn(hdr="Test_Time", source_unit="s"),),
+    voltage_volt=(Syn(hdr="Voltage", source_unit="V"),),
+    current_ampere=(Syn(hdr="Current", source_unit="A"),),
+    # Access day-fraction datetimes are naive local wall-clock; this fixed
+    # scale/offset treats them as UTC (no tz support on the ResolvedColumn
+    # path). Acceptable for the .res use case; revisit if tz-correct absolute
+    # time is needed.
+    unix_time_second=ResolvedColumn(
+        source_header="DateTime",
+        scale=_SECONDS_PER_DAY,
+        offset=-_ACCESS_UNIX_EPOCH_DAYS * _SECONDS_PER_DAY,
+    ),
+    cycle_count=(Syn(hdr="Cycle_Index"),),
+    step_id=(Syn(hdr="Step_Index"),),
+    record_index=(Syn(hdr="Data_Point"),),
+    step_time_second=(Syn(hdr="Step_Time", source_unit="s"),),
+    # Arbin accumulators reset at operator-defined schedule points, so they map
+    # to the schedule-scoped terms from ontology 1.3.0 (see the csv/xlsx
+    # normalizer above).
+    schedule_charging_capacity_ah=(Syn(hdr="Charge_Capacity", source_unit="Ah"),),
+    schedule_discharging_capacity_ah=(Syn(hdr="Discharge_Capacity", source_unit="Ah"),),
+    schedule_charging_energy_wh=(Syn(hdr="Charge_Energy", source_unit="Wh"),),
+    schedule_discharging_energy_wh=(Syn(hdr="Discharge_Energy", source_unit="Wh"),),
+    dc_internal_resistance_ohm=(Syn(hdr="Internal_Resistance", source_unit="ohm"),),
+    absolute_impedance_ohm=(Syn(hdr="AC_Impedance", source_unit="ohm"),),
+    phase_degree=(Syn(hdr="ACI_Phase_Angle", source_unit="degree"),),
 )
 
 BASYTEC = TableNormalizer(
@@ -685,7 +757,7 @@ BASYTEC = TableNormalizer(
         Syn(hdr="Current", assumed=True),
     ),
     temperature_t1_celsius=(
-        Syn(hdr="T1[{unit}]", assumed=True),
+        Syn(hdr="T1[{unit}]"),
         Syn(hdr="T1[°C]"),
         Syn(hdr="Temp[{unit}]", assumed=True),
         Syn(hdr="Temp[°C]", assumed=True),
@@ -701,6 +773,7 @@ BASYTEC = TableNormalizer(
 )
 
 BIOLOGIC = TableNormalizer(
+    unix_time_second=(Syn(hdr="uts/s"),),
     test_time_second=(
         Syn(hdr="time/{unit}"),
         Syn(hdr="time / {unit}", assumed=True),
@@ -710,7 +783,7 @@ BIOLOGIC = TableNormalizer(
     ),
     voltage_volt=(
         Syn(hdr="Ecell/{unit}"),
-        Syn(hdr="Ewe/{unit}", assumed=True),
+        Syn(hdr="Ewe/{unit}"),
         Syn(hdr="u/{unit}", assumed=True),
         Syn(hdr="u[{unit}]", assumed=True),
         Syn(hdr="Ewe ({unit})", assumed=True),
@@ -749,8 +822,16 @@ BIOLOGIC = TableNormalizer(
     discharging_energy_wh=(Syn(hdr="Energy discharge/{unit}"),),
     cumulative_energy_wh=(Syn(hdr="|Energy|/{unit}", assumed=True),),
     net_energy_wh=(Syn(hdr="Energy/{unit}"),),
-    power_watt=(Syn(hdr="P/{unit}"),),
+    power_watt=(
+        Syn(hdr="P/{unit}"),
+        Syn(hdr="Pwe/{unit}"),
+    ),
     internal_resistance_ohm=(Syn(hdr="R/{unit}"),),
+    frequency_hertz=(Syn(hdr="freq/{unit}"),),
+    real_impedance_ohm=(Syn(hdr="Re(Z)/{unit}"),),
+    imaginary_impedance_ohm=(Syn(hdr="-Im(Z)/{unit}", reverse_sign=True),),
+    phase_degree=(Syn(hdr="Phase(Z)/{unit}"),),
+    absolute_impedance_ohm=(Syn(hdr="|Z|/{unit}"),),
 )
 
 DIGATRON = TableNormalizer(
@@ -1097,18 +1178,32 @@ def _build_bdf_normalizer() -> TableNormalizer:
         if syn not in existing:
             kwargs[target_mr] = (*existing, syn)
 
+    # Append synonyms to TableNormalizer
+    # Append the deprecated quantities first, so their concrete synonyms
+    # (e.g. "Test Time / ms") take priority over generic templates (e.g.
+    # "Time Time / {unit}"), and deprecation warnings get raised correctly.
     for mr_name, q in COLUMN_ONTOLOGY:
-        target_mr = mr_name
-        if q.deprecated:
+        if not q.deprecated:
+            continue
+        # Prefer the ontology's explicit dcterms:isReplacedBy link
+        if q.replaced_by and q.replaced_by in TableNormalizer.model_fields:
+            target_mr = q.replaced_by
+        else:
             base = q.formatted_label.split(" / ", 1)[0].strip().lower()
             target_mr = base_preferred.get(base, mr_name)
-            if target_mr not in TableNormalizer.model_fields:
-                continue
-        elif mr_name not in TableNormalizer.model_fields:
+        if target_mr not in TableNormalizer.model_fields:
             continue
 
-        _append(target_mr, Syn(hdr=q.label_template))
-        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit))
+        # Use formatted_label for deprecated terms, not a generic template
+        _append(target_mr, Syn(hdr=q.formatted_label, source_unit=q.unit, legacy=True))
+        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=True))
+
+    # Then append all non-deprecated synonyms
+    for mr_name, q in COLUMN_ONTOLOGY:
+        if q.deprecated or mr_name not in TableNormalizer.model_fields:
+            continue
+        _append(mr_name, Syn(hdr=q.label_template, legacy=False))
+        _append(mr_name, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=False))
     return TableNormalizer(**kwargs)
 
 
@@ -1117,6 +1212,7 @@ BDF_NORMALIZER = _build_bdf_normalizer()
 
 NORMALIZERS: dict[str, TableNormalizer] = {
     "arbin": ARBIN,
+    "arbin_res": ARBIN_RES,
     "basytec": BASYTEC,
     "biologic": BIOLOGIC,
     "digatron": DIGATRON,
@@ -1154,10 +1250,9 @@ def detect_normalizer(
 def normalize(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
     *,
-    include_optional: bool = True,
     normalizer: "TableNormalizer | dict[str, str] | None" = None,
-    extra_columns: dict[str, str] | None = None,
     validate: bool = True,
+    include_unknown: bool = False,
     tz: str = "UTC",
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
     """Map vendor columns to BDF canonical names with unit conversion and dtype casting.
@@ -1169,11 +1264,10 @@ def normalize(
 
     Args:
         df: Input dataframe in any supported format.
-        include_optional: Include optional BDF columns in output.
         normalizer: Explicit TableNormalizer, column map dict, or None for auto-detection.
-        extra_columns: Additional column rename mappings to apply.
         validate: Validate column names against the BDF ontology when True (default;
             raises on missing required columns instead of warning).
+        include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone applied to naive ``unix_time_second`` datetime formats. Defaults
             to ``"UTC"``; emits a ``UserWarning`` when a naive format is in play and ``tz``
             is left at its default. Around daylight-saving clock changes, repeated local
@@ -1200,7 +1294,7 @@ def normalize(
         norm = normalizer if isinstance(normalizer, TableNormalizer) else TableNormalizer.from_column_map(normalizer)
     else:
         best = detect_normalizer(headers, list(NORMALIZERS.values()))
-        if best is None and not extra_columns:
+        if best is None:
             if not validate:
                 return df
             norm = TableNormalizer()
@@ -1209,8 +1303,7 @@ def normalize(
 
     return norm.normalize(
         df,
-        include_optional=include_optional,
-        extra_columns=extra_columns,
         validate=validate,
+        include_unknown=include_unknown,
         tz=tz,
     )

@@ -30,10 +30,21 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .file_utils import is_url, read_head, resolve_source
+from .file_utils import is_url, read_head, resolve_source, strip_compression_suffix
 from .metadata_parsers import JsonSidecarParser, MetadataParser, MetadataSchema, TxtPreambleParser
 from .table_normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS, TableNormalizer
-from .table_parsers import DelimTxtParser, ExcelParser, MatParser, NDAParser, ParquetParser
+from .table_parsers import (
+    DelimTxtParser,
+    ExcelParser,
+    IpcParser,
+    JsonParser,
+    MatParser,
+    MDBParser,
+    MprParser,
+    NdaParser,
+    NdjsonParser,
+    ParquetParser,
+)
 
 try:
     import yaml
@@ -45,7 +56,16 @@ except ImportError as _exc:
     _YAML_IMPORT_ERROR = _exc
 
 TableParserUnion = Annotated[
-    DelimTxtParser | ExcelParser | MatParser | ParquetParser | NDAParser,
+    DelimTxtParser
+    | ExcelParser
+    | IpcParser
+    | JsonParser
+    | MatParser
+    | MDBParser
+    | MprParser
+    | NdaParser
+    | NdjsonParser
+    | ParquetParser,
     Field(discriminator="kind"),
 ]
 MetadataUnion = Annotated[
@@ -134,6 +154,13 @@ ARBIN_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["arbin"]),
 )
 
+ARBIN_RES = Plugin(
+    table_parser=MDBParser(
+        normalizer=NORMALIZERS["arbin_res"],
+        unique_exts=frozenset({".res"}),
+    ),
+)
+
 BASYTEC_TXT = Plugin(
     table_parser=DelimTxtParser(
         normalizer=NORMALIZERS["basytec"],
@@ -161,6 +188,8 @@ BIOLOGIC_MPT = Plugin(
         regex_patterns=MetadataSchema[re.Pattern[str]](start_time=re.compile(r"Acquisition started on\s*:\s*(.+)")),
     ),
 )
+
+BIOLOGIC_MPR = Plugin(table_parser=MprParser(normalizer=NORMALIZERS["biologic"]))
 
 DIGATRON_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["digatron"]),
@@ -190,12 +219,19 @@ NEWARE_XLSX = Plugin(
     table_parser=ExcelParser(normalizer=NORMALIZERS["neware"], sheet_name="record"),
 )
 
+# Arbin MITS Excel exports: data lives in a per-channel sheet whose name varies by
+# MITS version (Channel_1-002, Channel-6_1, Channel_6_1, ...); Global_Info carries
+# test metadata and ACIM_chan_*/Statistics* sheets (EIS, summaries) are not read.
+ARBIN_XLSX = Plugin(
+    table_parser=ExcelParser(normalizer=NORMALIZERS["arbin"], sheet_pattern=r"^Channel[_-]"),
+)
+
 NOVONIX_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["novonix"]),
     metadata_parser=TxtPreambleParser(magic=("[summary]", "[data]", "novonix uhpc data file", "novonix")),
 )
 
-NEWARE_NDA = Plugin(table_parser=NDAParser(normalizer=NDA_NORMALIZER))
+NEWARE_NDA = Plugin(table_parser=NdaParser(normalizer=NDA_NORMALIZER))
 
 BDF_CSV = Plugin(
     table_parser=DelimTxtParser(
@@ -205,23 +241,33 @@ BDF_CSV = Plugin(
 )
 
 BDF_PARQUET = Plugin(table_parser=ParquetParser(normalizer=BDF_NORMALIZER))
-
+BDF_JSON = Plugin(table_parser=JsonParser(normalizer=BDF_NORMALIZER))
+BDF_NDJSON = Plugin(table_parser=NdjsonParser(normalizer=BDF_NORMALIZER))
+BDF_IPC = Plugin(table_parser=IpcParser(normalizer=BDF_NORMALIZER))
+BDF_XLSX = Plugin(table_parser=ExcelParser(normalizer=BDF_NORMALIZER))
 
 PLUGINS: dict[str, Plugin] = PluginDict(
     {
         "arbin_csv": ARBIN_CSV,
+        "arbin_res": ARBIN_RES,
         "basytec_txt": BASYTEC_TXT,
         "biologic_mpt": BIOLOGIC_MPT,
+        "biologic_mpr": BIOLOGIC_MPR,
         "digatron_csv": DIGATRON_CSV,
         "landt_csv": LANDT_CSV,
         "landt_txt": LANDT_TXT,
         "maccor_csv": MACCOR_CSV,
         "neware_csv": NEWARE_CSV,
         "neware_xlsx": NEWARE_XLSX,
+        "arbin_xlsx": ARBIN_XLSX,
         "novonix_csv": NOVONIX_CSV,
         "neware_nda": NEWARE_NDA,
         "bdf_csv": BDF_CSV,
         "bdf_parquet": BDF_PARQUET,
+        "bdf_json": BDF_JSON,
+        "bdf_ndjson": BDF_NDJSON,
+        "bdf_ipc": BDF_IPC,
+        "bdf_xlsx": BDF_XLSX,
     }
 )
 
@@ -247,7 +293,7 @@ def _ext_from_url(url: str) -> str:
 
     segments = [s for s in urlparse(url).path.split("/") if s]
     for segment in reversed(segments):
-        suffix = Path(segment).suffix
+        suffix = Path(strip_compression_suffix(segment)).suffix
         if suffix:
             return suffix.lower()
     return ""
@@ -294,9 +340,12 @@ def detect_from_ext_or_magic_bytes(
     """Return plugins from ``cands`` whose table parser handles the extension of ``path``.
 
     Defaults to :data:`PLUGINS`. The extension is read from the path/URL string alone
-    (no network I/O, no local file access). Falls back to :func:`detect_from_magic_bytes`
-    — which does fetch/read the file — when ``path`` has no extension, or no candidate
-    handles the extension found.
+    (no network I/O, no local file access). Tries at most three suffix forms, longest
+    first: all suffixes joined (``.a.b.c.bdf.parquet``), then the last two (``.bdf.parquet``),
+    then just the last (``.parquet``). A parser whose ``base_exts`` only registers the bare
+    extension still matches filenames with extra dotted segments before it. Falls back
+    to :func:`detect_from_magic_bytes` — which does fetch/read the file — when ``path``
+    has no extension, or no candidate handles any suffix form.
 
     Args:
         path: Local file path or URL to check.
@@ -309,8 +358,13 @@ def detect_from_ext_or_magic_bytes(
         ValueError: If neither the extension nor magic bytes match any candidate.
     """
     path_str = str(path)
-    ext = _ext_from_url(path_str) if is_url(path_str) else "".join(Path(path).suffixes).lower()
-    if ext:
+    if is_url(path_str):
+        exts = [_ext_from_url(path_str)]
+    else:
+        suffixes = Path(strip_compression_suffix(Path(path).name)).suffixes
+        exts = ["".join(suffixes), "".join(suffixes[-2:]), "".join(suffixes[-1:])]
+        exts = [e.lower() for e in exts]
+    for ext in dict.fromkeys(e for e in exts if e):  # de-dupe, preserve order
         matched = {id_: p for id_, p in cands.items() if p.table_parser.matches_ext(ext)}
         if matched:
             return matched

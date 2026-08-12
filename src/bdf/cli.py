@@ -1,33 +1,54 @@
 from __future__ import annotations
 
+import sys
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
 import typer
 from rich import print
 
-from . import (
-    BDFValidationError,
-    detect as detect_source,
-    ingest as ingest_bdf,
-    read as read_bdf,
-    templates as templates_api,
-    validate as validate_any,
-)
-from .io import load as load_bdf, save as save_bdf
-from .metadata import Creator, Dataset, RelatedIdentifier, save_jsonld
-from .repair import clean as clean_bdf
-from .visualize import plot as line_plot
-
 app = typer.Typer(help="Battery Data Format utilities")
+
+
+def _stdin_to_tmp() -> Path:
+    """Buffer stdin into a temp file so the detection pipeline can seek and reread it."""
+    data = sys.stdin.buffer.read()
+    if not data:
+        raise typer.BadParameter("stdin is empty")
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(data)
+    return Path(tmp.name)
+
+
+def _ontology_version() -> str:
+    """Read owl:versionInfo from the bundled snapshot with regex."""
+    import importlib.resources
+    import re
+
+    try:
+        raw = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl").read_text(encoding="utf-8")
+        # rdflib's ttl serializer separates blocks with a blank line
+        # make sure its in the ontology block to avoid picking up different versions
+        for block in raw.split("\n\n"):
+            if "a owl:Ontology" in block:
+                match = re.search(r'owl:versionInfo\s+"([^"]+)"', block)
+                if match:
+                    return match.group(1)
+    except Exception:
+        pass
+
+    # If the regex fails, fall back to building the ontology properly
+    from .spec import COLUMN_ONTOLOGY
+
+    return COLUMN_ONTOLOGY.ontology_version
 
 
 def _version_callback(value: bool) -> None:
     if value:
         from . import __version__
-        from .spec import COLUMN_ONTOLOGY
 
-        typer.echo(f"bdf {__version__} (ontology snapshot {COLUMN_ONTOLOGY.ontology_version})")
+        typer.echo(f"bdf {__version__} (ontology snapshot {_ontology_version()})")
         raise typer.Exit()
 
 
@@ -58,8 +79,8 @@ def ingest(
     validate_converted: bool = typer.Option(
         True, "--validate-converted/--no-validate-converted", help="Validate newly converted files"
     ),
-    include_optional: bool = typer.Option(
-        True, "--include-optional/--exclude-optional", help="Include optional BDF columns"
+    include_unknown: bool = typer.Option(
+        False, "--include-unknown/--exclude-unknown", help="Include columns outside of the BDF spec"
     ),
     plugin: Optional[str] = typer.Option(None, help="Force a specific plugin id for raw files"),
     incremental: bool = typer.Option(True, "--incremental/--no-incremental", help="Skip unchanged files"),
@@ -73,12 +94,23 @@ def ingest(
     cell_metadata_dir: Optional[str] = typer.Option("batteries", help="Base dir for per-cell metadata folders"),
     doi_enrich: bool = typer.Option(True, "--doi-enrich/--no-doi-enrich", help="Enrich missing metadata from DOI"),
     doi_timeout: int = typer.Option(15, help="Per-request timeout (seconds) for DOI lookups"),
-    human: bool = typer.Option(False, "--human/--machine", help="Serialize headers as prefLabel instead of notation"),
+    labels: str = typer.Option(
+        "machine", "--labels", help="Column header style: 'preferred', 'machine', or 'unchanged'"
+    ),
+    human: Optional[bool] = typer.Option(
+        None, "--human/--machine", help="Short for --label=preferred / --label=machine"
+    ),
 ):
     """
     Convert raw vendor files to BDF and emit metadata sidecars.
     """
-    summary = ingest_bdf(
+    from ._ingest import ingest
+
+    if human is not None:
+        labels = "preferred" if human else "machine"
+    if labels not in ("preferred", "machine", "unchanged"):
+        raise typer.BadParameter("--labels must be one of: preferred, machine, unchanged")
+    summary = ingest(
         source,
         out_dir=out_dir,
         format=format,
@@ -87,7 +119,7 @@ def ingest(
         recursive=recursive,
         validate_existing=validate_existing,
         validate_converted=validate_converted,
-        include_optional=include_optional,
+        include_unknown=include_unknown,
         plugin=plugin,
         incremental=incremental,
         force=force,
@@ -100,7 +132,7 @@ def ingest(
         cell_metadata_dir=cell_metadata_dir,
         doi_enrich=doi_enrich,
         doi_timeout=doi_timeout,
-        human=human,
+        labels=labels,
     )
     print(summary)
 
@@ -127,6 +159,9 @@ def meta_jsonld(
     Build a JSON-LD sidecar that describes the dataset (schema.org) and the BDF table (CSVW),
     ready for Zenodo and linked to the BDF CSVW table schema.
     """
+    from .io import read
+    from .metadata import Creator, Dataset, RelatedIdentifier, save_jsonld
+
     # Parse creators
     creators: List[Creator] = []
     for spec in creator:
@@ -164,12 +199,12 @@ def meta_jsonld(
     df = None
     if infer_columns:
         try:
-            df = load_bdf(data)
+            df, _metadata = read(data)
         except Exception:
             df = None  # okay: JSON-LD will omit per-column metadata
 
     out_path = save_jsonld(meta, data, out_path=out, df=df, csvw_schema_url=schema_url)
-    typer.echo(f"Wrote metadata: {out_path}")
+    typer.echo(f"Wrote metadata: {out_path}", err=True)
 
 
 @app.command()
@@ -177,43 +212,46 @@ def clean(
     path: str,
     out: str = typer.Option(..., "--out", "-o", help="Where to write cleaned BDF CSV"),
     as_: Optional[str] = typer.Option(None, "--as", help="Force plugin id for raw input"),
-    assume_bdf: bool = typer.Option(False, help="Treat input as already-normalized BDF"),
     time_fix: str = typer.Option("segment", help="segment|sort|drop|none"),
     outlier: str = typer.Option("none", help="none|drop|clip|interp"),
     z: float = typer.Option(8.0, help="Robust z threshold for outliers"),
-    col: List[str] = typer.Option(["Voltage / V", "Current / A"], help="Columns to clean for outliers"),
+    col: Optional[List[str]] = typer.Option(None, help="Columns to clean for outliers [default: voltage and current]"),
 ):
     """
     Clean a dataset by fixing non-monotonic time and removing/repairing outliers.
     Accepts either BDF CSV/Parquet or a raw vendor file.
     """
-    # Load BDF or raw
-    if assume_bdf:
-        df = load_bdf(path)
-    else:
-        try:
-            df = load_bdf(path)
-        except Exception:
-            df_pl, _ = read_bdf(path, plugin=as_, lazy=False)
-            df = df_pl.to_pandas()
+    from .io import read, save
+    from .repair import DEFAULT_OUTLIER_COLS, clean
 
-    df2, rep = clean_bdf(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=col)
-    save_bdf(df2, out, index=False)
+    cols = list(col) if col else list(DEFAULT_OUTLIER_COLS)
+
+    # Load BDF
+    df, _ = read(path, plugin=as_)
+    df, rep = clean(df, time_fix=time_fix, outlier=outlier, z_thresh=z, columns=cols)
+    save(df, out)
     typer.echo(str(rep))
-    typer.echo(f"Saved: {out}")
+    typer.echo(f"Saved: {out}", err=True)
 
 
 @app.command()
 def validate(
-    path: str,
+    path: str = typer.Argument(..., help="File to validate, or '-' to read from stdin"),
     strict: bool = typer.Option(False, help="Raise error (non-zero exit) on invalid BDF"),
     json: bool = typer.Option(False, help="Output machine-readable JSON report"),
 ):
     """
     Validate a CSV/Parquet file against the BDF schema and basic sanity checks.
+
+    The report goes to stdout; operational errors go to stderr.
+    Exit codes: 0 valid, 1 invalid, 2 could not read the input.
     """
+    from ._errors import BDFValidationError
+    from ._validate import validate
+
+    src: str | Path = _stdin_to_tmp() if path == "-" else path
     try:
-        report = validate_any(path, report=not json, raise_on_error=strict)
+        report = validate(src, report=not json, raise_on_error=strict)
     except BDFValidationError as e:
         if json:
             import json as _json
@@ -223,8 +261,11 @@ def validate(
             print(f"[bdf] INVALID\n{e}")
         raise typer.Exit(code=1) from None
     except Exception as e:
-        print(f"[bdf] Error reading file: {e}")
+        typer.echo(f"[bdf] Error reading file: {e}", err=True)
         raise typer.Exit(code=2) from e
+    finally:
+        if path == "-":
+            Path(src).unlink(missing_ok=True)
 
     ok = bool(report.get("ok"))
     if json:
@@ -249,7 +290,9 @@ def validate(
 
 @app.command()
 def detect(path: str):
-    plugin_id, _plugin = detect_source(path)
+    from .plugins import detect
+
+    plugin_id, _plugin = detect(path)
     print(plugin_id)
 
 
@@ -264,7 +307,9 @@ def templates(
     """
     Create sidecar metadata templates with REQUIRED/OPTIONAL placeholders.
     """
-    result = templates_api(*names, root=root, overwrite=overwrite)
+    from ._templates import templates
+
+    result = templates(*names, root=root, overwrite=overwrite)
     created = result.get("created") or []
     skipped = result.get("skipped") or []
     for p in created:
@@ -275,47 +320,75 @@ def templates(
 
 @app.command()
 def convert(
-    path: str,
-    to: str = "bdf.csv",
-    as_: Optional[str] = None,
-    human: bool = typer.Option(False, "--human/--machine", help="Serialize headers as prefLabel instead of notation"),
+    path: str = typer.Argument(..., help="Raw vendor file or BDF artifact, or '-' to read from stdin"),
+    to: str = typer.Option("bdf.csv", "--to", help="Output path, or '-' to write BDF CSV to stdout"),
+    as_: Optional[str] = typer.Option(None, "--as", help="Force a specific plugin id for raw input"),
+    include_unknown: bool = typer.Option(
+        False, "--include-unknown", help="Keep columns outside the BDF spec in the output"
+    ),
+    validate: bool = typer.Option(True, "--validate/--no-validate", help="Validate against the BDF schema"),
+    labels: str = typer.Option(
+        "machine", "--labels", help="Column header style: 'preferred', 'machine', or 'unchanged'"
+    ),
+    human: Optional[bool] = typer.Option(
+        None, "--human/--machine", help="Short for --label=preferred / --label=machine"
+    ),
 ):
-    from . import read as read_bdf
+    """
+    Convert a raw vendor file or existing BDF artifact to another BDF artifact.
 
-    df_pl, _ = read_bdf(path, plugin=as_, lazy=False)
-    df = df_pl.to_pandas()
-    save_bdf(df, to, index=False, human=human)
-    print(f"[bdf] wrote {to}")
+    Data goes to the output path (stdout with '--to -'); status messages go to stderr.
+    Stdin input has no filename, so detection relies on content; use --as if it is ambiguous.
+    """
+    from .io import read, save
+
+    if human is not None:
+        labels = "preferred" if human else "machine"
+    if labels not in ("preferred", "machine", "unchanged"):
+        raise typer.BadParameter("--labels must be one of: preferred, machine, unchanged")
+
+    src: str | Path = _stdin_to_tmp() if path == "-" else path
+    try:
+        df, _ = read(src, plugin=as_, validate=validate, include_unknown=include_unknown)
+    finally:
+        if path == "-":
+            Path(src).unlink(missing_ok=True)
+
+    if to == "-":
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "out.bdf.csv"
+            save(df, out, validate=validate, labels=labels)
+            sys.stdout.buffer.write(out.read_bytes())
+    else:
+        save(df, to, validate=validate, labels=labels)
+        typer.echo(f"[bdf] wrote {to}", err=True)
 
 
 @app.command()
 def plot(
     path: str,
-    xdata: str = typer.Option("Test Time / s", help="BDF column for x-axis"),
-    ydata: List[str] = typer.Option(["Voltage / V"], help="One or more BDF columns for y-axis"),
+    xdata: Optional[str] = typer.Option(None, help="BDF column for x-axis [default: test time]"),
+    ydata: Optional[List[str]] = typer.Option(None, help="One or more BDF columns for y-axis [default: voltage]"),
     save: Optional[str] = typer.Option(None, "--save", "-s", help="Save figure to file"),
     show: bool = typer.Option(False, "--show/--no-show", help="Display window"),
     as_: Optional[str] = typer.Option(None, "--as", help="Force a specific plugin id (e.g., biologic_mpt)"),
-    assume_bdf: bool = typer.Option(False, help="Assume input is already BDF (skip detection/normalization)"),
 ):
     """
     Plot a BDF-normalized dataset. If the file isn't already BDF, auto-detect and convert on the fly.
     """
+    from .io import read
+    from .visualize import X_DEFAULT, Y_DEFAULT, plot
+
     p = Path(path)
     if not p.exists():
         raise typer.BadParameter(f"File not found: {p}")
 
-    df = None
-    if assume_bdf:
-        df = load_bdf(p)
-    else:
-        # First try BDF; if it errors, fall back to raw->BDF
-        try:
-            df = load_bdf(p)
-        except Exception:
-            df_pl, _ = read_bdf(p, plugin=as_, lazy=False)
-            df = df_pl.to_pandas()
+    x = xdata or X_DEFAULT
+    ys = list(ydata) if ydata else [Y_DEFAULT]
+
+    df, _metadata = read(p, plugin=as_)
+    df = df.to_pandas()
 
     # Draw the plot
-    line_plot(df, xdata=xdata, ydata=ydata, save=save, show=show, title=f"{', '.join(ydata)} vs {xdata}")
-    print(f"[bdf] plotted {', '.join(ydata)} vs {xdata}" + (f" -> {save}" if save else ""))
+    plot(df, xdata=x, ydata=ys, save=save, show=show, title=f"{', '.join(ys)} vs {x}")
+    typer.echo(f"[bdf] plotted {', '.join(ys)} vs {x}" + (f" -> {save}" if save else ""), err=True)

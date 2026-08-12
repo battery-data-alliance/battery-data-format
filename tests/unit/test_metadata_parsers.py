@@ -163,7 +163,7 @@ class TestJsonSidecarParser:
     def test_json_matches_true_when_sidecar_exists(self, tmp_path: Path) -> None:
         data = tmp_path / "cell.csv"
         data.write_text("a,b\n1,2\n")
-        (tmp_path / "cell.json").write_text("{}")
+        (tmp_path / "cell.metadata.json").write_text("{}")
         assert JsonSidecarParser().matches(data) is True
 
     def test_json_matches_false_when_no_sidecar(self, tmp_path: Path) -> None:
@@ -174,14 +174,14 @@ class TestJsonSidecarParser:
     def test_json_parse_resolves_synonyms(self, tmp_path: Path) -> None:
         data = tmp_path / "cell.csv"
         data.write_text("a,b\n1,2\n")
-        (tmp_path / "cell.json").write_text(json.dumps({"StartTime": "2024-01-01"}))
+        (tmp_path / "cell.metadata.json").write_text(json.dumps({"StartTime": "2024-01-01"}))
         parser = JsonSidecarParser(key_synonyms=MetadataSchema(start_time=("start_time", "StartTime", "test_start")))
         assert parser.parse(data) == {"start_time": "2024-01-01"}
 
     def test_json_parse_returns_only_matched_fields(self, tmp_path: Path) -> None:
         data = tmp_path / "cell.csv"
         data.write_text("a,b\n1,2\n")
-        (tmp_path / "cell.json").write_text(json.dumps({"other": "x"}))
+        (tmp_path / "cell.metadata.json").write_text(json.dumps({"other": "x"}))
         parser = JsonSidecarParser(key_synonyms=MetadataSchema(start_time=("start_time",)))
         assert parser.parse(data) == {}
 
@@ -195,7 +195,9 @@ class TestJsonSidecarParser:
         """match_one picks the first synonym present in tuple order, not file order."""
         data = tmp_path / "cell.csv"
         data.write_text("a,b\n1,2\n")
-        (tmp_path / "cell.json").write_text(json.dumps({"StartTime": "tuple_second", "start_time": "tuple_first"}))
+        (tmp_path / "cell.metadata.json").write_text(
+            json.dumps({"StartTime": "tuple_second", "start_time": "tuple_first"})
+        )
         parser = JsonSidecarParser(key_synonyms=MetadataSchema(start_time=("start_time", "StartTime")))
         assert parser.parse(data) == {"start_time": "tuple_first"}
 
@@ -203,7 +205,7 @@ class TestJsonSidecarParser:
         """match_one coerces a non-string JSON value with str()."""
         data = tmp_path / "cell.csv"
         data.write_text("a,b\n1,2\n")
-        (tmp_path / "cell.json").write_text(json.dumps({"start_time": 1700000000}))
+        (tmp_path / "cell.metadata.json").write_text(json.dumps({"start_time": 1700000000}))
         parser = JsonSidecarParser(key_synonyms=MetadataSchema(start_time=("start_time",)))
         assert parser.parse(data) == {"start_time": "1700000000"}
 

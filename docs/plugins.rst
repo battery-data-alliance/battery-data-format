@@ -10,7 +10,7 @@ plugin instead of relying on detection:
 .. code-block:: python
 
    import bdf
-   df, meta = bdf.read("raw_vendor.csv", plugin="neware_csv", lazy=False)
+   df, meta = bdf.read("raw_vendor.csv", plugin="neware_csv")
 
 List the registered ids at runtime with ``bdf.plugins.list_sources()``.
 

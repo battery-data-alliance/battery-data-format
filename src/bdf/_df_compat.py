@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
-
-import polars as pl
+import sys
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
-AnyDF = TypeVar("AnyDF", "pd.DataFrame", pl.DataFrame, pl.LazyFrame)
+AnyDF = TypeVar("AnyDF", "pd.DataFrame", "pl.DataFrame", "pl.LazyFrame")
 
 
 def _classify_df(df: object) -> str:
@@ -23,13 +23,15 @@ def _classify_df(df: object) -> str:
     Raises:
         TypeError: If df is not a supported DataFrame type.
     """
-    module = type(df).__module__
-    if module.startswith("pandas"):
-        return "pandas"
+    import polars as pl
+
     if isinstance(df, pl.LazyFrame):
         return "polars_lazy"
     if isinstance(df, pl.DataFrame):
         return "polars_df"
+    pd = sys.modules.get("pandas")  # if it is a pandas df, pandas must be imported
+    if pd is not None and isinstance(df, pd.DataFrame):
+        return "pandas"
     raise TypeError(f"Unsupported DataFrame type: {type(df).__qualname__!r}")
 
 
@@ -42,13 +44,14 @@ def _to_polars_lazy(df: object) -> pl.LazyFrame:
     Returns:
         Equivalent pl.LazyFrame.
     """
+    import polars as pl
+
     kind = _classify_df(df)
     if kind == "polars_lazy":
-        return df  # type: ignore[return-value]
+        return cast("pl.LazyFrame", df)
     if kind == "polars_df":
-        assert isinstance(df, pl.DataFrame)
-        return df.lazy()
-    return pl.from_pandas(df).lazy()  # type: ignore[arg-type]
+        return cast("pl.DataFrame", df).lazy()
+    return pl.from_pandas(cast("pd.DataFrame", df)).lazy()
 
 
 def _from_polars_lazy(result: pl.LazyFrame, kind: str) -> Any:
