@@ -70,7 +70,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
       - name: Run tests (offline)
-        run: uv run --all-extras pytest -q -m "not network"
+        run: uv run --all-extras pytest -q -m "not network" --cov=bdf --cov-report=xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: offline
+          files: coverage.xml
 
   warm-cache:
     needs: offline-tests
@@ -130,4 +136,10 @@ jobs:
           path: ${{ github.workspace }}/.bdf-cache
           key: ${{ needs.warm-cache.outputs.cache-key }}
       - name: Run tests (network, cache-backed sockets blocked)
-        run: uv run --all-extras pytest -q -m network --block-cached-sockets
+        run: uv run --all-extras pytest -q -m network --block-cached-sockets --cov=bdf --cov-report=xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: network
+          files: coverage.xml
