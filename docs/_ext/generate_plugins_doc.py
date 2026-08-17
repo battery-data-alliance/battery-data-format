@@ -26,7 +26,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from sphinx.util import logging  # noqa: E402
 
-from bdf.metadata_parsers import JsonSidecarParser, TxtPreambleParser  # noqa: E402
+from bdf.metadata_parsers import JsonSidecarParser, RegexRule, TxtPreambleParser  # noqa: E402
 from bdf.normalization import AbsoluteTimeNormalization, LinearNormalization, RelativeTimeNormalization  # noqa: E402
 from bdf.plugins import PLUGINS  # noqa: E402
 from bdf.spec import COLUMN_ONTOLOGY  # noqa: E402
@@ -90,11 +90,25 @@ def _metadata_parser_lines(metadata_parser) -> list[str]:
     return ["- **Metadata parser:** none"]
 
 
+def _target_name(target) -> str:
+    """Dotted display name for a rule's target, prefixed for an extras key."""
+    dotted = ".".join(target.path)
+    return dotted if target.kind == "metadata" else f"extras.{dotted}"
+
+
+def _rule_detail(rule) -> str:
+    """Human description of how a rule's value is found."""
+    if isinstance(rule, RegexRule):
+        return f"regex {_lit(rule.pattern.pattern)}"
+    candidates = ", ".join(_lit(".".join(candidate)) for candidate in rule.candidates)
+    return f"JSON key(s): {candidates}"
+
+
 def _metadata_dropdown(metadata_parser) -> list[str]:
     """Collapsible ``.. dropdown::`` with magic tokens and extracted-field rules.
 
-    ``rules`` pairs each BDF metadata field name with a human description of how
-    its value is found, rendered as a uniform sub-list so adding fields beyond
+    ``rules`` pairs each rule's target with a human description of how its
+    value is found, rendered as a uniform sub-list so adding fields beyond
     ``start_time`` slots in without reshaping the surrounding text. Parsers with
     no extraction detail (e.g. ``none``) get no dropdown.
     """
@@ -102,13 +116,9 @@ def _metadata_dropdown(metadata_parser) -> list[str]:
     if isinstance(metadata_parser, TxtPreambleParser):
         magic = ", ".join(_lit(_decode_magic(m)) for m in metadata_parser.magic)
         intro = [f"   - Identified by magic tokens: {magic}"]
-        rules = [(name, f"regex {_lit(pattern.pattern)}") for name, pattern in metadata_parser.regex_patterns]
-    elif isinstance(metadata_parser, JsonSidecarParser):
-        rules = [
-            (name, "JSON key(s): " + ", ".join(_lit(k) for k in keys)) for name, keys in metadata_parser.key_synonyms
-        ]
-    else:
+    elif not isinstance(metadata_parser, JsonSidecarParser):
         return []
+    rules = [(_target_name(target), _rule_detail(rule)) for target, rule in metadata_parser.rules]
 
     lines = ["", ".. dropdown:: Metadata extraction details", "", *intro]
     if rules:
