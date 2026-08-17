@@ -2,11 +2,19 @@
 """Refresh the bundled BattINFO schemas and regenerate the model package.
 
 Usage: ``python scripts/update_battinfo.py REF``
+       ``python scripts/update_battinfo.py --check [REF]``
 
-``REF`` is a commit or tag of ``BIG-MAP/BattINFO``. The script fetches the
-eight managed schema files at that ref, replaces the bundled copies
-atomically, stamps ``VERSION`` with the ref, and regenerates
-``bdf.battinfo.generated``.
+``REF`` is a commit, tag, or branch of ``BIG-MAP/BattINFO``. The script fetches
+the eight managed schema files at that ref, replaces the bundled copies
+atomically, stamps ``VERSION`` with the commit the ref resolves to, and
+regenerates ``bdf.battinfo.generated``.
+
+``--check`` compares alone, and it exits non-zero when the bundle is stale. It
+fetches the eight files at ``REF`` (``main`` by default) and reports which ones
+differ from the bundle. The comparison reads parsed content, so an upstream
+commit that reformats a file, or that touches nothing under ``assets/schemas/``,
+reports no difference. CI runs this mode on every pull request, which is why an
+unrelated upstream commit does not turn a pull request red.
 
 BDF pins eight upstream schema files under ``bdf/data/battinfo/schemas/``: the
 five entity schemas (``test``, ``cell-instance``, ``channel``, ``equipment``,
@@ -24,6 +32,7 @@ for a reader that wants them, and the loaders here serve the contract tests.
 
 from __future__ import annotations
 
+import argparse
 import importlib.resources
 import json
 import subprocess
@@ -50,6 +59,12 @@ MANAGED_SCHEMA_PATHS: dict[str, str] = {
 
 RAW_URL_TEMPLATE = f"https://raw.githubusercontent.com/{_REPO}/{{ref}}/{{path}}"
 """The raw upstream URL one managed file is fetched from, by ref and path."""
+
+COMMIT_URL_TEMPLATE = f"https://api.github.com/repos/{_REPO}/commits/{{ref}}"
+"""The upstream API URL that resolves a branch, tag, or commit to a commit."""
+
+DEFAULT_BRANCH = "main"
+"""The upstream branch a check reads when the caller names no ref."""
 
 _REFRESH_HINT = "Run scripts/update_battinfo.py REF to refresh the bundle."
 
@@ -180,6 +195,60 @@ def fetch_schemas(ref: str) -> dict[str, bytes]:
     return fetched
 
 
+def resolve_ref(ref: str) -> str:
+    """Resolve a branch, tag, or commit to the commit it names.
+
+    The stamp records a commit and never a branch, because a branch moves. A
+    test that refetches at a branch compares against content that upstream can
+    change, and a stamp that pins a commit stays true.
+
+    Args:
+        ref: Upstream ``BIG-MAP/BattINFO`` branch, tag, or commit.
+
+    Returns:
+        The full commit SHA the ref names.
+
+    Raises:
+        requests.HTTPError: The resolution request failed.
+        RuntimeError: The response carries no commit SHA.
+    """
+    import requests
+
+    url = COMMIT_URL_TEMPLATE.format(ref=ref)
+    response = requests.get(url, timeout=30, headers={"Accept": "application/vnd.github+json"})
+    response.raise_for_status()
+    sha = response.json().get("sha")
+    if not isinstance(sha, str) or not sha:
+        raise RuntimeError(f"Response from {url} carries no commit SHA for ref {ref!r}")
+    return sha
+
+
+def compare(ref: str, source: Path | None = None) -> dict[str, bytes]:
+    """Report the managed schema files that differ from the bundle at ``ref``.
+
+    The comparison reads parsed content, not raw bytes. An upstream commit that
+    only reformats a file therefore reports no difference, and neither does a
+    commit that leaves ``assets/schemas/`` alone.
+
+    Args:
+        ref: Upstream ``BIG-MAP/BattINFO`` branch, tag, or commit to fetch.
+        source: Directory holding the bundled schema files. Defaults to the
+            bundled :func:`schema_dir`.
+
+    Returns:
+        A mapping from each differing file's bundle-relative path to the bytes
+        fetched at ``ref``. An empty mapping means the bundle is current.
+
+    Raises:
+        requests.HTTPError: A schema fetch failed.
+        RuntimeError: Fetched content is not valid JSON, or the bundle is
+            missing or unreadable.
+    """
+    bundled = load_managed(source)
+    fetched = fetch_schemas(ref)
+    return {rel_name: content for rel_name, content in fetched.items() if json.loads(content) != bundled[rel_name]}
+
+
 def _atomic_write(dest_dir: Path, rel_name: str, content: bytes) -> None:
     """Write ``content`` to ``dest_dir / rel_name``, replacing it atomically.
 
@@ -242,7 +311,8 @@ def update(ref: str, dest: Path | None = None) -> Path:
     """Fetch, stamp, and regenerate in one run.
 
     Args:
-        ref: Upstream ``BIG-MAP/BattINFO`` commit or tag to pin.
+        ref: Upstream ``BIG-MAP/BattINFO`` commit to pin. The caller resolves a
+            branch or a tag first, because the stamp records a commit.
         dest: Bundle directory to write into. Defaults to the bundled
             package-data directory. The regeneration always reads the
             directory the generator configuration names, whatever ``dest``
@@ -257,20 +327,57 @@ def update(ref: str, dest: Path | None = None) -> Path:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Entry point: refresh the bundle at the ref the caller names.
+    """Entry point: check the bundle against a ref, or refresh it at that ref.
+
+    ``--check`` prints ``key=value`` per line, so the report names the files
+    that moved:
+
+    .. code-block:: text
+
+        changed=true
+        ref=<commit the ref resolved to>
+        files=<comma-separated bundle-relative names, empty when none differ>
 
     Args:
         argv: Command-line arguments. Defaults to ``sys.argv[1:]``.
 
     Raises:
-        SystemExit: No ref was given.
+        SystemExit: ``--check`` found a managed schema file that differs from
+            the bundle. CI reads that exit code, matching ``--check`` on
+            ``datamodel-codegen`` and on ``scripts/generate_docs.py``.
     """
-    args = sys.argv[1:] if argv is None else argv
-    if not args:
-        raise SystemExit("Usage: python scripts/update_battinfo.py REF")
-    ref = args[0]
-    update(ref)
-    print(f"BattINFO schema bundle updated: {schema_dir()} (ref={ref})")
+    parser = argparse.ArgumentParser(description="Refresh or check the bundled BattINFO schemas.")
+    parser.add_argument(
+        "ref",
+        nargs="?",
+        help=f"Upstream {_REPO} branch, tag, or commit. Defaults to {DEFAULT_BRANCH} under --check.",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Report which managed schema files differ from the bundle, and write nothing.",
+    )
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+
+    if args.check:
+        resolved = resolve_ref(args.ref or DEFAULT_BRANCH)
+        differing = compare(resolved)
+        print(f"changed={'true' if differing else 'false'}")
+        print(f"ref={resolved}")
+        print(f"files={','.join(sorted(differing))}")
+        if differing:
+            raise SystemExit(
+                f"{len(differing)} bundled BattINFO schema file(s) differ from {_REPO} at {resolved}. "
+                f"Run scripts/update_battinfo.py {resolved} to refresh the bundle."
+            )
+        return
+
+    requested: str | None = args.ref
+    if requested is None:
+        parser.error("a ref is required unless --check is given")
+    resolved = resolve_ref(requested)
+    update(resolved)
+    print(f"BattINFO schema bundle updated: {schema_dir()} (ref={resolved})")
 
 
 if __name__ == "__main__":
