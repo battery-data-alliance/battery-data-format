@@ -12,6 +12,11 @@ if TYPE_CHECKING:
     from ._registry import get_entry, load_registry
     from ._templates import templates
     from ._validate import validate, validate_df
+    from .battinfo.generated.cell_instance_schema import BattinfoCellInstance
+    from .battinfo.generated.channel_schema import BattinfoChannelInstance
+    from .battinfo.generated.equipment_schema import BattinfoEquipmentInstance
+    from .battinfo.generated.test_protocol_schema import BattinfoTestProtocol
+    from .battinfo.generated.test_schema import BattinfoTest
     from .io import read, save, scan
     from .plugins import detect
     from .registry_ld import build_registry, search, sparql
@@ -28,6 +33,12 @@ __all__ = [
     "validate",
     "validate_df",
     "detect",
+    # BattINFO record models
+    "BattinfoTest",
+    "BattinfoCellInstance",
+    "BattinfoChannelInstance",
+    "BattinfoEquipmentInstance",
+    "BattinfoTestProtocol",
     # datasets helpers
     "datasets",
     "load_registry",
@@ -60,6 +71,11 @@ _LAZY_ATTRS: dict[str, str] = {
     "validate": "._validate",
     "validate_df": "._validate",
     "BDFValidationError": "._errors",
+    "BattinfoTest": ".battinfo.generated.test_schema",
+    "BattinfoCellInstance": ".battinfo.generated.cell_instance_schema",
+    "BattinfoChannelInstance": ".battinfo.generated.channel_schema",
+    "BattinfoEquipmentInstance": ".battinfo.generated.equipment_schema",
+    "BattinfoTestProtocol": ".battinfo.generated.test_protocol_schema",
     "detect": ".plugins",
     "load_registry": "._registry",
     "get_entry": "._registry",
