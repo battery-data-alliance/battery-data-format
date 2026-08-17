@@ -599,7 +599,13 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "net_capacity_ah": ColExpect("(Q-Qo)/mA·h", 0.001),
                 "power_watt": ColExpect("Pwe/W", 1.0),
             },
-            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+            marks=(
+                pytest.mark.filterwarnings("ignore:No current column in original MPR"),
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
@@ -619,7 +625,13 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "current_ampere": ColExpect("I/mA", 0.001),
                 "step_id": ColExpect("Ns", 1.0),
             },
-            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+            marks=(
+                pytest.mark.filterwarnings("ignore:No current column in original MPR"),
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
@@ -642,7 +654,13 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "step_id": ColExpect("Ns", 1.0),
                 "cycle_count": ColExpect("cycle number", 1.0),
             },
-            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+            marks=(
+                pytest.mark.filterwarnings("ignore:No current column in original MPR"),
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
@@ -668,6 +686,12 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "absolute_impedance_ohm": ColExpect("|Z|/Ω", 1.0),
                 "phase_degree": ColExpect("Phase(Z)/deg", 1.0),
             },
+            marks=(
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
