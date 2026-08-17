@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .battinfo.generated.test_protocol_schema import BattinfoTestProtocol
     from .battinfo.generated.test_schema import BattinfoTest
     from .io import read, save, scan
+    from .metadata import BdfReadInfo, Metadata
     from .normalization import (
         AbsoluteTimeNormalization,
         ElapsedTimeNormalization,
@@ -52,6 +53,8 @@ __all__ = [
     "BattinfoChannelInstance",
     "BattinfoEquipmentInstance",
     "BattinfoTestProtocol",
+    "BdfReadInfo",
+    "Metadata",
     # datasets helpers
     "datasets",
     "load_registry",
@@ -94,6 +97,8 @@ _LAZY_ATTRS: dict[str, str] = {
     "BattinfoChannelInstance": ".battinfo.generated.channel_schema",
     "BattinfoEquipmentInstance": ".battinfo.generated.equipment_schema",
     "BattinfoTestProtocol": ".battinfo.generated.test_protocol_schema",
+    "BdfReadInfo": ".metadata",
+    "Metadata": ".metadata",
     "detect": ".plugins",
     "load_registry": "._registry",
     "get_entry": "._registry",
