@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "EquipmentIri": {
+      "pattern": "^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "FlexDate": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/UnixTime"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "battinfo_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "type": "string"
+        },
+        "citation": {
+          "format": "uri",
+          "type": "string"
+        },
+        "citation_doi": {
+          "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/UnixTime"
+        },
+        "source_file": {
+          "type": "string"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "datasheet",
+            "manufacturer",
+            "measurement",
+            "lab",
+            "literature",
+            "manual",
+            "other"
+          ],
+          "type": "string"
+        },
+        "source_url": {
+          "oneOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "source_type"
+      ],
+      "type": "object"
+    },
+    "ShortId": {
+      "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
+      "type": "string"
+    },
+    "SpecIri": {
+      "pattern": "^https://w3id\\.org/battinfo/spec/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "UnixTime": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "$id": "https://w3id.org/battinfo/schema/equipment.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A physical piece of lab equipment (e.g. 'Cycler 1') realizing an equipment-spec. The 'instance' half of the pair.",
+  "properties": {
+    "equipment": {
+      "additionalProperties": false,
+      "properties": {
+        "comment": {
+          "type": "string"
+        },
+        "commissioned_at": {
+          "$ref": "#/$defs/FlexDate"
+        },
+        "equipment_spec_id": {
+          "$ref": "#/$defs/SpecIri"
+        },
+        "id": {
+          "$ref": "#/$defs/EquipmentIri"
+        },
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "property": {
+          "$ref": "modules/common/quantitative-properties.schema.json"
+        },
+        "serial_number": {
+          "type": "string"
+        },
+        "short_id": {
+          "$ref": "#/$defs/ShortId"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "maintenance",
+            "retired",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "equipment_spec_id"
+      ],
+      "type": "object"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "schema_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "equipment",
+    "provenance"
+  ],
+  "title": "BattINFO Equipment Instance",
+  "type": "object"
+}

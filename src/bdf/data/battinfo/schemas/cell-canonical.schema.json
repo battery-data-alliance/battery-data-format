@@ -1,0 +1,493 @@
+{
+  "$defs": {
+    "Cell": {
+      "additionalProperties": false,
+      "properties": {
+        "chemistry": {
+          "type": "string"
+        },
+        "datasheet_revision": {
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "cylindrical",
+            "prismatic",
+            "pouch",
+            "coin",
+            "other",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/SpecIri"
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "model_name": {
+          "type": "string"
+        },
+        "size_code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "model_name",
+        "manufacturer",
+        "format",
+        "chemistry"
+      ],
+      "type": "object"
+    },
+    "Measurement": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "property": {
+          "type": "string"
+        },
+        "quantity": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "quantity"
+      ],
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "battinfo_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "type": "string"
+        },
+        "citation": {
+          "format": "uri",
+          "type": "string"
+        },
+        "citation_doi": {
+          "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+          "type": "string"
+        },
+        "extracted_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "source_file": {
+          "type": "string"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "curated",
+            "datasheet"
+          ],
+          "type": "string"
+        },
+        "source_url": {
+          "oneOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "source_type",
+        "source_file"
+      ],
+      "type": "object"
+    },
+    "Quality": {
+      "additionalProperties": false,
+      "properties": {
+        "inferred_fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "missing_fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "RangeSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "min": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "raw": {
+          "$ref": "#/$defs/RawExtraction"
+        }
+      },
+      "type": "object"
+    },
+    "RawExtraction": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "page": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SpecIri": {
+      "pattern": "^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "SpecItem": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "value"
+              ]
+            },
+            {
+              "required": [
+                "min_value"
+              ]
+            },
+            {
+              "required": [
+                "max_value"
+              ]
+            },
+            {
+              "required": [
+                "typical_value"
+              ]
+            },
+            {
+              "required": [
+                "value_text"
+              ]
+            }
+          ]
+        },
+        {
+          "anyOf": [
+            {
+              "required": [
+                "unit_code"
+              ]
+            },
+            {
+              "required": [
+                "unit_text"
+              ]
+            },
+            {
+              "required": [
+                "unit"
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "max_value": {
+          "type": "number"
+        },
+        "min_value": {
+          "type": "number"
+        },
+        "raw": {
+          "$ref": "#/$defs/RawExtraction"
+        },
+        "typical_value": {
+          "type": "number"
+        },
+        "unit": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "unit_code": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "unit_text": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "value_text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SpecSet": {
+      "additionalProperties": false,
+      "properties": {
+        "ac_internal_resistance": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "calendar_life": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "capacity_fade": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "capacity_threshold_exhaustion": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "certified_usable_energy": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "charging_temperature_max": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "charging_temperature_min": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "charging_time": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "charging_voltage": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "continuous_charging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "continuous_discharging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "cycle_life": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "cycle_life_c_rate": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "dc_internal_resistance": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "diameter": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "discharging_cutoff_voltage": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "discharging_temperature_max": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "discharging_temperature_min": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "energy_density": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "height": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "impedance": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "initial_coulombic_efficiency": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "internal_resistance": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "length": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "mass": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "maximum_charging_temperature": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "maximum_continuous_charging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "maximum_continuous_discharging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "maximum_discharging_temperature": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "maximum_power": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "maximum_storage_temperature": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "min_capacity": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "minimum_capacity": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "minimum_charging_temperature": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "minimum_discharging_temperature": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "minimum_storage_temperature": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "nominal_capacity": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "nominal_continuous_charging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "nominal_continuous_discharging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "nominal_energy": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "nominal_voltage": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "power_capability": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "power_density": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "power_energy_ratio": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "pulse_charging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "pulse_discharging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "rated_capacity": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "rated_energy": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "round_trip_energy_efficiency": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "round_trip_energy_efficiency_50pct": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "self_discharge_rate": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "specific_energy": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "specific_power": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "state_of_health": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "storage_temperature_max": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "storage_temperature_min": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "thickness": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "typical_energy": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "volume": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "width": {
+          "$ref": "#/$defs/SpecItem"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://w3id.org/battinfo/schema/cell-canonical.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Harmonized cell instance schema derived from curated and datasheet sources.",
+  "properties": {
+    "cell": {
+      "$ref": "#/$defs/Cell"
+    },
+    "measurements": {
+      "items": {
+        "$ref": "#/$defs/Measurement"
+      },
+      "type": "array"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "properties": {
+      "$ref": "#/$defs/SpecSet"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "quality": {
+      "$ref": "#/$defs/Quality"
+    },
+    "schema_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "provenance",
+    "cell"
+  ],
+  "title": "BattINFO Canonical Cell Instance",
+  "type": "object"
+}

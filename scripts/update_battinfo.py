@@ -1,0 +1,277 @@
+#!/usr/bin/env python
+"""Refresh the bundled BattINFO schemas and regenerate the model package.
+
+Usage: ``python scripts/update_battinfo.py REF``
+
+``REF`` is a commit or tag of ``BIG-MAP/BattINFO``. The script fetches the
+eight managed schema files at that ref, replaces the bundled copies
+atomically, stamps ``VERSION`` with the ref, and regenerates
+``bdf.battinfo.generated``.
+
+BDF pins eight upstream schema files under ``bdf/data/battinfo/schemas/``: the
+five entity schemas (``test``, ``cell-instance``, ``channel``, ``equipment``,
+``test-protocol``), ``cell-instance``'s ``cell-canonical`` dependency, and the
+two shared ``modules/common`` files ``channel`` and ``equipment`` depend on.
+``bdf/data/battinfo/VERSION`` stamps the ref they came from.
+
+The regeneration is ``datamodel-codegen`` with no arguments: the whole render
+is declared under ``[tool.datamodel-codegen]`` in ``pyproject.toml``, and CI
+verifies the committed package with ``datamodel-codegen --check``.
+
+Nothing in ``bdf`` imports this module. The schema files ship as package data
+for a reader that wants them, and the loaders here serve the contract tests.
+"""
+
+from __future__ import annotations
+
+import importlib.resources
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+_REPO = "BIG-MAP/BattINFO"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Upstream paths (within BIG-MAP/BattINFO) for the eight managed schema files,
+# keyed by their path relative to the bundled schema directory.
+MANAGED_SCHEMA_PATHS: dict[str, str] = {
+    "test.schema.json": "assets/schemas/test.schema.json",
+    "cell-instance.schema.json": "assets/schemas/cell-instance.schema.json",
+    "cell-canonical.schema.json": "assets/schemas/cell-canonical.schema.json",
+    "channel.schema.json": "assets/schemas/channel.schema.json",
+    "equipment.schema.json": "assets/schemas/equipment.schema.json",
+    "test-protocol.schema.json": "assets/schemas/test-protocol.schema.json",
+    "modules/common/quantitative-properties.schema.json": "assets/schemas/modules/common/quantitative-properties.schema.json",
+    "modules/common/quantity.schema.json": "assets/schemas/modules/common/quantity.schema.json",
+}
+
+RAW_URL_TEMPLATE = f"https://raw.githubusercontent.com/{_REPO}/{{ref}}/{{path}}"
+"""The raw upstream URL one managed file is fetched from, by ref and path."""
+
+_REFRESH_HINT = "Run scripts/update_battinfo.py REF to refresh the bundle."
+
+
+def bundle_dir() -> Path:
+    """Return the bundled package-data directory for the BattINFO schemas.
+
+    Returns:
+        The directory holding the ``VERSION`` stamp and the ``schemas``
+        directory.
+    """
+    return Path(str(importlib.resources.files("bdf.data").joinpath("battinfo")))
+
+
+def schema_dir() -> Path:
+    """Return the directory holding the eight managed schema files.
+
+    Returns:
+        The generator's input directory, which holds schema files alone.
+    """
+    return bundle_dir() / "schemas"
+
+
+def load_managed(source: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Load the eight managed schema files the model package is rendered from.
+
+    Args:
+        source: Directory holding the schema files. Defaults to the bundled
+            :func:`schema_dir`.
+
+    Returns:
+        A mapping from each managed file's path relative to ``source`` (e.g.
+        ``"modules/common/quantity.schema.json"``) to its parsed content.
+
+    Raises:
+        RuntimeError: The directory or a managed schema file is missing or
+            unparseable.
+    """
+    if source is None:
+        source = schema_dir()
+    try:
+        return {
+            rel_name: json.loads((source / rel_name).read_text(encoding="utf-8")) for rel_name in MANAGED_SCHEMA_PATHS
+        }
+    except Exception as exc:
+        raise RuntimeError(
+            f"Bundled BattINFO schemas at {source} missing or unreadable: {exc}. {_REFRESH_HINT}"
+        ) from exc
+
+
+def load_schema(name: str, source: Path | None = None) -> dict[str, Any]:
+    """Load one managed schema file by its bundle-relative name.
+
+    Args:
+        name: A key of :data:`MANAGED_SCHEMA_PATHS`, e.g. ``"test.schema.json"``.
+        source: Directory holding the schema files. Defaults to the bundled
+            :func:`schema_dir`.
+
+    Returns:
+        The parsed schema document.
+
+    Raises:
+        KeyError: ``name`` is not a managed schema file.
+        RuntimeError: The file is missing or unparseable.
+    """
+    if name not in MANAGED_SCHEMA_PATHS:
+        raise KeyError(f"{name!r} is not a managed BattINFO schema file")
+    if source is None:
+        source = schema_dir()
+    try:
+        return json.loads((source / name).read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Bundled BattINFO schema {source / name} missing or unreadable: {exc}. {_REFRESH_HINT}"
+        ) from exc
+
+
+def load_version(source: Path | None = None) -> dict[str, str]:
+    """Parse the ``key=value`` per line ``VERSION`` stamp beside the schemas.
+
+    Args:
+        source: Directory holding the ``VERSION`` file. Defaults to the
+            bundled :func:`bundle_dir`.
+
+    Returns:
+        A mapping of stamp keys (``repo``, ``ref``) to their values.
+
+    Raises:
+        RuntimeError: The stamp is missing or unreadable.
+    """
+    if source is None:
+        source = bundle_dir()
+    try:
+        lines = (source / "VERSION").read_text(encoding="utf-8").splitlines()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Bundled BattINFO VERSION stamp at {source} missing or unreadable: {exc}. {_REFRESH_HINT}"
+        ) from exc
+    return dict(line.split("=", 1) for line in lines if "=" in line)
+
+
+def fetch_schemas(ref: str) -> dict[str, bytes]:
+    """Fetch the eight managed schema files at ``ref``.
+
+    Args:
+        ref: Upstream ``BIG-MAP/BattINFO`` commit or tag to pin.
+
+    Returns:
+        A mapping from each file's bundle-relative path to its raw bytes.
+
+    Raises:
+        requests.HTTPError: A schema fetch failed.
+        RuntimeError: Fetched content is not valid JSON.
+    """
+    import requests
+
+    fetched: dict[str, bytes] = {}
+    for rel_name, upstream_path in MANAGED_SCHEMA_PATHS.items():
+        url = RAW_URL_TEMPLATE.format(ref=ref, path=upstream_path)
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        content = response.content
+        try:
+            json.loads(content)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Fetched content for {rel_name} from {url} is not valid JSON: {exc}") from exc
+        fetched[rel_name] = content
+    return fetched
+
+
+def _atomic_write(dest_dir: Path, rel_name: str, content: bytes) -> None:
+    """Write ``content`` to ``dest_dir / rel_name``, replacing it atomically.
+
+    Args:
+        dest_dir: Directory to write into.
+        rel_name: File name, possibly nested (e.g. ``modules/common/x.json``),
+            relative to ``dest_dir``. Parent directories are created as needed.
+        content: Raw bytes to write.
+    """
+    dest = dest_dir / rel_name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False, suffix=".tmp") as tmp:
+        tmp_path = Path(tmp.name)
+        tmp.write(content)
+    tmp_path.replace(dest)
+
+
+def write_bundle(fetched: dict[str, bytes], ref: str, dest: Path | None = None) -> Path:
+    """Replace the bundled schema files and stamp ``VERSION`` with ``ref``.
+
+    Args:
+        fetched: The mapping :func:`fetch_schemas` returned.
+        ref: The upstream ref the files came from.
+        dest: Bundle directory to write into. Defaults to the bundled
+            package-data directory.
+
+    Returns:
+        The bundle directory written to.
+    """
+    if dest is None:
+        dest = bundle_dir()
+    schemas = dest / "schemas"
+    schemas.mkdir(parents=True, exist_ok=True)
+    for rel_name, content in fetched.items():
+        _atomic_write(schemas, rel_name, content)
+    _atomic_write(dest, "VERSION", f"repo=BIG-MAP/BattINFO\nref={ref}\n".encode())
+    return dest
+
+
+def regenerate() -> None:
+    """Regenerate ``bdf.battinfo.generated`` from the bundled schema files.
+
+    Runs in the repository root, because the generator reads
+    ``[tool.datamodel-codegen]`` from the working directory and that section
+    states the input and output paths relative to it.
+
+    Raises:
+        subprocess.CalledProcessError: The generator exited non-zero.
+    """
+    subprocess.run(
+        [sys.executable, "-m", "datamodel_code_generator"],
+        cwd=_REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def update(ref: str, dest: Path | None = None) -> Path:
+    """Fetch, stamp, and regenerate in one run.
+
+    Args:
+        ref: Upstream ``BIG-MAP/BattINFO`` commit or tag to pin.
+        dest: Bundle directory to write into. Defaults to the bundled
+            package-data directory. The regeneration always reads the
+            directory the generator configuration names, whatever ``dest``
+            states.
+
+    Returns:
+        The bundle directory written to.
+    """
+    written = write_bundle(fetch_schemas(ref), ref, dest)
+    regenerate()
+    return written
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Entry point: refresh the bundle at the ref the caller names.
+
+    Args:
+        argv: Command-line arguments. Defaults to ``sys.argv[1:]``.
+
+    Raises:
+        SystemExit: No ref was given.
+    """
+    args = sys.argv[1:] if argv is None else argv
+    if not args:
+        raise SystemExit("Usage: python scripts/update_battinfo.py REF")
+    ref = args[0]
+    update(ref)
+    print(f"BattINFO schema bundle updated: {schema_dir()} (ref={ref})")
+
+
+if __name__ == "__main__":
+    main()

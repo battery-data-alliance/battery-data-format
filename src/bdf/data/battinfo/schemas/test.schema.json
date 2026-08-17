@@ -1,0 +1,501 @@
+{
+  "$defs": {
+    "Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "conforms_to": {
+          "type": "string"
+        },
+        "format": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "generated": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "generated_from": {
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "source_protocol",
+            "executed_protocol",
+            "vendor_export",
+            "simulation_input",
+            "other"
+          ],
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "format",
+        "locator"
+      ],
+      "type": "object"
+    },
+    "CellIri": {
+      "pattern": "^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "ChannelIri": {
+      "pattern": "^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "DatasetIri": {
+      "pattern": "^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "EquipmentIri": {
+      "pattern": "^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "Funding": {
+      "additionalProperties": false,
+      "description": "Funding project (grant) under which the record was produced. Maps to schema:funding / schema:Grant in JSON-LD.",
+      "properties": {
+        "acronym": {
+          "type": "string"
+        },
+        "funder": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "same_as": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": {
+              "const": "Organization"
+            },
+            "url": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "format": "uri",
+          "type": "string"
+        },
+        "identifier": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "program": {
+          "type": "string"
+        },
+        "type": {
+          "const": "Grant"
+        }
+      },
+      "required": [
+        "identifier"
+      ],
+      "type": "object"
+    },
+    "Organization": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Organization"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "properties": {
+        "affiliation": {
+          "$ref": "#/$defs/Organization"
+        },
+        "email": {
+          "format": "email",
+          "type": "string"
+        },
+        "family_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "given_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Person"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ShortId": {
+      "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
+      "type": "string"
+    },
+    "SpecIri": {
+      "pattern": "^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "TestIri": {
+      "pattern": "^https://w3id\\.org/battinfo/test/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "UnixTime": {
+      "description": "Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "$id": "https://w3id.org/battinfo/schema/test.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Canonical BattINFO test metadata linking a physical cell instance to a concrete test activity and its datasets.",
+  "properties": {
+    "artifacts": {
+      "description": "Actionable-layer links to runnable protocol/vendor files produced by or executed in this test.",
+      "items": {
+        "$ref": "#/$defs/Artifact"
+      },
+      "type": "array"
+    },
+    "contributor": {
+      "description": "People who contributed this record to the platform (attribution/provenance). Each is a schema:Person; an ORCID may be given in same_as. Distinct from data authorship (creators).",
+      "items": {
+        "$ref": "#/$defs/Person"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "funding": {
+      "$ref": "#/$defs/Funding"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "battinfo_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "type": "string"
+        },
+        "citation": {
+          "format": "uri",
+          "type": "string"
+        },
+        "citation_doi": {
+          "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "curated_by": {
+          "type": "string"
+        },
+        "file_hash": {
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/UnixTime"
+        },
+        "source_file": {
+          "type": "string"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "measurement",
+            "lab",
+            "simulation",
+            "manual",
+            "other"
+          ],
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workflow_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_type",
+        "retrieved_at"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    },
+    "test": {
+      "additionalProperties": false,
+      "properties": {
+        "cell_id": {
+          "$ref": "#/$defs/CellIri"
+        },
+        "channel_id": {
+          "$ref": "#/$defs/ChannelIri"
+        },
+        "conditions": {
+          "additionalProperties": false,
+          "description": "Test conditions and parameters (temperature, voltage window, C-rate, frequency range, etc.).",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {}
+          },
+          "type": "object"
+        },
+        "conformance": {
+          "additionalProperties": false,
+          "description": "Assessment of how well this record followed the spec that governs it.",
+          "properties": {
+            "deviations": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "category": {
+                    "description": "Broad classification of the deviation.",
+                    "enum": [
+                      "power_outage",
+                      "equipment_failure",
+                      "temperature_excursion",
+                      "software_error",
+                      "operator_intervention",
+                      "premature_termination",
+                      "communication_loss",
+                      "parameter_drift",
+                      "setpoint_deviation",
+                      "calibration_issue",
+                      "out_of_tolerance",
+                      "dimensional",
+                      "other"
+                    ],
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "duration_s": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "impact": {
+                    "enum": [
+                      "minor",
+                      "moderate",
+                      "major"
+                    ],
+                    "type": "string"
+                  },
+                  "occurred_at": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "step_index": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "type": {
+                    "description": "Specific deviation label within the category (free text).",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "category"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "note": {
+              "description": "Free-text summary of the assessment.",
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "conformant",
+                "non-conformant",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "type": "object"
+        },
+        "dataset_ids": {
+          "items": {
+            "$ref": "#/$defs/DatasetIri"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "description": {
+          "type": "string"
+        },
+        "ended_at": {
+          "$ref": "#/$defs/UnixTime"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/EquipmentIri"
+        },
+        "id": {
+          "$ref": "#/$defs/TestIri"
+        },
+        "identifier": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "instrument_name": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "cycling",
+            "capacity_check",
+            "rate_capability",
+            "quasi_ocv",
+            "hppc",
+            "ici",
+            "gitt",
+            "dcir",
+            "eis",
+            "impedance",
+            "calendar_ageing",
+            "formation",
+            "rpt",
+            "field",
+            "duty_cycle",
+            "wltp",
+            "nedc",
+            "sem",
+            "characterization",
+            "other"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "protocol_id": {
+          "$ref": "#/$defs/SpecIri"
+        },
+        "protocol_name": {
+          "type": "string"
+        },
+        "protocol_url": {
+          "format": "uri",
+          "type": "string"
+        },
+        "short_id": {
+          "$ref": "#/$defs/ShortId"
+        },
+        "started_at": {
+          "$ref": "#/$defs/UnixTime"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "running",
+            "completed",
+            "aborted",
+            "other"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "cell_id",
+        "name",
+        "kind"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "test",
+    "provenance"
+  ],
+  "title": "BattINFO Test",
+  "type": "object"
+}

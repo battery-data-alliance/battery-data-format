@@ -1,0 +1,141 @@
+{
+  "$defs": {
+    "ChannelIri": {
+      "pattern": "^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "EquipmentIri": {
+      "pattern": "^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "battinfo_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "type": "string"
+        },
+        "citation": {
+          "format": "uri",
+          "type": "string"
+        },
+        "citation_doi": {
+          "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/UnixTime"
+        },
+        "source_file": {
+          "type": "string"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "datasheet",
+            "manufacturer",
+            "measurement",
+            "lab",
+            "literature",
+            "manual",
+            "other"
+          ],
+          "type": "string"
+        },
+        "source_url": {
+          "oneOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "source_type"
+      ],
+      "type": "object"
+    },
+    "ShortId": {
+      "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
+      "type": "string"
+    },
+    "UnixTime": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "$id": "https://w3id.org/battinfo/schema/channel.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One channel of one physical equipment unit. Instance-only (no channel-spec kind): flat IRIs under channel/, parent link equipment_id in the record body, uid minted deterministically from (equipment uid, index).",
+  "properties": {
+    "channel": {
+      "additionalProperties": false,
+      "properties": {
+        "comment": {
+          "type": "string"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/EquipmentIri"
+        },
+        "id": {
+          "$ref": "#/$defs/ChannelIri"
+        },
+        "index": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "label": {
+          "type": "string"
+        },
+        "property": {
+          "$ref": "modules/common/quantitative-properties.schema.json"
+        },
+        "short_id": {
+          "$ref": "#/$defs/ShortId"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "maintenance",
+            "retired",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "equipment_id",
+        "index"
+      ],
+      "type": "object"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "schema_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "channel",
+    "provenance"
+  ],
+  "title": "BattINFO Channel Instance",
+  "type": "object"
+}

@@ -1,0 +1,588 @@
+{
+  "$defs": {
+    "Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "conforms_to": {
+          "type": "string"
+        },
+        "format": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "generated": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "generated_from": {
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "source_protocol",
+            "executed_protocol",
+            "vendor_export",
+            "simulation_input",
+            "other"
+          ],
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "format",
+        "locator"
+      ],
+      "type": "object"
+    },
+    "Funding": {
+      "additionalProperties": false,
+      "description": "Funding project (grant) under which the record was produced. Maps to schema:funding / schema:Grant in JSON-LD.",
+      "properties": {
+        "acronym": {
+          "type": "string"
+        },
+        "funder": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "same_as": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": {
+              "const": "Organization"
+            },
+            "url": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "format": "uri",
+          "type": "string"
+        },
+        "identifier": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "program": {
+          "type": "string"
+        },
+        "type": {
+          "const": "Grant"
+        }
+      },
+      "required": [
+        "identifier"
+      ],
+      "type": "object"
+    },
+    "Organization": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Organization"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "properties": {
+        "affiliation": {
+          "$ref": "#/$defs/Organization"
+        },
+        "email": {
+          "format": "email",
+          "type": "string"
+        },
+        "family_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "given_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Person"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "Quantity": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "required": [
+            "min_value"
+          ]
+        },
+        {
+          "required": [
+            "max_value"
+          ]
+        }
+      ],
+      "properties": {
+        "max_value": {
+          "description": "Upper bound of a window quantity; field names align with modules/common/quantity.schema.json.",
+          "type": "number"
+        },
+        "min_value": {
+          "description": "Lower bound of a window quantity (e.g. a 2.5-4.2 V voltage window); field names align with modules/common/quantity.schema.json.",
+          "type": "number"
+        },
+        "unit": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "unit"
+      ],
+      "type": "object"
+    },
+    "ShortId": {
+      "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
+      "type": "string"
+    },
+    "SpecIri": {
+      "pattern": "^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "Step": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "description": {
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "charge",
+            "discharge",
+            "hold",
+            "rest",
+            "none"
+          ],
+          "type": "string"
+        },
+        "duration": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "mode": {
+          "enum": [
+            "cc",
+            "cv",
+            "cccv",
+            "cp",
+            "cr",
+            "rest",
+            "eis",
+            "scan",
+            "group"
+          ],
+          "type": "string"
+        },
+        "period": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "setpoints": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Quantity"
+          },
+          "type": "object"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "type": "array"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "temperature": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "termination": {
+          "items": {
+            "$ref": "#/$defs/Termination"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "Termination": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "enum": [
+            "below",
+            "above",
+            "elapsed"
+          ],
+          "type": "string"
+        },
+        "quantity": {
+          "enum": [
+            "voltage",
+            "current",
+            "c_rate",
+            "capacity",
+            "duration"
+          ],
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "quantity",
+        "value",
+        "unit"
+      ],
+      "type": "object"
+    },
+    "UnixTime": {
+      "description": "Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "$id": "https://w3id.org/battinfo/schema/test-protocol.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Canonical BattINFO reusable test protocol metadata. The descriptive layer is an ordered, typed `method` of steps (queryable, not executed); the actionable layer is `artifacts`, links to runnable protocol files. Humans author the method as PyBaMM-style strings which are parsed into `method` on ingest.",
+  "properties": {
+    "artifacts": {
+      "description": "Actionable-layer links to runnable protocol files.",
+      "items": {
+        "$ref": "#/$defs/Artifact"
+      },
+      "type": "array"
+    },
+    "conditions": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Quantity"
+      },
+      "description": "Protocol-level ambient conditions, each a typed quantity (e.g. temperature).",
+      "type": "object"
+    },
+    "contributor": {
+      "description": "People who contributed this record to the platform (attribution/provenance). Each is a schema:Person; an ORCID may be given in same_as. Distinct from data authorship (creators).",
+      "items": {
+        "$ref": "#/$defs/Person"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "facets": {
+      "additionalProperties": true,
+      "description": "Derived rollup index of the method for cheap filtering. Computed from `method`; never authored by hand.",
+      "type": "object"
+    },
+    "funding": {
+      "$ref": "#/$defs/Funding"
+    },
+    "method": {
+      "description": "Ordered, typed descriptive steps. Canonical structured form of the procedure.",
+      "items": {
+        "$ref": "#/$defs/Step"
+      },
+      "type": "array"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "battinfo_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "type": "string"
+        },
+        "citation": {
+          "format": "uri",
+          "type": "string"
+        },
+        "citation_doi": {
+          "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "curated_by": {
+          "type": "string"
+        },
+        "derived_from_artifact": {
+          "description": "Role or locator of the artifact this method was derived from.",
+          "type": "string"
+        },
+        "file_hash": {
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/UnixTime"
+        },
+        "source_file": {
+          "type": "string"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "manual",
+            "lab",
+            "simulation",
+            "import",
+            "other"
+          ],
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workflow_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_type",
+        "retrieved_at"
+      ],
+      "type": "object"
+    },
+    "record": {
+      "additionalProperties": false,
+      "description": "Protocol-level default data-recording cadence (PyBaMM `period` / aurora `record`).",
+      "properties": {
+        "current_mA": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "time_s": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "voltage_V": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "safety": {
+      "additionalProperties": false,
+      "description": "Global instrument hard limits, distinct from per-step termination.",
+      "properties": {
+        "delay_s": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_capacity_mAh": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_current_mA": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_voltage_V": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min_current_mA": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min_voltage_V": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "schema_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    },
+    "test_spec": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/SpecIri"
+        },
+        "identifier": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "cycling",
+            "capacity_check",
+            "rate_capability",
+            "hppc",
+            "ici",
+            "gitt",
+            "dcir",
+            "eis",
+            "impedance",
+            "calendar_ageing",
+            "formation",
+            "rpt",
+            "quasi_ocv",
+            "field",
+            "duty_cycle",
+            "wltp",
+            "nedc",
+            "sem",
+            "characterization",
+            "other"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "protocol_url": {
+          "format": "uri",
+          "type": "string"
+        },
+        "short_id": {
+          "$ref": "#/$defs/ShortId"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "test_spec",
+    "provenance"
+  ],
+  "title": "BattINFO Test Protocol",
+  "type": "object"
+}
