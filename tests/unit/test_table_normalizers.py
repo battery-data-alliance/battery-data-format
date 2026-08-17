@@ -890,6 +890,16 @@ class TestNormalizeFn:
             out = normalize(lf, normalizer=norm, validate=False)
         assert isinstance(out, pl.LazyFrame)
 
+    def test_day_month_order_reorders_an_ambiguous_numeric_date(self):
+        """day_month_order="day_first" reads an ambiguous numeric date day-first."""
+        norm = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",))),)
+        )
+        df = pl.DataFrame({"ts": ["02/03/2024 12:00:00"]})
+        out = normalize(df, normalizer=norm, validate=False, day_month_order="day_first")  # type: ignore[call-arg]
+        expected = datetime(2024, 3, 2, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        assert out["Unix Time / s"][0] == pytest.approx(expected)
+
 
 class TestTableNormalizerFieldSync:
     def test_fields_match_non_deprecated_ontology(self):
@@ -1135,6 +1145,16 @@ class TestTimezoneHandling:
             out_utc = n.normalize(df, validate=False, tz="UTC")
             out_tokyo = n.normalize(df, validate=False, tz="Asia/Tokyo")
         assert out_utc["Test Time / s"].to_list() == pytest.approx(out_tokyo["Test Time / s"].to_list())
+
+    def test_day_month_order_reorders_an_ambiguous_numeric_date(self):
+        """day_month_order="day_first" reads an ambiguous numeric date day-first."""
+        n = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",))),)
+        )
+        df = pl.DataFrame({"ts": ["02/03/2024 12:00:00"]})
+        out = n.normalize(df, validate=False, day_month_order="day_first")  # type: ignore[call-arg]
+        expected = datetime(2024, 3, 2, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        assert out["Unix Time / s"][0] == pytest.approx(expected)
 
 
 class TestExtend:

@@ -25,6 +25,7 @@ import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .file_utils import read_head, resolve_source
+from .normalization import DayMonthOrder
 from .table_normalizers import TableNormalizer
 
 # ---------------------------------------------------------------------------
@@ -166,6 +167,7 @@ class TableParser(BaseModel):
         include_unknown: bool = False,
         lazy: bool = True,
         tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
     ) -> pl.LazyFrame | pl.DataFrame:
         """Read ``path`` (local or URL) and return the normalized or raw frame.
 
@@ -183,6 +185,9 @@ class TableParser(BaseModel):
             lazy: Return a LazyFrame when True (default); collect to a DataFrame when False.
             tz: IANA timezone applied to naive ``unix_time_second`` datetime formats.
                 Defaults to ``"UTC"``; see ``TableNormalizer.normalize``.
+            day_month_order: Field order applied to an ambiguous numeric date in a
+                datetime column's declared formats. ``None`` (default) leaves every
+                declared format unchanged.
 
         Returns:
             Normalized or raw polars LazyFrame (``lazy=True``) or DataFrame (``lazy=False``).
@@ -197,6 +202,7 @@ class TableParser(BaseModel):
             include_unknown=include_unknown,
             validate=validate,
             tz=tz,
+            day_month_order=day_month_order,
         )
         assert isinstance(result, pl.LazyFrame)
         return result if lazy else result.collect()

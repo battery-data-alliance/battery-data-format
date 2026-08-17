@@ -14,11 +14,14 @@ from bdf._time_scale import detect_scale_mismatch
 from bdf.file_utils import open_compressed, strip_compression_suffix
 from bdf.metadata import Metadata
 from bdf.metadata_parsers import BdfSidecarParser
+from bdf.normalization import DayMonthOrder
 from bdf.plugins import PLUGINS, Plugin, detect
 from bdf.spec import COLUMN_ONTOLOGY
 
 
-def _assemble_metadata(path: str | Path, resolved_plugin: Plugin, *, tz: str) -> Metadata:
+def _assemble_metadata(
+    path: str | Path, resolved_plugin: Plugin, *, tz: str, day_month_order: DayMonthOrder | None = None
+) -> Metadata:
     """Take this read's metadata from exactly one source, never combined.
 
     Args:
@@ -26,6 +29,7 @@ def _assemble_metadata(path: str | Path, resolved_plugin: Plugin, *, tz: str) ->
         resolved_plugin: The plugin whose ``metadata_parser`` runs when no
             reserved sidecar sits beside ``path``.
         tz: IANA timezone forwarded to the plugin's metadata parser.
+        day_month_order: Field order forwarded to the plugin's metadata parser.
 
     Returns:
         The reserved sidecar's ``Metadata`` where ``<stem>.metadata.json``
@@ -45,7 +49,7 @@ def _assemble_metadata(path: str | Path, resolved_plugin: Plugin, *, tz: str) ->
             )
             return Metadata()
 
-    return resolved_plugin.metadata_parser.parse(path, tz=tz)
+    return resolved_plugin.metadata_parser.parse(path, tz=tz, day_month_order=day_month_order)
 
 
 def _read(
@@ -57,6 +61,7 @@ def _read(
     include_unknown: bool = False,
     lazy: bool = True,
     tz: str = "UTC",
+    day_month_order: DayMonthOrder | None = None,
     reconcile_time: bool = False,
 ) -> tuple[pl.DataFrame | pl.LazyFrame, Metadata]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
@@ -85,9 +90,10 @@ def _read(
         include_unknown=include_unknown,
         lazy=lazy,
         tz=tz,
+        day_month_order=day_month_order,
     )
 
-    metadata = _assemble_metadata(path, resolved_plugin, tz=tz)
+    metadata = _assemble_metadata(path, resolved_plugin, tz=tz, day_month_order=day_month_order)
 
     if normalize:
         bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
@@ -216,6 +222,7 @@ def read(
     validate: bool = True,
     include_unknown: bool = False,
     tz: str = "UTC",
+    day_month_order: DayMonthOrder | None = None,
     reconcile_time: bool = False,
 ) -> tuple[pl.DataFrame, Metadata]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
@@ -232,6 +239,10 @@ def read(
         include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
+        day_month_order: Field order applied to an ambiguous numeric date the table
+            column and the staged metadata each declare. ``"day_first"`` reads it day
+            then month, ``"month_first"`` reads it month then day; ``None`` (default)
+            leaves every declared format unchanged.
         reconcile_time: Elapsed-time columns are cross-checked against wall-clock
             increments when both are present (e.g. a vendor export storing milliseconds
             under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
@@ -256,6 +267,7 @@ def read(
         include_unknown=include_unknown,
         lazy=False,
         tz=tz,
+        day_month_order=day_month_order,
         reconcile_time=reconcile_time,
     )
     return cast(pl.DataFrame, bdf_df), metadata
@@ -269,6 +281,7 @@ def scan(
     validate: bool = True,
     include_unknown: bool = False,
     tz: str = "UTC",
+    day_month_order: DayMonthOrder | None = None,
     reconcile_time: bool = False,
 ) -> tuple[pl.LazyFrame, Metadata]:
     """Scan ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
@@ -290,6 +303,12 @@ def scan(
         include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
+        day_month_order: Field order applied to an ambiguous numeric date the table
+            column and the staged metadata each declare. ``"day_first"`` reads it day
+            then month, ``"month_first"`` reads it month then day; ``None`` (default)
+            leaves every declared format unchanged. Fixed when the expression is
+            built: no row is read to choose it, and the choice is never deferred to
+            ``collect()``.
         reconcile_time: Elapsed-time columns are cross-checked against wall-clock
             increments when both are present (e.g. a vendor export storing milliseconds
             under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
@@ -314,6 +333,7 @@ def scan(
         include_unknown=include_unknown,
         lazy=True,
         tz=tz,
+        day_month_order=day_month_order,
         reconcile_time=reconcile_time,
     )
     return cast(pl.LazyFrame, bdf_df), metadata

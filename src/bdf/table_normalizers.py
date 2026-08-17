@@ -29,6 +29,7 @@ from bdf.normalization import (
     _MACCOR_DT_FMTS,
     _NEWARE_DT_FMTS,
     AbsoluteTimeNormalization,
+    DayMonthOrder,
     ElapsedTimeNormalization,
     IdentityNormalization,
     LinearNormalization,
@@ -216,7 +217,7 @@ class ResolvedColumn(BaseModel):
                 return cls(source_header=header, normalization=normalization, legacy=syn.legacy)
         return None
 
-    def get_expr(self, mr_name: str, tz: str = "UTC") -> pl.Expr:
+    def get_expr(self, mr_name: str, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Build polars expression for column transformation with normalization and dtype casting.
 
         Args:
@@ -227,6 +228,8 @@ class ResolvedColumn(BaseModel):
                 either ``00:30 UTC`` or ``01:30 UTC``; this parser uses ``00:30 UTC`` for
                 the resulting ``Unix Time / s`` value. If clocks move forward and skip
                 ``01:30``, that row becomes null.
+            day_month_order: Field order applied by the normalization to an
+                ambiguous numeric date where it reads it.
 
         Returns:
             Polars expression that applies the normalization and dtype conversion.
@@ -234,7 +237,7 @@ class ResolvedColumn(BaseModel):
         src = self.source_header
         label = getattr(COLUMN_ONTOLOGY, mr_name).formatted_label
         dtype = getattr(COLUMN_ONTOLOGY, mr_name).dtype
-        expr = self.normalization.expr(pl.col(src), tz=tz)
+        expr = self.normalization.expr(pl.col(src), tz=tz, day_month_order=day_month_order)
         if dtype == "str":
             expr = expr.cast(pl.Utf8, strict=False)
         elif dtype == "int":
@@ -471,6 +474,7 @@ class TableNormalizer(BaseModel):
         validate: bool = True,
         include_unknown: bool = False,
         tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
     ) -> pl.LazyFrame:
         """Resolve headers → BDF columns, apply unit conversion, return df_out.
 
@@ -491,6 +495,9 @@ class TableNormalizer(BaseModel):
                 earlier possible ``Unix Time / s`` value. For example, if clocks move back
                 from UTC+1 to UTC+0, ``01:30`` is treated as ``00:30 UTC`` rather than
                 ``01:30 UTC``. Local times skipped when clocks move forward become null.
+            day_month_order: Field order applied to an ambiguous numeric date in a
+                datetime column's declared formats. ``None`` (default) leaves every
+                declared format unchanged.
 
         Returns:
             Normalized dataframe in the same format as input.
@@ -540,7 +547,7 @@ class TableNormalizer(BaseModel):
                     resolved_column.source_header,
                 )
                 continue
-            exprs.append(resolved_column.get_expr(mr_name, tz))
+            exprs.append(resolved_column.get_expr(mr_name, tz, day_month_order))
 
         if include_unknown:
             claimed_headers = {rc.source_header for rc in resolved.values()}
@@ -1173,6 +1180,7 @@ def normalize(
     validate: bool = True,
     include_unknown: bool = False,
     tz: str = "UTC",
+    day_month_order: DayMonthOrder | None = None,
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
     """Map vendor columns to BDF canonical names with unit conversion and dtype casting.
 
@@ -1194,6 +1202,9 @@ def normalize(
             example, if clocks move back from UTC+1 to UTC+0, ``01:30`` is treated as
             ``00:30 UTC`` rather than ``01:30 UTC``. Local times skipped when clocks move
             forward become null.
+        day_month_order: Field order applied to an ambiguous numeric date in a
+            datetime column's declared formats. ``None`` (default) leaves every
+            declared format unchanged.
 
     Returns:
         Normalized dataframe in the same format as input.
@@ -1225,4 +1236,5 @@ def normalize(
         validate=validate,
         include_unknown=include_unknown,
         tz=tz,
+        day_month_order=day_month_order,
     )

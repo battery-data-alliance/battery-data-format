@@ -28,7 +28,7 @@ from bdf.io import read, scan
 from bdf.metadata_parsers import RegexRule, TxtPreambleParser
 from bdf.normalization import AbsoluteTimeNormalization
 from bdf.plugins import Plugin
-from bdf.table_normalizers import TableNormalizer
+from bdf.table_normalizers import Syn, TableNormalizer
 from bdf.table_parsers import DelimTxtParser
 
 # An epoch with no significance beyond being a value; the round-trip check
@@ -381,6 +381,7 @@ def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         include_unknown=True,
         lazy=False,
         tz="America/New_York",
+        day_month_order=None,
     )
 
 
@@ -402,6 +403,7 @@ def test_scan_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         include_unknown=False,
         lazy=True,
         tz="America/New_York",
+        day_month_order=None,
     )
 
 
@@ -410,7 +412,7 @@ def test_read_sets_bdf_source_on_the_parsed_metadata(read_mocks: SimpleNamespace
     read_mocks.meta_parse.return_value = Metadata()
     p = tmp_path / "f.csv"
     _, meta = read(p, plugin=read_mocks.plugin)
-    read_mocks.meta_parse.assert_called_once_with(p, tz="UTC")
+    read_mocks.meta_parse.assert_called_once_with(p, tz="UTC", day_month_order=None)
     assert meta.bdf.source == "custom"  # type: ignore[attr-defined]
 
 
@@ -909,3 +911,113 @@ def test_unrecognised_sidecar_key_fails_the_read(tmp_path: Path) -> None:
     sidecar.write_text(json.dumps({"battinfo_test": {"test": {"started_at": "not-an-int"}}}))
     with pytest.raises(ValidationError):
         io.read(p)
+
+
+# ---------------------------------------------------------------------------
+# day_month_order override
+# ---------------------------------------------------------------------------
+
+
+def _ambiguous_date_plugin() -> tuple[str, Plugin]:
+    """Build a CSV preamble and table that each state an ambiguous numeric date, and the plugin reading them.
+
+    ``skip_rows`` and ``decimal_comma`` are stated explicitly: the one-line
+    preamble is too short for structure auto-detection to find on its own,
+    and a stated ``decimal_comma`` skips the sniff that would otherwise
+    collect the frame to decide it.
+
+    Returns:
+        The CSV text (a one-line preamble plus a header and one data row),
+        and a ``Plugin`` whose metadata parser stages ``started_at`` from
+        the preamble's ``~Start Time:`` line, and whose table normalizer
+        stages ``Unix Time / s`` from the ``ts`` column, both under the
+        same month-first format.
+    """
+    from bdf.metadata_targets import METADATA
+
+    header = "~Start Time: 02/03/2024 08:00:00\nTest Time / s,Voltage / V,Current / A,ts\n"
+    row = "0,3.7,0.1,02/03/2024 12:00:00\n"
+    rule = RegexRule(
+        pattern=re.compile(r"~Start Time:\s*(.+)"),
+        normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",)),
+    )
+    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    normalizer = TableNormalizer(
+        unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",))),)
+    )
+    table_parser = DelimTxtParser(normalizer=normalizer, skip_rows=1, decimal_comma=False)
+    plugin = Plugin(table_parser=table_parser, metadata_parser=metadata_parser)
+    return header + row, plugin
+
+
+def test_one_override_covers_both_paths(tmp_path: Path) -> None:
+    """day_month_order overrides both the table column and the preamble field from one read() call."""
+    text, plugin = _ambiguous_date_plugin()
+    p = tmp_path / "data.csv"
+    p.write_text(text)
+
+    table, meta = read(p, plugin=plugin, validate=False, day_month_order="day_first")  # type: ignore[call-arg]
+    expected_table = datetime(2024, 3, 2, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+    expected_meta = datetime(2024, 3, 2, 8, 0, 0, tzinfo=timezone.utc).timestamp()
+    assert table["Unix Time / s"][0] == pytest.approx(expected_table, abs=1e-6)
+    assert meta.battinfo_test.test.started_at == pytest.approx(expected_meta, abs=1e-6)  # type: ignore[union-attr]
+
+    table_declared, meta_declared = read(p, plugin=plugin, validate=False)
+    expected_table_declared = datetime(2024, 2, 3, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+    expected_meta_declared = datetime(2024, 2, 3, 8, 0, 0, tzinfo=timezone.utc).timestamp()
+    assert table_declared["Unix Time / s"][0] == pytest.approx(expected_table_declared, abs=1e-6)
+    assert meta_declared.battinfo_test.test.started_at == pytest.approx(  # type: ignore[union-attr]
+        expected_meta_declared, abs=1e-6
+    )
+
+
+def test_choosing_an_order_reads_no_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """scan(day_month_order=...) reads a table-column-only ambiguous date with no collection."""
+    normalizer = TableNormalizer(
+        unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",))),)
+    )
+    plugin = Plugin(table_parser=DelimTxtParser(normalizer=normalizer, decimal_comma=False))
+    p = tmp_path / "data.csv"
+    p.write_text("Test Time / s,Voltage / V,Current / A,ts\n0,3.7,0.1,02/03/2024 12:00:00\n")
+
+    collected: list[bool] = []
+    original_collect = pl.LazyFrame.collect
+
+    def tracking_collect(self, *args, **kwargs):
+        collected.append(True)
+        return original_collect(self, *args, **kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr(pl.LazyFrame, "collect", tracking_collect)
+        lazy, _ = scan(p, plugin=plugin, validate=False, day_month_order="day_first")  # type: ignore[call-arg]
+
+    assert isinstance(lazy, pl.LazyFrame)
+    assert collected == []
+
+    eager, _ = read(p, plugin=plugin, validate=False, day_month_order="day_first")  # type: ignore[call-arg]
+    assert_frame_equal(lazy.collect(), eager)
+
+
+def test_no_override_changes_nothing_on_read(tmp_path: Path) -> None:
+    """read(day_month_order=None) matches omitting the argument: same frame, same staged metadata."""
+    text, plugin = _ambiguous_date_plugin()
+    p = tmp_path / "data.csv"
+    p.write_text(text)
+
+    table_none, meta_none = read(p, plugin=plugin, validate=False, day_month_order=None)  # type: ignore[call-arg]
+    table_omitted, meta_omitted = read(p, plugin=plugin, validate=False)
+    assert_frame_equal(table_none, table_omitted)
+    assert meta_none.battinfo_test.test.started_at == meta_omitted.battinfo_test.test.started_at  # type: ignore[union-attr]
+
+
+def test_table_parser_read_accepts_day_month_order(tmp_path: Path) -> None:
+    """TableParser.read(day_month_order=...) reorders an ambiguous numeric date on request."""
+    normalizer = TableNormalizer(
+        unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",))),)
+    )
+    parser = DelimTxtParser(normalizer=normalizer)
+    p = tmp_path / "data.csv"
+    p.write_text("Test Time / s,Voltage / V,Current / A,ts\n0,3.7,0.1,02/03/2024 12:00:00\n")
+    out = parser.read(p, validate=False, day_month_order="day_first").collect()  # type: ignore[call-arg]
+    expected = datetime(2024, 3, 2, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+    assert out["Unix Time / s"][0] == pytest.approx(expected, abs=1e-6)

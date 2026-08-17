@@ -193,6 +193,11 @@ df, metadata = bdf.read("path/to/file.nda")
 # Force the NDA plugin explicitly
 df, metadata = bdf.read("path/to/file.nda", plugin="neware_nda")
 
+# A vendor datetime format that leaves a numeric day and month ambiguous
+# (e.g. 02/03/2024) reads day-first or month-first on request; a
+# year-first or month-name format is unaffected either way.
+df, metadata = bdf.read("path/to/file.csv", day_month_order="day_first")
+
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)
 

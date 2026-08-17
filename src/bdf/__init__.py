@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from .metadata_targets import METADATA
     from .normalization import (
         AbsoluteTimeNormalization,
+        DayMonthOrder,
         ElapsedTimeNormalization,
         IdentityNormalization,
         LinearNormalization,
@@ -48,6 +49,7 @@ __all__ = [
     "AbsoluteTimeNormalization",
     "RelativeTimeNormalization",
     "ElapsedTimeNormalization",
+    "DayMonthOrder",
     # BattINFO record models
     "BattinfoTest",
     "BattinfoCellInstance",
@@ -93,6 +95,7 @@ _LAZY_ATTRS: dict[str, str] = {
     "IdentityNormalization": ".normalization",
     "LinearNormalization": ".normalization",
     "AbsoluteTimeNormalization": ".normalization",
+    "DayMonthOrder": ".normalization",
     "RelativeTimeNormalization": ".normalization",
     "ElapsedTimeNormalization": ".normalization",
     "BattinfoTest": ".battinfo.generated.test_schema",

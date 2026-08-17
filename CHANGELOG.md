@@ -48,6 +48,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - CLI piping: `convert` and `validate` accept `-` to read from stdin, and `convert --to -` writes BDF CSV to stdout; status messages go to stderr. Exit codes: 0 valid, 1 invalid, 2 unreadable.
 - Docs: example notebooks now execute live via myst-nb, plus a generated "Supported Plugins" reference page.
 - `read()` and `scan()` restore the `.metadata.json` sidecar a prior `save()` wrote, in place of the plugin parser's metadata; a malformed sidecar warns and yields an empty `Metadata` rather than fail the read.
+- `day_month_order` keyword-only override on `bdf.read`, `bdf.scan`, `bdf.normalize`, `TableParser.read`, and `TableNormalizer.normalize`, for a vendor datetime format that leaves a numeric day and month ambiguous. `"day_first"` reads such a date day then month, `"month_first"` reads it month then day, and the default `None` leaves every declared format exactly as the plugin states it. A year-first format (e.g. `%Y-%m-%d`) or a month-name format (e.g. `%d-%b-%y`) is never affected.
 
 ### Changed
 - I/O layer rebuilt on Polars.

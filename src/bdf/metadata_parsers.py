@@ -34,6 +34,7 @@ from .metadata import Metadata
 from .metadata_targets import ExtrasTarget, MetadataTarget
 from .normalization import (
     AbsoluteTimeNormalization,
+    DayMonthOrder,
     ElapsedTimeNormalization,
     IdentityNormalization,
     LinearNormalization,
@@ -218,6 +219,7 @@ def _normalize_or_raise(
     value: Any,
     normalization: Normalization,
     tz: str,
+    day_month_order: DayMonthOrder | None = None,
 ) -> Any:
     """Apply ``normalization.scalar`` to ``value``, naming the target on failure.
 
@@ -226,6 +228,8 @@ def _normalize_or_raise(
         value: The raw extracted value.
         normalization: The rule's normalization.
         tz: IANA timezone applied where the normalization reads it.
+        day_month_order: Field order applied to an ambiguous numeric date
+            where the normalization reads it.
 
     Returns:
         The normalized value, truncated to whole seconds for an absolute
@@ -236,7 +240,7 @@ def _normalize_or_raise(
             prefixed with the dotted target path.
     """
     try:
-        result = normalization.scalar(value, tz=tz)
+        result = normalization.scalar(value, tz=tz, day_month_order=day_month_order)
     except ValueError as exc:
         raise ValueError(f"{'.'.join(field_path)}: {exc}") from exc
     # An absolute time normalization returns sub-second epoch seconds, which
@@ -288,12 +292,13 @@ class MetadataParser(BaseModel):
         """
         return False
 
-    def parse(self, path: str | Path, tz: str = "UTC") -> Metadata:
+    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
         """Extract staged metadata from ``path``. Base: nothing.
 
         Args:
             path: Local file path or URL to parse.
             tz: IANA timezone; unused by the base parser.
+            day_month_order: Field order for an ambiguous numeric date; unused by the base parser.
 
         Returns:
             An empty ``Metadata`` for the base class (override in subclasses).
@@ -349,13 +354,15 @@ class TxtPreambleParser(MetadataParser):
                 return True
         return False
 
-    def parse(self, path: str | Path, tz: str = "UTC") -> Metadata:
+    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
         """Decode the head with ``encoding`` and apply each rule; first match per target.
 
         Args:
             path: Local file path or URL to parse.
             tz: IANA timezone applied to a naive absolute-time match. At its
                 ``"UTC"`` default, a naive match warns once.
+            day_month_order: Field order applied to an ambiguous numeric date
+                a rule's normalization reads.
 
         Returns:
             A ``Metadata`` staged with every rule's normalized match,
@@ -371,7 +378,7 @@ class TxtPreambleParser(MetadataParser):
             if matched is None:
                 continue
             _maybe_warn_naive(matched, rule.normalization, tz=tz)
-            value = _normalize_or_raise(target.path, matched, rule.normalization, tz)
+            value = _normalize_or_raise(target.path, matched, rule.normalization, tz, day_month_order)
             target.stage(document, value)
         return Metadata.model_validate(document)
 
@@ -416,13 +423,15 @@ class JsonSidecarParser(MetadataParser):
         """
         return self.sidecar_path(path).exists()
 
-    def parse(self, path: str | Path, tz: str = "UTC") -> Metadata:
+    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
         """Load the sidecar JSON, stage each rule's match, and capture the whole document into raw.
 
         Args:
             path: Local file path to the data file.
             tz: IANA timezone applied to a naive absolute-time match. At its
                 ``"UTC"`` default, a naive match warns once.
+            day_month_order: Field order applied to an ambiguous numeric date
+                a rule's normalization reads.
 
         Returns:
             A ``Metadata`` staged with every rule's normalized match,
@@ -442,7 +451,7 @@ class JsonSidecarParser(MetadataParser):
             if matched is None:
                 continue
             _maybe_warn_naive(matched, rule.normalization, tz=tz)
-            value = _normalize_or_raise(target.path, matched, rule.normalization, tz)
+            value = _normalize_or_raise(target.path, matched, rule.normalization, tz, day_month_order)
             target.stage(document, value)
 
         return Metadata.model_validate(document)
@@ -487,12 +496,13 @@ class BdfSidecarParser(MetadataParser):
         """
         return self.sidecar_path(path).exists()
 
-    def parse(self, path: str | Path, tz: str = "UTC") -> Metadata:
+    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
         """Restore the reserved sidecar verbatim, with no normalization.
 
         Args:
             path: Local file path to the data file.
             tz: Accepted for signature parity with the other parsers; unused.
+            day_month_order: Accepted for signature parity with the other parsers; unused.
 
         Returns:
             The restored ``Metadata``, or an empty one when no sidecar

@@ -19,7 +19,17 @@ from bdf.normalization import (
     ElapsedTimeNormalization,
     LinearNormalization,
     RelativeTimeNormalization,
+    _reorder_day_month_format,
+    _with_day_month_order,
 )
+
+_VENDOR_DT_FMTS = [
+    _ARBIN_DT_FMTS,
+    _DIGATRON_DT_FMTS,
+    _LANDT_DT_FMTS,
+    _MACCOR_DT_FMTS,
+    _NEWARE_DT_FMTS,
+]
 
 
 def test_linear_conversion_is_plain_arithmetic():
@@ -168,3 +178,55 @@ def test_epoch_number_is_not_exempt_from_format_parsing(value):
     with pytest.raises(ValueError, match=re.escape(repr(value))) as excinfo:
         normalization.scalar(value)
     assert "%Y-%m-%d" in str(excinfo.value)
+
+
+# ---------------------------------------------------------------------------
+# day_month_order override
+# ---------------------------------------------------------------------------
+
+
+def test_month_first_format_reads_day_first_on_request():
+    """A month-first format converts to day-first when asked."""
+    assert _reorder_day_month_format("%m/%d/%Y %H:%M:%S", "day_first") == "%d/%m/%Y %H:%M:%S"
+
+
+def test_day_first_format_reads_month_first_on_request():
+    """A day-first format converts to month-first when asked."""
+    assert _reorder_day_month_format("%d.%m.%Y %H:%M:%S", "month_first") == "%m.%d.%Y %H:%M:%S"
+
+
+@pytest.mark.parametrize(
+    "fmt,expected",
+    [
+        ("%m/%d/%Y %H:%M:%S%.f", "%d/%m/%Y %H:%M:%S%.f"),
+        ("%m/%d/%Y %H:%M:%S%z", "%d/%m/%Y %H:%M:%S%z"),
+    ],
+    ids=["fractional-second", "offset"],
+)
+def test_rewrite_keeps_every_other_directive(fmt, expected):
+    """A rewrite exchanges only the day and month directives; every other directive survives."""
+    assert _reorder_day_month_format(fmt, "day_first") == expected
+
+
+@pytest.mark.parametrize("order", ["day_first", "month_first"])
+def test_year_first_format_is_never_rewritten(order):
+    """A year-first format is fixed by convention and never locale-sensitive."""
+    assert _reorder_day_month_format("%Y-%m-%d %H:%M:%S", order) == "%Y-%m-%d %H:%M:%S"
+
+
+@pytest.mark.parametrize("order", ["day_first", "month_first"])
+def test_month_name_format_is_never_rewritten(order):
+    """A format naming the month by name states no %m, so it is never rewritten."""
+    assert _reorder_day_month_format("%d-%b-%y %H:%M:%S", order) == "%d-%b-%y %H:%M:%S"
+
+
+@pytest.mark.parametrize("order", ["day_first", "month_first"])
+def test_format_naming_neither_field_is_unchanged(order):
+    """A format naming neither the day nor the month is unchanged under either order."""
+    assert _reorder_day_month_format("%H:%M:%S", order) == "%H:%M:%S"
+
+
+@pytest.mark.parametrize("formats", _VENDOR_DT_FMTS, ids=["arbin", "digatron", "landt", "maccor", "neware"])
+def test_no_override_changes_nothing(formats):
+    """A None order leaves every declared vendor format unchanged, element for element."""
+    assert _with_day_month_order(formats, None) == formats

@@ -46,6 +46,13 @@ ISO_DATETIME_FORMATS = (
     "%Y-%m-%d",
 )
 
+DayMonthOrder = Literal["day_first", "month_first"]
+"""The field order a caller states for a numeric date a vendor tuple leaves ambiguous.
+
+Never inferred: the rewrite it drives depends on the declared formats alone,
+never on a read value.
+"""
+
 # ---------------------------------------------------------------------------
 # Self-describing (tz-aware) vs naive format classification
 #
@@ -84,6 +91,52 @@ def _split_tz_fmts(fmts: Sequence[str]) -> tuple[list[str], list[str]]:
     tz_aware = [f for f in fmts if _is_self_describing(f)]
     naive = [f for f in fmts if not _is_self_describing(f)]
     return tz_aware, naive
+
+
+def _reorder_day_month_format(fmt: str, order: DayMonthOrder) -> str:
+    """Rewrite ``fmt`` to read its numeric day and month fields in ``order``.
+
+    Args:
+        fmt: A single datetime format string.
+        order: The field order the rewritten format must read in.
+
+    Returns:
+        ``fmt`` unchanged where it states fewer than both ``%d`` and ``%m``,
+        where a year directive precedes both, or where it already reads in
+        ``order``; otherwise ``fmt`` with ``%d`` and ``%m`` exchanged, every
+        other directive and literal left as declared.
+    """
+    day_pos = fmt.find("%d")
+    month_pos = fmt.find("%m")
+    if day_pos == -1 or month_pos == -1:
+        return fmt
+    year_positions = [pos for pos in (fmt.find("%Y"), fmt.find("%y")) if pos != -1]
+    if year_positions and min(year_positions) < min(day_pos, month_pos):
+        return fmt
+    current_order: DayMonthOrder = "day_first" if day_pos < month_pos else "month_first"
+    if current_order == order:
+        return fmt
+    if day_pos < month_pos:
+        return fmt[:day_pos] + "%m" + fmt[day_pos + 2 : month_pos] + "%d" + fmt[month_pos + 2 :]
+    return fmt[:month_pos] + "%d" + fmt[month_pos + 2 : day_pos] + "%m" + fmt[day_pos + 2 :]
+
+
+def _with_day_month_order(formats: Sequence[str], order: DayMonthOrder | None) -> tuple[str, ...]:
+    """Return ``formats`` rewritten to read an ambiguous numeric date in ``order``.
+
+    Args:
+        formats: Datetime format strings to rewrite.
+        order: The field order to rewrite an eligible format to, or None to
+            leave every format unchanged.
+
+    Returns:
+        ``formats`` unchanged as a tuple where ``order`` is None; otherwise
+        each format of ``formats`` passed through
+        :func:`_reorder_day_month_format`.
+    """
+    if order is None:
+        return tuple(formats)
+    return tuple(_reorder_day_month_format(fmt, order) for fmt in formats)
 
 
 def _month_numeral_expr(expr: pl.Expr) -> pl.Expr:
@@ -147,24 +200,28 @@ class Normalization(BaseModel, ABC):
     model_config = ConfigDict(frozen=True)
 
     @abstractmethod
-    def scalar(self, value, *, tz: str = "UTC") -> Any:
+    def scalar(self, value, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Any:
         """Convert one extracted value to its canonical value.
 
         Args:
             value: The raw extracted value.
             tz: IANA timezone applied where the kind reads it.
+            day_month_order: Field order applied to an ambiguous numeric date
+                where the kind reads it.
 
         Returns:
             The canonical value.
         """
 
     @abstractmethod
-    def expr(self, expr: pl.Expr, *, tz: str = "UTC") -> pl.Expr:
+    def expr(self, expr: pl.Expr, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Convert one extracted column to its canonical values.
 
         Args:
             expr: Polars expression over the raw extracted column.
             tz: IANA timezone applied where the kind reads it.
+            day_month_order: Field order applied to an ambiguous numeric date
+                where the kind reads it.
 
         Returns:
             Polars expression producing canonical values.
@@ -177,24 +234,26 @@ class IdentityNormalization(Normalization):
     kind: Literal["identity"] = "identity"
     """Discriminates this kind in a serialized (JSON) declaration."""
 
-    def scalar(self, value, *, tz: str = "UTC"):
+    def scalar(self, value, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None):
         """Return ``value`` unchanged.
 
         Args:
             value: The raw extracted value.
             tz: Unused by this kind.
+            day_month_order: Unused by this kind.
 
         Returns:
             ``value`` unchanged.
         """
         return value
 
-    def expr(self, expr: pl.Expr, *, tz: str = "UTC") -> pl.Expr:
+    def expr(self, expr: pl.Expr, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Return ``expr`` unchanged.
 
         Args:
             expr: Polars expression over the raw extracted column.
             tz: Unused by this kind.
+            day_month_order: Unused by this kind.
 
         Returns:
             ``expr`` unchanged.
@@ -211,12 +270,13 @@ class LinearNormalization(Normalization):
     scale: float = 1.0
     offset: float = 0.0
 
-    def scalar(self, value, *, tz: str = "UTC"):
+    def scalar(self, value, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None):
         """Convert ``value`` by ``scale`` and ``offset``.
 
         Args:
             value: The raw extracted value.
             tz: Unused by this kind.
+            day_month_order: Unused by this kind.
 
         Returns:
             ``scale * value + offset``.
@@ -231,12 +291,13 @@ class LinearNormalization(Normalization):
             raise ValueError(f"{value!r} is not a number: {exc}") from exc
         return self.scale * number + self.offset
 
-    def expr(self, expr: pl.Expr, *, tz: str = "UTC") -> pl.Expr:
+    def expr(self, expr: pl.Expr, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Convert ``expr`` by ``scale`` and ``offset``.
 
         Args:
             expr: Polars expression over the raw extracted column.
             tz: Unused by this kind.
+            day_month_order: Unused by this kind.
 
         Returns:
             Polars expression for ``scale * expr + offset``.
@@ -304,12 +365,14 @@ class AbsoluteTimeNormalization(Normalization):
             return localised.dt.timestamp("us").item() / 1e6
         return None
 
-    def _parse_epoch(self, text: str, tz: str) -> float | None:
+    def _parse_epoch(self, text: str, tz: str, day_month_order: DayMonthOrder | None = None) -> float | None:
         """Parse ``text`` with the first candidate format of ``effective_formats`` that fits it.
 
         Args:
             text: The datetime text to parse.
             tz: IANA timezone applied to naive candidates.
+            day_month_order: Field order applied to an ambiguous numeric date
+                in ``effective_formats`` before any format is tried.
 
         Returns:
             Epoch seconds (with sub-second precision), or None when no
@@ -317,7 +380,7 @@ class AbsoluteTimeNormalization(Normalization):
         """
         month_name_fmts: list[str] = []
         plain_fmts: list[str] = []
-        for fmt in self.effective_formats:
+        for fmt in _with_day_month_order(self.effective_formats, day_month_order):
             (month_name_fmts if _MONTH_NAME_DIRECTIVE_RE.search(fmt) else plain_fmts).append(fmt)
 
         tz_aware_fmts, naive_fmts = _split_tz_fmts(plain_fmts)
@@ -335,12 +398,14 @@ class AbsoluteTimeNormalization(Normalization):
         numeral_tz_aware, numeral_naive = _split_tz_fmts([_numeralize_format(fmt) for fmt in month_name_fmts])
         return self._try_formats(variant, numeral_tz_aware, numeral_naive, tz)
 
-    def _epoch_expr(self, expr: pl.Expr, tz: str) -> pl.Expr:
+    def _epoch_expr(self, expr: pl.Expr, tz: str, day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Parse ``expr`` with every candidate format of ``effective_formats``, as epoch seconds.
 
         Args:
             expr: Polars expression over the raw extracted timestamp column.
             tz: IANA timezone applied to naive candidates.
+            day_month_order: Field order applied to an ambiguous numeric date
+                in ``effective_formats`` before any format is tried.
 
         Returns:
             Polars expression producing epoch seconds, self-describing
@@ -348,7 +413,7 @@ class AbsoluteTimeNormalization(Normalization):
         """
         month_name_fmts: list[str] = []
         plain_fmts: list[str] = []
-        for fmt in self.effective_formats:
+        for fmt in _with_day_month_order(self.effective_formats, day_month_order):
             (month_name_fmts if _MONTH_NAME_DIRECTIVE_RE.search(fmt) else plain_fmts).append(fmt)
 
         def _candidates(source: pl.Expr, source_tz_aware: Sequence[str], source_naive: Sequence[str]) -> list[pl.Expr]:
@@ -377,12 +442,14 @@ class AbsoluteTimeNormalization(Normalization):
         parsed = pl.coalesce(candidates) if len(candidates) > 1 else candidates[0]
         return parsed.cast(pl.Float64) / 1e6
 
-    def scalar(self, value, *, tz: str = "UTC"):
+    def scalar(self, value, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None):
         """Parse ``value`` under the first matching format of ``formats``.
 
         Args:
             value: The raw extracted timestamp text.
             tz: IANA timezone applied to a format that carries no offset.
+            day_month_order: Field order applied to an ambiguous numeric date
+                before any format is tried.
 
         Returns:
             The epoch seconds.
@@ -391,22 +458,25 @@ class AbsoluteTimeNormalization(Normalization):
             ValueError: No declared format parses ``value``; the message
                 names ``value`` and the formats tried.
         """
-        epoch = self._parse_epoch(str(value), tz)
+        epoch = self._parse_epoch(str(value), tz, day_month_order)
         if epoch is None:
-            raise ValueError(f"{value!r} matched none of the formats tried: {list(self.effective_formats)}")
+            effective = _with_day_month_order(self.effective_formats, day_month_order)
+            raise ValueError(f"{value!r} matched none of the formats tried: {list(effective)}")
         return epoch
 
-    def expr(self, expr: pl.Expr, *, tz: str = "UTC") -> pl.Expr:
+    def expr(self, expr: pl.Expr, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Parse ``expr`` under the first matching format of ``formats``.
 
         Args:
             expr: Polars expression over the raw extracted timestamp column.
             tz: IANA timezone applied to a format that carries no offset.
+            day_month_order: Field order applied to an ambiguous numeric date
+                before any format is tried.
 
         Returns:
             Polars expression producing epoch seconds.
         """
-        return self._epoch_expr(expr, tz)
+        return self._epoch_expr(expr, tz, day_month_order)
 
 
 class RelativeTimeNormalization(AbsoluteTimeNormalization):
@@ -420,30 +490,34 @@ class RelativeTimeNormalization(AbsoluteTimeNormalization):
     kind: Literal["relative_time"] = "relative_time"  # type: ignore[assignment]
     """Discriminates this kind in a serialized (JSON) declaration."""
 
-    def scalar(self, value, *, tz: str = "UTC"):
+    def scalar(self, value, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None):
         """Refuse: one value carries no column to subtract its first value from.
 
         Args:
             value: The raw extracted timestamp text.
             tz: IANA timezone applied to a format that carries no offset.
+            day_month_order: Field order applied to an ambiguous numeric date
+                before any format is tried.
 
         Raises:
             NotImplementedError: Always; a relative time has no scalar form.
         """
         raise NotImplementedError("RelativeTimeNormalization has no scalar form: one value carries no column origin")
 
-    def expr(self, expr: pl.Expr, *, tz: str = "UTC") -> pl.Expr:
+    def expr(self, expr: pl.Expr, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Parse ``expr`` and subtract its first parsed value.
 
         Args:
             expr: Polars expression over the raw extracted timestamp column.
             tz: IANA timezone applied to a format that carries no offset.
+            day_month_order: Field order applied to an ambiguous numeric date
+                before any format is tried.
 
         Returns:
             Polars expression producing seconds elapsed since the column's
             first value.
         """
-        ts = self._epoch_expr(expr, tz)
+        ts = self._epoch_expr(expr, tz, day_month_order)
         return ts - ts.first()
 
 
@@ -462,12 +536,13 @@ class ElapsedTimeNormalization(Normalization):
     _SPAN_PATTERN: ClassVar[str] = r"^\s*(\d+):(\d+):([\d.]+)\s*$"
     _SPAN_RE: ClassVar[re.Pattern[str]] = re.compile(_SPAN_PATTERN)
 
-    def scalar(self, value, *, tz: str = "UTC"):
+    def scalar(self, value, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None):
         """Convert clock-format span text ``value`` to seconds.
 
         Args:
             value: The raw extracted clock-format span text.
             tz: Unused by this kind.
+            day_month_order: Unused by this kind.
 
         Returns:
             The number of seconds the span states.
@@ -481,12 +556,13 @@ class ElapsedTimeNormalization(Normalization):
         hours, minutes, seconds = match.groups()
         return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
 
-    def expr(self, expr: pl.Expr, *, tz: str = "UTC") -> pl.Expr:
+    def expr(self, expr: pl.Expr, *, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
         """Convert clock-format span text ``expr`` to seconds.
 
         Args:
             expr: Polars expression over the raw extracted span column.
             tz: Unused by this kind.
+            day_month_order: Unused by this kind.
 
         Returns:
             Polars expression producing the number of seconds each span
