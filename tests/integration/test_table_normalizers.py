@@ -8,7 +8,7 @@ import pytest
 
 from bdf.plugins import PLUGINS
 from bdf.spec import COLUMN_ONTOLOGY
-from bdf.table_normalizers import NORMALIZERS, DateTimeSyn, SynUnion, TableNormalizer
+from bdf.table_normalizers import NORMALIZERS, Syn, TableNormalizer
 from integration.test_cases import ALL_CASES
 
 # ---------------------------------------------------------------------------
@@ -63,28 +63,22 @@ def pool(key: str) -> frozenset[str]:
     return frozenset(headers)
 
 
-def synonym_covered(key: str, mr: str, syn: SynUnion) -> bool:
+def synonym_covered(key: str, mr: str, syn: Syn) -> bool:
     """Return whether ``syn`` matches any recorded header in ``pool(key)``.
 
     Args:
         key: The normalizer key whose header pool to test against.
         mr: The BDF ``mr_name`` the synonym is declared for (supplies the target unit).
-        syn: The synonym (``Syn`` or ``DateTimeSyn``) to test.
+        syn: The synonym to test.
 
     Returns:
         True if some pooled header matches the synonym.
     """
     unit = getattr(COLUMN_ONTOLOGY, mr).unit
-    for header in pool(key):
-        if isinstance(syn, DateTimeSyn):
-            if syn.syn.exact_match(header):
-                return True
-        elif syn.match(header, unit) is not None:
-            return True
-    return False
+    return any(syn.match(header, unit) is not None for header in pool(key))
 
 
-def iter_synonyms() -> Iterator[tuple[str, str, SynUnion, str]]:
+def iter_synonyms() -> Iterator[tuple[str, str, Syn, str]]:
     """Yield ``(key, mr, syn, exemplar)`` for every synonym across all normalizers.
 
     ``exemplar`` is the synonym's pattern string, suffixed with ``#n`` when a
@@ -99,7 +93,7 @@ def iter_synonyms() -> Iterator[tuple[str, str, SynUnion, str]]:
             if not isinstance(field_val, tuple):
                 continue
             for syn in field_val:
-                exemplar = syn.syn.hdr if isinstance(syn, DateTimeSyn) else syn.hdr
+                exemplar = syn.hdr
                 n = seen.get(exemplar, 0)
                 seen[exemplar] = n + 1
                 unique_exemplar = exemplar if n == 0 else f"{exemplar}#{n}"
@@ -121,7 +115,7 @@ def _build_synonym_coverage_params() -> list:
     for key, mr, syn, exemplar in iter_synonyms():
         if key == "bdf":
             continue
-        assumed = syn.syn.assumed if isinstance(syn, DateTimeSyn) else syn.assumed
+        assumed = syn.assumed
         marks = (
             (pytest.mark.xfail(strict=True, reason="Syn.assumed=True — no sample data exercises this synonym"),)
             if assumed

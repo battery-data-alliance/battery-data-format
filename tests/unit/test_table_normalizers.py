@@ -3,18 +3,26 @@
 from __future__ import annotations
 
 import warnings
+from datetime import datetime, timezone
 from typing import cast
+from zoneinfo import ZoneInfo
 
 import polars as pl
 import pytest
 from pydantic import ValidationError
 
 from bdf import BDFValidationError
+from bdf.normalization import (
+    AbsoluteTimeNormalization,
+    ElapsedTimeNormalization,
+    IdentityNormalization,
+    LinearNormalization,
+    RelativeTimeNormalization,
+)
 from bdf.spec import COLUMN_ONTOLOGY
 from bdf.table_normalizers import (
     BDF_NORMALIZER,
     NORMALIZERS,
-    DateTimeSyn,
     ResolvedColumn,
     Syn,
     TableNormalizer,
@@ -55,7 +63,7 @@ class TestSyn:
         ],
     )
     def test_match_with_unit_compatible(self, header, bdf_unit, expected_scale, expected_offset):
-        """match extracts unit from header and returns correct scale and offset for compatible units."""
+        """match extracts unit from header and returns a LinearNormalization for compatible units."""
         if "Voltage" in header:
             result = Syn(hdr="Voltage-{unit}").match(header, bdf_unit)
         elif "Current" in header:
@@ -64,10 +72,9 @@ class TestSyn:
             result = Syn(hdr="Time-{unit}").match(header, bdf_unit)
         else:
             result = Syn(hdr="Pressure-{unit}").match(header, bdf_unit)
-        assert result is not None
-        scale, offset = result
-        assert scale == expected_scale
-        assert offset == expected_offset
+        assert isinstance(result, LinearNormalization)
+        assert result.scale == expected_scale
+        assert result.offset == expected_offset
 
     def test_match_with_unit_returns_none_incompatible(self):
         """match returns None when header's dimension is incompatible with bdf_unit."""
@@ -78,13 +85,13 @@ class TestSyn:
         assert Syn(hdr="Voltage-{unit}").match("Current-A", "V") is None
 
     def test_match_no_unit_exact(self):
-        """match on pattern without {unit} returns (1.0, 0.0) for exact case-insensitive match."""
+        """match on pattern without {unit} returns IdentityNormalization for an exact case-insensitive match."""
         result = Syn(hdr="Test-Time").match("Test-Time", "s")
-        assert result == (1.0, 0.0)
+        assert result == IdentityNormalization()
 
     def test_match_no_unit_case_sensitive(self):
         """match without {unit} placeholder is case-sensitive."""
-        assert Syn(hdr="test-time").match("test-time", "s") == (1.0, 0.0)
+        assert Syn(hdr="test-time").match("test-time", "s") == IdentityNormalization()
         assert Syn(hdr="test-time").match("Test-Time", "s") is None
 
     def test_match_no_unit_mismatch(self):
@@ -92,8 +99,8 @@ class TestSyn:
         assert Syn(hdr="Test-Time").match("Other", "s") is None
 
     def test_match_exact_syn_with_none_unit(self):
-        """Syn without {unit} matches against unit=None column → (1.0, 0.0)."""
-        assert Syn(hdr="Step ID").match("Step ID", None) == (1.0, 0.0)
+        """Syn without {unit} matches against unit=None column → IdentityNormalization."""
+        assert Syn(hdr="Step ID").match("Step ID", None) == IdentityNormalization()
 
     def test_match_unit_parameterised_syn_with_none_unit(self):
         """Syn with {unit} against unit=None column → None."""
@@ -120,38 +127,54 @@ class TestSyn:
 
     def test_reverse_sign(self):
         """Reverse sign multiplies col by -1."""
-        assert Syn(hdr="x").match("x", None) == (1.0, 0.0)
-        assert Syn(hdr="y", reverse_sign=True).match("y", None) == (-1.0, 0.0)
+        assert Syn(hdr="x").match("x", None) == IdentityNormalization()
+        assert Syn(hdr="y", reverse_sign=True).match("y", None) == LinearNormalization(scale=-1.0)
 
         # Reverse sign should not affect the offset, which is applied after scaling.
-        assert Syn(hdr="Temp-{unit}").match("Temp-degC", "K") == (1.0, 273.15)
-        assert Syn(hdr="Temp-{unit}", reverse_sign=True).match("Temp-degC", "K") == (-1.0, 273.15)
+        assert Syn(hdr="Temp-{unit}").match("Temp-degC", "K") == LinearNormalization(scale=1.0, offset=273.15)
+        assert Syn(hdr="Temp-{unit}", reverse_sign=True).match("Temp-degC", "K") == LinearNormalization(
+            scale=-1.0, offset=273.15
+        )
 
 
-class TestDateTimeSyn:
+class TestSynNormalization:
     def test_construction(self):
-        """DateTimeSyn stores syn and fmts during construction."""
-        dts = DateTimeSyn(syn=Syn(hdr="Test-Time"), fmts=("%H:%M:%S.%f",))
-        assert dts.syn.hdr == "Test-Time"
-        assert dts.fmts == ("%H:%M:%S.%f",)
+        """A declared normalization is stored alongside the header synonym."""
+        syn = Syn(hdr="Test-Time", normalization=AbsoluteTimeNormalization(formats=("%H:%M:%S.%f",)))
+        assert syn.hdr == "Test-Time"
+        assert isinstance(syn.normalization, AbsoluteTimeNormalization)
+        assert syn.normalization.formats == ("%H:%M:%S.%f",)
 
-    def test_fmts_stored_as_tuple(self):
-        """DateTimeSyn converts fmts list to tuple."""
-        dts = DateTimeSyn(syn=Syn(hdr="T"), fmts=("%H:%M:%S", "%Y-%m-%d"))
-        assert isinstance(dts.fmts, tuple)
-        assert len(dts.fmts) == 2
+    def test_default_is_none(self):
+        """normalization defaults to None for a plain numeric synonym."""
+        assert Syn(hdr="x").normalization is None
 
     def test_model_validate_dict(self):
-        """model_validate accepts dict with string syn and list fmts."""
-        dts = DateTimeSyn.model_validate({"syn": "Test-Time", "fmts": ["%H:%M:%S.%f"]})
-        assert dts.syn.hdr == "Test-Time"
-        assert "%H:%M:%S.%f" in dts.fmts
+        """model_validate accepts a dict declaring hdr and a normalization payload."""
+        syn = Syn.model_validate(
+            {"hdr": "Test-Time", "normalization": {"kind": "absolute_time", "formats": ["%H:%M:%S.%f"]}}
+        )
+        assert syn.hdr == "Test-Time"
+        assert isinstance(syn.normalization, AbsoluteTimeNormalization)
+        assert "%H:%M:%S.%f" in syn.normalization.formats
 
     def test_frozen(self):
-        """DateTimeSyn is frozen and cannot be mutated after creation."""
-        dts = DateTimeSyn(syn=Syn(hdr="T"), fmts=("%H:%M:%S",))
+        """Syn stays frozen with a declared normalization set."""
+        syn = Syn(hdr="T", normalization=AbsoluteTimeNormalization(formats=("%H:%M:%S",)))
         with pytest.raises(ValidationError):
-            dts.fmts = ("%Y",)
+            syn.normalization = None
+
+
+def _scale_offset(normalization: object) -> tuple[float, float]:
+    """Read (scale, offset) off a normalization for test assertions.
+
+    Args:
+        normalization: A Normalization instance, e.g. from ResolvedColumn.normalization.
+
+    Returns:
+        Its (scale, offset) when it is a LinearNormalization, else (1.0, 0.0).
+    """
+    return (normalization.scale, normalization.offset) if isinstance(normalization, LinearNormalization) else (1.0, 0.0)
 
 
 class TestResolvedColumn:
@@ -173,8 +196,9 @@ class TestResolvedColumn:
         mr, rc = ResolvedColumn.from_bdf_label(bdf_label, src_col)
         assert mr == expected_mr
         assert rc.source_header == src_col
-        assert rc.scale == expected_scale
-        assert rc.offset == pytest.approx(0.0)
+        scale, offset = _scale_offset(rc.normalization)
+        assert scale == expected_scale
+        assert offset == pytest.approx(0.0)
 
     def test_from_bdf_label_invalid_label_raises(self):
         """from_bdf_label raises ValueError for unknown BDF label."""
@@ -185,7 +209,7 @@ class TestResolvedColumn:
         """from_bdf_label warns on incompatible unit and uses scale 1.0."""
         with pytest.warns(UserWarning, match="not compatible"):
             mr, rc = ResolvedColumn.from_bdf_label("Voltage / A", "col_v")
-        assert rc.scale == 1.0
+        assert _scale_offset(rc.normalization)[0] == 1.0
 
     # --- from_synonyms ---
 
@@ -195,15 +219,16 @@ class TestResolvedColumn:
         rc = ResolvedColumn.from_synonyms("Voltage-mV", "Voltage-mV", "V", syns)
         assert rc is not None
         assert rc.source_header == "Voltage-mV"
-        assert rc.scale == pytest.approx(0.001)
+        assert _scale_offset(rc.normalization)[0] == pytest.approx(0.001)
 
-    def test_from_synonyms_matches_datetimesyn(self):
-        """from_synonyms matches DateTimeSyn and stores format strings."""
-        syns = [DateTimeSyn(syn=Syn(hdr="Test-Time"), fmts=("%H:%M:%S.%f",))]
+    def test_from_synonyms_matches_declared_normalization(self):
+        """from_synonyms matches a Syn with a declared normalization and stores its format strings."""
+        syns = [Syn(hdr="Test-Time", normalization=AbsoluteTimeNormalization(formats=("%H:%M:%S.%f",)))]
         rc = ResolvedColumn.from_synonyms("Test-Time", "Test-Time", "s", syns)
         assert rc is not None
         assert rc.source_header == "Test-Time"
-        assert "%H:%M:%S.%f" in rc.datetime_fmts
+        assert isinstance(rc.normalization, AbsoluteTimeNormalization)
+        assert "%H:%M:%S.%f" in rc.normalization.formats
 
     def test_from_synonyms_no_match_returns_none(self):
         """from_synonyms returns None when no synonym matches."""
@@ -215,7 +240,7 @@ class TestResolvedColumn:
         syns = [Syn(hdr="Col-{unit}"), Syn(hdr="Col-mV")]
         rc = ResolvedColumn.from_synonyms("Col-mV", "Col-mV", "V", syns)
         assert rc is not None
-        assert rc.scale == pytest.approx(0.001)
+        assert _scale_offset(rc.normalization)[0] == pytest.approx(0.001)
 
     # --- get_expr: numeric ---
 
@@ -230,7 +255,7 @@ class TestResolvedColumn:
 
     def test_get_expr_float_with_scale(self):
         """get_expr applies scale factor to numeric values."""
-        rc = ResolvedColumn(source_header="v_mv", scale=0.001)
+        rc = ResolvedColumn(source_header="v_mv", normalization=LinearNormalization(scale=0.001))
         df = pl.DataFrame({"v_mv": [1000.0, 2000.0]})
         out = df.select(rc.get_expr("voltage_volt"))
         assert out["Voltage / V"].to_list() == pytest.approx([1.0, 2.0])
@@ -251,6 +276,19 @@ class TestResolvedColumn:
         assert out["Cycle Count / 1"].dtype == pl.Int64
         assert out["Cycle Count / 1"].to_list() == [1, 2, 3]
 
+    def test_get_expr_int_dtype_accepts_decimal_formatted_numeral(self):
+        """get_expr casts a decimal-formatted integer column through Float64, not straight to Int64.
+
+        A direct Utf8 -> Int64 cast returns null for "2.0"; every delimited
+        and Excel parser hands this path Utf8, and the five integer columns
+        take plain unitless synonyms that resolve to identity normalization.
+        """
+        rc = ResolvedColumn(source_header="cycle")
+        df = pl.DataFrame({"cycle": ["1", "2.0", "3.0"]})
+        out = df.select(rc.get_expr("cycle_count"))
+        assert out["Cycle Count / 1"].dtype == pl.Int64
+        assert out["Cycle Count / 1"].to_list() == [1, 2, 3]
+
     def test_get_expr_float_dtype_for_voltage(self):
         """get_expr returns Float64 for float-type BDF columns."""
         rc = ResolvedColumn(source_header="v")
@@ -260,12 +298,12 @@ class TestResolvedColumn:
 
     def test_get_expr_aliases_to_bdf_label(self):
         """get_expr aliases column to the BDF canonical label."""
-        rc = ResolvedColumn(source_header="my_voltage", scale=0.001)
+        rc = ResolvedColumn(source_header="my_voltage", normalization=LinearNormalization(scale=0.001))
         df = pl.DataFrame({"my_voltage": [1000.0]})
         out = df.select(rc.get_expr("voltage_volt"))
         assert "Voltage / V" in out.columns
 
-    # --- get_expr: duration string ---
+    # --- get_expr: duration string (elapsed time) ---
 
     @pytest.mark.parametrize(
         "time_str, expected_seconds",
@@ -279,32 +317,32 @@ class TestResolvedColumn:
     )
     def test_get_expr_duration_string(self, time_str, expected_seconds):
         """get_expr parses HH:MM:SS.ff duration strings to elapsed seconds."""
-        rc = ResolvedColumn(source_header="t", datetime_fmts=("%H:%M:%S.%f",))
+        rc = ResolvedColumn(source_header="t", normalization=ElapsedTimeNormalization())
         df = pl.DataFrame({"t": [time_str]})
         out = df.select(rc.get_expr("test_time_second"))
         assert out["Test Time / s"][0] == pytest.approx(expected_seconds)
 
     def test_get_expr_duration_string_elapsed_from_zero(self):
         """get_expr computes elapsed time from first row for duration strings."""
-        rc = ResolvedColumn(source_header="t", datetime_fmts=("%H:%M:%S.%f",))
+        rc = ResolvedColumn(source_header="t", normalization=ElapsedTimeNormalization())
         df = pl.DataFrame({"t": ["00:00:00.00", "00:00:01.00", "00:00:02.00"]})
         out = df.select(rc.get_expr("test_time_second"))
         assert out["Test Time / s"].to_list() == pytest.approx([0.0, 1.0, 2.0])
 
-    # --- get_expr: datetime strings → elapsed ---
+    # --- get_expr: datetime strings → elapsed (relative time) ---
 
     def test_get_expr_datetime_elapsed_seconds(self):
         """get_expr computes elapsed seconds since first datetime row."""
-        rc = ResolvedColumn(source_header="ts", datetime_fmts=("%Y-%m-%d %H:%M:%S",))
+        rc = ResolvedColumn(source_header="ts", normalization=RelativeTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)))
         df = pl.DataFrame({"ts": ["2024-01-01 00:00:00", "2024-01-01 00:01:00", "2024-01-01 00:02:00"]})
         out = df.select(rc.get_expr("test_time_second"))
         assert out["Test Time / s"].to_list() == pytest.approx([0.0, 60.0, 120.0])
 
-    # --- get_expr: datetime strings → unix time ---
+    # --- get_expr: datetime strings → unix time (absolute time) ---
 
     def test_get_expr_unix_time_absolute(self):
         """get_expr converts datetimes to unix timestamp seconds."""
-        rc = ResolvedColumn(source_header="ts", datetime_fmts=("%Y-%m-%d %H:%M:%S",))
+        rc = ResolvedColumn(source_header="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)))
         df = pl.DataFrame({"ts": ["2024-01-01 00:00:00", "2024-01-01 00:01:00"]})
         out = df.select(rc.get_expr("unix_time_second"))
         t0, t1 = out["Unix Time / s"].to_list()
@@ -338,7 +376,7 @@ class TestNormalizerIter:
         n = TableNormalizer(
             voltage_volt=(Syn(hdr="Voltage-{unit}"),),
             current_ampere=(Syn(hdr="Current-{unit}"),),
-            test_time_second=(DateTimeSyn(syn=Syn(hdr="T"), fmts=("%H:%M:%S",)),),
+            test_time_second=(Syn(hdr="T", normalization=AbsoluteTimeNormalization(formats=("%H:%M:%S",))),),
         )
         names = [mr for mr, _ in n]
         assert names.index("test_time_second") < names.index("voltage_volt")
@@ -353,7 +391,7 @@ class TestNormalizerResolve:
     @pytest.fixture
     def basic_normalizer(self):
         return TableNormalizer(
-            test_time_second=(DateTimeSyn(syn=Syn(hdr="Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            test_time_second=(Syn(hdr="Test-Time", normalization=AbsoluteTimeNormalization(formats=("%H:%M:%S.%f",))),),
             voltage_volt=(Syn(hdr="Voltage-{unit}"),),
             current_ampere=(Syn(hdr="Current-{unit}"),),
         )
@@ -372,11 +410,11 @@ class TestNormalizerResolve:
     def test_resolve_unit_conversion_stored(self, basic_normalizer):
         """resolve applies unit conversion and stores scale."""
         resolved = basic_normalizer.resolve(["Voltage-mV"])
-        assert resolved["voltage_volt"].scale == pytest.approx(0.001)
+        assert _scale_offset(resolved["voltage_volt"].normalization)[0] == pytest.approx(0.001)
 
     def test_resolve_resolved_column_passthrough(self):
         """resolve passes through ResolvedColumn fields unchanged."""
-        rc = ResolvedColumn(source_header="my_col", scale=0.001)
+        rc = ResolvedColumn(source_header="my_col")
         n = TableNormalizer(voltage_volt=rc)
         resolved = n.resolve(["my_col"])
         assert resolved["voltage_volt"] is rc
@@ -419,14 +457,14 @@ class TestNormalizerResolve:
         n = TableNormalizer(current_ampere=(Syn(hdr="Current-{unit}"), Syn(hdr="Amps-{unit}")))
         resolved = n.resolve(["Amps-mA"])
         assert "current_ampere" in resolved
-        assert resolved["current_ampere"].scale == pytest.approx(0.001)
+        assert _scale_offset(resolved["current_ampere"].normalization)[0] == pytest.approx(0.001)
 
 
 class TestNormalizerScore:
     @pytest.fixture
     def normalizer(self):
         return TableNormalizer(
-            test_time_second=(DateTimeSyn(syn=Syn(hdr="Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            test_time_second=(Syn(hdr="Test-Time", normalization=AbsoluteTimeNormalization(formats=("%H:%M:%S.%f",))),),
             voltage_volt=(Syn(hdr="Voltage-{unit}"),),
             current_ampere=(Syn(hdr="Current-{unit}"),),
         )
@@ -463,7 +501,7 @@ class TestKnownHeaderNames:
     def test_resolved_column_only(self):
         """known_header_names returns only ResolvedColumn source_headers, not synonyms."""
         n = TableNormalizer(
-            test_time_second=(DateTimeSyn(syn=Syn(hdr="Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            test_time_second=(Syn(hdr="Test-Time", normalization=AbsoluteTimeNormalization(formats=("%H:%M:%S.%f",))),),
             voltage_volt=(Syn(hdr="Voltage-{unit}"), Syn(hdr="U")),
             current_ampere=ResolvedColumn(source_header="my_current"),
         )
@@ -505,7 +543,7 @@ class TestNormalizerNormalize:
     @pytest.fixture
     def normalizer(self):
         return TableNormalizer(
-            test_time_second=(DateTimeSyn(syn=Syn(hdr="Test-Time"), fmts=("%H:%M:%S.%f",)),),
+            test_time_second=(Syn(hdr="Test-Time", normalization=ElapsedTimeNormalization()),),
             voltage_volt=(Syn(hdr="Voltage-{unit}"),),
             current_ampere=(Syn(hdr="Current-{unit}"),),
         )
@@ -608,7 +646,7 @@ class TestNormalizerNormalize:
             "A": "current_ampere",
             "s": "test_time_second",
         }
-        syn_map: dict[str, tuple[Syn | DateTimeSyn, ...] | ResolvedColumn | None] = {
+        syn_map: dict[str, tuple[Syn, ...] | ResolvedColumn | None] = {
             "voltage_volt": (Syn(hdr="Voltage-{unit}"),),
             "current_ampere": (Syn(hdr="Current-{unit}"),),
             "test_time_second": (Syn(hdr="Time-{unit}"),),
@@ -687,7 +725,7 @@ class TestNormalizerFromColumnMap:
         with pytest.warns(UserWarning, match="not compatible"):
             n = TableNormalizer.from_column_map({"Voltage / A": "col_v"})
         assert isinstance(n.voltage_volt, ResolvedColumn)
-        assert n.voltage_volt.scale == pytest.approx(1.0)
+        assert _scale_offset(n.voltage_volt.normalization)[0] == pytest.approx(1.0)
 
     def test_multiple_entries(self):
         """from_column_map builds a ResolvedColumn per entry with source header and unit scale set."""
@@ -704,9 +742,9 @@ class TestNormalizerFromColumnMap:
         assert n.voltage_volt.source_header == "col_v"
         assert n.current_ampere.source_header == "col_i"
         assert n.test_time_second.source_header == "col_t"
-        assert n.voltage_volt.scale == pytest.approx(0.001)
-        assert n.current_ampere.scale == pytest.approx(0.001)
-        assert n.test_time_second.scale == pytest.approx(3600.0)
+        assert _scale_offset(n.voltage_volt.normalization)[0] == pytest.approx(0.001)
+        assert _scale_offset(n.current_ampere.normalization)[0] == pytest.approx(0.001)
+        assert _scale_offset(n.test_time_second.normalization)[0] == pytest.approx(3600.0)
         assert n.cycle_count is None
 
     def test_duplicate_mr_name_last_wins(self):
@@ -719,7 +757,7 @@ class TestNormalizerFromColumnMap:
         )
         assert isinstance(n.voltage_volt, ResolvedColumn)
         assert n.voltage_volt.source_header == "second_col"
-        assert n.voltage_volt.scale == pytest.approx(0.001)
+        assert _scale_offset(n.voltage_volt.normalization)[0] == pytest.approx(0.001)
 
     def test_can_normalize_dataframe(self):
         """TableNormalizer built from from_column_map resolves and normalizes a DataFrame end-to-end."""
@@ -744,10 +782,12 @@ class TestNormalizerFromColumnMap:
 
 class TestNormalizerModelValidate:
     def test_json_validation_synonym_list(self):
-        """model_validate accepts dict with Syn and DateTimeSyn data."""
+        """model_validate accepts dict with plain and normalization-declaring Syn data."""
         n = TableNormalizer.model_validate(
             {
-                "test_time_second": [{"syn": "Test-Time", "fmts": ["%H:%M:%S.%f"]}],
+                "test_time_second": [
+                    {"hdr": "Test-Time", "normalization": {"kind": "absolute_time", "formats": ["%H:%M:%S.%f"]}}
+                ],
                 "voltage_volt": ["Voltage-{unit}"],
                 "current_ampere": ["Current-{unit}"],
             }
@@ -758,11 +798,12 @@ class TestNormalizerModelValidate:
         """model_validate accepts dict with ResolvedColumn data."""
         n = TableNormalizer.model_validate(
             {
-                "voltage_volt": {"source_header": "my_v", "scale": 0.001},
+                "voltage_volt": {"source_header": "my_v"},
             }
         )
         resolved = n.resolve(["my_v"])
-        assert resolved["voltage_volt"].scale == pytest.approx(0.001)
+        assert resolved["voltage_volt"].source_header == "my_v"
+        assert _scale_offset(resolved["voltage_volt"].normalization)[0] == pytest.approx(1.0)
 
 
 class TestNormalizeFn:
@@ -978,7 +1019,9 @@ class TestTimezoneHandling:
 
     def test_naive_format_localized_to_explicit_tz(self):
         """Explicit non-UTC tz shifts unix_time_second by the correct offset vs UTC."""
-        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        n = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),)
+        )
         df = pl.DataFrame({"ts": ["2024-06-01 12:00:00"]})
         out_utc = n.normalize(df, validate=False, tz="UTC")
         with warnings.catch_warnings():
@@ -992,7 +1035,9 @@ class TestTimezoneHandling:
     def test_tz_aware_format_ignores_tz_argument(self):
         """A format with an embedded offset (%:z) produces identical output regardless of tz."""
         n = TableNormalizer(
-            unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S%:z",)),),
+            unix_time_second=(
+                Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S%:z",))),
+            ),
         )
         df = pl.DataFrame({"ts": ["2024-06-01 12:00:00+02:00"]})
         out_utc = n.normalize(df, validate=False, tz="UTC")
@@ -1001,53 +1046,88 @@ class TestTimezoneHandling:
 
     def test_default_tz_warns_and_matches_legacy_utc_behavior(self):
         """Default call (no tz) on a naive format warns and matches pre-change (UTC) output."""
-        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        n = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),)
+        )
         df = pl.DataFrame({"ts": ["2024-06-01 12:00:00"]})
         with pytest.warns(UserWarning, match="tz defaulted to UTC"):
             out = n.normalize(df, validate=False)
-        assert out["Unix Time / s"][0] == pytest.approx(1717243200.0)
+        expected = datetime(2024, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        assert out["Unix Time / s"][0] == pytest.approx(expected)
 
     def test_tz_aware_only_format_emits_no_warning(self, recwarn):
         """An entirely offset-qualified format emits no timezone warning under default tz."""
         n = TableNormalizer(
-            unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S%:z",)),),
+            unix_time_second=(
+                Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S%:z",))),
+            ),
         )
         df = pl.DataFrame({"ts": ["2024-06-01 12:00:00+02:00"]})
         n.normalize(df, validate=False)
         assert not any("tz defaulted to UTC" in str(w.message) for w in recwarn.list)
 
+    def test_zulu_format_emits_no_warning(self, recwarn):
+        """A format ending in a literal Zulu states UTC itself, so the default tz never applies to it."""
+        n = TableNormalizer(
+            unix_time_second=(
+                Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%dT%H:%M:%S%.fZ",))),
+            ),
+        )
+        df = pl.DataFrame({"ts": ["2024-06-01T12:00:00.000Z"]})
+        n.normalize(df, validate=False)
+        assert not any("tz defaulted to UTC" in str(w.message) for w in recwarn.list)
+
+    def test_defaulted_formats_warn_like_declared_ones(self):
+        """A declaration with no format of its own draws the ISO tail, which carries naive shapes, so it warns."""
+        n = TableNormalizer(unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization()),))
+        df = pl.DataFrame({"ts": ["2024-06-01 12:00:00.000"]})
+        with pytest.warns(UserWarning, match="tz defaulted to UTC"):
+            out = n.normalize(df, validate=False)
+        expected = datetime(2024, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        assert out["Unix Time / s"][0] == pytest.approx(expected)
+
     def test_invalid_tz_raises_before_collect(self):
         """An invalid tz raises ValueError immediately from normalize(), before any lazy collect."""
-        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        n = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),)
+        )
         lf = pl.LazyFrame({"ts": ["2024-06-01 12:00:00"]})
         with pytest.raises(ValueError, match="invalid tz 'Not/AZone'.*time zone"):
             n.normalize(lf, validate=False, tz="Not/AZone")
 
     def test_dst_non_existent_time_becomes_null(self):
         """Spring-forward gap timestamps become null instead of failing the read."""
-        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        n = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),)
+        )
         df = pl.DataFrame({"ts": ["2024-03-10 02:30:00"]})
         out = n.normalize(df, validate=False, tz="America/New_York")
         assert out["Unix Time / s"].to_list() == [None]
 
     def test_dst_ambiguous_time_uses_earliest_occurrence(self):
         """Fall-back repeated hour timestamps choose the earliest occurrence."""
-        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        n = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),)
+        )
         df = pl.DataFrame({"ts": ["2024-11-03 01:30:00"]})
         out = n.normalize(df, validate=False, tz="America/New_York")
-        assert out["Unix Time / s"][0] == pytest.approx(1730611800.0)
+        expected = datetime(2024, 11, 3, 1, 30, 0, tzinfo=ZoneInfo("America/New_York"), fold=0).timestamp()
+        assert out["Unix Time / s"][0] == pytest.approx(expected)
 
     def test_dst_transition_times_do_not_fail_lazy_collect(self):
         """DST edge cases are handled inside the lazy plan before collect()."""
-        n = TableNormalizer(unix_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),))
+        n = TableNormalizer(
+            unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),)
+        )
         lf = pl.LazyFrame({"ts": ["2024-03-10 02:30:00", "2024-11-03 01:30:00"]})
         out = n.normalize(lf, validate=False, tz="America/New_York").collect()
-        assert out["Unix Time / s"].to_list() == [None, 1730611800.0]
+        expected = datetime(2024, 11, 3, 1, 30, 0, tzinfo=ZoneInfo("America/New_York"), fold=0).timestamp()
+        assert out["Unix Time / s"].to_list() == [None, expected]
 
     def test_elapsed_seconds_identical_regardless_of_tz(self):
         """test_time_second/step_time_second values are unaffected by tz (offset cancels out)."""
         n = TableNormalizer(
-            test_time_second=(DateTimeSyn(syn=Syn(hdr="ts"), fmts=("%Y-%m-%d %H:%M:%S",)),),
+            test_time_second=(Syn(hdr="ts", normalization=RelativeTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),),
         )
         df = pl.DataFrame({"ts": ["2024-06-01 12:00:00", "2024-06-01 12:01:00"]})
         with warnings.catch_warnings():
@@ -1073,7 +1153,7 @@ class TestExtend:
         assert extended.voltage_volt == (Syn(hdr="U ({unit})"),)
 
     def test_single_syn_value_is_wrapped_in_tuple(self):
-        """extend() accepts a bare Syn/DateTimeSyn, not just a tuple."""
+        """extend() accepts a bare Syn, not just a tuple."""
         norm = TableNormalizer(voltage_volt=(Syn(hdr="Voltage ({unit})"),))
         extended = norm.extend(voltage_volt=Syn(hdr="U ({unit})"))
         assert extended.voltage_volt == (Syn(hdr="Voltage ({unit})"), Syn(hdr="U ({unit})"))

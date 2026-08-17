@@ -27,9 +27,10 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from sphinx.util import logging  # noqa: E402
 
 from bdf.metadata_parsers import JsonSidecarParser, TxtPreambleParser  # noqa: E402
+from bdf.normalization import AbsoluteTimeNormalization, LinearNormalization, RelativeTimeNormalization  # noqa: E402
 from bdf.plugins import PLUGINS  # noqa: E402
 from bdf.spec import COLUMN_ONTOLOGY  # noqa: E402
-from bdf.table_normalizers import DateTimeSyn, ResolvedColumn, Syn  # noqa: E402
+from bdf.table_normalizers import ResolvedColumn, Syn  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -117,20 +118,19 @@ def _metadata_dropdown(metadata_parser) -> list[str]:
     return lines
 
 
-def _synonym_bullet(syn: Syn | DateTimeSyn) -> str:
+def _synonym_bullet(syn: Syn) -> str:
     """One bullet line for a single synonym, flagging assumed entries."""
-    if isinstance(syn, DateTimeSyn):
-        base, assumed = syn.syn.hdr, syn.syn.assumed
-        fmts = ", ".join(_lit(f) for f in syn.fmts)
+    base, assumed = syn.hdr, syn.assumed
+    if isinstance(syn.normalization, (AbsoluteTimeNormalization, RelativeTimeNormalization)):
+        fmts = ", ".join(_lit(f) for f in syn.normalization.formats)
         line = f"- {_lit(base)} -- formats: {fmts}" if fmts else f"- {_lit(base)}"
     else:
-        base, assumed = syn.hdr, syn.assumed
         line = f"- {_lit(base)}"
     return line + " *(assumed)*" if assumed else line
 
 
-def _is_assumed(syn: Syn | DateTimeSyn) -> bool:
-    return syn.syn.assumed if isinstance(syn, DateTimeSyn) else syn.assumed
+def _is_assumed(syn: Syn) -> bool:
+    return syn.assumed
 
 
 def _synonym_dropdown(normalizer) -> list[str]:
@@ -149,11 +149,12 @@ def _synonym_dropdown(normalizer) -> list[str]:
         lines.append(f"   **{_field_label(mr_name)}** -- {_lit(mr_name)}")
         lines.append("")
         if isinstance(val, ResolvedColumn):
+            norm = val.normalization
             detail = f"   - Direct mapping from {_lit(val.source_header)}"
-            if (val.scale, val.offset) != (1.0, 0.0):
-                detail += f" (scale {val.scale}, offset {val.offset})"
-            if val.datetime_fmts:
-                detail += " -- formats: " + ", ".join(_lit(f) for f in val.datetime_fmts)
+            if isinstance(norm, LinearNormalization) and (norm.scale, norm.offset) != (1.0, 0.0):
+                detail += f" (scale {norm.scale}, offset {norm.offset})"
+            if isinstance(norm, (AbsoluteTimeNormalization, RelativeTimeNormalization)) and norm.formats:
+                detail += " -- formats: " + ", ".join(_lit(f) for f in norm.formats)
             lines.append(detail)
         else:
             lines.extend("   " + _synonym_bullet(syn) for syn in val)

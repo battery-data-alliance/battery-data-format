@@ -6,7 +6,7 @@ import logging
 import re
 import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Annotated, Iterator, Union
 
 import polars as pl
 from pydantic import (
@@ -19,40 +19,47 @@ from pydantic import (
 if TYPE_CHECKING:
     import pandas as pd  # noqa: F401
 
+
 from bdf._df_compat import coerce_dataframe  # noqa: E402
 from bdf.normalization import (
     _ARBIN_DT_FMTS,
     _DIGATRON_DT_FMTS,
+    _DST_AMBIGUOUS_STRATEGY,
+    _DST_NON_EXISTENT_STRATEGY,
     _LANDT_DT_FMTS,
     _MACCOR_DT_FMTS,
     _NEWARE_DT_FMTS,
+    AbsoluteTimeNormalization,
+    ElapsedTimeNormalization,
+    IdentityNormalization,
+    LinearNormalization,
+    Normalization,
+    RelativeTimeNormalization,
+    _is_self_describing,
 )
 from bdf.spec import _UNIT_CAPTURE, COLUMN_ONTOLOGY, get_unit_conversion
 
 _logger = logging.getLogger(__name__)
 
-_DATE_COMPONENT_RE = re.compile(r"%[YymbBdej]")
-_TZ_COMPONENT_RE = re.compile(r"%:?[zZ]")
-_DST_AMBIGUOUS_STRATEGY = "earliest"
-_DST_NON_EXISTENT_STRATEGY = "null"
-
-
-def _split_tz_fmts(fmts: Sequence[str]) -> tuple[list[str], list[str]]:
-    """Split format strings into (tz_aware, naive) by embedded offset directive.
-
-    Args:
-        fmts: Datetime format strings to classify.
-
-    Returns:
-        Tuple of (formats with %z/%:z/%Z, formats without).
-    """
-    tz_aware = [f for f in fmts if _TZ_COMPONENT_RE.search(f)]
-    naive = [f for f in fmts if not _TZ_COMPONENT_RE.search(f)]
-    return tz_aware, naive
+# ResolvedColumn.normalization is typed as this discriminated union, not the
+# bare Normalization base, so a JSON round-trip (model_dump_json then
+# model_validate_json) reconstructs the declared kind instead of the fieldless
+# base class. Every concrete kind carries every other kind's Normalization
+# behaviour, so a caller reading .scalar()/.expr() sees no difference.
+_NormalizationField = Annotated[
+    Union[
+        IdentityNormalization,
+        LinearNormalization,
+        AbsoluteTimeNormalization,
+        RelativeTimeNormalization,
+        ElapsedTimeNormalization,
+    ],
+    Field(discriminator="kind"),
+]
 
 
 class Syn(BaseModel):
-    """A numeric column synonym declared by exemplar header."""
+    """A column synonym declared by exemplar header, with an optional declared normalization."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -67,6 +74,10 @@ class Syn(BaseModel):
     reverse_sign: bool = False
     """Flip sign of column in addition to unit conversion
     e.g. negative impedance or discharge-positive current columns."""
+    normalization: _NormalizationField | None = Field(
+        default=None,
+        description="A declared normalization (e.g. a datetime kind); wins over unit matching when set.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -81,17 +92,25 @@ class Syn(BaseModel):
         """
         return {"hdr": data} if isinstance(data, str) else data
 
-    def match(self, header: str, bdf_unit: str | None) -> tuple[float, float] | None:
-        """Return (scale, offset) on match, None on no match or incompatible units.
+    def match(self, header: str, bdf_unit: str | None) -> Normalization | None:
+        """Return a normalization on match, None on no match or incompatible units.
 
         Args:
             header: Column name to match against the synonym pattern.
             bdf_unit: Target unit for conversion, or None for dimensionless columns.
 
         Returns:
-            Tuple of (scale, offset) for unit conversion, or None if no match or incompatible units.
+            The declared ``normalization`` on an exact match when one is set
+            (a header carrying no unit; the ``bdf_unit`` is not consulted),
+            ``IdentityNormalization()`` on an exact unitless match,
+            ``LinearNormalization(scale, offset)`` on a unit conversion (even
+            where the conversion happens to be 1:1), or None on no match or
+            incompatible units.
         """
-        if "{unit}" in self.hdr:
+        if self.normalization is not None:
+            return self.normalization if self.exact_match(header) else None
+        templated = "{unit}" in self.hdr
+        if templated:
             if bdf_unit is None:
                 return None
             parts = self.hdr.split("{unit}")
@@ -104,10 +123,14 @@ class Syn(BaseModel):
             if self.hdr.strip() != header.strip():
                 return None
             result = get_unit_conversion(self.source_unit, bdf_unit) if self.source_unit is not None else (1.0, 0.0)
-        if not self.reverse_sign or result is None:
-            return result
+        if result is None:
+            return None
         scale, offset = result
-        return (-scale, offset)
+        if self.reverse_sign:
+            scale = -scale
+        if not templated and self.source_unit is None and not self.reverse_sign:
+            return IdentityNormalization()
+        return LinearNormalization(scale=scale, offset=offset)
 
     def exact_match(self, header: str) -> bool:
         """Test exact case-insensitive match against header.
@@ -121,28 +144,14 @@ class Syn(BaseModel):
         return self.hdr.strip() == header.strip()
 
 
-class DateTimeSyn(BaseModel):
-    """A datetime column synonym: one header synonym plus ordered format strings to try."""
-
-    model_config = ConfigDict(frozen=True)
-
-    syn: Syn = Field(description="Header synonym to match datetime columns.")
-    fmts: tuple[str, ...] = Field(description="Ordered list of datetime format strings to attempt parsing.")
-
-
-SynUnion = Syn | DateTimeSyn
-
-
 class ResolvedColumn(BaseModel):
     """Resolved mapping of one source header to one BDF column."""
 
     model_config = ConfigDict(frozen=True)
 
     source_header: str = Field(description="The column name in the source data.")
-    scale: float = Field(default=1.0, description="Scale factor to apply to numeric values.")
-    offset: float = Field(default=0.0, description="Offset to apply to numeric values after scaling.")
-    datetime_fmts: tuple[str, ...] = Field(
-        default=(), description="Datetime format strings for parsing timestamp columns."
+    normalization: _NormalizationField = Field(
+        default_factory=IdentityNormalization, description="Conversion applied to the resolved column."
     )
     legacy: bool = False  # Resolved from a legacy column, warn user
 
@@ -176,7 +185,12 @@ class ResolvedColumn(BaseModel):
                 )
             else:
                 scale, offset = result
-        return quantity.mr_name, cls(source_header=src_header, scale=scale, offset=offset)
+        normalization: Normalization = (
+            IdentityNormalization()
+            if scale == 1.0 and offset == 0.0
+            else LinearNormalization(scale=scale, offset=offset)
+        )
+        return quantity.mr_name, cls(source_header=src_header, normalization=normalization)
 
     @classmethod
     def from_synonyms(
@@ -184,7 +198,7 @@ class ResolvedColumn(BaseModel):
         header: str,
         probe: str,
         bdf_unit: str | None,
-        synonyms: Sequence[SynUnion],
+        synonyms: Sequence[Syn],
     ) -> ResolvedColumn | None:
         """Try to match header against synonyms; return ResolvedColumn or None.
 
@@ -192,37 +206,23 @@ class ResolvedColumn(BaseModel):
             header: Original column name from the source.
             probe: Normalized header (stripped, with leading ~ removed).
             bdf_unit: Target BDF unit for conversion.
-            synonyms: Sequence of Syn or DateTimeSyn objects to match against.
+            synonyms: Sequence of Syn objects to match against.
 
         Returns:
-            ResolvedColumn with matched scale/offset or datetime formats, or None if no match.
+            ResolvedColumn with the matched normalization, or None if no match.
         """
         for syn in synonyms:
-            if isinstance(syn, DateTimeSyn):
-                if syn.syn.exact_match(probe):
-                    return cls(
-                        source_header=header,
-                        datetime_fmts=syn.fmts,
-                    )
-            else:
-                result = syn.match(probe, bdf_unit)
-                if result is not None:
-                    scale, offset = result
-                    return cls(
-                        source_header=header,
-                        scale=scale,
-                        offset=offset,
-                        legacy=syn.legacy,
-                    )
+            normalization = syn.match(probe, bdf_unit)
+            if normalization is not None:
+                return cls(source_header=header, normalization=normalization, legacy=syn.legacy)
         return None
 
     def get_expr(self, mr_name: str, tz: str = "UTC") -> pl.Expr:
-        """Build polars expression for column transformation with unit conversion and dtype casting.
+        """Build polars expression for column transformation with normalization and dtype casting.
 
         Args:
             mr_name: Machine-readable column name (e.g. 'voltage_volt').
-            tz: IANA timezone applied to naive (no embedded offset) datetime formats when
-                ``mr_name == "unix_time_second"``; ignored otherwise. Defaults to ``"UTC"``.
+            tz: IANA timezone applied by the normalization where it reads it.
                 Around daylight-saving clock changes, some local times do not map to one
                 exact instant. If clocks move back from UTC+1 to UTC+0, ``01:30`` can mean
                 either ``00:30 UTC`` or ``01:30 UTC``; this parser uses ``00:30 UTC`` for
@@ -230,84 +230,22 @@ class ResolvedColumn(BaseModel):
                 ``01:30``, that row becomes null.
 
         Returns:
-            Polars expression that applies scale, offset, and dtype conversion.
+            Polars expression that applies the normalization and dtype conversion.
         """
         src = self.source_header
         label = getattr(COLUMN_ONTOLOGY, mr_name).formatted_label
-        if self.datetime_fmts:
-            dt_fmts = [f for f in self.datetime_fmts if _DATE_COMPONENT_RE.search(f)]
-            dur_fmts = [f for f in self.datetime_fmts if not _DATE_COMPONENT_RE.search(f)]
-            parts: list[pl.Expr] = []
-            if dt_fmts:
-                if mr_name == "unix_time_second":
-                    parts.append(_datetime_unix_expr(src, dt_fmts, tz))
-                else:
-                    parts.append(_datetime_elapsed_expr(src, dt_fmts))
-            if dur_fmts:
-                parts.append(_duration_str_expr(src))
-            expr = pl.coalesce(parts) if len(parts) > 1 else parts[0]
-            return expr.alias(label)
         dtype = getattr(COLUMN_ONTOLOGY, mr_name).dtype
+        expr = self.normalization.expr(pl.col(src), tz=tz)
         if dtype == "str":
-            return pl.col(src).cast(pl.Utf8, strict=False).alias(label)
-        expr = pl.col(src).cast(pl.Float64, strict=False)
-        if self.scale != 1.0:
-            expr = expr * self.scale
-        if self.offset != 0.0:
-            expr = expr + self.offset
-        if dtype == "int":
-            expr = expr.cast(pl.Int64, strict=False)
+            expr = expr.cast(pl.Utf8, strict=False)
+        elif dtype == "int":
+            # Through Float64 first: a direct Utf8 -> Int64 cast returns null
+            # for a decimal-formatted numeral (e.g. "2.0"), and every
+            # delimited and Excel parser hands this path Utf8.
+            expr = expr.cast(pl.Float64, strict=False).cast(pl.Int64, strict=False)
+        else:
+            expr = expr.cast(pl.Float64, strict=False)
         return expr.alias(label)
-
-
-def _datetime_unix_expr(src: str, fmts: list[str], tz: str = "UTC") -> pl.Expr:
-    """Parse datetimes to unix timestamp seconds.
-
-    Formats with an embedded offset directive (``%z``/``%:z``/``%Z``) are parsed and
-    converted to epoch as-is, ignoring ``tz``. Formats without are localized to ``tz``
-    before conversion to epoch.
-
-    Args:
-        src: Source column name.
-        fmts: Datetime format strings to try, in order.
-        tz: IANA timezone applied to naive (no embedded offset) candidates. Defaults to ``"UTC"``.
-            Around daylight-saving clock changes, repeated local times are converted to
-            the earlier possible ``Unix Time / s`` value. For example, if clocks move back
-            from UTC+1 to UTC+0, ``01:30`` is treated as ``00:30 UTC`` rather than
-            ``01:30 UTC``. Local times skipped when clocks move forward become null.
-
-    Returns:
-        Polars expression that parses datetime strings and converts to unix timestamp seconds.
-    """
-    tz_aware_fmts, naive_fmts = _split_tz_fmts(fmts)
-    # timestamp() per candidate avoids coalesce supertype conflict (tz-aware vs tz-naive)
-    candidates = [pl.col(src).str.to_datetime(f, strict=False).dt.timestamp("us") for f in tz_aware_fmts]
-    candidates += [
-        pl.col(src)
-        .str.to_datetime(f, strict=False)
-        .dt.replace_time_zone(tz, ambiguous=_DST_AMBIGUOUS_STRATEGY, non_existent=_DST_NON_EXISTENT_STRATEGY)
-        .dt.timestamp("us")
-        for f in naive_fmts
-    ]
-    parsed = pl.coalesce(candidates) if len(candidates) > 1 else candidates[0]
-    return parsed.cast(pl.Float64) / 1e6
-
-
-def _datetime_elapsed_expr(src: str, fmts: list[str]) -> pl.Expr:
-    """Parse datetimes to seconds elapsed since first row.
-
-    The offset cancels out in the subtraction, so ``tz`` is irrelevant here and a fixed
-    ``"UTC"`` is used internally.
-
-    Args:
-        src: Source column name.
-        fmts: List of datetime format strings to try in order.
-
-    Returns:
-        Polars expression that calculates seconds elapsed from the first row's timestamp.
-    """
-    ts = _datetime_unix_expr(src, fmts, "UTC")
-    return ts - ts.first()
 
 
 def _validate_tz(tz: str) -> None:
@@ -331,25 +269,10 @@ def _validate_tz(tz: str) -> None:
         raise ValueError(f"invalid tz {tz!r}: {e}") from e
 
 
-def _duration_str_expr(src: str) -> pl.Expr:
-    """Parse HH:MM:SS[.fff] duration string to seconds. Handles hours > 23.
-
-    Args:
-        src: Source column name containing duration strings.
-
-    Returns:
-        Polars expression that parses duration strings to total seconds.
-    """
-    h = pl.col(src).str.extract(r"^(\d+):\d+:[\d.]+", 1).cast(pl.Float64)
-    m = pl.col(src).str.extract(r"^\d+:(\d+):[\d.]+", 1).cast(pl.Float64)
-    s = pl.col(src).str.extract(r"^\d+:\d+:([\d.]+)", 1).cast(pl.Float64)
-    return h * 3600 + m * 60 + s
-
-
 class TableNormalizer(BaseModel):
     """Column-mapping model: one optional field per BDF mr_name.
 
-    Fields accept ``tuple[Syn | DateTimeSyn, ...]`` (synonym-based, for CSV/Excel) or
+    Fields accept ``tuple[Syn, ...]`` (synonym-based, for CSV/Excel) or
     ``ResolvedColumn`` (direct, for MAT). Iterating yields ``(mr_name, spec)``
     for non-None fields in declaration order. ``tuple`` (not ``list``) keeps
     instances hashable so they can live in a ``frozenset``.
@@ -357,66 +280,66 @@ class TableNormalizer(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    test_time_second: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    voltage_volt: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    current_ampere: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    unix_time_second: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_count: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_count: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_id: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_type: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    ambient_temperature_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_record_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    record_index: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_time_second: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    schedule_charging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    schedule_discharging_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    net_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_net_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_net_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cumulative_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_cumulative_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_cumulative_capacity_ah: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    schedule_charging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    schedule_discharging_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    net_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_net_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_net_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cumulative_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    step_cumulative_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    cycle_cumulative_energy_wh: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    power_watt: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    internal_resistance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    dc_internal_resistance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    ac_internal_resistance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    real_impedance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    imaginary_impedance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    absolute_impedance_ohm: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    phase_degree: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    frequency_hertz: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    ambient_pressure_pa: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    applied_pressure_pa: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    surface_pressure_pa: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    temperature_t1_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    temperature_t2_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    temperature_t3_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    temperature_t4_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    temperature_t5_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
-    surface_temperature_celsius: tuple[SynUnion, ...] | ResolvedColumn | None = None
+    test_time_second: tuple[Syn, ...] | ResolvedColumn | None = None
+    voltage_volt: tuple[Syn, ...] | ResolvedColumn | None = None
+    current_ampere: tuple[Syn, ...] | ResolvedColumn | None = None
+    unix_time_second: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_count: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_count: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_id: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_type: tuple[Syn, ...] | ResolvedColumn | None = None
+    ambient_temperature_celsius: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_record_index: tuple[Syn, ...] | ResolvedColumn | None = None
+    record_index: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_time_second: tuple[Syn, ...] | ResolvedColumn | None = None
+    charging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_charging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_charging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    schedule_charging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    discharging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_discharging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_discharging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    schedule_discharging_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    net_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_net_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_net_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    cumulative_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_cumulative_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_cumulative_capacity_ah: tuple[Syn, ...] | ResolvedColumn | None = None
+    charging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_charging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_charging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    schedule_charging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    discharging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_discharging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_discharging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    schedule_discharging_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    net_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_net_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_net_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    cumulative_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    step_cumulative_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    cycle_cumulative_energy_wh: tuple[Syn, ...] | ResolvedColumn | None = None
+    power_watt: tuple[Syn, ...] | ResolvedColumn | None = None
+    internal_resistance_ohm: tuple[Syn, ...] | ResolvedColumn | None = None
+    dc_internal_resistance_ohm: tuple[Syn, ...] | ResolvedColumn | None = None
+    ac_internal_resistance_ohm: tuple[Syn, ...] | ResolvedColumn | None = None
+    real_impedance_ohm: tuple[Syn, ...] | ResolvedColumn | None = None
+    imaginary_impedance_ohm: tuple[Syn, ...] | ResolvedColumn | None = None
+    absolute_impedance_ohm: tuple[Syn, ...] | ResolvedColumn | None = None
+    phase_degree: tuple[Syn, ...] | ResolvedColumn | None = None
+    frequency_hertz: tuple[Syn, ...] | ResolvedColumn | None = None
+    ambient_pressure_pa: tuple[Syn, ...] | ResolvedColumn | None = None
+    applied_pressure_pa: tuple[Syn, ...] | ResolvedColumn | None = None
+    surface_pressure_pa: tuple[Syn, ...] | ResolvedColumn | None = None
+    temperature_t1_celsius: tuple[Syn, ...] | ResolvedColumn | None = None
+    temperature_t2_celsius: tuple[Syn, ...] | ResolvedColumn | None = None
+    temperature_t3_celsius: tuple[Syn, ...] | ResolvedColumn | None = None
+    temperature_t4_celsius: tuple[Syn, ...] | ResolvedColumn | None = None
+    temperature_t5_celsius: tuple[Syn, ...] | ResolvedColumn | None = None
+    surface_temperature_celsius: tuple[Syn, ...] | ResolvedColumn | None = None
 
-    def __iter__(self) -> Iterator[tuple[str, tuple[SynUnion, ...] | ResolvedColumn]]:  # type: ignore[override]
+    def __iter__(self) -> Iterator[tuple[str, tuple[Syn, ...] | ResolvedColumn]]:  # type: ignore[override]
         """Iterate over (mr_name, field_value) for all non-None fields in declaration order.
 
         Yields:
@@ -427,7 +350,7 @@ class TableNormalizer(BaseModel):
             if val is not None:
                 yield mr_name, val
 
-    def extend(self, **kwargs: SynUnion | tuple[SynUnion, ...] | ResolvedColumn) -> "TableNormalizer":
+    def extend(self, **kwargs: Syn | tuple[Syn, ...] | ResolvedColumn) -> "TableNormalizer":
         """Return a copy with extra synonyms appended (or fields set) per kwarg.
 
         Each kwarg is a BDF field name (e.g. ``voltage_volt``). If the field
@@ -447,11 +370,11 @@ class TableNormalizer(BaseModel):
         Raises:
             ValueError: If a kwarg key is not a valid TableNormalizer field name.
         """
-        updates: dict[str, tuple[SynUnion, ...] | ResolvedColumn] = {}
+        updates: dict[str, tuple[Syn, ...] | ResolvedColumn] = {}
         for field, value in kwargs.items():
             if field not in type(self).model_fields:
                 raise ValueError(f"extend: unknown TableNormalizer field {field!r}")
-            if isinstance(value, (Syn, DateTimeSyn)):
+            if isinstance(value, Syn):
                 value = (value,)
             current = getattr(self, field)
             if isinstance(current, ResolvedColumn):
@@ -600,14 +523,17 @@ class TableNormalizer(BaseModel):
             )
 
         unix_rc = resolved.get("unix_time_second")
-        if unix_rc is not None and unix_rc.datetime_fmts and tz == "UTC":
-            dt_fmts = [f for f in unix_rc.datetime_fmts if _DATE_COMPONENT_RE.search(f)]
-            if any(not _TZ_COMPONENT_RE.search(f) for f in dt_fmts):
-                warnings.warn(
-                    "tz defaulted to UTC; pass tz=... if data was recorded in a different timezone",
-                    UserWarning,
-                    stacklevel=3,
-                )
+        unix_norm = unix_rc.normalization if unix_rc is not None else None
+        if (
+            isinstance(unix_norm, (AbsoluteTimeNormalization, RelativeTimeNormalization))
+            and tz == "UTC"
+            and any(not _is_self_describing(f) for f in unix_norm.effective_formats)
+        ):
+            warnings.warn(
+                "tz defaulted to UTC; pass tz=... if data was recorded in a different timezone",
+                UserWarning,
+                stacklevel=3,
+            )
 
         exprs: list[pl.Expr] = []
 
@@ -661,8 +587,8 @@ ARBIN = TableNormalizer(
         Syn(hdr="Current({unit})"),
     ),
     unix_time_second=(
-        DateTimeSyn(syn=Syn(hdr="Date Time"), fmts=_ARBIN_DT_FMTS),
-        DateTimeSyn(syn=Syn(hdr="Date_Time"), fmts=_ARBIN_DT_FMTS),
+        Syn(hdr="Date Time", normalization=AbsoluteTimeNormalization(formats=_ARBIN_DT_FMTS)),
+        Syn(hdr="Date_Time", normalization=AbsoluteTimeNormalization(formats=_ARBIN_DT_FMTS)),
     ),
     cycle_count=(
         Syn(hdr="Cycle Index"),
@@ -710,8 +636,10 @@ ARBIN_RES = TableNormalizer(
     # time is needed.
     unix_time_second=ResolvedColumn(
         source_header="DateTime",
-        scale=_SECONDS_PER_DAY,
-        offset=-_ACCESS_UNIX_EPOCH_DAYS * _SECONDS_PER_DAY,
+        normalization=LinearNormalization(
+            scale=_SECONDS_PER_DAY,
+            offset=-_ACCESS_UNIX_EPOCH_DAYS * _SECONDS_PER_DAY,
+        ),
     ),
     cycle_count=(Syn(hdr="Cycle_Index"),),
     step_id=(Syn(hdr="Step_Index"),),
@@ -733,7 +661,7 @@ BASYTEC = TableNormalizer(
     test_time_second=(
         Syn(hdr="Time[{unit}]", assumed=True),
         Syn(hdr="Time", assumed=True),
-        DateTimeSyn(syn=Syn(hdr="Time[h:min:s]", assumed=True), fmts=("%H:%M:%S.%f",)),
+        Syn(hdr="Time[h:min:s]", assumed=True, normalization=ElapsedTimeNormalization()),
     ),
     voltage_volt=(
         Syn(hdr="U[{unit}]"),
@@ -839,7 +767,7 @@ DIGATRON = TableNormalizer(
         Syn(hdr="Current#{unit}"),
         Syn(hdr="Current", assumed=True),
     ),
-    unix_time_second=(DateTimeSyn(syn=Syn(hdr="Timestamp"), fmts=_DIGATRON_DT_FMTS),),
+    unix_time_second=(Syn(hdr="Timestamp", normalization=AbsoluteTimeNormalization(formats=_DIGATRON_DT_FMTS)),),
     step_id=(Syn(hdr="Step"),),
     step_time_second=(
         Syn(hdr="Step Duration#{unit}"),
@@ -880,7 +808,9 @@ LANDT_CSV = TableNormalizer(
     step_id=(Syn(hdr="step_index"),),
     step_time_second=(Syn(hdr="step_time_s"),),
     record_index=(Syn(hdr="channel_index"),),
-    unix_time_second=(DateTimeSyn(syn=Syn(hdr="date_time_iso_string"), fmts=("%m/%d/%Y %H:%M:%S",)),),
+    unix_time_second=(
+        Syn(hdr="date_time_iso_string", normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",))),
+    ),
     step_charging_capacity_ah=(Syn(hdr="charge_capacity_{unit}"),),
     step_discharging_capacity_ah=(Syn(hdr="discharge_capacity_{unit}"),),
     step_charging_energy_wh=(Syn(hdr="charge_energy_{unit}"),),
@@ -928,7 +858,7 @@ LANDT_TXT = TableNormalizer(
         Syn(hdr="Record", assumed=True),
         Syn(hdr="Record#", assumed=True),
     ),
-    unix_time_second=(DateTimeSyn(syn=Syn(hdr="DPt-Time"), fmts=_LANDT_DT_FMTS),),
+    unix_time_second=(Syn(hdr="DPt-Time", normalization=AbsoluteTimeNormalization(formats=_LANDT_DT_FMTS)),),
     step_time_second=(
         Syn(hdr="Step({unit})"),
         Syn(hdr="Step Time ({unit})", assumed=True),
@@ -953,7 +883,7 @@ MACCOR = TableNormalizer(
         Syn(hdr="Current", assumed=True),
         Syn(hdr="Current [{unit}]"),
     ),
-    unix_time_second=(DateTimeSyn(syn=Syn(hdr="DPT Time"), fmts=_MACCOR_DT_FMTS),),
+    unix_time_second=(Syn(hdr="DPT Time", normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS)),),
     cycle_count=(Syn(hdr="Cycle C"),),
     step_count=(Syn(hdr="Step"),),
     record_index=(Syn(hdr="Rec"),),
@@ -978,7 +908,7 @@ MACCOR = TableNormalizer(
 
 NEWARE = TableNormalizer(
     test_time_second=(
-        DateTimeSyn(syn=Syn(hdr="Total Time", assumed=True), fmts=_NEWARE_DT_FMTS),
+        Syn(hdr="Total Time", assumed=True, normalization=RelativeTimeNormalization(formats=_NEWARE_DT_FMTS)),
         Syn(hdr="Total Time({unit})"),
         Syn(hdr="Test Time({unit})", assumed=True),
         Syn(hdr="TotalTime({unit})", assumed=True),
@@ -997,9 +927,9 @@ NEWARE = TableNormalizer(
         Syn(hdr="Current [{unit}]", assumed=True),
     ),
     unix_time_second=(
-        DateTimeSyn(syn=Syn(hdr="Date"), fmts=_NEWARE_DT_FMTS),
-        DateTimeSyn(syn=Syn(hdr="DateTime", assumed=True), fmts=_NEWARE_DT_FMTS),
-        DateTimeSyn(syn=Syn(hdr="Date_Time", assumed=True), fmts=_NEWARE_DT_FMTS),
+        Syn(hdr="Date", normalization=AbsoluteTimeNormalization(formats=_NEWARE_DT_FMTS)),
+        Syn(hdr="DateTime", assumed=True, normalization=AbsoluteTimeNormalization(formats=_NEWARE_DT_FMTS)),
+        Syn(hdr="Date_Time", assumed=True, normalization=AbsoluteTimeNormalization(formats=_NEWARE_DT_FMTS)),
     ),
     cycle_count=(
         Syn(hdr="Cycle Index"),
@@ -1010,7 +940,7 @@ NEWARE = TableNormalizer(
         Syn(hdr="Step", assumed=True),
     ),
     step_time_second=(
-        DateTimeSyn(syn=Syn(hdr="Time", assumed=True), fmts=_NEWARE_DT_FMTS),
+        Syn(hdr="Time", assumed=True, normalization=RelativeTimeNormalization(formats=_NEWARE_DT_FMTS)),
         Syn(hdr="Time({unit})"),
         Syn(hdr="Relative Time({unit})", assumed=True),
         Syn(hdr="State Time({unit})", assumed=True),
@@ -1066,7 +996,7 @@ NOVONIX = TableNormalizer(
         Syn(hdr="Cell Current ({unit})", assumed=True),
     ),
     unix_time_second=(
-        DateTimeSyn(syn=Syn(hdr="Date and Time"), fmts=("%Y-%m-%d %H:%M:%S",)),
+        Syn(hdr="Date and Time", normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",))),
         Syn(hdr="Unix Time ({unit})", assumed=True),
         Syn(hdr="UnixTime ({unit})", assumed=True),
     ),
@@ -1125,8 +1055,10 @@ NOVONIX = TableNormalizer(
 PYBAMM = TableNormalizer(
     test_time_second=ResolvedColumn(source_header="Time [s]"),
     voltage_volt=ResolvedColumn(source_header="Voltage [V]"),
-    current_ampere=ResolvedColumn(source_header="Current [A]", scale=-1.0),
-    net_capacity_ah=ResolvedColumn(source_header="Discharge capacity [A.h]", scale=-1.0),
+    current_ampere=ResolvedColumn(source_header="Current [A]", normalization=LinearNormalization(scale=-1.0)),
+    net_capacity_ah=ResolvedColumn(
+        source_header="Discharge capacity [A.h]", normalization=LinearNormalization(scale=-1.0)
+    ),
     temperature_t1_celsius=(Syn(hdr="X-averaged cell temperature [{unit}]"),),
     cycle_count=ResolvedColumn(source_header="Cycle"),
     step_id=ResolvedColumn(source_header="Step"),
@@ -1155,7 +1087,7 @@ def _build_bdf_normalizer() -> TableNormalizer:
         TableNormalizer whose synonyms cover canonical BDF label templates plus
         notation/deprecated aliases, used to round-trip already-BDF-formatted tables.
     """
-    kwargs: dict[str, tuple[SynUnion, ...]] = {}
+    kwargs: dict[str, tuple[Syn, ...]] = {}
 
     base_preferred: dict[str, str] = {}
     for mr_name, q in COLUMN_ONTOLOGY:
@@ -1164,7 +1096,7 @@ def _build_bdf_normalizer() -> TableNormalizer:
         base = q.formatted_label.split(" / ", 1)[0].strip().lower()
         base_preferred.setdefault(base, mr_name)
 
-    def _append(target_mr: str, syn: SynUnion) -> None:
+    def _append(target_mr: str, syn: Syn) -> None:
         existing = kwargs.setdefault(target_mr, ())
         if syn not in existing:
             kwargs[target_mr] = (*existing, syn)
