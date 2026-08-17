@@ -182,14 +182,16 @@ PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
 ```python
 import bdf
 
-# Read raw or BDF; plugin auto-detects
-df = bdf.read("path/to/file.bdf.csv")
+# Read raw or BDF; plugin auto-detects. Returns (df, metadata): the BDF
+# table and a typed Metadata model carrying whatever the file or an
+# adjacent sidecar stated.
+df, metadata = bdf.read("path/to/file.bdf.csv")
 
 # Read Neware .nda/.ndax (requires fastnda: pip install batterydf[nda])
-df = bdf.read("path/to/file.nda")
+df, metadata = bdf.read("path/to/file.nda")
 
 # Force the NDA plugin explicitly
-df = bdf.read("path/to/file.nda", plugin="neware_nda")
+df, metadata = bdf.read("path/to/file.nda", plugin="neware_nda")
 
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)
@@ -245,7 +247,7 @@ Use the built-in validator. From Python:
 ```python
 import bdf
 
-df = bdf.read("path/to/file.bdf.csv")
+df, metadata = bdf.read("path/to/file.bdf.csv")
 report = bdf.validate(df, report=True, raise_on_error=False)
 ```
 

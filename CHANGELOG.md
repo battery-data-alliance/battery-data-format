@@ -31,6 +31,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `Quantity.unit_conversion` renamed to `convert_to`.
 - Arbin normalizers (csv, xlsx) map Charge/Discharge Capacity and Energy to the `schedule_*` columns (`Schedule Charging Capacity / Ah`, ...) from ontology 1.3.0, reflecting the operator-defined reset behavior Arbin confirmed; these columns previously landed on the never-resetting test-scoped terms.
 - `read()`/`scan()` raise `BDFValidationError` when an elapsed-time column's increments disagree with the recorded timestamps (e.g. milliseconds stored under a seconds header); pass `reconcile_time=True` to repair known unit factors or `validate=False` to load the data as-is.
+- `bdf.read` and `bdf.scan` return a typed `Metadata` model as the second tuple element, replacing the plain `dict`. Read a field by attribute (e.g. `metadata.bdf.source`, `metadata.battinfo_test.test.started_at`) rather than by key.
+- `bdf.save` takes a typed `Metadata` model in `metadata=`, replacing the plain `dict`. Pass `Metadata(...)`, the model `bdf.read` returns, or `Metadata.model_validate(mapping)` for a mapping an earlier version wrote.
 
 ### Added
 - BDF parsers/normalizers for BDF JSON, NDJSON, Arrow/Feather (IPC), XLSX.

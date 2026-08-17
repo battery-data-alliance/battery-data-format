@@ -12,6 +12,7 @@ import polars as pl
 
 from bdf._time_scale import detect_scale_mismatch
 from bdf.file_utils import open_compressed, strip_compression_suffix
+from bdf.metadata import Metadata
 from bdf.plugins import PLUGINS, Plugin, detect
 from bdf.spec import COLUMN_ONTOLOGY
 
@@ -26,7 +27,7 @@ def _read(
     lazy: bool = True,
     tz: str = "UTC",
     reconcile_time: bool = False,
-) -> tuple[pl.DataFrame | pl.LazyFrame, dict]:
+) -> tuple[pl.DataFrame | pl.LazyFrame, Metadata]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
     Private implementation behind the public `read` and `scan` functions.
@@ -55,15 +56,14 @@ def _read(
         tz=tz,
     )
 
-    metadata: dict = {
-        "source": plugin_id or "custom",
-        **resolved_plugin.metadata_parser.parse(path),
-    }
+    metadata = resolved_plugin.metadata_parser.parse(path, tz=tz)
 
     if normalize:
         bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
         if repairs:
-            metadata["time_reconciliation"] = repairs
+            metadata.bdf.time_reconciliation = repairs
+
+    metadata.bdf.source = plugin_id or "custom"
 
     return bdf_df, metadata
 
@@ -154,7 +154,7 @@ def _reconcile_time_scale(
             )
             warnings.warn(
                 f"{described}; rescaled to seconds as requested (reconcile_time=True). "
-                f"Recorded in metadata['time_reconciliation'].",
+                f"Recorded in metadata.bdf.time_reconciliation.",
                 UserWarning,
                 stacklevel=4,
             )
@@ -186,7 +186,7 @@ def read(
     include_unknown: bool = False,
     tz: str = "UTC",
     reconcile_time: bool = False,
-) -> tuple[pl.DataFrame, dict]:
+) -> tuple[pl.DataFrame, Metadata]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
     Collects to a :class:`polars.DataFrame`; use :func:`scan` for a :class:`polars.LazyFrame`.
@@ -206,12 +206,13 @@ def read(
             under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
             default (warns when ``validate=False``); pass ``reconcile_time=True`` to
             explicitly rescale known unit factors, recorded under
-            ``metadata["time_reconciliation"]``. Only active when ``normalize=True``.
+            ``metadata.bdf.time_reconciliation``. Only active when ``normalize=True``.
 
     Returns:
-        Tuple of (df, metadata): the BDF table as a DataFrame, and a metadata dict with at
-        least a ``"source"`` key naming the resolved plugin id (``"custom"`` for a
-        directly-supplied ``Plugin``).
+        Tuple of (df, metadata): the BDF table as a DataFrame, and a ``Metadata``
+        carrying the five entity records, ``bdf`` (with at least ``source`` naming the
+        resolved plugin id, ``"custom"`` for a directly-supplied ``Plugin``), ``raw``,
+        and ``extras``.
 
     Raises:
         ValueError: If ``plugin`` is not None, a str, or a Plugin instance.
@@ -238,7 +239,7 @@ def scan(
     include_unknown: bool = False,
     tz: str = "UTC",
     reconcile_time: bool = False,
-) -> tuple[pl.LazyFrame, dict]:
+) -> tuple[pl.LazyFrame, Metadata]:
     """Scan ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
     Returns a :class:`polars.LazyFrame`; use :func:`read` for an eager :class:`polars.DataFrame`.
@@ -263,12 +264,13 @@ def scan(
             under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
             default (warns when ``validate=False``); pass ``reconcile_time=True`` to
             explicitly rescale known unit factors, recorded under
-            ``metadata["time_reconciliation"]``. Only active when ``normalize=True``.
+            ``metadata.bdf.time_reconciliation``. Only active when ``normalize=True``.
 
     Returns:
-        Tuple of (df, metadata): the BDF table as a LazyFrame, and a metadata dict with at
-        least a ``"source"`` key naming the resolved plugin id (``"custom"`` for a
-        directly-supplied ``Plugin``).
+        Tuple of (df, metadata): the BDF table as a LazyFrame, and a ``Metadata``
+        carrying the five entity records, ``bdf`` (with at least ``source`` naming the
+        resolved plugin id, ``"custom"`` for a directly-supplied ``Plugin``), ``raw``,
+        and ``extras``.
 
     Raises:
         ValueError: If ``plugin`` is not None, a str, or a Plugin instance.
@@ -319,7 +321,7 @@ def save(
     df: pl.DataFrame | pl.LazyFrame | pd.DataFrame,
     pathlike: str | Path,
     *,
-    metadata: dict | None = None,
+    metadata: Metadata | None = None,
     validate: bool = True,
     labels: Literal["preferred", "machine", "unchanged"] = "unchanged",
     **opts,
@@ -332,7 +334,8 @@ def save(
     Args:
         df: BDF table to write.
         pathlike: Output file path; format/compression are inferred from its extension.
-        metadata: Optional metadata dict written alongside as a ``.metadata.json`` sidecar.
+        metadata: Optional ``Metadata`` written alongside as a ``.metadata.json``
+            sidecar. A ``Metadata`` carrying nothing writes no sidecar.
         validate: Check columns against the BDF ontology, raising on missing required ones
             (default True); False only warns.
         labels: Style of column names to use (default: "unchanged"):
@@ -384,8 +387,12 @@ def save(
         if not isinstance(target, Path):
             target.close()
 
-    if metadata:
-        p.with_suffix(".metadata.json").write_text(
-            json.dumps(metadata, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+    if metadata is not None:
+        # Only the values that differ from their defaults, so a Metadata
+        # carrying nothing writes no sidecar at all.
+        payload = metadata.model_dump(mode="json", exclude_defaults=True)
+        if payload:
+            p.with_suffix(".metadata.json").write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )

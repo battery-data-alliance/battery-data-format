@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from .battinfo.generated.test_schema import BattinfoTest
     from .io import read, save, scan
     from .metadata import BdfReadInfo, Metadata
+    from .metadata_targets import METADATA
     from .normalization import (
         AbsoluteTimeNormalization,
         ElapsedTimeNormalization,
@@ -55,6 +56,8 @@ __all__ = [
     "BattinfoTestProtocol",
     "BdfReadInfo",
     "Metadata",
+    # where a metadata rule stages its value
+    "METADATA",
     # datasets helpers
     "datasets",
     "load_registry",
@@ -99,6 +102,7 @@ _LAZY_ATTRS: dict[str, str] = {
     "BattinfoTestProtocol": ".battinfo.generated.test_protocol_schema",
     "BdfReadInfo": ".metadata",
     "Metadata": ".metadata",
+    "METADATA": ".metadata_targets",
     "detect": ".plugins",
     "load_registry": "._registry",
     "get_entry": "._registry",

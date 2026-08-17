@@ -115,6 +115,10 @@ class TestPluginDict:
         with pytest.raises(ValidationError):
             Plugin(normalizer=TableNormalizer(), reader=DelimTxtParser())  # type: ignore[call-arg]
 
+    def test_plugin_metadata_parser_set_is_hashable(self) -> None:
+        """A frozenset built from every registered plugin's metadata_parser constructs."""
+        assert frozenset(plugin.metadata_parser for plugin in PLUGINS.values())
+
 
 class TestMatchesExt:
     """TableParser.matches_ext."""
@@ -191,6 +195,36 @@ class TestDetectFromMetadata:
         p.write_text("Date of Test:,2021-01-01\n")
         result = detect_from_metadata(p, {"maccor_csv": MACCOR_CSV})
         assert "maccor_csv" in result
+
+
+class TestMaccorPreamble:
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [
+            ("2021-01-01", 1609459200),
+            ("01/23/2020", 1579737600),
+            ("01/23/2020 10:31", 1579775460),
+            ("01/23/2020 10:31:41", 1579775501),
+            ("01/23/2020 10:31:41 AM", 1579775501),
+            ("01/23/2020 01:31:41 PM", 1579786301),
+            ("23-Jan-20 10:31:41", 1579775501),
+        ],
+    )
+    def test_maccor_preamble_reads_every_declared_header_shape(
+        self, tmp_path: Path, header: str, expected: int
+    ) -> None:
+        """The Maccor header states its own formats, so a shape the DPT Time column never carries still parses.
+
+        The column tuple reads a 24-hour clock or a 12-hour clock with a
+        month name. A MIMS preamble writes a numeric date, with or without a
+        time, so a rule that reused the column tuple failed the whole read.
+        """
+        p = tmp_path / "data.csv"
+        p.write_text(f"Date of Test:,{header}\nRec#,Volts\n1,3.5\n")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            meta = MACCOR_CSV.metadata_parser.parse(p)
+        assert meta.battinfo_test.test.started_at == expected  # type: ignore[union-attr]
 
 
 class TestDetectFromColumns:
