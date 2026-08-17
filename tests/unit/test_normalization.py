@@ -128,6 +128,24 @@ def test_tz_aware_format_wins_ahead_of_a_later_naive_one_in_declared_order():
     assert result == pytest.approx(expected, abs=1e-6)
 
 
+@pytest.mark.parametrize(
+    "text,fmt",
+    [
+        ("13-Mai-24", "%d-%b-%y"),
+        ("13-mai-24", "%d-%b-%y"),
+        ("13-Mai-2024", "%d-%B-%Y"),
+        ("13-May-24", "%d-%b-%y"),
+    ],
+    ids=["german-abbreviated", "german-lowercase", "german-wide", "english-unchanged"],
+)
+def test_localised_month_name_parses(text, fmt):
+    """A localised month name normalises to English before the declared format is tried."""
+    normalization = AbsoluteTimeNormalization(formats=(fmt,))
+    result = normalization.scalar(text)
+    expected = datetime(2024, 5, 13, 0, 0, 0, tzinfo=timezone.utc).timestamp()
+    assert result == pytest.approx(expected, abs=1e-6)
+
+
 def test_empty_declaration_reads_iso_text():
     """An empty formats tuple draws the shared ISO tail and reads ISO text."""
     normalization = AbsoluteTimeNormalization()

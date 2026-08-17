@@ -10,6 +10,8 @@ from typing import Any, ClassVar, Literal
 import polars as pl
 from pydantic import BaseModel, ConfigDict
 
+from bdf._month_names import month_numeral, numeral_replacement_map
+
 # ---------------------------------------------------------------------------
 # Vendor format constants
 #
@@ -82,6 +84,53 @@ def _split_tz_fmts(fmts: Sequence[str]) -> tuple[list[str], list[str]]:
     tz_aware = [f for f in fmts if _is_self_describing(f)]
     naive = [f for f in fmts if not _is_self_describing(f)]
     return tz_aware, naive
+
+
+def _month_numeral_expr(expr: pl.Expr) -> pl.Expr:
+    """Rewrite ``expr`` with every month name token replaced by its two-digit month number.
+
+    Args:
+        expr: Polars expression over raw text that can carry a localised
+            month name.
+
+    Returns:
+        Polars expression producing the rewritten text, vectorised over the
+        whole column in one pass.
+    """
+    mapping = numeral_replacement_map()
+    return expr.str.replace_many(mapping, leftmost=True) if mapping else expr
+
+
+def _month_token_mask(expr: pl.Expr) -> pl.Expr:
+    """Return whether ``expr`` carries a month name token :func:`_month_numeral_expr` would rewrite.
+
+    Args:
+        expr: Polars expression over raw text that can carry a localised
+            month name.
+
+    Returns:
+        Polars boolean expression, true where a month name token matched.
+    """
+    mapping = numeral_replacement_map()
+    return expr.str.contains_any(list(mapping.keys())) if mapping else pl.lit(False)
+
+
+# A format carrying either month-name directive. Such a format reaches Polars
+# only after both it and the text are rewritten off %b/%B, for the reason
+# bdf._month_names states.
+_MONTH_NAME_DIRECTIVE_RE = re.compile(r"%[bB]")
+
+
+def _numeralize_format(fmt: str) -> str:
+    """Return ``fmt`` with every month-name directive rewritten to ``%m``.
+
+    Args:
+        fmt: A single datetime format string.
+
+    Returns:
+        ``fmt`` unchanged when it carries no ``%b``/``%B`` directive.
+    """
+    return _MONTH_NAME_DIRECTIVE_RE.sub("%m", fmt)
 
 
 _DST_AMBIGUOUS_STRATEGY: Literal["earliest"] = "earliest"
@@ -264,10 +313,27 @@ class AbsoluteTimeNormalization(Normalization):
 
         Returns:
             Epoch seconds (with sub-second precision), or None when no
-            candidate format parsed ``text``.
+            candidate format parsed ``text`` or its month-numeral rewrite.
         """
-        tz_aware_fmts, naive_fmts = _split_tz_fmts(self.effective_formats)
-        return self._try_formats(text, tz_aware_fmts, naive_fmts, tz)
+        month_name_fmts: list[str] = []
+        plain_fmts: list[str] = []
+        for fmt in self.effective_formats:
+            (month_name_fmts if _MONTH_NAME_DIRECTIVE_RE.search(fmt) else plain_fmts).append(fmt)
+
+        tz_aware_fmts, naive_fmts = _split_tz_fmts(plain_fmts)
+        result = self._try_formats(text, tz_aware_fmts, naive_fmts, tz)
+        if result is not None:
+            return result
+        if not month_name_fmts:
+            return None
+        # A month-name format is tried against the numeral rewrite alone, and
+        # only where the rewrite found a month name: plain digits must never
+        # parse under a format that declares one.
+        variant = month_numeral(text)
+        if variant == text:
+            return None
+        numeral_tz_aware, numeral_naive = _split_tz_fmts([_numeralize_format(fmt) for fmt in month_name_fmts])
+        return self._try_formats(variant, numeral_tz_aware, numeral_naive, tz)
 
     def _epoch_expr(self, expr: pl.Expr, tz: str) -> pl.Expr:
         """Parse ``expr`` with every candidate format of ``effective_formats``, as epoch seconds.
@@ -280,15 +346,34 @@ class AbsoluteTimeNormalization(Normalization):
             Polars expression producing epoch seconds, self-describing
             formats tried ahead of naive formats localised to ``tz``.
         """
-        tz_aware_fmts, naive_fmts = _split_tz_fmts(self.effective_formats)
-        # timestamp() per candidate avoids coalesce supertype conflict (tz-aware vs tz-naive)
-        candidates = [expr.str.to_datetime(f, strict=False).dt.timestamp("us") for f in tz_aware_fmts]
-        candidates += [
-            expr.str.to_datetime(f, strict=False)
-            .dt.replace_time_zone(tz, ambiguous=_DST_AMBIGUOUS_STRATEGY, non_existent=_DST_NON_EXISTENT_STRATEGY)
-            .dt.timestamp("us")
-            for f in naive_fmts
-        ]
+        month_name_fmts: list[str] = []
+        plain_fmts: list[str] = []
+        for fmt in self.effective_formats:
+            (month_name_fmts if _MONTH_NAME_DIRECTIVE_RE.search(fmt) else plain_fmts).append(fmt)
+
+        def _candidates(source: pl.Expr, source_tz_aware: Sequence[str], source_naive: Sequence[str]) -> list[pl.Expr]:
+            # timestamp() per candidate avoids coalesce supertype conflict (tz-aware vs tz-naive)
+            result = [source.str.to_datetime(f, strict=False).dt.timestamp("us") for f in source_tz_aware]
+            result += [
+                source.str.to_datetime(f, strict=False)
+                .dt.replace_time_zone(tz, ambiguous=_DST_AMBIGUOUS_STRATEGY, non_existent=_DST_NON_EXISTENT_STRATEGY)
+                .dt.timestamp("us")
+                for f in source_naive
+            ]
+            return result
+
+        tz_aware_fmts, naive_fmts = _split_tz_fmts(plain_fmts)
+        candidates = _candidates(expr, tz_aware_fmts, naive_fmts)
+        if month_name_fmts:
+            # The same numeral rewrite the scalar form makes, as a second
+            # vectorised pass coalesced alongside the first, masked to the
+            # rows a month name token actually matched.
+            numeral_tz_aware, numeral_naive = _split_tz_fmts([_numeralize_format(fmt) for fmt in month_name_fmts])
+            mask = _month_token_mask(expr)
+            candidates += [
+                pl.when(mask).then(candidate).otherwise(None)
+                for candidate in _candidates(_month_numeral_expr(expr), numeral_tz_aware, numeral_naive)
+            ]
         parsed = pl.coalesce(candidates) if len(candidates) > 1 else candidates[0]
         return parsed.cast(pl.Float64) / 1e6
 
