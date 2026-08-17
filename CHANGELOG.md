@@ -47,6 +47,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - New optional extras `excel`, `mat`, `mpr`, `yaml` for additional file formats, and an `all` bundle covering all user-facing feature extras.
 - CLI piping: `convert` and `validate` accept `-` to read from stdin, and `convert --to -` writes BDF CSV to stdout; status messages go to stderr. Exit codes: 0 valid, 1 invalid, 2 unreadable.
 - Docs: example notebooks now execute live via myst-nb, plus a generated "Supported Plugins" reference page.
+- `read()` and `scan()` restore the `.metadata.json` sidecar a prior `save()` wrote, in place of the plugin parser's metadata; a malformed sidecar warns and yields an empty `Metadata` rather than fail the read.
 
 ### Changed
 - I/O layer rebuilt on Polars.
@@ -71,9 +72,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - BDF table normalizer now accepts machine-notation and deprecated on-disk headers, fixing read/validate round-trips of default `save()` artifacts.
 - `validate()` now uses plugin detection to decide whether a file is a BDF artifact.
 - `.json` artifacts are now valid standalone JSON (a records array via `write_json`); previously `save()` wrote JSON-Lines under the `.json` extension, producing files that failed to parse as JSON outside pandas. Use the new `.ndjson` format for JSON-Lines output.
-
-### Known limitations
-- `save()` writes a `.metadata.json` sidecar that `read()` does not yet read back; the typed metadata object (GH #48, tracked in #91) will close the loop.
 
 ## [0.1.0] - 2026-02-10
 ### Added

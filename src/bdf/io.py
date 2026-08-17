@@ -13,8 +13,39 @@ import polars as pl
 from bdf._time_scale import detect_scale_mismatch
 from bdf.file_utils import open_compressed, strip_compression_suffix
 from bdf.metadata import Metadata
+from bdf.metadata_parsers import BdfSidecarParser
 from bdf.plugins import PLUGINS, Plugin, detect
 from bdf.spec import COLUMN_ONTOLOGY
+
+
+def _assemble_metadata(path: str | Path, resolved_plugin: Plugin, *, tz: str) -> Metadata:
+    """Take this read's metadata from exactly one source, never combined.
+
+    Args:
+        path: Local file path or URL being read.
+        resolved_plugin: The plugin whose ``metadata_parser`` runs when no
+            reserved sidecar sits beside ``path``.
+        tz: IANA timezone forwarded to the plugin's metadata parser.
+
+    Returns:
+        The reserved sidecar's ``Metadata`` where ``<stem>.metadata.json``
+        exists beside ``path``, restored repair records included; the
+        plugin parser's ``Metadata`` otherwise. A malformed sidecar emits one
+        ``UserWarning`` naming the file and the error, and returns an empty
+        ``Metadata``, rather than fail the read. The caller still assigns
+        ``bdf.source`` and applies this read's own repairs.
+    """
+    reserved = BdfSidecarParser()
+    if reserved.matches(path):
+        try:
+            return reserved.parse(path)
+        except json.JSONDecodeError as exc:
+            warnings.warn(
+                f"could not parse metadata sidecar {reserved.sidecar_path(path)}: {exc}", UserWarning, stacklevel=3
+            )
+            return Metadata()
+
+    return resolved_plugin.metadata_parser.parse(path, tz=tz)
 
 
 def _read(
@@ -56,7 +87,7 @@ def _read(
         tz=tz,
     )
 
-    metadata = resolved_plugin.metadata_parser.parse(path, tz=tz)
+    metadata = _assemble_metadata(path, resolved_plugin, tz=tz)
 
     if normalize:
         bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
@@ -335,7 +366,8 @@ def save(
         df: BDF table to write.
         pathlike: Output file path; format/compression are inferred from its extension.
         metadata: Optional ``Metadata`` written alongside as a ``.metadata.json``
-            sidecar. A ``Metadata`` carrying nothing writes no sidecar.
+            sidecar (``mydata.bdf.parquet`` pairs with ``mydata.bdf.metadata.json``).
+            A ``Metadata`` carrying nothing writes no sidecar.
         validate: Check columns against the BDF ontology, raising on missing required ones
             (default True); False only warns.
         labels: Style of column names to use (default: "unchanged"):

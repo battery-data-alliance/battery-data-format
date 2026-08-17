@@ -259,7 +259,7 @@ class MetadataParser(BaseModel):
     kind: Literal["base"] = "base"
     rules: tuple[tuple[_TargetUnion, RegexRule | JsonRule], ...] = Field(
         default=(),
-        description="Target -> rule pairs. Empty for the base parser.",
+        description="Target -> rule pairs. Empty for the base and BDF sidecar parsers.",
     )
 
     @model_validator(mode="before")
@@ -446,3 +446,69 @@ class JsonSidecarParser(MetadataParser):
             target.stage(document, value)
 
         return Metadata.model_validate(document)
+
+
+class BdfSidecarParser(MetadataParser):
+    """Restores the BDF-owned ``.metadata.json`` sidecar a prior ``save()`` wrote.
+
+    Reads ``<stem>.metadata.json`` (``Path.with_suffix(".metadata.json")``) as
+    the serialised ``Metadata`` structure. A ``save()`` sidecar already
+    carries canonical values, so :meth:`parse` runs no normalization. ``raw``
+    restores as an ordinary declared field, which keeps a repeated save and
+    read from nesting a copy of the sidecar inside itself. A top-level key
+    that ``Metadata`` does not declare raises out of ``model_validate``,
+    naming that key, and a declared field with an invalid value raises the
+    same way.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["bdf_sidecar"] = "bdf_sidecar"  # type: ignore[assignment]
+
+    def sidecar_path(self, path: str | Path) -> Path:
+        """Return the reserved BDF sidecar path for a data file.
+
+        Args:
+            path: Local file path to the data file.
+
+        Returns:
+            Path to the ``.metadata.json`` sidecar file.
+        """
+        return Path(path).with_suffix(".metadata.json")
+
+    def matches(self, path: str | Path) -> bool:
+        """Return True when the reserved ``.metadata.json`` sidecar exists.
+
+        Args:
+            path: Local file path to the data file.
+
+        Returns:
+            True if the ``.metadata.json`` sidecar file exists.
+        """
+        return self.sidecar_path(path).exists()
+
+    def parse(self, path: str | Path, tz: str = "UTC") -> Metadata:
+        """Restore the reserved sidecar verbatim, with no normalization.
+
+        Args:
+            path: Local file path to the data file.
+            tz: Accepted for signature parity with the other parsers; unused.
+
+        Returns:
+            The restored ``Metadata``, or an empty one when no sidecar
+            exists or it does not hold a JSON object.
+
+        Raises:
+            pydantic.ValidationError: The sidecar states a top-level key no
+                ``Metadata`` field declares, or a recognised field an
+                invalid value.
+        """
+        sidecar = self.sidecar_path(path)
+        if not sidecar.exists():
+            return Metadata()
+        with open(sidecar, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            return Metadata()
+
+        return Metadata.model_validate(data)

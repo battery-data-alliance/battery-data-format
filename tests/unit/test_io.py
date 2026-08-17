@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
 import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -9,6 +11,7 @@ from unittest.mock import MagicMock
 import polars as pl
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
+from pydantic import ValidationError
 
 from bdf import (
     BattinfoCellInstance,
@@ -22,9 +25,15 @@ from bdf import (
     io,
 )
 from bdf.io import read, scan
+from bdf.metadata_parsers import RegexRule, TxtPreambleParser
+from bdf.normalization import AbsoluteTimeNormalization
 from bdf.plugins import Plugin
 from bdf.table_normalizers import TableNormalizer
 from bdf.table_parsers import DelimTxtParser
+
+# An epoch with no significance beyond being a value; the round-trip check
+# below asserts it survives unchanged, not that it names any particular instant.
+_PLACEHOLDER_EPOCH = 1700000000
 
 
 def test_detect_format_known_and_unknown(tmp_path: Path):
@@ -690,7 +699,7 @@ def test_read_unexplained_ratio_stays_loud_even_with_reconcile_time(tmp_path: Pa
 
 
 # ---------------------------------------------------------------------------
-# The read assembly: the typed Metadata a read returns
+# The read assembly: Metadata, single-source selection, and the round trip
 # ---------------------------------------------------------------------------
 
 
@@ -727,3 +736,176 @@ def test_save_metadata(tmp_path: Path) -> None:
     assert p_meta.exists()
     metadata = json.loads(p_meta.read_text())
     assert metadata == {"bdf": {"source": "bdf_parquet"}}
+
+
+def test_metadata_roundtrips_through_save_and_read(tmp_path: Path) -> None:
+    """A fully populated Metadata round-trips through save() and read() with no conversion."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    original = Metadata()
+    original.battinfo_test.test.started_at = _PLACEHOLDER_EPOCH  # type: ignore[union-attr]
+    original.battinfo_test.test.instrument_name = "Arbin"  # type: ignore[union-attr]
+    # occurred_at accepts either an int or a raw string; a re-run of AbsoluteTimeNormalization
+    # would coerce or reject this ISO-shaped string, so it catches a restore that normalises.
+    original.battinfo_test.test.conformance.deviations = [  # type: ignore[union-attr]
+        {"occurred_at": "2024-01-15T00:00:00Z", "category": "other", "type": "manual review flag"}
+    ]
+    original.raw = {"vendor_key": "vendor_value", "nested": {"a": None}}
+    original.extras = {"rig_bay": "B7", "nested": {"a": 1}}
+
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p, metadata=original)
+    _, restored = io.read(p)
+    # bdf.source is the plugin id this read resolved, assigned unconditionally,
+    # so it cannot round-trip against an instance that never set it.
+    assert restored.bdf.source is not None
+    restored_without_bdf = restored.model_copy(update={"bdf": original.bdf})
+    assert restored_without_bdf == original
+
+
+def test_metadata_carrying_nothing_writes_no_sidecar(tmp_path: Path) -> None:
+    """A ``Metadata`` stating nothing writes no sidecar, so a later read falls to the plugin parser."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+
+    io.save(df, p, metadata=Metadata())
+
+    assert not p.with_suffix(".metadata.json").exists()
+
+
+def test_reserved_sidecar_never_self_nests(tmp_path: Path) -> None:
+    """Reading and saving a reserved sidecar repeatedly never nests a copy of itself into raw."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    original = Metadata()
+    original.raw = {"vendor_key": "vendor_value"}
+    io.save(df, p, metadata=original)
+
+    for _ in range(3):
+        _, meta = io.read(p)
+        assert meta.raw == {"vendor_key": "vendor_value"}
+        io.save(df, p, metadata=meta)
+
+
+def test_stated_null_on_a_wrapper_typed_leaf_roundtrips(tmp_path: Path) -> None:
+    """A curated null on a wrapper-typed leaf stays null through repeated save/read cycles."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    sidecar = p.with_suffix(".metadata.json")
+    sidecar.write_text(json.dumps({"battinfo_equipment": {"equipment": {"commissioned_at": None}}}))
+
+    for _ in range(2):
+        _, meta = io.read(p)
+        assert meta.battinfo_equipment.equipment.commissioned_at is None  # type: ignore[union-attr]
+        io.save(df, p, metadata=meta)
+        payload = json.loads(sidecar.read_text())
+        assert payload["battinfo_equipment"]["equipment"]["commissioned_at"] is None
+        # a leaf neither side ever stated does not leak a matching bare null
+        assert "expires_at" not in payload.get("battinfo_cell", {}).get("cell_instance", {})
+
+
+def _preamble_plugin() -> tuple[str, Plugin]:
+    """Build a CSV preamble, and the plugin whose metadata parser reads it.
+
+    Returns:
+        The CSV text (a one-line preamble plus a header and rows), and a
+        ``Plugin`` whose metadata parser stages ``started_at`` from that
+        preamble's ``~Start of Test:`` line.
+    """
+    header = "~Start of Test: 2024-01-15 00:00:00\nTest Time / s,Voltage / V,Current / A\n"
+    rows = "".join(f"{i},3.7,0.1\n" for i in range(15))
+    rule = RegexRule(
+        pattern=re.compile(r"~Start of Test:\s*(.+)"),
+        normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)),
+    )
+    from bdf.metadata_targets import METADATA
+
+    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
+    return header + rows, plugin
+
+
+def test_reserved_sidecar_suppresses_the_plugin_parser(tmp_path: Path) -> None:
+    """A reserved sidecar beside an extractable preamble is the sole source; the preamble is never
+    parsed, so a field only the preamble states -- a gap a partial sidecar leaves -- stays unset."""
+    p = tmp_path / "data.csv"
+    text, plugin = _preamble_plugin()
+    p.write_text(text)
+
+    sidecar = p.with_suffix(".metadata.json")
+    sidecar.write_text(json.dumps({"battinfo_test": {"test": {"instrument_name": "Arbin"}}}))
+    _, meta = io.read(p, plugin=plugin)
+    assert meta.battinfo_test.test.instrument_name == "Arbin"  # type: ignore[union-attr]
+    assert meta.battinfo_test.test.started_at is None  # type: ignore[union-attr]
+    assert meta.raw is None  # type: ignore[attr-defined]
+
+
+def test_plugin_parser_runs_when_no_sidecar_exists(tmp_path: Path) -> None:
+    """With no reserved sidecar beside it, the returned metadata is the plugin parser's alone."""
+    p = tmp_path / "data.csv"
+    text, plugin = _preamble_plugin()
+    p.write_text(text)
+
+    _, meta = io.read(p, plugin=plugin)
+    expected = datetime(2024, 1, 15, 0, 0, 0, tzinfo=timezone.utc).timestamp()
+    assert meta.battinfo_test.test.started_at == pytest.approx(expected, abs=1e-6)  # type: ignore[union-attr]
+    assert meta.raw == text  # type: ignore[attr-defined]
+
+
+def test_malformed_metadata_never_fails_a_read(tmp_path: Path) -> None:
+    """Malformed adjacent JSON degrades: the table returns, and one UserWarning names the file and the error."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    sidecar = p.with_suffix(".metadata.json")
+    sidecar.write_text("{not valid json")
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        table, _meta = io.read(p)
+    user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]
+    assert len(user_warnings) == 1
+    message = str(user_warnings[0].message)
+    assert str(sidecar) in message
+    assert "Expecting property name" in message
+    assert_frame_equal(df, table)
+
+
+def test_malformed_sidecar_does_not_fall_back_to_the_plugin_parser(tmp_path: Path) -> None:
+    """A malformed reserved sidecar warns and stages nothing; the plugin parser never runs to fill it."""
+    p = tmp_path / "data.csv"
+    text, plugin = _preamble_plugin()
+    p.write_text(text)
+    sidecar = p.with_suffix(".metadata.json")
+    sidecar.write_text("{not valid json")
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _, meta = io.read(p, plugin=plugin)
+    user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]
+    assert len(user_warnings) == 1
+    assert str(sidecar) in str(user_warnings[0].message)
+    assert meta.battinfo_test.test.started_at is None  # type: ignore[union-attr]
+    assert meta.raw is None  # type: ignore[attr-defined]
+
+
+def test_undeclared_top_level_field_is_refused() -> None:
+    """Constructing a Metadata with a keyword no field declares raises, naming that keyword."""
+    with pytest.raises(ValidationError, match="not_a_real_field"):
+        Metadata(not_a_real_field="x")  # type: ignore[call-arg]
+
+
+def test_unrecognised_sidecar_key_fails_the_read(tmp_path: Path) -> None:
+    """A reserved sidecar key no field declares raises, and an invalid value also fails the read."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    sidecar = p.with_suffix(".metadata.json")
+
+    sidecar.write_text(json.dumps({"not_a_real_field": "x"}))
+    with pytest.raises(ValidationError, match="not_a_real_field"):
+        io.read(p)
+
+    sidecar.write_text(json.dumps({"battinfo_test": {"test": {"started_at": "not-an-int"}}}))
+    with pytest.raises(ValidationError):
+        io.read(p)
