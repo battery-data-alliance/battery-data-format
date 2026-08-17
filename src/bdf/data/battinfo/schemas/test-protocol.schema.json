@@ -338,6 +338,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Canonical BattINFO reusable test protocol metadata. The descriptive layer is an ordered, typed `method` of steps (queryable, not executed); the actionable layer is `artifacts`, links to runnable protocol files. Humans author the method as PyBaMM-style strings which are parsed into `method` on ingest.",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "properties": {
     "artifacts": {
       "description": "Actionable-layer links to runnable protocol files.",
@@ -368,6 +369,11 @@
     },
     "funding": {
       "$ref": "#/$defs/Funding"
+    },
+    "license": {
+      "description": "License under which this record and its data are released, as an SPDX license identifier (e.g. \"cc-by-4.0\") or a license URL. Stamped from the workspace default (ws.license) and emitted as dcterms:license in JSON-LD.",
+      "minLength": 1,
+      "type": "string"
     },
     "method": {
       "description": "Ordered, typed descriptive steps. Canonical structured form of the procedure.",
@@ -492,6 +498,12 @@
             "null"
           ]
         },
+        "max_temperature_degC": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "max_voltage_V": {
           "type": [
             "number",
@@ -499,6 +511,12 @@
           ]
         },
         "min_current_mA": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min_temperature_degC": {
           "type": [
             "number",
             "null"

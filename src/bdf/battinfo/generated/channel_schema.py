@@ -16,33 +16,34 @@ class Provenance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
-    citation: AnyUrl | None = None
-    citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
-    retrieved_at: Annotated[int | None, Field(ge=0)] = None
-    source_file: str | None = None
-    source_name: str | None = None
     source_type: Literal["datasheet", "manufacturer", "measurement", "lab", "literature", "manual", "other"] | None = (
         None
     )
+    source_name: str | None = None
+    source_file: str | None = None
     source_url: AnyUrl | None = None
+    citation: AnyUrl | None = None
+    citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
+    retrieved_at: Annotated[int | None, Field(ge=0)] = None
+    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
 
 
 class Channel(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    comment: str | None = None
-    equipment_id: Annotated[
-        str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
-    ] = None
     id: Annotated[
         str | None,
         Field(pattern="^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
     ] = None
+    equipment_id: Annotated[
+        str | None,
+        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+    ] = None
     index: Annotated[int | None, Field(ge=1)] = None
+    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
     label: str | None = None
+    status: Literal["active", "maintenance", "retired", "unknown"] | None = None
     property: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity] | None,
         Field(
@@ -50,15 +51,14 @@ class Channel(_RecordModel):
             title="Quantitative Properties",
         ),
     ] = None
-    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
-    status: Literal["active", "maintenance", "retired", "unknown"] | None = None
+    comment: str | None = None
 
 
 class BattinfoChannelInstance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    channel: Annotated[Channel | None, Field(default_factory=Channel)]
-    notes: list[str] | None = None
-    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
     schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
+    channel: Annotated[Channel | None, Field(default_factory=Channel)]
+    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
+    notes: list[str] | None = None

@@ -74,6 +74,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "One channel of one physical equipment unit. Instance-only (no channel-spec kind): flat IRIs under channel/, parent link equipment_id in the record body, uid minted deterministically from (equipment uid, index).",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "properties": {
     "channel": {
       "additionalProperties": false,

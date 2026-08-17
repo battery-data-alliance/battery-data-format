@@ -33,36 +33,36 @@ class Deviation(_RecordModel):
         | None,
         Field(description="Broad classification of the deviation."),
     ] = None
-    description: str | None = None
-    duration_s: Annotated[int | None, Field(ge=0)] = None
-    impact: Literal["minor", "moderate", "major"] | None = None
-    occurred_at: int | str | None = None
-    step_index: Annotated[int | None, Field(ge=0)] = None
     type: Annotated[str | None, Field(description="Specific deviation label within the category (free text).")] = None
+    description: str | None = None
+    occurred_at: int | str | None = None
+    duration_s: Annotated[int | None, Field(ge=0)] = None
+    step_index: Annotated[int | None, Field(ge=0)] = None
+    impact: Literal["minor", "moderate", "major"] | None = None
 
 
 class Conformance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    deviations: list[Deviation] | None = None
-    note: Annotated[str | None, Field(description="Free-text summary of the assessment.")] = None
     status: Literal["conformant", "non-conformant", "unknown"] | None = None
+    note: Annotated[str | None, Field(description="Free-text summary of the assessment.")] = None
+    deviations: list[Deviation] | None = None
 
 
 class Artifact(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    byte_size: Annotated[int | None, Field(ge=0)] = None
-    conforms_to: str | None = None
+    role: Literal["source_protocol", "executed_protocol", "vendor_export", "simulation_input", "other"] | None = None
     format: Annotated[str | None, Field(min_length=1)] = None
-    generated: list[str] | None = None
-    generated_from: str | None = None
     locator: Annotated[str | None, Field(min_length=1)] = None
     media_type: str | None = None
-    role: Literal["source_protocol", "executed_protocol", "vendor_export", "simulation_input", "other"] | None = None
     sha256: Annotated[str | None, Field(pattern="^[0-9a-f]{64}$")] = None
+    byte_size: Annotated[int | None, Field(ge=0)] = None
+    conforms_to: str | None = None
+    generated: list[str] | None = None
+    generated_from: str | None = None
 
 
 class DatasetIri(RootModel[str | None]):
@@ -76,109 +76,71 @@ class Funder(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
     type: Literal["Organization"] | None = None
+    name: Annotated[str | None, Field(min_length=1)] = None
     url: AnyUrl | None = None
+    same_as: AnyUrl | None = None
 
 
 class Funding(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    acronym: str | None = None
-    funder: Annotated[Funder | None, Field(default_factory=Funder)]
+    type: Literal["Grant"] | None = None
     id: AnyUrl | None = None
     identifier: Annotated[str | None, Field(min_length=1)] = None
     name: str | None = None
+    acronym: str | None = None
     program: str | None = None
-    type: Literal["Grant"] | None = None
+    funder: Annotated[Funder | None, Field(default_factory=Funder)]
 
 
 class Organization(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
     type: Literal["Organization"] | None = None
+    name: Annotated[str | None, Field(min_length=1)] = None
     url: AnyUrl | None = None
+    same_as: AnyUrl | None = None
 
 
 class Person(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    affiliation: Annotated[Organization | None, Field(default_factory=Organization)]
-    email: str | None = None
-    family_name: Annotated[str | None, Field(min_length=1)] = None
-    given_name: Annotated[str | None, Field(min_length=1)] = None
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
     type: Literal["Person"] | None = None
+    name: Annotated[str | None, Field(min_length=1)] = None
+    given_name: Annotated[str | None, Field(min_length=1)] = None
+    family_name: Annotated[str | None, Field(min_length=1)] = None
+    email: str | None = None
     url: AnyUrl | None = None
-
-
-class Provenance(_RecordModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
-    citation: AnyUrl | None = None
-    citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
-    comment: str | None = None
-    curated_by: str | None = None
-    file_hash: Annotated[str | None, Field(pattern="^[A-Fa-f0-9]{64}$")] = None
-    retrieved_at: Annotated[
-        int | None, Field(description="Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.", ge=0)
-    ] = None
-    source_file: str | None = None
-    source_name: str | None = None
-    source_type: Literal["measurement", "lab", "simulation", "manual", "other"] | None = None
-    source_url: AnyUrl | None = None
-    workflow_version: str | None = None
+    same_as: AnyUrl | None = None
+    affiliation: Annotated[Organization | None, Field(default_factory=Organization)]
 
 
 class Test(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    cell_id: Annotated[
-        str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
-    ] = None
-    channel_id: Annotated[
-        str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
-    ] = None
-    conditions: Annotated[
-        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Any] | None,
-        Field(
-            description="Test conditions and parameters (temperature, voltage window, C-rate, frequency range, etc.)."
-        ),
-    ] = None
-    conformance: Annotated[
-        Conformance | None,
-        Field(
-            default_factory=Conformance,
-            description="Assessment of how well this record followed the spec that governs it.",
-        ),
-    ]
-    dataset_ids: list[DatasetIri] | None = None
-    description: str | None = None
-    ended_at: Annotated[
-        int | None, Field(description="Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.", ge=0)
-    ] = None
-    equipment_id: Annotated[
-        str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
-    ] = None
     id: Annotated[
         str | None,
         Field(pattern="^https://w3id\\.org/battinfo/test/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
     ] = None
+    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
     identifier: Annotated[str | None, Field(min_length=1)] = None
-    instrument_name: str | None = None
+    cell_id: Annotated[
+        str | None,
+        Field(pattern="^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+    ] = None
+    name: Annotated[str | None, Field(min_length=1)] = None
+    protocol_id: Annotated[
+        str | None,
+        Field(
+            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+        ),
+    ] = None
+    description: str | None = None
     kind: (
         Literal[
             "cycling",
@@ -204,32 +166,82 @@ class Test(_RecordModel):
         ]
         | None
     ) = None
-    name: Annotated[str | None, Field(min_length=1)] = None
-    protocol_id: Annotated[
-        str | None,
-        Field(
-            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
-        ),
-    ] = None
+    status: Literal["planned", "running", "completed", "aborted", "other"] | None = None
     protocol_name: str | None = None
     protocol_url: AnyUrl | None = None
-    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
+    instrument_name: str | None = None
+    equipment_id: Annotated[
+        str | None,
+        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+    ] = None
+    channel_id: Annotated[
+        str | None,
+        Field(pattern="^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+    ] = None
     started_at: Annotated[
         int | None, Field(description="Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.", ge=0)
     ] = None
-    status: Literal["planned", "running", "completed", "aborted", "other"] | None = None
+    ended_at: Annotated[
+        int | None, Field(description="Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.", ge=0)
+    ] = None
+    dataset_ids: list[DatasetIri] | None = None
+    conditions: Annotated[
+        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Any] | None,
+        Field(
+            description="Test conditions and parameters (temperature, voltage window, C-rate, frequency range, etc.)."
+        ),
+    ] = None
+    conformance: Annotated[
+        Conformance | None,
+        Field(
+            default_factory=Conformance,
+            description="Assessment of how well this record followed the spec that governs it.",
+        ),
+    ]
+
+
+class Provenance(_RecordModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    source_type: Literal["measurement", "lab", "simulation", "manual", "other"] | None = None
+    source_url: AnyUrl | None = None
+    citation: AnyUrl | None = None
+    citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
+    source_file: str | None = None
+    retrieved_at: Annotated[
+        int | None, Field(description="Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.", ge=0)
+    ] = None
+    workflow_version: str | None = None
+    source_name: str | None = None
+    file_hash: Annotated[str | None, Field(pattern="^[A-Fa-f0-9]{64}$")] = None
+    curated_by: str | None = None
+    comment: str | None = None
+    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
 
 
 class BattinfoTest(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
+    test: Annotated[Test | None, Field(default_factory=Test)]
+    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
     artifacts: Annotated[
         list[Artifact] | None,
         Field(
             description="Actionable-layer links to runnable protocol/vendor files produced by or executed in this test."
         ),
     ] = None
+    notes: list[str] | None = None
+    license: Annotated[
+        str | None,
+        Field(
+            description='License under which this record and its data are released, as an SPDX license identifier (e.g. "cc-by-4.0") or a license URL. Stamped from the workspace default (ws.license) and emitted as dcterms:license in JSON-LD.',
+            min_length=1,
+        ),
+    ] = None
+    funding: Annotated[Funding | None, Field(default_factory=Funding)]
     contributor: Annotated[
         list[Person] | None,
         Field(
@@ -237,8 +249,3 @@ class BattinfoTest(_RecordModel):
             min_length=1,
         ),
     ] = None
-    funding: Annotated[Funding | None, Field(default_factory=Funding)]
-    notes: list[str] | None = None
-    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
-    schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
-    test: Annotated[Test | None, Field(default_factory=Test)]

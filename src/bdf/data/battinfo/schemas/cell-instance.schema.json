@@ -30,6 +30,10 @@
       ],
       "type": "object"
     },
+    "ElectrodeIri": {
+      "pattern": "^https://w3id\\.org/battinfo/electrode/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
     "FlexDate": {
       "oneOf": [
         {
@@ -176,6 +180,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Physical cell instance derived from a cell type.",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "properties": {
     "cell_instance": {
       "additionalProperties": false,
@@ -279,6 +284,10 @@
           ],
           "type": "object"
         },
+        "counter_electrode_id": {
+          "$ref": "#/$defs/ElectrodeIri",
+          "description": "Canonical IRI of the electrode record built into this cell as its counter electrode. In a half cell that electrode is also the reference electrode, so it is emitted with both role classes."
+        },
         "dpp_status": {
           "description": "Status of this digital product passport record.",
           "enum": [
@@ -323,6 +332,10 @@
         "supersedes": {
           "$ref": "#/$defs/CellIri",
           "description": "IRI of the previous cell record this passport replaces, e.g. after repurposing."
+        },
+        "working_electrode_id": {
+          "$ref": "#/$defs/ElectrodeIri",
+          "description": "Canonical IRI of the electrode record (the physical batch or disc) built into this cell as its working electrode. The cell spec says which electrode design the cell uses; this says which built electrode went into this individual cell."
         }
       },
       "required": [
@@ -348,6 +361,11 @@
     },
     "funding": {
       "$ref": "#/$defs/Funding"
+    },
+    "license": {
+      "description": "License under which this record and its data are released, as an SPDX license identifier (e.g. \"cc-by-4.0\") or a license URL. Stamped from the workspace default (ws.license) and emitted as dcterms:license in JSON-LD.",
+      "minLength": 1,
+      "type": "string"
     },
     "measured": {
       "$ref": "cell-canonical.schema.json#/$defs/SpecSet"

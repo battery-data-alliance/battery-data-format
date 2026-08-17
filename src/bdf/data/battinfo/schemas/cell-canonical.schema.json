@@ -237,6 +237,16 @@
         "raw": {
           "$ref": "#/$defs/RawExtraction"
         },
+        "sample_count": {
+          "description": "How many members the value (and standard_deviation) were computed over \u2014 e.g. 8 cells. Without it a spread cannot be read.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "standard_deviation": {
+          "description": "Dispersion of the sample the value summarises, in the same unit as value. A sample standard deviation over sample_count members, not a measurement uncertainty. Zero is meaningful: it says every member carried the same number.",
+          "minimum": 0,
+          "type": "number"
+        },
         "typical_value": {
           "type": "number"
         },
@@ -278,6 +288,9 @@
           "$ref": "#/$defs/SpecItem"
         },
         "certified_usable_energy": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "charging_cutoff_voltage": {
           "$ref": "#/$defs/SpecItem"
         },
         "charging_temperature_max": {
@@ -355,6 +368,12 @@
         "maximum_power": {
           "$ref": "#/$defs/SpecItem"
         },
+        "maximum_pulse_charging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "maximum_pulse_discharging_current": {
+          "$ref": "#/$defs/SpecItem"
+        },
         "maximum_storage_temperature": {
           "$ref": "#/$defs/SpecItem"
         },
@@ -386,6 +405,12 @@
           "$ref": "#/$defs/SpecItem"
         },
         "nominal_voltage": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "operating_temperature_max": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "operating_temperature_min": {
           "$ref": "#/$defs/SpecItem"
         },
         "power_capability": {
@@ -436,7 +461,13 @@
         "thickness": {
           "$ref": "#/$defs/SpecItem"
         },
+        "typical_capacity": {
+          "$ref": "#/$defs/SpecItem"
+        },
         "typical_energy": {
+          "$ref": "#/$defs/SpecItem"
+        },
+        "upper_voltage_limit": {
           "$ref": "#/$defs/SpecItem"
         },
         "volume": {
@@ -453,6 +484,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Harmonized cell instance schema derived from curated and datasheet sources.",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "properties": {
     "cell": {
       "$ref": "#/$defs/Cell"

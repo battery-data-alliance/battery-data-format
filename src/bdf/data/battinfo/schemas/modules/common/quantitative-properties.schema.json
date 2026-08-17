@@ -3,6 +3,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Named quantity map for technical properties at any component level.",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "patternProperties": {
     "^[a-z][a-z0-9_]*$": {
       "$ref": "quantity.schema.json"

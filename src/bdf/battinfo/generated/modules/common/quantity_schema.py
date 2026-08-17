@@ -18,6 +18,29 @@ class Quantity(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    value: Annotated[float | Value | None, Field(default_factory=Value)]
+    min_value: float | None = None
+    max_value: float | None = None
+    typical_value: float | None = None
+    value_text: Annotated[str | None, Field(min_length=1)] = None
+    standard_deviation: Annotated[
+        float | None,
+        Field(
+            description="Dispersion of the sample the value summarises, in the same unit as value. A sample standard deviation over sample_count members, not a measurement uncertainty. Zero is meaningful: it says every member carried the same number.",
+            ge=0.0,
+        ),
+    ] = None
+    sample_count: Annotated[
+        int | None,
+        Field(
+            description="How many members the value (and standard_deviation) were computed over — e.g. 8 electrode discs. Without it a spread cannot be read.",
+            ge=1,
+        ),
+    ] = None
+    unit_text: Annotated[str | None, Field(min_length=1)] = None
+    unit: Annotated[
+        str | None, Field(description="Canonical compact unit symbol/code, for example V, A, Ah, Wh/kg.", min_length=1)
+    ] = None
     co_type: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
         Field(
@@ -30,15 +53,6 @@ class Quantity(_RecordModel):
             description="Measurement parameters/conditions under which this quantity holds (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Each entry is itself a quantity; emitted as hasMeasurementParameter in JSON-LD."
         ),
     ] = None
-    max_value: float | None = None
-    min_value: float | None = None
-    typical_value: float | None = None
-    unit: Annotated[
-        str | None, Field(description="Canonical compact unit symbol/code, for example V, A, Ah, Wh/kg.", min_length=1)
-    ] = None
-    unit_text: Annotated[str | None, Field(min_length=1)] = None
-    value: Annotated[float | Value | None, Field(default_factory=Value)]
-    value_text: Annotated[str | None, Field(min_length=1)] = None
 
 
 Quantity.model_rebuild()
