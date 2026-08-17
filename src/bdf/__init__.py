@@ -18,6 +18,13 @@ if TYPE_CHECKING:
     from .battinfo.generated.test_protocol_schema import BattinfoTestProtocol
     from .battinfo.generated.test_schema import BattinfoTest
     from .io import read, save, scan
+    from .normalization import (
+        AbsoluteTimeNormalization,
+        ElapsedTimeNormalization,
+        IdentityNormalization,
+        LinearNormalization,
+        RelativeTimeNormalization,
+    )
     from .plugins import detect
     from .registry_ld import build_registry, search, sparql
     from .repair import CleanReport, clean
@@ -33,6 +40,12 @@ __all__ = [
     "validate",
     "validate_df",
     "detect",
+    # shared value/column normalizations
+    "IdentityNormalization",
+    "LinearNormalization",
+    "AbsoluteTimeNormalization",
+    "RelativeTimeNormalization",
+    "ElapsedTimeNormalization",
     # BattINFO record models
     "BattinfoTest",
     "BattinfoCellInstance",
@@ -71,6 +84,11 @@ _LAZY_ATTRS: dict[str, str] = {
     "validate": "._validate",
     "validate_df": "._validate",
     "BDFValidationError": "._errors",
+    "IdentityNormalization": ".normalization",
+    "LinearNormalization": ".normalization",
+    "AbsoluteTimeNormalization": ".normalization",
+    "RelativeTimeNormalization": ".normalization",
+    "ElapsedTimeNormalization": ".normalization",
     "BattinfoTest": ".battinfo.generated.test_schema",
     "BattinfoCellInstance": ".battinfo.generated.cell_instance_schema",
     "BattinfoChannelInstance": ".battinfo.generated.channel_schema",

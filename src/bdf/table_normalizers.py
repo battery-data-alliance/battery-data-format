@@ -20,6 +20,13 @@ if TYPE_CHECKING:
     import pandas as pd  # noqa: F401
 
 from bdf._df_compat import coerce_dataframe  # noqa: E402
+from bdf.normalization import (
+    _ARBIN_DT_FMTS,
+    _DIGATRON_DT_FMTS,
+    _LANDT_DT_FMTS,
+    _MACCOR_DT_FMTS,
+    _NEWARE_DT_FMTS,
+)
 from bdf.spec import _UNIT_CAPTURE, COLUMN_ONTOLOGY, get_unit_conversion
 
 _logger = logging.getLogger(__name__)
@@ -635,22 +642,6 @@ class TableNormalizer(BaseModel):
 
 _ACCESS_UNIX_EPOCH_DAYS = 25569.0
 _SECONDS_PER_DAY = 86400.0
-_ARBIN_DT_FMTS = (
-    "%m/%d/%Y %H:%M:%S%.f",
-    "%m/%d/%Y %H:%M:%S",
-    "%Y-%m-%d %H:%M:%S%.f",
-    "%Y-%m-%d %H:%M:%S",
-    "%Y/%m/%d %H:%M:%S",
-)
-_DIGATRON_DT_FMTS = (
-    "%Y-%m-%d %H:%M:%S%.f%:z",
-    "%Y-%m-%d %H:%M:%S%:z",
-    "%Y-%m-%dT%H:%M:%S",
-    "%Y-%m-%d %H:%M:%S",
-)
-_LANDT_DT_FMTS = ("%Y-%m-%d %H:%M:%S",)
-_MACCOR_DT_FMTS = ("%d-%b-%y %I:%M:%S %p", "%d-%b-%y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y %H:%M")
-_NEWARE_DT_FMTS = ("%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S")
 
 # Arbin exports use two header dialects: MITS CSV/newer Excel use spaces before the
 # parenthesised unit ("Test Time (s)"); older MITS Excel uses underscores and no space
