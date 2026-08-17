@@ -36,10 +36,14 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from scripts.update_battinfo import (  # noqa: E402
+    DEFAULT_BRANCH,
+    compare,
     fetch_schemas,
     load_managed,
     load_schema,
     load_version,
+    main,
+    resolve_ref,
     update,
     write_bundle,
 )
@@ -340,15 +344,26 @@ def test_load_schema_reads_one_managed_file_and_rejects_any_other() -> None:
         load_schema("not-a-managed-file.schema.json")
 
 
-def _mock_fetch_responses() -> list[Mock]:
-    """Return one mocked HTTP response per managed schema file, in fetch order."""
+def _mock_fetch_responses(overrides: dict[str, bytes] | None = None) -> list[Mock]:
+    """Return one mocked HTTP response per managed schema file, in fetch order.
+
+    Args:
+        overrides: Content to serve instead of the default for the named files.
+            Use it to stand in for an upstream edit.
+    """
+    overrides = overrides or {}
     responses = []
-    for content in _MOCK_MANAGED_SCHEMA_CONTENT.values():
+    for rel_name, content in _MOCK_MANAGED_SCHEMA_CONTENT.items():
         response = Mock()
-        response.content = content
+        response.content = overrides.get(rel_name, content)
         response.raise_for_status = Mock()
         responses.append(response)
     return responses
+
+
+def _bundle_the_mock_schemas(tmp_path: Path) -> Path:
+    """Write the mock schema content as a bundle and return its schema directory."""
+    return write_bundle(dict(_MOCK_MANAGED_SCHEMA_CONTENT), "0" * 40, tmp_path / "bundle") / "schemas"
 
 
 def test_update_script_fetches_writes_and_stamps(tmp_path: Path) -> None:
@@ -381,6 +396,117 @@ def test_update_script_fetches_writes_and_stamps(tmp_path: Path) -> None:
     mock_regenerate.assert_called_once_with()
 
 
+def test_compare_reports_nothing_when_upstream_matches_the_bundle(tmp_path: Path) -> None:
+    """The sync trigger reads content, not the pinned commit. An upstream commit
+    that leaves the eight managed files alone reports no difference, so an
+    unrelated change upstream opens no pull request."""
+    source = _bundle_the_mock_schemas(tmp_path)
+
+    with patch("requests.get", side_effect=_mock_fetch_responses()):
+        assert compare("main", source=source) == {}
+
+
+def test_compare_reports_only_the_files_whose_content_changed(tmp_path: Path) -> None:
+    """A comparison names the managed files that moved and no others, so the
+    sync pull request states what actually changed upstream."""
+    source = _bundle_the_mock_schemas(tmp_path)
+    edited = b'{"title": "test schema", "properties": {"schema_version": {"type": "string"}}}'
+
+    with patch("requests.get", side_effect=_mock_fetch_responses({"test.schema.json": edited})):
+        differing = compare("main", source=source)
+
+    assert set(differing) == {"test.schema.json"}
+    assert differing["test.schema.json"] == edited
+
+
+def test_compare_ignores_a_reformat_that_leaves_the_content_equal(tmp_path: Path) -> None:
+    """The comparison parses before it compares. An upstream commit that only
+    reindents a managed file reports no difference."""
+    source = _bundle_the_mock_schemas(tmp_path)
+    reformatted = b'{\n  "title": "test schema",\n  "properties": {}\n}\n'
+
+    with patch("requests.get", side_effect=_mock_fetch_responses({"test.schema.json": reformatted})):
+        assert compare("main", source=source) == {}
+
+
+def test_resolve_ref_returns_the_commit_a_branch_names() -> None:
+    """The stamp records a commit and never a branch, because a branch moves.
+    The resolution turns the branch the sync job reads into that commit."""
+    sha = "a" * 40
+    response = Mock(raise_for_status=Mock())
+    response.json.return_value = {"sha": sha}
+
+    with patch("requests.get", return_value=response) as mock_get:
+        assert resolve_ref("main") == sha
+
+    url = mock_get.call_args.args[0]
+    assert url.endswith("/commits/main"), f"resolution URL {url!r} does not name the requested ref"
+
+
+def test_resolve_ref_raises_runtime_error_when_the_response_carries_no_sha() -> None:
+    """A resolution that returns no commit fails at the call. A stamp written
+    from a missing SHA would name a ref that no test can refetch."""
+    response = Mock(raise_for_status=Mock())
+    response.json.return_value = {}
+
+    with patch("requests.get", return_value=response), pytest.raises(RuntimeError, match="no commit SHA"):
+        resolve_ref("main")
+
+
+def test_check_mode_fails_and_writes_nothing_when_the_bundle_is_stale(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``--check`` reports the files that moved, exits non-zero so the pull
+    request check fails, and never touches the bundle. The exit code matches
+    ``--check`` on ``datamodel-codegen`` and on ``scripts/generate_docs.py``."""
+    sha = "b" * 40
+    with (
+        patch("scripts.update_battinfo.resolve_ref", return_value=sha),
+        patch("scripts.update_battinfo.compare", return_value={"test.schema.json": b"{}"}),
+        patch("scripts.update_battinfo.write_bundle") as mock_write,
+        pytest.raises(SystemExit) as excinfo,
+    ):
+        main(["--check"])
+
+    assert excinfo.value.code != 0
+    assert sha in str(excinfo.value), "the failure does not name the ref to refresh from"
+    assert capsys.readouterr().out.splitlines() == [
+        "changed=true",
+        f"ref={sha}",
+        "files=test.schema.json",
+    ]
+    mock_write.assert_not_called()
+
+
+def test_check_mode_reports_no_change_when_the_bundle_is_current(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A current bundle reports ``changed=false`` with an empty file list and
+    exits zero, so the pull request check passes."""
+    sha = "c" * 40
+    with (
+        patch("scripts.update_battinfo.resolve_ref", return_value=sha),
+        patch("scripts.update_battinfo.compare", return_value={}),
+    ):
+        main(["--check"])
+
+    assert capsys.readouterr().out.splitlines() == ["changed=false", f"ref={sha}", "files="]
+
+
+def test_update_mode_stamps_the_commit_a_branch_resolves_to() -> None:
+    """A caller that names a branch still stamps a commit, because the entry
+    point resolves the ref before it writes."""
+    sha = "d" * 40
+    with (
+        patch("scripts.update_battinfo.resolve_ref", return_value=sha) as mock_resolve,
+        patch("scripts.update_battinfo.update") as mock_update,
+    ):
+        main(["main"])
+
+    mock_resolve.assert_called_once_with("main")
+    mock_update.assert_called_once_with(sha)
+
+
 @pytest.mark.network
 @pytest.mark.live_network
 def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
@@ -391,6 +517,25 @@ def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
     fresh_dir = write_bundle(fetch_schemas(ref), ref, tmp_path / "fresh")
 
     assert load_managed(fresh_dir / "schemas") == load_managed()
+
+
+@pytest.mark.network
+@pytest.mark.live_network
+def test_bundle_matches_the_upstream_default_branch() -> None:
+    """The bundle never ages silently. The stamp alone cannot catch that: it
+    pins a commit, and a refetch at a commit reproduces the bundle however far
+    upstream moves. This test reads upstream ``main`` instead.
+
+    The comparison reads parsed content, so an upstream commit that reformats
+    one of the eight files, or that leaves ``assets/schemas/`` alone, keeps
+    this green. Only a real schema change fails it."""
+    ref = resolve_ref(DEFAULT_BRANCH)
+    differing = compare(ref)
+
+    assert not differing, (
+        f"the bundled BattINFO schemas differ from {DEFAULT_BRANCH} at {ref}: "
+        f"{', '.join(sorted(differing))}. Run scripts/update_battinfo.py {ref} to refresh the bundle."
+    )
 
 
 def test_missing_bundle_raises_runtime_error_naming_the_update_script(tmp_path: Path) -> None:
