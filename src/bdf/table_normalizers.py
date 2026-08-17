@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import warnings
+import zoneinfo
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Iterator, Union
 
@@ -24,8 +25,6 @@ from bdf._df_compat import coerce_dataframe  # noqa: E402
 from bdf.normalization import (
     _ARBIN_DT_FMTS,
     _DIGATRON_DT_FMTS,
-    _DST_AMBIGUOUS_STRATEGY,
-    _DST_NON_EXISTENT_STRATEGY,
     _LANDT_DT_FMTS,
     _MACCOR_DT_FMTS,
     _NEWARE_DT_FMTS,
@@ -249,7 +248,10 @@ class ResolvedColumn(BaseModel):
 
 
 def _validate_tz(tz: str) -> None:
-    """Validate ``tz`` against polars' own timezone database, raising a clean error.
+    """Validate ``tz`` against the IANA timezone database, raising a clean error.
+
+    Builds no series and no frame: a caller collects nothing to validate a
+    name, which keeps a lazy read lazy.
 
     Args:
         tz: IANA timezone name to validate.
@@ -258,15 +260,9 @@ def _validate_tz(tz: str) -> None:
         ValueError: If ``tz`` is not a recognized IANA timezone name.
     """
     try:
-        pl.Series(["2024-01-01 00:00:00"]).str.to_datetime().dt.replace_time_zone(
-            tz,
-            ambiguous=_DST_AMBIGUOUS_STRATEGY,
-            non_existent=_DST_NON_EXISTENT_STRATEGY,
-        )
-    except pl.exceptions.ComputeError as e:
-        if "time zone" not in str(e).lower():
-            raise
-        raise ValueError(f"invalid tz {tz!r}: {e}") from e
+        zoneinfo.ZoneInfo(tz)
+    except (ValueError, zoneinfo.ZoneInfoNotFoundError) as e:
+        raise ValueError(f"invalid tz {tz!r}: no such time zone") from e
 
 
 class TableNormalizer(BaseModel):
