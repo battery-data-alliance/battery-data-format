@@ -20,36 +20,34 @@ class Provenance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    source_type: Literal["datasheet", "manufacturer", "measurement", "lab", "literature", "manual", "other"] | None = (
-        None
-    )
-    source_name: str | None = None
-    source_file: str | None = None
-    source_url: AnyUrl | None = None
+    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
     citation: AnyUrl | None = None
     citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
     retrieved_at: Annotated[int | None, Field(ge=0)] = None
-    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
+    source_file: str | None = None
+    source_name: str | None = None
+    source_type: Literal["datasheet", "manufacturer", "measurement", "lab", "literature", "manual", "other"] | None = (
+        None
+    )
+    source_url: AnyUrl | None = None
 
 
 class Equipment(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    id: Annotated[
-        str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
-    ] = None
+    comment: str | None = None
+    commissioned_at: Annotated[UnixTime | str | None, Field(default_factory=UnixTime)]
     equipment_spec_id: Annotated[
         str | None,
         Field(pattern="^https://w3id\\.org/battinfo/spec/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
     ] = None
-    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
-    serial_number: str | None = None
-    name: str | None = None
+    id: Annotated[
+        str | None,
+        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+    ] = None
     location: str | None = None
-    commissioned_at: Annotated[UnixTime | str | None, Field(default_factory=UnixTime)]
-    status: Literal["active", "maintenance", "retired", "unknown"] | None = None
+    name: str | None = None
     property: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity] | None,
         Field(
@@ -57,14 +55,16 @@ class Equipment(_RecordModel):
             title="Quantitative Properties",
         ),
     ] = None
-    comment: str | None = None
+    serial_number: str | None = None
+    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
+    status: Literal["active", "maintenance", "retired", "unknown"] | None = None
 
 
 class BattinfoEquipmentInstance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
     equipment: Annotated[Equipment | None, Field(default_factory=Equipment)]
-    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
     notes: list[str] | None = None
+    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
+    schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
