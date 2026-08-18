@@ -7,7 +7,9 @@ Usage: ``python scripts/update_battinfo.py REF``
 ``REF`` is a commit, tag, or branch of ``BIG-MAP/BattINFO``. The script fetches
 the eight managed schema files at that ref, replaces the bundled copies
 atomically, stamps ``VERSION`` with the commit the ref resolves to, and
-regenerates ``bdf.battinfo.generated``.
+regenerates ``bdf.battinfo.generated``. It writes each file in the canonical
+form ``normalize`` states, and not in the upstream byte layout, so an upstream
+commit that only reorders keys produces no diff.
 
 ``--check`` compares alone, and it exits non-zero when the bundle is stale. It
 fetches the eight files at ``REF`` (``main`` by default) and reports which ones
@@ -249,6 +251,29 @@ def compare(ref: str, source: Path | None = None) -> dict[str, bytes]:
     return {rel_name: content for rel_name, content in fetched.items() if json.loads(content) != bundled[rel_name]}
 
 
+def normalize(content: bytes) -> bytes:
+    """Re-serialize JSON bytes into the repository's canonical form.
+
+    The bundle stores every schema file with sorted keys and a two-space
+    indent, so an upstream commit that only reorders keys produces no diff.
+    The form matches the ``pretty-format-json`` pre-commit hook, which runs
+    over these files with its default ``--indent 2`` and its default key sort.
+    A bundled file therefore stays stable across a commit.
+
+    Args:
+        content: Raw JSON bytes, as fetched from upstream.
+
+    Returns:
+        The same document, serialized with sorted keys, a two-space indent,
+        escaped non-ASCII characters, and a trailing newline.
+
+    Raises:
+        json.JSONDecodeError: ``content`` is not valid JSON.
+    """
+    text = json.dumps(json.loads(content), indent=2, sort_keys=True, ensure_ascii=True)
+    return f"{text}\n".encode()
+
+
 def _atomic_write(dest_dir: Path, rel_name: str, content: bytes) -> None:
     """Write ``content`` to ``dest_dir / rel_name``, replacing it atomically.
 
@@ -269,6 +294,9 @@ def _atomic_write(dest_dir: Path, rel_name: str, content: bytes) -> None:
 def write_bundle(fetched: dict[str, bytes], ref: str, dest: Path | None = None) -> Path:
     """Replace the bundled schema files and stamp ``VERSION`` with ``ref``.
 
+    Each schema file passes through :func:`normalize` first, so the bundle
+    holds the upstream document and never the upstream byte layout.
+
     Args:
         fetched: The mapping :func:`fetch_schemas` returned.
         ref: The upstream ref the files came from.
@@ -283,7 +311,7 @@ def write_bundle(fetched: dict[str, bytes], ref: str, dest: Path | None = None) 
     schemas = dest / "schemas"
     schemas.mkdir(parents=True, exist_ok=True)
     for rel_name, content in fetched.items():
-        _atomic_write(schemas, rel_name, content)
+        _atomic_write(schemas, rel_name, normalize(content))
     _atomic_write(dest, "VERSION", f"repo=BIG-MAP/BattINFO\nref={ref}\n".encode())
     return dest
 

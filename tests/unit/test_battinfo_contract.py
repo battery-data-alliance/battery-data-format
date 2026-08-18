@@ -43,6 +43,7 @@ from scripts.update_battinfo import (  # noqa: E402
     load_schema,
     load_version,
     main,
+    normalize,
     resolve_ref,
     update,
     write_bundle,
@@ -394,6 +395,36 @@ def test_update_script_fetches_writes_and_stamps(tmp_path: Path) -> None:
     assert f"ref={ref}" in version_text
 
     mock_regenerate.assert_called_once_with()
+
+
+def test_write_bundle_normalizes_what_it_writes(tmp_path: Path) -> None:
+    """The bundle holds the upstream document and not the upstream byte layout.
+    Every file lands with sorted keys, a two-space indent, and a trailing
+    newline, so an upstream commit that only reorders keys produces no diff."""
+    schemas = _bundle_the_mock_schemas(tmp_path)
+
+    for rel_name, content in _MOCK_MANAGED_SCHEMA_CONTENT.items():
+        written = (schemas / rel_name).read_bytes()
+        assert written == normalize(content)
+        assert json.loads(written) == json.loads(content)
+        assert written.endswith(b"\n")
+
+    text = (schemas / "test.schema.json").read_text(encoding="utf-8")
+    assert text.index('"properties"') < text.index('"title"'), "write_bundle did not sort the keys"
+    assert '\n  "properties"' in text, "write_bundle did not indent by two spaces"
+
+
+def test_write_bundle_is_stable_across_an_upstream_reorder(tmp_path: Path) -> None:
+    """Two upstream layouts of one document write the same bytes."""
+    reordered = {
+        rel_name: json.dumps(dict(reversed(list(json.loads(content).items()))), indent=8).encode()
+        for rel_name, content in _MOCK_MANAGED_SCHEMA_CONTENT.items()
+    }
+    first = _bundle_the_mock_schemas(tmp_path / "first")
+    second = write_bundle(reordered, "0" * 40, tmp_path / "second" / "bundle") / "schemas"
+
+    for rel_name in _MOCK_MANAGED_SCHEMA_CONTENT:
+        assert (first / rel_name).read_bytes() == (second / rel_name).read_bytes()
 
 
 def test_compare_reports_nothing_when_upstream_matches_the_bundle(tmp_path: Path) -> None:
