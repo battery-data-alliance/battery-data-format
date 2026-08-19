@@ -29,6 +29,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ._errors import BDFMetadataError
 from .file_utils import read_head
 from .metadata import Metadata
 from .metadata_targets import ExtrasTarget, MetadataTarget
@@ -251,6 +252,67 @@ def _normalize_or_raise(
     return result
 
 
+# JSON type names, so a message about a JSON document never prints a Python
+# type name at the reader. `bool` precedes `int`, because a bool is an int.
+_JSON_TYPE_NAMES: tuple[tuple[type | tuple[type, ...], str], ...] = (
+    (type(None), "null"),
+    (bool, "boolean"),
+    ((int, float), "number"),
+    (str, "string"),
+    (list, "array"),
+)
+
+
+def _json_type_name(value: Any) -> str:
+    """Return the JSON type name of a decoded JSON value.
+
+    Args:
+        value: A value that ``json.loads`` returned.
+
+    Returns:
+        The JSON name of the value's type: ``null``, ``boolean``,
+        ``number``, ``string``, ``array``, or ``object``.
+    """
+    for python_type, name in _JSON_TYPE_NAMES:
+        if isinstance(value, python_type):
+            return name
+    return "object"
+
+
+def _load_json_object(sidecar: Path) -> dict:
+    """Load ``sidecar`` as a JSON object, raising where it cannot be restored.
+
+    A sidecar that exists states metadata the caller expects to read, so every
+    failure raises rather than degrade to an empty ``Metadata``. A degraded
+    read hands the caller a document it never wrote, and a later ``save()``
+    writes that document over the file this read could not read.
+
+    Args:
+        sidecar: Path to the JSON sidecar file, which the caller has
+            confirmed exists.
+
+    Returns:
+        The decoded JSON object.
+
+    Raises:
+        BDFMetadataError: The file does not decode as UTF-8, does not parse
+            as JSON, or holds a JSON value that is not an object.
+    """
+    try:
+        text = sidecar.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise BDFMetadataError(f"metadata sidecar {sidecar} does not decode as UTF-8: {exc}") from exc
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise BDFMetadataError(f"metadata sidecar {sidecar} does not parse as JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise BDFMetadataError(
+            f"metadata sidecar {sidecar} must hold a JSON object. This file holds a JSON {_json_type_name(data)}."
+        )
+    return data
+
+
 class MetadataParser(BaseModel):
     """Base / null metadata parser: never matches, extracts nothing.
 
@@ -390,7 +452,8 @@ class JsonSidecarParser(MetadataParser):
     the first present candidate per rule, converts it with the rule's own
     normalization, and stages it at the rule's target. The whole loaded
     document is captured into ``raw``, verbatim; only an explicit
-    ``ExtrasTarget`` rule can stage a value into ``extras``.
+    ``ExtrasTarget`` rule can stage a value into ``extras``. A sidecar that
+    exists and cannot be restored raises :class:`BDFMetadataError`.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -434,16 +497,20 @@ class JsonSidecarParser(MetadataParser):
                 a rule's normalization reads.
 
         Returns:
-            A ``Metadata`` staged with every rule's normalized match,
-            plus ``raw`` carrying the whole loaded document.
+            A ``Metadata`` staged with every rule's normalized match, plus
+            ``raw`` carrying the whole loaded document, or an empty
+            ``Metadata`` where no sidecar exists.
+
+        Raises:
+            BDFMetadataError: The sidecar exists and does not decode as
+                UTF-8, does not parse as JSON, or holds a JSON value that is
+                not an object.
+            ValueError: A rule's normalization rejected the matched value.
         """
         sidecar = self.sidecar_path(path)
         if not sidecar.exists():
             return Metadata()
-        with open(sidecar, encoding="utf-8") as fh:
-            data = json.load(fh)
-        if not isinstance(data, dict):
-            return Metadata()
+        data = _load_json_object(sidecar)
 
         document: dict[str, Any] = {"raw": data}
         for target, rule in self.rules:
@@ -467,7 +534,9 @@ class BdfSidecarParser(MetadataParser):
     read from nesting a copy of the sidecar inside itself. A top-level key
     that ``Metadata`` does not declare raises out of ``model_validate``,
     naming that key, and a declared field with an invalid value raises the
-    same way.
+    same way. A sidecar that exists and cannot be read at all raises
+    :class:`BDFMetadataError`, so an empty ``Metadata`` always means that no
+    sidecar exists.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -505,10 +574,13 @@ class BdfSidecarParser(MetadataParser):
             day_month_order: Accepted for signature parity with the other parsers; unused.
 
         Returns:
-            The restored ``Metadata``, or an empty one when no sidecar
-            exists or it does not hold a JSON object.
+            The restored ``Metadata``, or an empty one where no sidecar
+            exists.
 
         Raises:
+            BDFMetadataError: The sidecar exists and does not decode as
+                UTF-8, does not parse as JSON, or holds a JSON value that is
+                not an object.
             pydantic.ValidationError: The sidecar states a top-level key no
                 ``Metadata`` field declares, or a recognised field an
                 invalid value.
@@ -516,9 +588,4 @@ class BdfSidecarParser(MetadataParser):
         sidecar = self.sidecar_path(path)
         if not sidecar.exists():
             return Metadata()
-        with open(sidecar, encoding="utf-8") as fh:
-            data = json.load(fh)
-        if not isinstance(data, dict):
-            return Metadata()
-
-        return Metadata.model_validate(data)
+        return Metadata.model_validate(_load_json_object(sidecar))

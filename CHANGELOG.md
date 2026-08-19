@@ -47,7 +47,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - New optional extras `excel`, `mat`, `mpr`, `yaml` for additional file formats, and an `all` bundle covering all user-facing feature extras.
 - CLI piping: `convert` and `validate` accept `-` to read from stdin, and `convert --to -` writes BDF CSV to stdout; status messages go to stderr. Exit codes: 0 valid, 1 invalid, 2 unreadable.
 - Docs: example notebooks now execute live via myst-nb, plus a generated "Supported Plugins" reference page.
-- `read()` and `scan()` restore the `.metadata.json` sidecar a prior `save()` wrote, in place of the plugin parser's metadata; a malformed sidecar warns and yields an empty `Metadata` rather than fail the read.
+- `read()` and `scan()` restore the `.metadata.json` sidecar a prior `save()` wrote, in place of the plugin parser's metadata.
 - `day_month_order` keyword-only override on `bdf.read`, `bdf.scan`, `bdf.normalize`, `TableParser.read`, and `TableNormalizer.normalize`, for a vendor datetime format that leaves a numeric day and month ambiguous. `"day_first"` reads such a date day then month, `"month_first"` reads it month then day, and the default `None` leaves every declared format exactly as the plugin states it. A year-first format (e.g. `%Y-%m-%d`) or a month-name format (e.g. `%d-%b-%y`) is never affected.
 - Network test that fails when the bundled BattINFO schemas differ from upstream `main`; the pinned-commit test could not catch a stale bundle, because a refetch at a commit reproduces it however far upstream moves. The comparison reads the parsed content of the eight managed schema files, so an upstream commit that reformats one of them or that leaves `assets/schemas/` alone keeps it green. `scripts/update_battinfo.py --check` reports the same comparison and exits non-zero when the bundle is stale, and the script now resolves a branch or tag to a commit before it stamps `VERSION`.
 
@@ -60,6 +60,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `NDAParser` renamed to `NdaParser`; its magic-byte check now recognizes the `.ndax` zip container.
 - Package import is lazy: `import bdf` completes in ~0.15 s without loading pandas/polars/scipy; heavy dependencies import on first use, making CLI startup near-instant.
 - `save()` names the metadata sidecar by replacing the final extension (`x.bdf.parquet` -> `x.bdf.metadata.json`) instead of appending to the full filename.
+- A metadata sidecar that exists and cannot be restored now raises the new `BDFMetadataError` instead of reading as an empty `Metadata`: a document that does not decode as UTF-8, one that does not parse as JSON, and one holding a JSON value other than an object. This applies to the reserved `.metadata.json` sidecar and to a plugin-declared sidecar alike. An empty `Metadata` now states that no sidecar exists, so the documented `read()` then `save()` round trip can no longer write a degraded object over a sidecar the read failed on. The naive-timestamp `UserWarning` is unchanged.
 
 ### Fixed
 - `arbin_res` extra is now part of the `all` bundle, and its mdbtools backend supports Python 3.10 (polars-access-mdbtools 0.1.3).

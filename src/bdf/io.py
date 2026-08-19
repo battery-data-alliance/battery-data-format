@@ -34,20 +34,19 @@ def _assemble_metadata(
     Returns:
         The reserved sidecar's ``Metadata`` where ``<stem>.metadata.json``
         exists beside ``path``, restored repair records included; the
-        plugin parser's ``Metadata`` otherwise. A malformed sidecar emits one
-        ``UserWarning`` naming the file and the error, and returns an empty
-        ``Metadata``, rather than fail the read. The caller still assigns
+        plugin parser's ``Metadata`` otherwise. The caller still assigns
         ``bdf.source`` and applies this read's own repairs.
+
+    Raises:
+        BDFMetadataError: A sidecar exists and cannot be restored. An empty
+            ``Metadata`` therefore always means that no sidecar exists, and
+            never a sidecar this read failed on. A later ``save()`` of that
+            metadata would otherwise write over the file the read could not
+            read.
     """
     reserved = BdfSidecarParser()
     if reserved.matches(path):
-        try:
-            return reserved.parse(path)
-        except json.JSONDecodeError as exc:
-            warnings.warn(
-                f"could not parse metadata sidecar {reserved.sidecar_path(path)}: {exc}", UserWarning, stacklevel=3
-            )
-            return Metadata()
+        return reserved.parse(path)
 
     return resolved_plugin.metadata_parser.parse(path, tz=tz, day_month_order=day_month_order)
 

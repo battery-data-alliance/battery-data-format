@@ -19,13 +19,14 @@ from bdf import (
     BattinfoEquipmentInstance,
     BattinfoTest,
     BattinfoTestProtocol,
+    BDFMetadataError,
     BdfReadInfo,
     BDFValidationError,
     Metadata,
     io,
 )
 from bdf.io import read, scan
-from bdf.metadata_parsers import RegexRule, TxtPreambleParser
+from bdf.metadata_parsers import JsonRule, JsonSidecarParser, RegexRule, TxtPreambleParser
 from bdf.normalization import AbsoluteTimeNormalization
 from bdf.plugins import Plugin
 from bdf.table_normalizers import Syn, TableNormalizer
@@ -854,41 +855,92 @@ def test_plugin_parser_runs_when_no_sidecar_exists(tmp_path: Path) -> None:
     assert meta.raw == text  # type: ignore[attr-defined]
 
 
-def test_malformed_metadata_never_fails_a_read(tmp_path: Path) -> None:
-    """Malformed adjacent JSON degrades: the table returns, and one UserWarning names the file and the error."""
+def test_malformed_sidecar_fails_the_read(tmp_path: Path) -> None:
+    """A reserved sidecar that does not parse fails the read, naming the file and the error."""
     df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
     p = tmp_path / "data.bdf.csv"
     io.save(df, p)
     sidecar = p.with_suffix(".metadata.json")
     sidecar.write_text("{not valid json")
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        table, _meta = io.read(p)
-    user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]
-    assert len(user_warnings) == 1
-    message = str(user_warnings[0].message)
-    assert str(sidecar) in message
-    assert "Expecting property name" in message
-    assert_frame_equal(df, table)
+    with pytest.raises(BDFMetadataError, match="Expecting property name") as excinfo:
+        io.read(p)
+    assert str(sidecar) in str(excinfo.value)
+
+
+def test_sidecar_that_is_not_a_json_object_fails_the_read(tmp_path: Path) -> None:
+    """A reserved sidecar holding a JSON value other than an object fails the read, rather than read as empty."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    sidecar = p.with_suffix(".metadata.json")
+    sidecar.write_text(json.dumps(["battinfo_test", "CELL-A"]))
+
+    with pytest.raises(BDFMetadataError, match="holds a JSON array"):
+        io.read(p)
+
+
+def test_sidecar_that_does_not_decode_fails_the_read(tmp_path: Path) -> None:
+    """A reserved sidecar that is not UTF-8 fails the read as a metadata error, not as a raw codec error."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    sidecar = p.with_suffix(".metadata.json")
+    sidecar.write_bytes(b'{"battinfo_test": {"test": {"name": "\xff\xfe"}}}')
+
+    with pytest.raises(BDFMetadataError, match="does not decode as UTF-8"):
+        io.read(p)
 
 
 def test_malformed_sidecar_does_not_fall_back_to_the_plugin_parser(tmp_path: Path) -> None:
-    """A malformed reserved sidecar warns and stages nothing; the plugin parser never runs to fill it."""
+    """A malformed reserved sidecar fails the read; the plugin parser never runs to fill it."""
     p = tmp_path / "data.csv"
     text, plugin = _preamble_plugin()
     p.write_text(text)
     sidecar = p.with_suffix(".metadata.json")
     sidecar.write_text("{not valid json")
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        _, meta = io.read(p, plugin=plugin)
-    user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]
-    assert len(user_warnings) == 1
-    assert str(sidecar) in str(user_warnings[0].message)
-    assert meta.battinfo_test.test.started_at is None  # type: ignore[union-attr]
-    assert meta.raw is None  # type: ignore[attr-defined]
+    with pytest.raises(BDFMetadataError) as excinfo:
+        io.read(p, plugin=plugin)
+    assert str(sidecar) in str(excinfo.value)
+
+
+def test_malformed_vendor_sidecar_fails_the_read(tmp_path: Path) -> None:
+    """A plugin-declared sidecar that does not parse fails the read the same way the reserved one does."""
+    p = tmp_path / "data.csv"
+    rows = "".join(f"{i},3.7,0.1\n" for i in range(15))
+    p.write_text("Test Time / s,Voltage / V,Current / A\n" + rows)
+    sidecar = p.with_suffix(".json")
+    sidecar.write_text('{"cell": {"name": "CELL-A"}')
+
+    from bdf.metadata_targets import METADATA
+
+    metadata_parser = JsonSidecarParser(
+        rules={METADATA.battinfo_cell.cell_instance.name: JsonRule(candidates=(("cell", "name"),))}
+    )
+    plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
+
+    with pytest.raises(BDFMetadataError, match="does not parse as JSON") as excinfo:
+        io.read(p, plugin=plugin, validate=False)
+    assert str(sidecar) in str(excinfo.value)
+
+
+def test_vendor_sidecar_that_is_not_a_json_object_fails_the_read(tmp_path: Path) -> None:
+    """A plugin-declared sidecar holding a JSON value other than an object fails the read."""
+    p = tmp_path / "data.csv"
+    rows = "".join(f"{i},3.7,0.1\n" for i in range(15))
+    p.write_text("Test Time / s,Voltage / V,Current / A\n" + rows)
+    p.with_suffix(".json").write_text(json.dumps(["cell", "CELL-A"]))
+
+    from bdf.metadata_targets import METADATA
+
+    metadata_parser = JsonSidecarParser(
+        rules={METADATA.battinfo_cell.cell_instance.name: JsonRule(candidates=(("cell", "name"),))}
+    )
+    plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
+
+    with pytest.raises(BDFMetadataError, match="holds a JSON array"):
+        io.read(p, plugin=plugin, validate=False)
 
 
 def test_undeclared_top_level_field_is_refused() -> None:

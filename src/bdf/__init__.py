@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._errors import BDFValidationError
+    from ._errors import BDFMetadataError, BDFValidationError
     from ._explore import explore
     from ._ingest import ingest
     from ._registry import get_entry, load_registry
@@ -80,6 +80,7 @@ __all__ = [
     "__version__",
     # errors
     "BDFValidationError",
+    "BDFMetadataError",
 ]
 
 
@@ -92,6 +93,7 @@ _LAZY_ATTRS: dict[str, str] = {
     "validate": "._validate",
     "validate_df": "._validate",
     "BDFValidationError": "._errors",
+    "BDFMetadataError": "._errors",
     "IdentityNormalization": ".normalization",
     "LinearNormalization": ".normalization",
     "AbsoluteTimeNormalization": ".normalization",
