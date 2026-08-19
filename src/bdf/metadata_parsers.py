@@ -48,6 +48,30 @@ from .normalization import (
 # never triggers the naive-timestamp warning.
 _TZ_MARKER_RE = re.compile(r"(?:[+-]\d{2}:?\d{2}(?::\d{2})?|Z)$")
 
+
+def _cut_preamble(text: str, preamble_lines: int) -> str:
+    r"""Return the leading ``preamble_lines`` lines of ``text``, terminators kept.
+
+    Args:
+        text: The decoded head text.
+        preamble_lines: The number of lines to keep. A table parser counts
+            this value with ``str.splitlines()``, so this function splits the
+            text the same way. A ``\r\n|\r|\n`` regex finds fewer lines,
+            because ``splitlines()`` also breaks on ``\x0b``, ``\x0c``,
+            ``\x1c`` through ``\x1e``, ``\x85``, ``\u2028``, and ``\u2029``.
+            A count that disagrees with the cut keeps a header row in the
+            preamble text.
+
+    Returns:
+        The first ``preamble_lines`` lines with their terminators verbatim,
+        so a CRLF file keeps its terminators. Returns the whole text where
+        the text holds fewer lines than that count.
+    """
+    if preamble_lines <= 0:
+        return ""
+    return "".join(text.splitlines(keepends=True)[:preamble_lines])
+
+
 # A rule's normalization, typed as this discriminated union rather than the
 # bare Normalization base, so a JSON round trip (model_dump_json then
 # model_validate_json) reconstructs the declared kind instead of the
@@ -382,8 +406,10 @@ class TxtPreambleParser(MetadataParser):
     ``rules`` maps a target to a :class:`RegexRule` whose ``group(1)`` is the
     extracted value. :meth:`parse` applies each rule over the decoded head
     lines (no separator / skip-rows sniffing), converts the matched text with
-    the rule's own normalization, and stages it at the rule's target. The
-    whole decoded head text is captured into ``raw``, verbatim.
+    the rule's own normalization, and stages it at the rule's target. ``raw``
+    captures the text the rules ran over, verbatim: the preamble alone where
+    the caller states its boundary, and the whole decoded head where the
+    caller states none.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -438,18 +464,22 @@ class TxtPreambleParser(MetadataParser):
                 ``"UTC"`` default, a naive match warns once.
             day_month_order: Field order applied to an ambiguous numeric date
                 a rule's normalization reads.
-            preamble_lines: Number of head lines that belong to the preamble;
-                unused for now.
+            preamble_lines: Number of head lines that belong to the preamble.
+                ``None`` keeps the whole decoded head; otherwise every rule
+                applies to the text cut after that many lines alone.
 
         Returns:
-            A ``Metadata`` staged with every rule's normalized match,
-            plus ``raw`` carrying the whole decoded head text.
+            A ``Metadata`` staged with every rule's normalized match, plus
+            ``raw`` carrying the decoded preamble text, or ``None`` where
+            that text is empty.
         """
         head = read_head(path)
         text = head.decode(self.encoding, errors="replace")
+        if preamble_lines is not None:
+            text = _cut_preamble(text, preamble_lines)
         lines = text.splitlines()
 
-        document: dict[str, Any] = {"raw": text}
+        document: dict[str, Any] = {"raw": text or None}
         for target, rule in self.rules:
             matched = rule.extract(lines)
             if matched is None:

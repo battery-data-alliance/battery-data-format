@@ -71,7 +71,6 @@ def test_direct_parse_keeps_the_whole_head(tmp_path: Path) -> None:
     assert meta.raw == text  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, reason="TxtPreambleParser.parse still ignores preamble_lines")
 def test_parse_boundary_keeps_crlf_terminators_in_raw(tmp_path: Path) -> None:
     """A parse() call that states a boundary over a CRLF head keeps its preamble's \\r\\n terminators in raw."""
     from bdf.metadata_targets import METADATA
@@ -84,6 +83,51 @@ def test_parse_boundary_keeps_crlf_terminators_in_raw(tmp_path: Path) -> None:
     parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
     meta = parser.parse(p, preamble_lines=2)
     assert meta.raw == preamble  # type: ignore[attr-defined]
+
+
+def test_parse_boundary_counts_lines_like_splitlines(tmp_path: Path) -> None:
+    """A parse() call cuts a preamble the way str.splitlines() counts it, so raw holds no header row.
+
+    A table parser counts a preamble with ``str.splitlines()``, which breaks on
+    U+0085. A cut that counts line terminators alone reads that count as one
+    line too many, and keeps the header row in raw.
+    """
+    from bdf.metadata_targets import METADATA
+
+    p = tmp_path / "f.txt"
+    preamble = "~Start of Test: 30-Apr-24 08:00:00 AM\r\n~Comment: measured \x85 fine\r\n"
+    p.write_bytes((preamble + "time,voltage\r\n0,3.7\r\n").encode("latin-1"))
+    assert len(preamble.splitlines()) == 3
+
+    rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS))
+    parser = TxtPreambleParser(encoding="latin-1", rules={METADATA.battinfo_test.test.started_at: rule})
+    meta = parser.parse(p, preamble_lines=3)
+    assert meta.raw == preamble  # type: ignore[attr-defined]
+
+
+def test_matches_reads_the_whole_head_below_the_preamble(tmp_path: Path) -> None:
+    """matches() finds a magic token below the preamble, because identification reads the whole head."""
+    p = tmp_path / "f.txt"
+    preamble = "\n".join(f"preamble line {i}" for i in range(20))
+    p.write_text(f"{preamble}\nMACCOR ASCII\ntime,voltage\n0,3.7\n")
+
+    parser = TxtPreambleParser(magic=("MACCOR ASCII",))
+    assert parser.matches(p) is True
+
+
+def test_json_sidecar_ignores_the_boundary(tmp_path: Path) -> None:
+    """A JsonSidecarParser given a boundary still reads its whole document, unaffected."""
+    from bdf.metadata_targets import METADATA
+
+    data = tmp_path / "cell.csv"
+    data.write_text("a,b\n1,2\n")
+    document = {"start_time": "2024-01-15T00:00:00Z", "rig_bay": "B7"}
+    (tmp_path / "cell.json").write_text(json.dumps(document))
+
+    rule = JsonRule(candidates=(("start_time",),), normalization=AbsoluteTimeNormalization())
+    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    meta = parser.parse(data, preamble_lines=1)
+    assert meta.raw == document  # type: ignore[attr-defined]
 
 
 def test_json_sidecar_raw_captures_the_whole_document(tmp_path: Path) -> None:
