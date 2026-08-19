@@ -386,7 +386,11 @@ def save(
         pathlike: Output file path; format/compression are inferred from its extension.
         metadata: Optional ``Metadata`` written alongside as a ``.metadata.json``
             sidecar (``mydata.bdf.parquet`` pairs with ``mydata.bdf.metadata.json``).
-            A ``Metadata`` carrying nothing writes no sidecar.
+            A ``Metadata`` carrying nothing deletes the sidecar, so the artifact
+            keeps no metadata. Omit the argument only where the target has no
+            sidecar: a save that omits it beside an existing sidecar raises,
+            because the sidecar describes the data the previous save wrote. The
+            message states each out, one of which is a save to a different path.
         validate: Check columns against the BDF ontology, raising on missing required ones
             (default True); False only warns.
         labels: Style of column names to use (default: "unchanged"):
@@ -399,8 +403,20 @@ def save(
 
     Raises:
         ValueError: If the format is unsupported, or compression is requested for xlsx output.
+        FileExistsError: If ``metadata`` is omitted and a ``.metadata.json`` sidecar
+            already sits beside the target.
     """
     p = Path(pathlike)
+    sidecar = BdfSidecarParser().sidecar_path(p)
+    if metadata is None and sidecar.exists():
+        msg = (
+            f"{sidecar} describes the data a previous save wrote, and this save states no metadata. "
+            "Pass metadata= to keep or update it, or metadata=Metadata() to clear it. "
+            "To keep both the sidecar and the data it describes, save to a different path. "
+            "To discard it, delete the sidecar."
+        )
+        raise FileExistsError(msg)
+
     p.parent.mkdir(parents=True, exist_ok=True)
     fmt = _detect_format(p)
 
@@ -440,10 +456,13 @@ def save(
 
     if metadata is not None:
         # Only the values that differ from their defaults, so a Metadata
-        # carrying nothing writes no sidecar at all.
+        # carrying nothing writes no sidecar at all, and deletes one the
+        # target already had.
         payload = metadata.model_dump(mode="json", exclude_defaults=True)
         if payload:
-            p.with_suffix(".metadata.json").write_text(
+            sidecar.write_text(
                 json.dumps(payload, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+        else:
+            sidecar.unlink(missing_ok=True)

@@ -19,7 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
   - `include_unknown` added, keeps all non-spec columns in the dataframe under their original names (default `False`).
   - `tz` kwarg added for naive datetimes.
 - `parse()` is removed — use `read(path, normalize=False, validate=False)`.
-- `save()` rewritten on Polars with more files supported, a `validate` kwarg, and a `labels` option (`"preferred" | "machine" | "unchanged"`) replacing the old `human=True/False` toggle. The `.metadata.json` sidecar behavior is unchanged.
+- `save()` rewritten on Polars with more files supported, a `validate` kwarg, and a `labels` option (`"preferred" | "machine" | "unchanged"`) replacing the old `human=True/False` toggle.
 - `save()` to JSON previously output NDJSON, which cannot be read by standard JSON parsers. These are now two distinct options, save to ".ndjson" to get newline-delimited JSON.
 - Top-level `plugins()` function removed; use `bdf.plugins.list_sources()` instead.
 - `ingest()` gets the same kwarg changes as `read`/`scan`/`save`: `include_optional` removed, `include_unknown` added, and `human: bool = False` → `labels: Literal["preferred", "machine", "unchanged"] = "machine"`.
@@ -61,6 +61,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - Package import is lazy: `import bdf` completes in ~0.15 s without loading pandas/polars/scipy; heavy dependencies import on first use, making CLI startup near-instant.
 - `save()` names the metadata sidecar by replacing the final extension (`x.bdf.parquet` -> `x.bdf.metadata.json`) instead of appending to the full filename.
 - A metadata sidecar that exists and cannot be restored now raises the new `BDFMetadataError` instead of reading as an empty `Metadata`: a document that does not decode as UTF-8, one that does not parse as JSON, and one holding a JSON value other than an object. This applies to the reserved `.metadata.json` sidecar and to a plugin-declared sidecar alike. An empty `Metadata` now states that no sidecar exists, so the documented `read()` then `save()` round trip can no longer write a degraded object over a sidecar the read failed on. The naive-timestamp `UserWarning` is unchanged.
+- `save()` no longer carries a metadata sidecar from one save to the next. A `save()` that states no `metadata=` beside an existing `.metadata.json` sidecar raises `FileExistsError`, because the sidecar describes the data the previous save wrote; pass `metadata=` to keep or update it, `metadata=Metadata()` to clear it, or save to a different path. An empty `Metadata` now deletes the sidecar, so a sidecar exists exactly where the artifact has metadata.
 
 ### Fixed
 - `arbin_res` extra is now part of the `all` bundle, and its mdbtools backend supports Python 3.10 (polars-access-mdbtools 0.1.3).

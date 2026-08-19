@@ -775,6 +775,51 @@ def test_metadata_carrying_nothing_writes_no_sidecar(tmp_path: Path) -> None:
     assert not p.with_suffix(".metadata.json").exists()
 
 
+def test_save_without_metadata_refuses_an_existing_sidecar(tmp_path: Path) -> None:
+    """A save that states no metadata beside an existing sidecar raises, and writes nothing."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    other = pl.DataFrame({"Test Time / s": [1.0], "Voltage / V": [3.6], "Current / A": [0.2]})
+    p = tmp_path / "data.bdf.csv"
+    original = Metadata()
+    original.battinfo_test.test.instrument_name = "Arbin"  # type: ignore[union-attr]
+    io.save(df, p, metadata=original)
+    sidecar = p.with_suffix(".metadata.json")
+
+    with pytest.raises(FileExistsError, match=str(sidecar)):
+        io.save(other, p)
+
+    # The refusal precedes the table write, so neither file changed.
+    table, meta = io.read(p)
+    assert_frame_equal(df, table)
+    assert meta.battinfo_test.test.instrument_name == "Arbin"  # type: ignore[union-attr]
+
+
+def test_save_without_metadata_writes_where_no_sidecar_exists(tmp_path: Path) -> None:
+    """With no sidecar beside the target, a save that states no metadata writes the table alone."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+
+    io.save(df, p)
+    io.save(df, p)
+
+    assert not p.with_suffix(".metadata.json").exists()
+
+
+def test_empty_metadata_clears_a_previous_sidecar(tmp_path: Path) -> None:
+    """``metadata=Metadata()`` deletes the sidecar, so a later read falls to the plugin parser."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    original = Metadata()
+    original.battinfo_test.test.instrument_name = "Arbin"  # type: ignore[union-attr]
+    io.save(df, p, metadata=original)
+
+    io.save(df, p, metadata=Metadata())
+
+    assert not p.with_suffix(".metadata.json").exists()
+    _, meta = io.read(p)
+    assert meta.battinfo_test.test.instrument_name is None  # type: ignore[union-attr]
+
+
 def test_reserved_sidecar_never_self_nests(tmp_path: Path) -> None:
     """Reading and saving a reserved sidecar repeatedly never nests a copy of itself into raw."""
     df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
