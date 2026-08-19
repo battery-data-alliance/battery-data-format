@@ -6,11 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from bdf.file_utils import read_head
 from bdf.normalization import AbsoluteTimeNormalization, LinearNormalization, RelativeTimeNormalization
 from bdf.plugins import PLUGINS
 from bdf.spec import COLUMN_ONTOLOGY
-from bdf.table_parsers import DelimTxtParser
+from bdf.table_parsers import _detect_structure
 from integration.test_cases import (
     ALL_CASES,
     SampleCase,
@@ -40,7 +39,7 @@ _CURRENT_CASES = [
 def test_sample_detect_structure(cid: str, case: SampleCase, data_dir: Path) -> None:
     """_detect_structure returns the line count and separator for vendor samples."""
     path = get_sample_data_source(case.source, case.is_url, data_dir)
-    skip, sep = DelimTxtParser._detect_structure(DelimTxtParser._decode_head(read_head(path)))
+    skip, sep = _detect_structure(str(path))
     assert skip == case.skip
     assert sep == case.sep
 

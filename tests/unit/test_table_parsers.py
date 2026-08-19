@@ -29,6 +29,7 @@ from bdf.table_parsers import (
     NdjsonParser,
     ParquetParser,
     TableParser,
+    _detect_structure,
 )
 
 
@@ -184,51 +185,59 @@ class TestTableParserConcreteMethods:
 
 
 class TestDelimTxtParserSniffing:
-    def test_detect_structure_no_preamble(self) -> None:
+    def test_detect_structure_no_preamble(self, tmp_path: Path) -> None:
         """_detect_structure returns (0, ',') when no preamble lines exist."""
         header = "a,b,c"
         data = "\n".join("1,2,3" for _ in range(15))
-        skip, sep = DelimTxtParser._detect_structure(f"{header}\n{data}")
+        p = tmp_path / "data.csv"
+        p.write_text(f"{header}\n{data}\n")
+        skip, sep = _detect_structure(str(p))
         assert skip == 0
         assert sep == ","
 
     @pytest.mark.parametrize("preamble", [1, 3, 7])
-    def test_detect_structure_preamble_sizes(self, preamble: int) -> None:
+    def test_detect_structure_preamble_sizes(self, preamble: int, tmp_path: Path) -> None:
         """_detect_structure returns correct skiprows for various preamble lengths."""
         pre = "\n".join(f"preamble line {i}" for i in range(preamble))
         body = "a,b,c\n" + "\n".join("1,2,3" for _ in range(15))
-        sample = pre + "\n" + body
-        skip, sep = DelimTxtParser._detect_structure(sample)
+        p = tmp_path / "data.csv"
+        p.write_text(pre + "\n" + body + "\n")
+        skip, sep = _detect_structure(str(p))
         assert skip == preamble
         assert sep == ","
 
-    def test_detect_structure_structured_preamble(self) -> None:
+    def test_detect_structure_structured_preamble(self, tmp_path: Path) -> None:
         """_detect_structure correctly detects data separator when preamble is space-delimited."""
         pre = "\n".join(f"preamble metadata line {i}" for i in range(16))
         body = "a,b,c\n" + "\n".join("1,2,3" for _ in range(15))
-        sample = pre + "\n" + body
-        skip, sep = DelimTxtParser._detect_structure(sample)
+        p = tmp_path / "data.csv"
+        p.write_text(pre + "\n" + body + "\n")
+        skip, sep = _detect_structure(str(p))
         assert skip == 16
         assert sep == ","
 
     @pytest.mark.parametrize("sep", ["\t", ";", "|"])
-    def test_detect_structure_separator_variants(self, sep: str) -> None:
+    def test_detect_structure_separator_variants(self, sep: str, tmp_path: Path) -> None:
         """_detect_structure detects tab, semicolon, and pipe separators."""
         header = sep.join(["alpha", "beta", "gamma"])
         data = "\n".join(sep.join(["1", "2", "3"]) for _ in range(15))
-        skip, detected_sep = DelimTxtParser._detect_structure(f"{header}\n{data}")
+        p = tmp_path / "data.csv"
+        p.write_text(f"{header}\n{data}\n")
+        skip, detected_sep = _detect_structure(str(p))
         assert skip == 0
         assert detected_sep == sep
 
-    def test_detect_structure_no_run_returns_default(self) -> None:
+    def test_detect_structure_no_run_returns_default(self, tmp_path: Path) -> None:
         """_detect_structure returns (None, ',') when no multi-field runs exist."""
-        sample = "\n".join("a single undelimited column line" for _ in range(20))
-        assert DelimTxtParser._detect_structure(sample) == (None, ",")
+        p = tmp_path / "data.csv"
+        p.write_text("\n".join("a single undelimited column line" for _ in range(20)) + "\n")
+        assert _detect_structure(str(p)) == (None, ",")
 
-    def test_detect_structure_short_run_returns_default(self) -> None:
+    def test_detect_structure_short_run_returns_default(self, tmp_path: Path) -> None:
         """_detect_structure returns (None, ',') when the data run is shorter than min_run."""
-        sample = "pre\na,b,c\n" + "\n".join("1,2,3" for _ in range(4))
-        assert DelimTxtParser._detect_structure(sample) == (None, ",")
+        p = tmp_path / "data.csv"
+        p.write_text("pre\na,b,c\n" + "\n".join("1,2,3" for _ in range(4)) + "\n")
+        assert _detect_structure(str(p)) == (None, ",")
 
     @pytest.mark.parametrize(
         "values,expected",
