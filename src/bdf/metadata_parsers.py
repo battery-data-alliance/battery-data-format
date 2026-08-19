@@ -25,7 +25,7 @@ import json
 import re
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -346,6 +346,11 @@ class MetadataParser(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    # Whether parse() reads its preamble_lines argument. False here, so a
+    # caller skips the table parser's preamble scan for a parser that
+    # discards the value.
+    uses_preamble_boundary: ClassVar[bool] = False
+
     kind: Literal["base"] = "base"
     rules: tuple[tuple[_TargetUnion, RegexRule | JsonRule], ...] = Field(
         default=(),
@@ -413,6 +418,8 @@ class TxtPreambleParser(MetadataParser):
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    uses_preamble_boundary: ClassVar[bool] = True
 
     kind: Literal["txt_preamble"] = "txt_preamble"  # type: ignore[assignment]
     magic: tuple[str | bytes, ...] = Field(

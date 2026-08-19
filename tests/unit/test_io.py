@@ -322,12 +322,16 @@ def read_mocks(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()))
     table_read = MagicMock(return_value=pl.DataFrame({"x": [1]}).lazy())
+    table_preamble = MagicMock(return_value=None)
     meta_parse = MagicMock(return_value=Metadata())
     detect = MagicMock(return_value=("detected_id", plugin))
     monkeypatch.setattr("bdf.table_parsers.TableParser.read", table_read)
+    monkeypatch.setattr("bdf.table_parsers.DelimTxtParser.preamble", table_preamble)
     monkeypatch.setattr("bdf.metadata_parsers.MetadataParser.parse", meta_parse)
     monkeypatch.setattr("bdf.io.detect", detect)
-    return SimpleNamespace(plugin=plugin, table_read=table_read, meta_parse=meta_parse, detect=detect)
+    return SimpleNamespace(
+        plugin=plugin, table_read=table_read, table_preamble=table_preamble, meta_parse=meta_parse, detect=detect
+    )
 
 
 def test_read_plugin_none_delegates_to_detect(read_mocks: SimpleNamespace, tmp_path: Path) -> None:
@@ -413,8 +417,28 @@ def test_read_sets_bdf_source_on_the_parsed_metadata(read_mocks: SimpleNamespace
     read_mocks.meta_parse.return_value = Metadata()
     p = tmp_path / "f.csv"
     _, meta = read(p, plugin=read_mocks.plugin)
-    read_mocks.meta_parse.assert_called_once_with(p, tz="UTC", day_month_order=None)
+    read_mocks.meta_parse.assert_called_once_with(p, tz="UTC", day_month_order=None, preamble_lines=None)
     assert meta.bdf.source == "custom"  # type: ignore[attr-defined]
+
+
+def test_read_skips_the_preamble_scan_for_a_parser_that_ignores_the_boundary(
+    read_mocks: SimpleNamespace, tmp_path: Path
+) -> None:
+    """read() never scans for the preamble boundary when the metadata parser discards it."""
+    p = tmp_path / "f.csv"
+    read(p, plugin=read_mocks.plugin)
+    read_mocks.table_preamble.assert_not_called()
+
+
+def test_read_scans_the_preamble_for_a_parser_that_reads_the_boundary(
+    read_mocks: SimpleNamespace, tmp_path: Path
+) -> None:
+    """read() scans for the preamble boundary when the metadata parser reads it."""
+    p = tmp_path / "f.csv"
+    p.write_text("a,b\n1,2\n")
+    plugin = Plugin(table_parser=read_mocks.plugin.table_parser, metadata_parser=TxtPreambleParser())
+    read(p, plugin=plugin)
+    read_mocks.table_preamble.assert_called_once_with(p)
 
 
 def test_read_returns_table_parser_frame_unchanged(read_mocks: SimpleNamespace, tmp_path: Path) -> None:
@@ -900,7 +924,6 @@ def test_plugin_parser_runs_when_no_sidecar_exists(tmp_path: Path) -> None:
     assert "~Start of Test: 2024-01-15 00:00:00" in meta.raw  # type: ignore[attr-defined,operator]
 
 
-@pytest.mark.xfail(strict=True, reason="the read still assembles raw from the whole decoded head")
 def test_read_raw_excludes_table_rows(tmp_path: Path) -> None:
     """A read's raw carries the preamble alone, with neither the header row nor a data row."""
     p = tmp_path / "data.csv"
@@ -913,7 +936,6 @@ def test_read_raw_excludes_table_rows(tmp_path: Path) -> None:
     assert "3.7,0.1" not in meta.raw  # type: ignore[attr-defined,operator]  # data row
 
 
-@pytest.mark.xfail(strict=True, reason="the read still assembles raw from the whole decoded head")
 def test_read_rule_never_matches_inside_table(tmp_path: Path) -> None:
     """A rule pattern matching text only inside a data row leaves that rule's target unset."""
     from bdf.metadata_targets import METADATA
@@ -932,7 +954,6 @@ def test_read_rule_never_matches_inside_table(tmp_path: Path) -> None:
     assert meta.battinfo_test.test.instrument_name is None  # type: ignore[union-attr]
 
 
-@pytest.mark.xfail(strict=True, reason="the read still assembles raw from the whole decoded head")
 def test_read_no_preamble_leaves_raw_none(tmp_path: Path) -> None:
     """A read of a file whose header row is its first line leaves raw as None and every rule target unset."""
     p = tmp_path / "data.csv"
@@ -954,7 +975,6 @@ def test_read_no_preamble_leaves_raw_none(tmp_path: Path) -> None:
     assert meta.battinfo_test.test.started_at is None  # type: ignore[union-attr]
 
 
-@pytest.mark.xfail(strict=True, reason="the save still writes a sidecar raw holding the whole decoded head")
 def test_save_sidecar_raw_excludes_table_rows(tmp_path: Path) -> None:
     """A save() following a preamble read writes a sidecar whose raw carries no table row."""
     p = tmp_path / "data.bdf.csv"
@@ -969,6 +989,43 @@ def test_save_sidecar_raw_excludes_table_rows(tmp_path: Path) -> None:
     assert "~Start of Test: 2024-01-15 00:00:00" in written["raw"]
     assert "Test Time / s" not in written["raw"]
     assert "3.7,0.1" not in written["raw"]
+
+
+def test_read_unlocatable_boundary_keeps_the_whole_head(tmp_path: Path) -> None:
+    """A read of a file whose head holds no table leaves raw carrying the whole head, and every rule reads it."""
+    from bdf.metadata_targets import METADATA
+
+    p = tmp_path / "data.csv"
+    # Every line carries three fields, so a table parser that (wrongly) treats
+    # the preamble line as the header still parses a consistent shape; only
+    # one data row follows, too few for structure detection to find a table.
+    text = "~Start of Test: 2024-01-15 00:00:00,,\nTest Time / s,Voltage / V,Current / A\n0,3.7,0.1\n"
+    p.write_text(text)
+
+    rule = RegexRule(
+        pattern=re.compile(r"~Start of Test:\s*([^,]+)"),
+        normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)),
+    )
+    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
+
+    _, meta = io.read(p, plugin=plugin, validate=False)
+    assert meta.raw == text  # type: ignore[attr-defined]
+    expected = datetime(2024, 1, 15, 0, 0, 0, tzinfo=timezone.utc).timestamp()
+    assert meta.battinfo_test.test.started_at == pytest.approx(expected, abs=1e-6)  # type: ignore[union-attr]
+
+
+def test_read_sidecar_written_before_the_trim_restores_unchanged(tmp_path: Path) -> None:
+    """A .metadata.json whose raw holds a whole head restores that text unchanged."""
+    p = tmp_path / "data.bdf.csv"
+    text, plugin = _preamble_plugin()
+    p.write_text(text)
+
+    sidecar = p.with_suffix(".metadata.json")
+    sidecar.write_text(json.dumps({"raw": text}))
+
+    _, meta = io.read(p, plugin=plugin)
+    assert meta.raw == text  # type: ignore[attr-defined]
 
 
 def test_malformed_sidecar_fails_the_read(tmp_path: Path) -> None:

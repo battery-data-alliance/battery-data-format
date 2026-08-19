@@ -48,7 +48,13 @@ def _assemble_metadata(
     if reserved.matches(path):
         return reserved.parse(path)
 
-    return resolved_plugin.metadata_parser.parse(path, tz=tz, day_month_order=day_month_order)
+    preamble_lines = None
+    if resolved_plugin.metadata_parser.uses_preamble_boundary:
+        preamble = resolved_plugin.table_parser.preamble(path)
+        preamble_lines = None if preamble is None else len(preamble)
+    return resolved_plugin.metadata_parser.parse(
+        path, tz=tz, day_month_order=day_month_order, preamble_lines=preamble_lines
+    )
 
 
 def _read(
