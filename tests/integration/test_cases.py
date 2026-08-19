@@ -9,6 +9,7 @@ import pytest
 
 from bdf.plugins import PLUGINS
 from bdf.spec import COLUMN_ONTOLOGY
+from bdf.table_parsers import MDBParser
 
 _ALL_DELIM_IDS: frozenset[str] = frozenset(
     {
@@ -721,6 +722,12 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "schedule_charging_energy_wh": ColExpect("Charge_Energy", 1.0),
                 "schedule_discharging_energy_wh": ColExpect("Discharge_Energy", 1.0),
             },
+            marks=(
+                pytest.mark.skipif(
+                    not MDBParser._has_mdbtools(),
+                    reason="MDB Tools not installed",
+                ),
+            ),
         ),
     ),
     (
