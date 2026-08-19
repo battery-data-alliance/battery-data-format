@@ -161,17 +161,17 @@ class TableParser(BaseModel):
     def preamble(self, path: str | Path) -> list[str] | None:
         """Return the preamble lines this parser skips, or ``None`` where it cannot locate them.
 
+        The base implementation returns ``None`` and reads nothing. A
+        subclass overrides it only where it can locate a boundary.
+
         Args:
             path: Local file path or URL to read.
 
         Returns:
             The skipped preamble lines, or ``None`` where this parser cannot
             locate a boundary.
-
-        Raises:
-            NotImplementedError: In base class; subclasses must override.
         """
-        raise NotImplementedError
+        return None
 
     def read(
         self,
@@ -221,6 +221,23 @@ class TableParser(BaseModel):
         )
         assert isinstance(result, pl.LazyFrame)
         return result if lazy else result.collect()
+
+
+def _resolve_skip_rows(declared: int | None, detected: int | None) -> int:
+    """Return the skip-row count to read with: a declared override, a detected value, or zero.
+
+    Args:
+        declared: The parser's own ``skip_rows``, or ``None`` where undeclared.
+        detected: The skip count ``_detect_structure`` found, or ``None`` where
+            no candidate qualified.
+
+    Returns:
+        ``declared`` where it is set; otherwise ``detected``, or ``0`` where
+        detection found nothing either.
+    """
+    if declared is not None:
+        return declared
+    return detected if detected is not None else 0
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +343,7 @@ class DelimTxtParser(TableParser):
         return self
 
     @staticmethod
-    def _detect_structure(sample: str, min_run: int = 15) -> tuple[int, str]:
+    def _detect_structure(sample: str, min_run: int = 15) -> tuple[int | None, str]:
         """Jointly detect field separator and preamble skip-row count from a text sample.
 
         For each candidate separator (``,``, ``\\t``, ``;``, ``|``, space):
@@ -357,7 +374,7 @@ class DelimTxtParser(TableParser):
 
         Returns:
             Tuple of ``(skiprows, separator)`` where ``skiprows`` is the number of preamble
-            lines before the header row.
+            lines before the header row, or ``None`` where no candidate qualifies.
         """
 
         def _classify(field: str) -> str:
@@ -402,7 +419,7 @@ class DelimTxtParser(TableParser):
                 i = j
 
         if not candidates:
-            return (0, ",")
+            return (None, ",")
         best = max(candidates, key=lambda c: (c[0], c[2]))
         return (best[0], best[1])
 
@@ -444,18 +461,23 @@ class DelimTxtParser(TableParser):
         ]
         return lf.select(exprs)
 
-    def preamble(self, head: bytes) -> list[str]:  # type: ignore[override]
-        """Return the preamble (skipped) lines decoded from ``head`` bytes.
+    def preamble(self, path: str | Path) -> list[str] | None:
+        """Return the preamble (skipped) lines read from ``path``'s head.
 
         Args:
-            head: Head bytes from the file.
+            path: Local file path or URL to read.
 
         Returns:
-            List of preamble lines that will be skipped during parsing.
+            List of preamble lines that will be skipped during parsing, or
+            ``None`` where ``skip_rows`` is undeclared and detection reports
+            no skip count.
         """
+        head = read_head(path)
         sample = self._decode_head(head, self.encoding)
         _skip, _ = self._detect_structure(sample)
         skip = self.skip_rows if self.skip_rows is not None else _skip
+        if skip is None:
+            return None
         return sample.splitlines()[:skip]
 
     @staticmethod
@@ -497,7 +519,7 @@ class DelimTxtParser(TableParser):
         sample = self._decode_head(raw, self.encoding)
         _skip, _sep = self._detect_structure(sample)
         sep = self.separator if self.separator is not None else _sep
-        skip = self.skip_rows if self.skip_rows is not None else _skip
+        skip = _resolve_skip_rows(self.skip_rows, _skip)
         is_utf8 = self.encoding.lower() in ("utf-8", "utf8")
         encoding_arg: Literal["utf8", "utf8-lossy"] = "utf8" if is_utf8 else "utf8-lossy"
         lf = pl.scan_csv(
@@ -529,7 +551,7 @@ class DelimTxtParser(TableParser):
         sample = self._decode_head(raw, self.encoding)
         _skip, _sep = self._detect_structure(sample)
         sep = self.separator if self.separator is not None else _sep
-        skip = self.skip_rows if self.skip_rows is not None else _skip
+        skip = _resolve_skip_rows(self.skip_rows, _skip)
         lines = sample.splitlines()
         if skip >= len(lines):
             return []
