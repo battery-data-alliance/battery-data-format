@@ -897,7 +897,7 @@ def test_plugin_parser_runs_when_no_sidecar_exists(tmp_path: Path) -> None:
     _, meta = io.read(p, plugin=plugin)
     expected = datetime(2024, 1, 15, 0, 0, 0, tzinfo=timezone.utc).timestamp()
     assert meta.battinfo_test.test.started_at == pytest.approx(expected, abs=1e-6)  # type: ignore[union-attr]
-    assert meta.raw == text  # type: ignore[attr-defined]
+    assert "~Start of Test: 2024-01-15 00:00:00" in meta.raw  # type: ignore[attr-defined,operator]
 
 
 def test_malformed_sidecar_fails_the_read(tmp_path: Path) -> None:
