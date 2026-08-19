@@ -158,6 +158,21 @@ class TableParser(BaseModel):
         """
         raise NotImplementedError
 
+    def preamble(self, path: str | Path) -> list[str] | None:
+        """Return the preamble lines this parser skips, or ``None`` where it cannot locate them.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            The skipped preamble lines, or ``None`` where this parser cannot
+            locate a boundary.
+
+        Raises:
+            NotImplementedError: In base class; subclasses must override.
+        """
+        raise NotImplementedError
+
     def read(
         self,
         path: str | Path,
@@ -429,7 +444,7 @@ class DelimTxtParser(TableParser):
         ]
         return lf.select(exprs)
 
-    def preamble(self, head: bytes) -> list[str]:
+    def preamble(self, head: bytes) -> list[str]:  # type: ignore[override]
         """Return the preamble (skipped) lines decoded from ``head`` bytes.
 
         Args:

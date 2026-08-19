@@ -57,8 +57,8 @@ def test_preamble_rule_owns_its_interpretation(tmp_path: Path) -> None:
     assert not hasattr(parser, "datetime_formats")
 
 
-def test_preamble_raw_captures_the_whole_decoded_head(tmp_path: Path) -> None:
-    """A preamble parser's raw carries the whole decoded head text it matched against."""
+def test_direct_parse_keeps_the_whole_head(tmp_path: Path) -> None:
+    """A parse() call that states no boundary keeps the whole decoded head in raw."""
     from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
@@ -69,6 +69,21 @@ def test_preamble_raw_captures_the_whole_decoded_head(tmp_path: Path) -> None:
     parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
     meta = parser.parse(p)
     assert meta.raw == text  # type: ignore[attr-defined]
+
+
+@pytest.mark.xfail(strict=True, reason="TxtPreambleParser.parse still ignores preamble_lines")
+def test_parse_boundary_keeps_crlf_terminators_in_raw(tmp_path: Path) -> None:
+    """A parse() call that states a boundary over a CRLF head keeps its preamble's \\r\\n terminators in raw."""
+    from bdf.metadata_targets import METADATA
+
+    p = tmp_path / "f.txt"
+    preamble = "~Start of Test: 30-Apr-24 08:00:00 AM\r\nsome other line\r\n"
+    p.write_bytes((preamble + "time,voltage\r\n0,3.7\r\n").encode("utf-8"))
+
+    rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS))
+    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    meta = parser.parse(p, preamble_lines=2)
+    assert meta.raw == preamble  # type: ignore[attr-defined]
 
 
 def test_json_sidecar_raw_captures_the_whole_document(tmp_path: Path) -> None:

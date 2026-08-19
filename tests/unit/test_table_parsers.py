@@ -220,15 +220,17 @@ class TestDelimTxtParserSniffing:
         assert skip == 0
         assert detected_sep == sep
 
+    @pytest.mark.xfail(strict=True, reason="_detect_structure still returns 0, not None, for no candidate")
     def test_detect_structure_no_run_returns_default(self) -> None:
-        """_detect_structure returns (0, ',') when no multi-field runs exist."""
+        """_detect_structure returns (None, ',') when no multi-field runs exist."""
         sample = "\n".join("a single undelimited column line" for _ in range(20))
-        assert DelimTxtParser._detect_structure(sample) == (0, ",")
+        assert DelimTxtParser._detect_structure(sample) == (None, ",")
 
+    @pytest.mark.xfail(strict=True, reason="_detect_structure still returns 0, not None, for no candidate")
     def test_detect_structure_short_run_returns_default(self) -> None:
-        """_detect_structure returns (0, ',') when the data run is shorter than min_run."""
+        """_detect_structure returns (None, ',') when the data run is shorter than min_run."""
         sample = "pre\na,b,c\n" + "\n".join("1,2,3" for _ in range(4))
-        assert DelimTxtParser._detect_structure(sample) == (0, ",")
+        assert DelimTxtParser._detect_structure(sample) == (None, ",")
 
     @pytest.mark.parametrize(
         "values,expected",
@@ -288,11 +290,26 @@ class TestHeadThreadingAndRead:
         p.write_text("a;b;c\n1;2;3\n4;5;6\n")
         assert DelimTxtParser(separator=";").read_column_headings(p) == ["a", "b", "c"]
 
-    def test_preamble_returns_skipped_lines(self) -> None:
-        """preamble() decodes head bytes and returns the skipped preamble lines."""
+    @pytest.mark.xfail(strict=True, reason="DelimTxtParser.preamble still takes head bytes, not a path")
+    def test_preamble_returns_skipped_lines(self, tmp_path: Path) -> None:
+        """preamble() reads a path and returns the skipped preamble lines."""
         text = "meta line 1\nmeta line 2\n" + "a,b,c\n" + "\n".join("1,2,3" for _ in range(15)) + "\n"
-        head = text.encode("utf-8")
-        assert DelimTxtParser().preamble(head) == ["meta line 1", "meta line 2"]
+        p = tmp_path / "data.csv"
+        p.write_text(text)
+        assert DelimTxtParser().preamble(p) == ["meta line 1", "meta line 2"]
+
+    @pytest.mark.xfail(strict=True, reason="TableParser.preamble is a skeleton and raises NotImplementedError")
+    def test_binary_parser_preamble_returns_none(self, tmp_path: Path) -> None:
+        """preamble() on a parser that reads a binary format returns None for that file's path."""
+        p = tmp_path / "sample.mat"
+        assert MatParser().preamble(p) is None
+
+    @pytest.mark.xfail(strict=True, reason="DelimTxtParser.preamble still takes head bytes, not a path")
+    def test_delimtxt_preamble_no_header_returns_none(self, tmp_path: Path) -> None:
+        """preamble() returns None for a file whose head holds no header row above a data run."""
+        p = tmp_path / "data.csv"
+        p.write_text("\n".join("1,2,3" for _ in range(15)) + "\n")
+        assert DelimTxtParser().preamble(p) is None
 
 
 class TestDecodeHead:
@@ -556,14 +573,16 @@ class TestEncodingIntegration:
         df = parser.read(p).collect()
         assert "Temperature T1 / degC" in df.columns
 
-    def test_preamble_honours_explicit_separator(self) -> None:
+    @pytest.mark.xfail(strict=True, reason="DelimTxtParser.preamble still takes head bytes, not a path")
+    def test_preamble_honours_explicit_separator(self, tmp_path: Path) -> None:
         """preamble() correctly identifies skip rows when preamble lines contain the data separator."""
         pre = "key: a, b, c\nother: x, y, z\n"
         header = "time;voltage;current"
         rows = "\n".join(f"{i};{3.5 + i / 10};0.1" for i in range(15))
-        head = (pre + header + "\n" + rows + "\n").encode("utf-8")
+        p = tmp_path / "data.csv"
+        p.write_text(pre + header + "\n" + rows + "\n")
 
-        assert DelimTxtParser(separator=";").preamble(head) == ["key: a, b, c", "other: x, y, z"]
+        assert DelimTxtParser(separator=";").preamble(p) == ["key: a, b, c", "other: x, y, z"]
 
 
 class TestReadValidate:

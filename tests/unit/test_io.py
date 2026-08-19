@@ -900,6 +900,77 @@ def test_plugin_parser_runs_when_no_sidecar_exists(tmp_path: Path) -> None:
     assert "~Start of Test: 2024-01-15 00:00:00" in meta.raw  # type: ignore[attr-defined,operator]
 
 
+@pytest.mark.xfail(strict=True, reason="the read still assembles raw from the whole decoded head")
+def test_read_raw_excludes_table_rows(tmp_path: Path) -> None:
+    """A read's raw carries the preamble alone, with neither the header row nor a data row."""
+    p = tmp_path / "data.csv"
+    text, plugin = _preamble_plugin()
+    p.write_text(text)
+
+    _, meta = io.read(p, plugin=plugin)
+    assert "~Start of Test: 2024-01-15 00:00:00" in meta.raw  # type: ignore[attr-defined,operator]
+    assert "Test Time / s" not in meta.raw  # type: ignore[attr-defined,operator]  # header row
+    assert "3.7,0.1" not in meta.raw  # type: ignore[attr-defined,operator]  # data row
+
+
+@pytest.mark.xfail(strict=True, reason="the read still assembles raw from the whole decoded head")
+def test_read_rule_never_matches_inside_table(tmp_path: Path) -> None:
+    """A rule pattern matching text only inside a data row leaves that rule's target unset."""
+    from bdf.metadata_targets import METADATA
+    from bdf.normalization import IdentityNormalization
+
+    p = tmp_path / "data.csv"
+    header = "~Meta: some info\nTest Time / s,Voltage / V,Current / A\n"
+    rows = "".join(f"{i},3.7,0.1\n" for i in range(15))
+    p.write_text(header + rows)
+
+    rule = RegexRule(pattern=re.compile(r"(0\.1)"), normalization=IdentityNormalization())
+    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.instrument_name: rule})
+    plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
+
+    _, meta = io.read(p, plugin=plugin)
+    assert meta.battinfo_test.test.instrument_name is None  # type: ignore[union-attr]
+
+
+@pytest.mark.xfail(strict=True, reason="the read still assembles raw from the whole decoded head")
+def test_read_no_preamble_leaves_raw_none(tmp_path: Path) -> None:
+    """A read of a file whose header row is its first line leaves raw as None and every rule target unset."""
+    p = tmp_path / "data.csv"
+    header = "Test Time / s,Voltage / V,Current / A\n"
+    rows = "".join(f"{i},3.7,0.1\n" for i in range(15))
+    p.write_text(header + rows)
+
+    rule = RegexRule(
+        pattern=re.compile(r"~Start of Test:\s*(.+)"),
+        normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)),
+    )
+    from bdf.metadata_targets import METADATA
+
+    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
+
+    _, meta = io.read(p, plugin=plugin)
+    assert meta.raw is None  # type: ignore[attr-defined]
+    assert meta.battinfo_test.test.started_at is None  # type: ignore[union-attr]
+
+
+@pytest.mark.xfail(strict=True, reason="the save still writes a sidecar raw holding the whole decoded head")
+def test_save_sidecar_raw_excludes_table_rows(tmp_path: Path) -> None:
+    """A save() following a preamble read writes a sidecar whose raw carries no table row."""
+    p = tmp_path / "data.bdf.csv"
+    text, plugin = _preamble_plugin()
+    p.write_text(text)
+
+    df, meta = io.read(p, plugin=plugin)
+    io.save(df, p, metadata=meta)
+
+    sidecar = p.with_suffix(".metadata.json")
+    written = json.loads(sidecar.read_text())
+    assert "~Start of Test: 2024-01-15 00:00:00" in written["raw"]
+    assert "Test Time / s" not in written["raw"]
+    assert "3.7,0.1" not in written["raw"]
+
+
 def test_malformed_sidecar_fails_the_read(tmp_path: Path) -> None:
     """A reserved sidecar that does not parse fails the read, naming the file and the error."""
     df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})

@@ -354,13 +354,20 @@ class MetadataParser(BaseModel):
         """
         return False
 
-    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
+    def parse(
+        self,
+        path: str | Path,
+        tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
+        preamble_lines: int | None = None,
+    ) -> Metadata:
         """Extract staged metadata from ``path``. Base: nothing.
 
         Args:
             path: Local file path or URL to parse.
             tz: IANA timezone; unused by the base parser.
             day_month_order: Field order for an ambiguous numeric date; unused by the base parser.
+            preamble_lines: Number of head lines that belong to the preamble; unused by the base parser.
 
         Returns:
             An empty ``Metadata`` for the base class (override in subclasses).
@@ -416,7 +423,13 @@ class TxtPreambleParser(MetadataParser):
                 return True
         return False
 
-    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
+    def parse(
+        self,
+        path: str | Path,
+        tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
+        preamble_lines: int | None = None,
+    ) -> Metadata:
         """Decode the head with ``encoding`` and apply each rule; first match per target.
 
         Args:
@@ -425,6 +438,8 @@ class TxtPreambleParser(MetadataParser):
                 ``"UTC"`` default, a naive match warns once.
             day_month_order: Field order applied to an ambiguous numeric date
                 a rule's normalization reads.
+            preamble_lines: Number of head lines that belong to the preamble;
+                unused for now.
 
         Returns:
             A ``Metadata`` staged with every rule's normalized match,
@@ -486,7 +501,13 @@ class JsonSidecarParser(MetadataParser):
         """
         return self.sidecar_path(path).exists()
 
-    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
+    def parse(
+        self,
+        path: str | Path,
+        tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
+        preamble_lines: int | None = None,
+    ) -> Metadata:
         """Load the sidecar JSON, stage each rule's match, and capture the whole document into raw.
 
         Args:
@@ -495,6 +516,8 @@ class JsonSidecarParser(MetadataParser):
                 ``"UTC"`` default, a naive match warns once.
             day_month_order: Field order applied to an ambiguous numeric date
                 a rule's normalization reads.
+            preamble_lines: Number of head lines that belong to the preamble;
+                unused, because the source is a document, not a head.
 
         Returns:
             A ``Metadata`` staged with every rule's normalized match, plus
@@ -565,13 +588,21 @@ class BdfSidecarParser(MetadataParser):
         """
         return self.sidecar_path(path).exists()
 
-    def parse(self, path: str | Path, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> Metadata:
+    def parse(
+        self,
+        path: str | Path,
+        tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
+        preamble_lines: int | None = None,
+    ) -> Metadata:
         """Restore the reserved sidecar verbatim, with no normalization.
 
         Args:
             path: Local file path to the data file.
             tz: Accepted for signature parity with the other parsers; unused.
             day_month_order: Accepted for signature parity with the other parsers; unused.
+            preamble_lines: Accepted for signature parity with the other parsers; unused,
+                because the source is a document, not a head.
 
         Returns:
             The restored ``Metadata``, or an empty one where no sidecar
