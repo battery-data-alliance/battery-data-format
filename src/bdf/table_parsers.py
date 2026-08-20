@@ -224,23 +224,6 @@ class TableParser(BaseModel):
         return result if lazy else result.collect()
 
 
-def _resolve_skip_rows(declared: int | None, detected: int | None) -> int:
-    """Return the skip-row count to read with: a declared override, a detected value, or zero.
-
-    Args:
-        declared: The parser's own ``skip_rows``, or ``None`` where undeclared.
-        detected: The skip count ``_detect_structure`` found, or ``None`` where
-            no candidate qualified.
-
-    Returns:
-        ``declared`` where it is set; otherwise ``detected``, or ``0`` where
-        detection found nothing either.
-    """
-    if declared is not None:
-        return declared
-    return detected if detected is not None else 0
-
-
 # Cached per source and encoding, because one read runs the detection for every
 # candidate plugin and the answer is the same each time. The cache inherits
 # read_head's assumption that a file does not change while a process reads it.
@@ -471,6 +454,55 @@ class DelimTxtParser(TableParser):
         ]
         return lf.select(exprs)
 
+    def _skip_rows_for(self, path: str | Path) -> int | None:
+        """Return the number of head lines that come before the header row of ``path``.
+
+        A declared :attr:`skip_rows` wins over the detection. The method
+        then reads no bytes.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            The declared count where :attr:`skip_rows` is set, the detected
+            count otherwise, or ``None`` where neither gives one.
+        """
+        if self.skip_rows is not None:
+            return self.skip_rows
+        return _detect_structure(str(path), self.encoding)[0]
+
+    def _separator_for(self, path: str | Path) -> str:
+        """Return the field separator of ``path``.
+
+        A declared :attr:`separator` wins over the detection. The method
+        then reads no bytes.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            The declared separator where :attr:`separator` is set, the
+            detected separator otherwise.
+        """
+        if self.separator is not None:
+            return self.separator
+        return _detect_structure(str(path), self.encoding)[1]
+
+    def _structure(self, path: str | Path) -> tuple[int, str]:
+        """Return the skip count and the separator that a read of ``path`` uses.
+
+        An unknown skip count collapses to zero here, because a read must
+        start on some line. :meth:`preamble` keeps the unknown instead.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            Tuple of ``(skip_rows, separator)``.
+        """
+        skip = self._skip_rows_for(path)
+        return (0 if skip is None else skip), self._separator_for(path)
+
     def preamble(self, path: str | Path) -> list[str] | None:
         """Return the preamble (skipped) lines read from ``path``'s head.
 
@@ -482,11 +514,10 @@ class DelimTxtParser(TableParser):
             ``None`` where ``skip_rows`` is undeclared and detection reports
             no skip count.
         """
-        sample = self._decode_head(read_head(path), self.encoding)
-        _skip, _ = _detect_structure(str(path), self.encoding)
-        skip = self.skip_rows if self.skip_rows is not None else _skip
+        skip = self._skip_rows_for(path)
         if skip is None:
             return None
+        sample = self._decode_head(read_head(path), self.encoding)
         return sample.splitlines()[:skip]
 
     @staticmethod
@@ -525,9 +556,7 @@ class DelimTxtParser(TableParser):
             Polars LazyFrame with raw column names and data.
         """
         raw = read_head(path)
-        _skip, _sep = _detect_structure(str(path), self.encoding)
-        sep = self.separator if self.separator is not None else _sep
-        skip = _resolve_skip_rows(self.skip_rows, _skip)
+        skip, sep = self._structure(path)
         is_utf8 = self.encoding.lower() in ("utf-8", "utf8")
         encoding_arg: Literal["utf8", "utf8-lossy"] = "utf8" if is_utf8 else "utf8-lossy"
         lf = pl.scan_csv(
@@ -556,9 +585,7 @@ class DelimTxtParser(TableParser):
             List of column header names.
         """
         sample = self._decode_head(read_head(path), self.encoding)
-        _skip, _sep = _detect_structure(str(path), self.encoding)
-        sep = self.separator if self.separator is not None else _sep
-        skip = _resolve_skip_rows(self.skip_rows, _skip)
+        skip, sep = self._structure(path)
         lines = sample.splitlines()
         if skip >= len(lines):
             return []
