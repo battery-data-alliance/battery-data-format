@@ -237,12 +237,18 @@ def _detect_structure(source: str, encoding: str = "utf-8", min_run: int = 15) -
     For each candidate separator (``,``, ``\\t``, ``;``, ``|``, space):
 
     1. Split every line on the separator and build a per-line type
-        *signature*: the tuple of per-field classes (``"numeric"`` vs.
-        ``"str"``), for example ("str", "str", "numeric", "numeric").
-        Lines splitting into fewer than 2 fields signature to``None``.
+        *signature*: the tuple of per-field classes (``"numeric"``, ``"str"``,
+        or ``""`` for an empty field), for example ("str", "str", "numeric",
+        "numeric"). A line that splits into fewer than two fields takes
+        ``None`` in place of a signature, because that separator does not
+        delimit it.
     2. Scan signatures for a *data run*: a maximal block of consecutive
-        identical, majority-numeric signatures. Identical signatures mean
-        stable column count and types.
+        *compatible* signatures that starts on a majority-numeric one. Two
+        signatures are compatible where they hold the same field count and no
+        position states two different concrete classes. An empty field states
+        no class, so it matches either one. A vendor that writes a column
+        every few rows and leaves it empty in between therefore keeps one run,
+        rather than one run per written row.
     3. Accept the run only if it is at least ``min_run`` long and is
         immediately preceded (``i >= 1``) by a *header* line whose signature
         has the same field count and is majority-``str``. This header check
@@ -258,7 +264,7 @@ def _detect_structure(source: str, encoding: str = "utf-8", min_run: int = 15) -
     Args:
         source: Local file path or URL whose head the detection reads.
         encoding: Character encoding that decodes the head bytes.
-        min_run: Minimum consecutive data rows with identical type signatures required
+        min_run: Minimum consecutive data rows with compatible type signatures required
             to accept a candidate separator and skip-row count.
 
     Returns:
@@ -268,7 +274,12 @@ def _detect_structure(source: str, encoding: str = "utf-8", min_run: int = 15) -
     sample = DelimTxtParser._decode_head(read_head(source), encoding)
 
     def _classify(field: str) -> str:
+        # Three classes: "numeric", "str", and "" for a field that holds
+        # nothing. An empty field states no class, which is what lets a
+        # column that a vendor writes intermittently stay in one run.
         f = field.strip()
+        if not f:
+            return ""
         try:
             float(f)
             return "numeric"
@@ -276,12 +287,39 @@ def _detect_structure(source: str, encoding: str = "utf-8", min_run: int = 15) -
             return "str"
 
     def _majority_numeric(sig: tuple[str, ...]) -> bool:
+        # True where a line reads as data: more numeric fields than every
+        # other field together, empty ones included.
         n = sum(1 for t in sig if t == "numeric")
         return n > len(sig) - n
 
     def _majority_str(sig: tuple[str, ...]) -> bool:
-        n = sum(1 for t in sig if t == "str")
+        # True where a line reads as a header: more non-numeric fields than
+        # numeric ones. An empty field counts as non-numeric, because a header
+        # cell that holds no name is still not a number. The data vote above
+        # already reads an empty field as one of the fields that "numeric"
+        # must beat, so the two votes stay consistent.
+        n = sum(1 for t in sig if t != "numeric")
         return n > len(sig) - n
+
+    def _merge(a: tuple[str, ...], b: tuple[str, ...]) -> tuple[str, ...] | None:
+        """Return the two signatures combined, or ``None`` where they disagree.
+
+        An empty class yields to a concrete one, so the merged signature
+        carries every class the run has stated so far. Two different concrete
+        classes at one position end the run.
+        """
+        # A different field count means a different table.
+        if len(a) != len(b):
+            return None
+        merged: list[str] = []
+        for x, y in zip(a, b, strict=True):
+            # Two concrete classes that disagree end the run. An empty class
+            # is falsy, so `x or y` keeps whichever side states a class, and
+            # keeps "" where neither does.
+            if x and y and x != y:
+                return None
+            merged.append(x or y)
+        return tuple(merged)
 
     lines = sample.splitlines()
     candidates: list[tuple[int, str, int]] = []  # (skiprows, sep, run_len)
@@ -294,14 +332,34 @@ def _detect_structure(source: str, encoding: str = "utf-8", min_run: int = 15) -
 
         i = 0
         while i < len(sigs):
+            # A run starts on a line that reads as data. Every other line
+            # moves the scan on by one.
             sig = sigs[i]
             if sig is None or not _majority_numeric(sig):
                 i += 1
                 continue
+            # `merged` is the run's accumulated signature. It starts as the
+            # first line's, and each further line fills in a position that no
+            # earlier line stated. The scan compares against the accumulation
+            # rather than against the first line alone, so a column that the
+            # first line leaves empty still holds one class for the whole run.
+            merged = sig
             j = i + 1
-            while j < len(sigs) and sigs[j] == sig:
+            while j < len(sigs):
+                nxt = sigs[j]
+                # A line that the separator does not delimit ends the run.
+                if nxt is None:
+                    break
+                combined = _merge(merged, nxt)
+                if combined is None:
+                    break
+                merged = combined
                 j += 1
+            # The run covers lines i to j-1. `j` is where the next scan starts.
             run_len = j - i
+            # Accept the run only where it is long enough, and where a header
+            # line of the same width sits directly above it. `i >= 1` is what
+            # leaves room for that line.
             if run_len >= min_run and i >= 1:
                 header_sig = sigs[i - 1]
                 if header_sig is not None and len(header_sig) == len(sig) and _majority_str(header_sig):

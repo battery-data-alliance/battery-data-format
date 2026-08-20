@@ -216,6 +216,22 @@ class TestDelimTxtParserSniffing:
         assert skip == 16
         assert sep == ","
 
+    def test_detect_structure_intermittent_column(self, tmp_path: Path) -> None:
+        """A column that a vendor writes every fifth row keeps one data run."""
+        rows = [f"{i},2,{'4.5' if i % 5 == 0 else ''},3" for i in range(30)]
+        p = tmp_path / "data.csv"
+        p.write_text("a,b,c,d\n" + "\n".join(rows) + "\n")
+        skip, sep = _detect_structure(str(p))
+        assert skip == 0
+        assert sep == ","
+
+    def test_detect_structure_type_change_ends_run(self, tmp_path: Path) -> None:
+        """A field that states two different concrete classes still ends the run."""
+        rows = [f"{i},2,{'4.5' if i % 5 == 0 else 'text'},3" for i in range(30)]
+        p = tmp_path / "data.csv"
+        p.write_text("a,b,c,d\n" + "\n".join(rows) + "\n")
+        assert _detect_structure(str(p)) == (None, ",")
+
     @pytest.mark.parametrize("sep", ["\t", ";", "|"])
     def test_detect_structure_separator_variants(self, sep: str, tmp_path: Path) -> None:
         """_detect_structure detects tab, semicolon, and pipe separators."""
