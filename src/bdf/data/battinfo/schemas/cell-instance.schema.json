@@ -1,0 +1,461 @@
+{
+  "$defs": {
+    "CellIri": {
+      "pattern": "^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "DatasetIri": {
+      "pattern": "^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "DatasetLink": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/DatasetIri"
+        },
+        "role": {
+          "enum": [
+            "raw",
+            "processed",
+            "report",
+            "metadata",
+            "other"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "ElectrodeIri": {
+      "pattern": "^https://w3id\\.org/battinfo/electrode/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "FlexDate": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/UnixTime"
+        },
+        {
+          "description": "ISO 8601 date string (YYYY-MM-DD or YYYY-MM).",
+          "type": "string"
+        }
+      ]
+    },
+    "Funding": {
+      "additionalProperties": false,
+      "description": "Funding project (grant) under which the record was produced. Maps to schema:funding / schema:Grant in JSON-LD.",
+      "properties": {
+        "acronym": {
+          "type": "string"
+        },
+        "funder": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "same_as": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": {
+              "const": "Organization"
+            },
+            "url": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "format": "uri",
+          "type": "string"
+        },
+        "identifier": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "program": {
+          "type": "string"
+        },
+        "type": {
+          "const": "Grant"
+        }
+      },
+      "required": [
+        "identifier"
+      ],
+      "type": "object"
+    },
+    "Organization": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Organization"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "properties": {
+        "affiliation": {
+          "$ref": "#/$defs/Organization"
+        },
+        "email": {
+          "format": "email",
+          "type": "string"
+        },
+        "family_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "given_name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Person"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ShortId": {
+      "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
+      "type": "string"
+    },
+    "SpecIri": {
+      "pattern": "^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "UnixTime": {
+      "description": "Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "$id": "https://w3id.org/battinfo/schema/cell-instance.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Physical cell instance derived from a cell type.",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "properties": {
+    "cell_instance": {
+      "additionalProperties": false,
+      "properties": {
+        "batch_id": {
+          "type": "string"
+        },
+        "battery_status": {
+          "description": "Current status of the battery per EU Battery Regulation Annex XIII.",
+          "enum": [
+            "original",
+            "repurposed",
+            "re-used",
+            "remanufactured",
+            "waste"
+          ],
+          "type": "string"
+        },
+        "cell_spec_id": {
+          "$ref": "#/$defs/SpecIri"
+        },
+        "conformance": {
+          "additionalProperties": false,
+          "description": "Assessment of how well this record followed the spec that governs it.",
+          "properties": {
+            "deviations": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "category": {
+                    "description": "Broad classification of the deviation.",
+                    "enum": [
+                      "power_outage",
+                      "equipment_failure",
+                      "temperature_excursion",
+                      "software_error",
+                      "operator_intervention",
+                      "premature_termination",
+                      "communication_loss",
+                      "parameter_drift",
+                      "setpoint_deviation",
+                      "calibration_issue",
+                      "out_of_tolerance",
+                      "dimensional",
+                      "other"
+                    ],
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "duration_s": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "impact": {
+                    "enum": [
+                      "minor",
+                      "moderate",
+                      "major"
+                    ],
+                    "type": "string"
+                  },
+                  "occurred_at": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ]
+                  },
+                  "step_index": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "type": {
+                    "description": "Specific deviation label within the category (free text).",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "category"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "note": {
+              "description": "Free-text summary of the assessment.",
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "conformant",
+                "non-conformant",
+                "unknown"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "type": "object"
+        },
+        "counter_electrode_id": {
+          "$ref": "#/$defs/ElectrodeIri",
+          "description": "Canonical IRI of the electrode record built into this cell as its counter electrode. In a half cell that electrode is also the reference electrode, so it is emitted with both role classes."
+        },
+        "dpp_status": {
+          "description": "Status of this digital product passport record.",
+          "enum": [
+            "active",
+            "archived",
+            "inactive",
+            "marked-for-deletion"
+          ],
+          "type": "string"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/FlexDate",
+          "description": "Expiration / best-before date. ISO 8601 string (YYYY-MM-DD, YYYY-MM) or Unix timestamp."
+        },
+        "grade": {
+          "description": "Quality grade assigned to this cell (e.g. 'A', 'B', 'C', 'reject').",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/CellIri"
+        },
+        "manufactured_at": {
+          "$ref": "#/$defs/FlexDate",
+          "description": "Production date. ISO 8601 string (YYYY-MM-DD, YYYY-MM) or Unix timestamp."
+        },
+        "name": {
+          "description": "Human-readable name / label for this cell (e.g. a lab batch ID). The primary identifier; usually present even without a manufacturer serial number.",
+          "type": "string"
+        },
+        "serial_number": {
+          "description": "Manufacturer serial number (unique within the product model); optional.",
+          "type": "string"
+        },
+        "service_start_date": {
+          "description": "ISO 8601 date when the battery was first put into service.",
+          "format": "date",
+          "type": "string"
+        },
+        "short_id": {
+          "$ref": "#/$defs/ShortId"
+        },
+        "supersedes": {
+          "$ref": "#/$defs/CellIri",
+          "description": "IRI of the previous cell record this passport replaces, e.g. after repurposing."
+        },
+        "working_electrode_id": {
+          "$ref": "#/$defs/ElectrodeIri",
+          "description": "Canonical IRI of the electrode record (the physical batch or disc) built into this cell as its working electrode. The cell spec says which electrode design the cell uses; this says which built electrode went into this individual cell."
+        }
+      },
+      "required": [
+        "id",
+        "cell_spec_id"
+      ],
+      "type": "object"
+    },
+    "contributor": {
+      "description": "People who contributed this record to the platform (attribution/provenance). Each is a schema:Person; an ORCID may be given in same_as. Distinct from data authorship (creators).",
+      "items": {
+        "$ref": "#/$defs/Person"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "datasets": {
+      "items": {
+        "$ref": "#/$defs/DatasetLink"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "funding": {
+      "$ref": "#/$defs/Funding"
+    },
+    "license": {
+      "description": "License under which this record and its data are released, as an SPDX license identifier (e.g. \"cc-by-4.0\") or a license URL. Stamped from the workspace default (ws.license) and emitted as dcterms:license in JSON-LD.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "measured": {
+      "$ref": "cell-canonical.schema.json#/$defs/SpecSet"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "battinfo_version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "type": "string"
+        },
+        "citation": {
+          "format": "uri",
+          "type": "string"
+        },
+        "citation_doi": {
+          "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "curated_by": {
+          "type": "string"
+        },
+        "file_hash": {
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/UnixTime"
+        },
+        "source_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "measurement",
+            "lab",
+            "bms",
+            "other"
+          ],
+          "type": "string"
+        },
+        "source_url": {
+          "oneOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workflow_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_type"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "cell_instance",
+    "provenance"
+  ],
+  "title": "BattINFO Cell Instance",
+  "type": "object"
+}

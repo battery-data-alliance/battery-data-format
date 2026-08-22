@@ -182,14 +182,21 @@ PyPI distribution name is ``batterydf``; Python import and CLI remain ``bdf``.
 ```python
 import bdf
 
-# Read raw or BDF; plugin auto-detects
-df = bdf.read("path/to/file.bdf.csv")
+# Read raw or BDF; plugin auto-detects. Returns (df, metadata): the BDF
+# table and a typed Metadata model carrying whatever the file or an
+# adjacent sidecar stated.
+df, metadata = bdf.read("path/to/file.bdf.csv")
 
 # Read Neware .nda/.ndax (requires fastnda: pip install batterydf[nda])
-df = bdf.read("path/to/file.nda")
+df, metadata = bdf.read("path/to/file.nda")
 
 # Force the NDA plugin explicitly
-df = bdf.read("path/to/file.nda", plugin="neware_nda")
+df, metadata = bdf.read("path/to/file.nda", plugin="neware_nda")
+
+# A vendor datetime format that leaves a numeric day and month ambiguous
+# (e.g. 02/03/2024) reads day-first or month-first on request; a
+# year-first or month-name format is unaffected either way.
+df, metadata = bdf.read("path/to/file.csv", day_month_order="day_first")
 
 # Validate
 report = bdf.validate(df, report=True, raise_on_error=False)
@@ -245,7 +252,7 @@ Use the built-in validator. From Python:
 ```python
 import bdf
 
-df = bdf.read("path/to/file.bdf.csv")
+df, metadata = bdf.read("path/to/file.bdf.csv")
 report = bdf.validate(df, report=True, raise_on_error=False)
 ```
 

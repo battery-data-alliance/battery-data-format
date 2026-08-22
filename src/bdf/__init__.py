@@ -6,13 +6,28 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._errors import BDFValidationError
+    from ._errors import BDFMetadataError, BDFValidationError
     from ._explore import explore
     from ._ingest import ingest
     from ._registry import get_entry, load_registry
     from ._templates import templates
     from ._validate import validate, validate_df
+    from .battinfo.generated.cell_instance_schema import BattinfoCellInstance
+    from .battinfo.generated.channel_schema import BattinfoChannelInstance
+    from .battinfo.generated.equipment_schema import BattinfoEquipmentInstance
+    from .battinfo.generated.test_protocol_schema import BattinfoTestProtocol
+    from .battinfo.generated.test_schema import BattinfoTest
     from .io import read, save, scan
+    from .metadata import BdfReadInfo, Metadata
+    from .metadata_targets import METADATA
+    from .normalization import (
+        AbsoluteTimeNormalization,
+        DayMonthOrder,
+        ElapsedTimeNormalization,
+        IdentityNormalization,
+        LinearNormalization,
+        RelativeTimeNormalization,
+    )
     from .plugins import detect
     from .registry_ld import build_registry, search, sparql
     from .repair import CleanReport, clean
@@ -28,6 +43,23 @@ __all__ = [
     "validate",
     "validate_df",
     "detect",
+    # shared value/column normalizations
+    "IdentityNormalization",
+    "LinearNormalization",
+    "AbsoluteTimeNormalization",
+    "RelativeTimeNormalization",
+    "ElapsedTimeNormalization",
+    "DayMonthOrder",
+    # BattINFO record models
+    "BattinfoTest",
+    "BattinfoCellInstance",
+    "BattinfoChannelInstance",
+    "BattinfoEquipmentInstance",
+    "BattinfoTestProtocol",
+    "BdfReadInfo",
+    "Metadata",
+    # where a metadata rule stages its value
+    "METADATA",
     # datasets helpers
     "datasets",
     "load_registry",
@@ -48,6 +80,7 @@ __all__ = [
     "__version__",
     # errors
     "BDFValidationError",
+    "BDFMetadataError",
 ]
 
 
@@ -60,6 +93,21 @@ _LAZY_ATTRS: dict[str, str] = {
     "validate": "._validate",
     "validate_df": "._validate",
     "BDFValidationError": "._errors",
+    "BDFMetadataError": "._errors",
+    "IdentityNormalization": ".normalization",
+    "LinearNormalization": ".normalization",
+    "AbsoluteTimeNormalization": ".normalization",
+    "DayMonthOrder": ".normalization",
+    "RelativeTimeNormalization": ".normalization",
+    "ElapsedTimeNormalization": ".normalization",
+    "BattinfoTest": ".battinfo.generated.test_schema",
+    "BattinfoCellInstance": ".battinfo.generated.cell_instance_schema",
+    "BattinfoChannelInstance": ".battinfo.generated.channel_schema",
+    "BattinfoEquipmentInstance": ".battinfo.generated.equipment_schema",
+    "BattinfoTestProtocol": ".battinfo.generated.test_protocol_schema",
+    "BdfReadInfo": ".metadata",
+    "Metadata": ".metadata",
+    "METADATA": ".metadata_targets",
     "detect": ".plugins",
     "load_registry": "._registry",
     "get_entry": "._registry",

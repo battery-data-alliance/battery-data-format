@@ -26,10 +26,11 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from sphinx.util import logging  # noqa: E402
 
-from bdf.metadata_parsers import JsonSidecarParser, TxtPreambleParser  # noqa: E402
+from bdf.metadata_parsers import JsonSidecarParser, RegexRule, TxtPreambleParser  # noqa: E402
+from bdf.normalization import AbsoluteTimeNormalization, LinearNormalization, RelativeTimeNormalization  # noqa: E402
 from bdf.plugins import PLUGINS  # noqa: E402
 from bdf.spec import COLUMN_ONTOLOGY  # noqa: E402
-from bdf.table_normalizers import DateTimeSyn, ResolvedColumn, Syn  # noqa: E402
+from bdf.table_normalizers import ResolvedColumn, Syn  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -89,11 +90,25 @@ def _metadata_parser_lines(metadata_parser) -> list[str]:
     return ["- **Metadata parser:** none"]
 
 
+def _target_name(target) -> str:
+    """Dotted display name for a rule's target, prefixed for an extras key."""
+    dotted = ".".join(target.path)
+    return dotted if target.kind == "metadata" else f"extras.{dotted}"
+
+
+def _rule_detail(rule) -> str:
+    """Human description of how a rule's value is found."""
+    if isinstance(rule, RegexRule):
+        return f"regex {_lit(rule.pattern.pattern)}"
+    candidates = ", ".join(_lit(".".join(candidate)) for candidate in rule.candidates)
+    return f"JSON key(s): {candidates}"
+
+
 def _metadata_dropdown(metadata_parser) -> list[str]:
     """Collapsible ``.. dropdown::`` with magic tokens and extracted-field rules.
 
-    ``rules`` pairs each BDF metadata field name with a human description of how
-    its value is found, rendered as a uniform sub-list so adding fields beyond
+    ``rules`` pairs each rule's target with a human description of how its
+    value is found, rendered as a uniform sub-list so adding fields beyond
     ``start_time`` slots in without reshaping the surrounding text. Parsers with
     no extraction detail (e.g. ``none``) get no dropdown.
     """
@@ -101,13 +116,9 @@ def _metadata_dropdown(metadata_parser) -> list[str]:
     if isinstance(metadata_parser, TxtPreambleParser):
         magic = ", ".join(_lit(_decode_magic(m)) for m in metadata_parser.magic)
         intro = [f"   - Identified by magic tokens: {magic}"]
-        rules = [(name, f"regex {_lit(pattern.pattern)}") for name, pattern in metadata_parser.regex_patterns]
-    elif isinstance(metadata_parser, JsonSidecarParser):
-        rules = [
-            (name, "JSON key(s): " + ", ".join(_lit(k) for k in keys)) for name, keys in metadata_parser.key_synonyms
-        ]
-    else:
+    elif not isinstance(metadata_parser, JsonSidecarParser):
         return []
+    rules = [(_target_name(target), _rule_detail(rule)) for target, rule in metadata_parser.rules]
 
     lines = ["", ".. dropdown:: Metadata extraction details", "", *intro]
     if rules:
@@ -117,20 +128,19 @@ def _metadata_dropdown(metadata_parser) -> list[str]:
     return lines
 
 
-def _synonym_bullet(syn: Syn | DateTimeSyn) -> str:
+def _synonym_bullet(syn: Syn) -> str:
     """One bullet line for a single synonym, flagging assumed entries."""
-    if isinstance(syn, DateTimeSyn):
-        base, assumed = syn.syn.hdr, syn.syn.assumed
-        fmts = ", ".join(_lit(f) for f in syn.fmts)
+    base, assumed = syn.hdr, syn.assumed
+    if isinstance(syn.normalization, (AbsoluteTimeNormalization, RelativeTimeNormalization)):
+        fmts = ", ".join(_lit(f) for f in syn.normalization.formats)
         line = f"- {_lit(base)} -- formats: {fmts}" if fmts else f"- {_lit(base)}"
     else:
-        base, assumed = syn.hdr, syn.assumed
         line = f"- {_lit(base)}"
     return line + " *(assumed)*" if assumed else line
 
 
-def _is_assumed(syn: Syn | DateTimeSyn) -> bool:
-    return syn.syn.assumed if isinstance(syn, DateTimeSyn) else syn.assumed
+def _is_assumed(syn: Syn) -> bool:
+    return syn.assumed
 
 
 def _synonym_dropdown(normalizer) -> list[str]:
@@ -149,11 +159,12 @@ def _synonym_dropdown(normalizer) -> list[str]:
         lines.append(f"   **{_field_label(mr_name)}** -- {_lit(mr_name)}")
         lines.append("")
         if isinstance(val, ResolvedColumn):
+            norm = val.normalization
             detail = f"   - Direct mapping from {_lit(val.source_header)}"
-            if (val.scale, val.offset) != (1.0, 0.0):
-                detail += f" (scale {val.scale}, offset {val.offset})"
-            if val.datetime_fmts:
-                detail += " -- formats: " + ", ".join(_lit(f) for f in val.datetime_fmts)
+            if isinstance(norm, LinearNormalization) and (norm.scale, norm.offset) != (1.0, 0.0):
+                detail += f" (scale {norm.scale}, offset {norm.offset})"
+            if isinstance(norm, (AbsoluteTimeNormalization, RelativeTimeNormalization)) and norm.formats:
+                detail += " -- formats: " + ", ".join(_lit(f) for f in norm.formats)
             lines.append(detail)
         else:
             lines.extend("   " + _synonym_bullet(syn) for syn in val)

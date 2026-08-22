@@ -94,6 +94,29 @@ Sphinx extension, which regenerates it automatically on every docs build. No
 manual step or CI check is needed -- just change the plugin definition and
 build the docs.
 
+## BattINFO-derived content (do not edit by hand)
+
+[BattINFO](https://github.com/BIG-MAP/BattINFO) is the source of truth for the
+eight schema files under `src/bdf/data/battinfo/schemas/`. The model package
+`bdf.battinfo.generated` renders from those files alone, and
+`src/bdf/data/battinfo/VERSION` stamps the upstream commit they came from.
+
+- To change a schema, open a PR on the **BattINFO repo**, not here.
+- A network test (`test_bundle_matches_the_upstream_default_branch`) fails when
+  the bundle differs from upstream `main`. The comparison reads parsed content,
+  so an upstream commit that reformats one of the eight files, or that leaves
+  `assets/schemas/` alone, keeps it green. Only a real schema change turns it
+  red. Run `python scripts/update_battinfo.py --check` to see the same
+  comparison as a report.
+- To clear a red check, run `python scripts/update_battinfo.py main` and commit
+  the result. The script fetches the eight files, stamps the commit that `main`
+  resolves to, and regenerates the model package. Review that diff: an upstream
+  rename can break a field path that `tests/unit/test_battinfo_contract.py`
+  pins.
+- Never edit `bdf/battinfo/generated/` directly. CI compares the committed
+  package against a fresh render (`datamodel-codegen --check`), and a hand
+  edit fails that check.
+
 ## Release workflow (summary)
 - Ensure CI is green (lint/type/tests/docs/build).
 - Bump version in `pyproject.toml` and update `CHANGELOG.md`.

@@ -6,6 +6,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from pydantic import Field
+
+from bdf.battinfo._base import _RecordModel
+from bdf.battinfo.generated.cell_instance_schema import BattinfoCellInstance
+from bdf.battinfo.generated.channel_schema import BattinfoChannelInstance
+from bdf.battinfo.generated.equipment_schema import BattinfoEquipmentInstance
+from bdf.battinfo.generated.test_protocol_schema import BattinfoTestProtocol
+from bdf.battinfo.generated.test_schema import BattinfoTest
+
 # Optional pandas (only required if you pass a DataFrame)
 try:
     import pandas as pd  # type: ignore
@@ -13,6 +22,69 @@ except Exception:  # pragma: no cover
     pd = None  # type: ignore
 
 from bdf import spec
+
+
+class BdfReadInfo(_RecordModel):
+    """BDF-owned read audit facts, kept out of the BattINFO records."""
+
+    source: str | None = None
+    time_reconciliation: list[dict] | None = None
+
+
+class Metadata(_RecordModel):
+    """The metadata a BDF read returns: the BattINFO entity records, BDF's own
+    read audit section, the verbatim source a parser read, and the values a
+    rule staged deliberately.
+
+    Each record is the generated root model of one BattINFO entity
+    (:mod:`bdf.battinfo.generated`), and the nesting and property names are
+    BattINFO's own (``meta.battinfo_test.test.instrument_name``, not a
+    flattened facade), so a caller who already speaks BattINFO finds nothing
+    to translate. A plugin fills only the fields it can derive, and every
+    other declared leaf field keeps its default. The saved sidecar serialises
+    this same shape.
+
+    Every record field auto-constructs, so a caller assigns a leaf on a fresh
+    instance with no ``None`` guard. A leaf of a plain scalar type reads as
+    ``None`` while unfilled. A field whose type is a model does not: it
+    defaults to an empty instance of that model, which covers each nested
+    section and the wrapper-typed leaves ``expires_at``, ``manufactured_at``,
+    ``commissioned_at``, and ``Quantity.value``. Read ``.root`` on a wrapper
+    to reach the value it holds.
+    """
+
+    # An upstream schema sets `additionalProperties: false` at its root, so
+    # `bdf`, `raw`, and `extras` cannot live inside a record. Each wrapper key
+    # joins `battinfo_` to the upstream entity type, which also keeps a
+    # sidecar document distinct from a record document.
+    battinfo_test: BattinfoTest = Field(default_factory=BattinfoTest)
+    """The test activity that produced this data: who ran it, when it started, and which datasets it links."""
+    battinfo_cell: BattinfoCellInstance = Field(default_factory=BattinfoCellInstance)
+    """The physical cell the test ran on, and the cell type it derives from."""
+    battinfo_channel: BattinfoChannelInstance = Field(default_factory=BattinfoChannelInstance)
+    """The one channel of the equipment unit that ran the test."""
+    battinfo_equipment: BattinfoEquipmentInstance = Field(default_factory=BattinfoEquipmentInstance)
+    """The physical equipment unit that ran the test, a named cycler for example."""
+    battinfo_test_protocol: BattinfoTestProtocol = Field(default_factory=BattinfoTestProtocol)
+    """The reusable protocol the test followed: its typed steps, and links to the files that state them."""
+    bdf: BdfReadInfo = Field(default_factory=BdfReadInfo)
+    """BDF's own audit of this read: the source it read, and every rescale that the time reconciliation applied."""
+
+    raw: dict[str, Any] | str | None = None
+    """The source a parser read, verbatim: the decoded JSON document for a
+    JSON-backed parser, the preamble text a text parser matched against, or
+    ``None`` when a read captured no source. Holds every key a rule did not
+    map, nested keys and array elements included, with no traversal required
+    to keep it lossless. A parser reading BDF's own sidecar restores this
+    field rather than recapturing the document, so a repeated save and read
+    never nests a copy of the sidecar inside itself. Written by `save()` and
+    restored on a later read."""
+    extras: dict[str, Any] | None = None
+    """Keys a rule staged under an explicit extras target, verbatim (JSON
+    ``null`` values included). Nothing reaches this field automatically: a
+    key no rule maps is preserved by ``raw`` instead. It never holds a failed
+    value, because such a value raises. ``None`` when a read staged nothing
+    here. Written by `save()` and restored on a later read."""
 
 
 def _unit_text_from_label(label: str) -> Optional[str]:

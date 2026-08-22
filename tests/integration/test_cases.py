@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
@@ -78,8 +79,8 @@ class SampleCase:
     skip: int | None = None
     # Field separator for delimited text (e.g., ",", "\t", " ").
     sep: str | None = None
-    # Metadata fields and expected values from the plugin.
-    expected_metadata: dict | None = None
+    # Dotted METADATA path -> expected converted value from the plugin.
+    expected_metadata: dict[str, object] | None = None
     # BDF column names → ColExpect (source header, scale, datetime flag).
     expected_columns: dict[str, ColExpect] | None = None
     # BDF column labels that may be entirely null.
@@ -142,7 +143,9 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             deciding_stage="metadata",
             skip=12,
             sep=" ",
-            expected_metadata={"start_time": "30.11.2022 15:00:21"},
+            expected_metadata={
+                "battinfo_test.test.started_at": datetime(2022, 11, 30, 15, 0, 21, tzinfo=timezone.utc).timestamp(),
+            },
             expected_columns={
                 "test_time_second": ColExpect("~Time[h]", 3600.0),
                 "record_index": ColExpect("DataSet", 1.0),

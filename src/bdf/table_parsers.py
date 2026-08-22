@@ -18,6 +18,7 @@ import re
 import shutil
 import sys
 import warnings
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -25,6 +26,7 @@ import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .file_utils import read_head, resolve_source
+from .normalization import DayMonthOrder
 from .table_normalizers import TableNormalizer
 
 # ---------------------------------------------------------------------------
@@ -157,6 +159,21 @@ class TableParser(BaseModel):
         """
         raise NotImplementedError
 
+    def preamble(self, path: str | Path) -> list[str] | None:
+        """Return the preamble lines this parser skips, or ``None`` where it cannot locate them.
+
+        The base implementation returns ``None`` and reads nothing. A
+        subclass overrides it only where it can locate a boundary.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            The skipped preamble lines, or ``None`` where this parser cannot
+            locate a boundary.
+        """
+        return None
+
     def read(
         self,
         path: str | Path,
@@ -166,6 +183,7 @@ class TableParser(BaseModel):
         include_unknown: bool = False,
         lazy: bool = True,
         tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
     ) -> pl.LazyFrame | pl.DataFrame:
         """Read ``path`` (local or URL) and return the normalized or raw frame.
 
@@ -183,6 +201,9 @@ class TableParser(BaseModel):
             lazy: Return a LazyFrame when True (default); collect to a DataFrame when False.
             tz: IANA timezone applied to naive ``unix_time_second`` datetime formats.
                 Defaults to ``"UTC"``; see ``TableNormalizer.normalize``.
+            day_month_order: Field order applied to an ambiguous numeric date in a
+                datetime column's declared formats. ``None`` (default) leaves every
+                declared format unchanged.
 
         Returns:
             Normalized or raw polars LazyFrame (``lazy=True``) or DataFrame (``lazy=False``).
@@ -197,9 +218,158 @@ class TableParser(BaseModel):
             include_unknown=include_unknown,
             validate=validate,
             tz=tz,
+            day_month_order=day_month_order,
         )
         assert isinstance(result, pl.LazyFrame)
         return result if lazy else result.collect()
+
+
+# Cached per source and encoding, because one read runs the detection for every
+# candidate plugin and the answer is the same each time. The cache inherits
+# read_head's assumption that a file does not change while a process reads it.
+# Sixteen entries hold one read's candidate encodings, which is all that one
+# read asks for. A larger cache buys nothing, and a smaller one would recompute
+# inside a single read.
+@lru_cache(maxsize=16)
+def _detect_structure(source: str, encoding: str = "utf-8", min_run: int = 15) -> tuple[int | None, str]:
+    """Jointly detect the field separator and the preamble skip-row count for ``source``.
+
+    For each candidate separator (``,``, ``\\t``, ``;``, ``|``, space):
+
+    1. Split every line on the separator and build a per-line type
+        *signature*: the tuple of per-field classes (``"numeric"``, ``"str"``,
+        or ``""`` for an empty field), for example ("str", "str", "numeric",
+        "numeric"). A line that splits into fewer than two fields takes
+        ``None`` in place of a signature, because that separator does not
+        delimit it.
+    2. Scan signatures for a *data run*: a maximal block of consecutive
+        *compatible* signatures that starts on a majority-numeric one. Two
+        signatures are compatible where they hold the same field count and no
+        position states two different concrete classes. An empty field states
+        no class, so it matches either one. A vendor that writes a column
+        every few rows and leaves it empty in between therefore keeps one run,
+        rather than one run per written row.
+    3. Accept the run only if it is at least ``min_run`` long and is
+        immediately preceded (``i >= 1``) by a *header* line whose signature
+        has the same field count and is majority-``str``. This header check
+        rejects structured preamble (e.g. space-delimited metadata) that
+        happens to form a numeric run but lacks a string header row above it.
+    4. Record ``(skiprows, sep, run_len)`` where ``skiprows = i - 1`` points
+        at the header line.
+
+    Across all candidates, pick the one maximizing ``(skiprows, run_len)``:
+    prefer the deepest valid header (more preamble consumed), breaking ties
+        by the longest data run.
+
+    Args:
+        source: Local file path or URL whose head the detection reads.
+        encoding: Character encoding that decodes the head bytes.
+        min_run: Minimum consecutive data rows with compatible type signatures required
+            to accept a candidate separator and skip-row count.
+
+    Returns:
+        Tuple of ``(skiprows, separator)`` where ``skiprows`` is the number of preamble
+        lines before the header row, or ``None`` where no candidate qualifies.
+    """
+    sample = DelimTxtParser._decode_head(read_head(source), encoding)
+
+    def _classify(field: str) -> str:
+        # Three classes: "numeric", "str", and "" for a field that holds
+        # nothing. An empty field states no class, which is what lets a
+        # column that a vendor writes intermittently stay in one run.
+        f = field.strip()
+        if not f:
+            return ""
+        try:
+            float(f)
+            return "numeric"
+        except ValueError:
+            return "str"
+
+    def _majority_numeric(sig: tuple[str, ...]) -> bool:
+        # True where a line reads as data: more numeric fields than every
+        # other field together, empty ones included.
+        n = sum(1 for t in sig if t == "numeric")
+        return n > len(sig) - n
+
+    def _majority_str(sig: tuple[str, ...]) -> bool:
+        # True where a line reads as a header: more non-numeric fields than
+        # numeric ones. An empty field counts as non-numeric, because a header
+        # cell that holds no name is still not a number. The data vote above
+        # already reads an empty field as one of the fields that "numeric"
+        # must beat, so the two votes stay consistent.
+        n = sum(1 for t in sig if t != "numeric")
+        return n > len(sig) - n
+
+    def _merge(a: tuple[str, ...], b: tuple[str, ...]) -> tuple[str, ...] | None:
+        """Return the two signatures combined, or ``None`` where they disagree.
+
+        An empty class yields to a concrete one, so the merged signature
+        carries every class the run has stated so far. Two different concrete
+        classes at one position end the run.
+        """
+        # A different field count means a different table.
+        if len(a) != len(b):
+            return None
+        merged: list[str] = []
+        for x, y in zip(a, b, strict=True):
+            # Two concrete classes that disagree end the run. An empty class
+            # is falsy, so `x or y` keeps whichever side states a class, and
+            # keeps "" where neither does.
+            if x and y and x != y:
+                return None
+            merged.append(x or y)
+        return tuple(merged)
+
+    lines = sample.splitlines()
+    candidates: list[tuple[int, str, int]] = []  # (skiprows, sep, run_len)
+
+    for sep in (",", "\t", ";", "|", " "):
+        sigs: list[tuple[str, ...] | None] = []
+        for line in lines:
+            fields = line.rstrip(sep).split(sep)
+            sigs.append(tuple(_classify(f) for f in fields) if len(fields) >= 2 else None)
+
+        i = 0
+        while i < len(sigs):
+            # A run starts on a line that reads as data. Every other line
+            # moves the scan on by one.
+            sig = sigs[i]
+            if sig is None or not _majority_numeric(sig):
+                i += 1
+                continue
+            # `merged` is the run's accumulated signature. It starts as the
+            # first line's, and each further line fills in a position that no
+            # earlier line stated. The scan compares against the accumulation
+            # rather than against the first line alone, so a column that the
+            # first line leaves empty still holds one class for the whole run.
+            merged = sig
+            j = i + 1
+            while j < len(sigs):
+                nxt = sigs[j]
+                # A line that the separator does not delimit ends the run.
+                if nxt is None:
+                    break
+                combined = _merge(merged, nxt)
+                if combined is None:
+                    break
+                merged = combined
+                j += 1
+            # The run covers lines i to j-1. `j` is where the next scan starts.
+            run_len = j - i
+            # Accept the run only where it is long enough, and where a header
+            # line of the same width sits directly above it. `i >= 1` is what
+            # leaves room for that line.
+            if run_len >= min_run and i >= 1:
+                header_sig = sigs[i - 1]
+                if header_sig is not None and len(header_sig) == len(sig) and _majority_str(header_sig):
+                    candidates.append((i - 1, sep, run_len))
+            i = j
+
+    if not candidates:
+        return (None, ",")
+    best = max(candidates, key=lambda c: (c[0], c[2]))
+    return (best[0], best[1])
 
 
 # ---------------------------------------------------------------------------
@@ -305,87 +475,6 @@ class DelimTxtParser(TableParser):
         return self
 
     @staticmethod
-    def _detect_structure(sample: str, min_run: int = 15) -> tuple[int, str]:
-        """Jointly detect field separator and preamble skip-row count from a text sample.
-
-        For each candidate separator (``,``, ``\\t``, ``;``, ``|``, space):
-
-        1. Split every line on the separator and build a per-line type
-            *signature*: the tuple of per-field classes (``"numeric"`` vs.
-            ``"str"``), for example ("str", "str", "numeric", "numeric").
-            Lines splitting into fewer than 2 fields signature to``None``.
-        2. Scan signatures for a *data run*: a maximal block of consecutive
-            identical, majority-numeric signatures. Identical signatures mean
-            stable column count and types.
-        3. Accept the run only if it is at least ``min_run`` long and is
-            immediately preceded (``i >= 1``) by a *header* line whose signature
-            has the same field count and is majority-``str``. This header check
-            rejects structured preamble (e.g. space-delimited metadata) that
-            happens to form a numeric run but lacks a string header row above it.
-        4. Record ``(skiprows, sep, run_len)`` where ``skiprows = i - 1`` points
-            at the header line.
-
-        Across all candidates, pick the one maximizing ``(skiprows, run_len)``:
-        prefer the deepest valid header (more preamble consumed), breaking ties
-            by the longest data run.
-
-        Args:
-            sample: Text sample from the file head.
-            min_run: Minimum consecutive data rows with identical type signatures required
-                to accept a candidate separator and skip-row count.
-
-        Returns:
-            Tuple of ``(skiprows, separator)`` where ``skiprows`` is the number of preamble
-            lines before the header row.
-        """
-
-        def _classify(field: str) -> str:
-            f = field.strip()
-            try:
-                float(f)
-                return "numeric"
-            except ValueError:
-                return "str"
-
-        def _majority_numeric(sig: tuple[str, ...]) -> bool:
-            n = sum(1 for t in sig if t == "numeric")
-            return n > len(sig) - n
-
-        def _majority_str(sig: tuple[str, ...]) -> bool:
-            n = sum(1 for t in sig if t == "str")
-            return n > len(sig) - n
-
-        lines = sample.splitlines()
-        candidates: list[tuple[int, str, int]] = []  # (skiprows, sep, run_len)
-
-        for sep in (",", "\t", ";", "|", " "):
-            sigs: list[tuple[str, ...] | None] = []
-            for line in lines:
-                fields = line.rstrip(sep).split(sep)
-                sigs.append(tuple(_classify(f) for f in fields) if len(fields) >= 2 else None)
-
-            i = 0
-            while i < len(sigs):
-                sig = sigs[i]
-                if sig is None or not _majority_numeric(sig):
-                    i += 1
-                    continue
-                j = i + 1
-                while j < len(sigs) and sigs[j] == sig:
-                    j += 1
-                run_len = j - i
-                if run_len >= min_run and i >= 1:
-                    header_sig = sigs[i - 1]
-                    if header_sig is not None and len(header_sig) == len(sig) and _majority_str(header_sig):
-                        candidates.append((i - 1, sep, run_len))
-                i = j
-
-        if not candidates:
-            return (0, ",")
-        best = max(candidates, key=lambda c: (c[0], c[2]))
-        return (best[0], best[1])
-
-    @staticmethod
     def _sniff_decimal(df: pl.DataFrame | pl.LazyFrame) -> bool:
         """Return True if comma-decimal strings dominate string columns, else False.
 
@@ -423,18 +512,70 @@ class DelimTxtParser(TableParser):
         ]
         return lf.select(exprs)
 
-    def preamble(self, head: bytes) -> list[str]:
-        """Return the preamble (skipped) lines decoded from ``head`` bytes.
+    def _skip_rows_for(self, path: str | Path) -> int | None:
+        """Return the number of head lines that come before the header row of ``path``.
+
+        A declared :attr:`skip_rows` wins over the detection. The method
+        then reads no bytes.
 
         Args:
-            head: Head bytes from the file.
+            path: Local file path or URL to read.
 
         Returns:
-            List of preamble lines that will be skipped during parsing.
+            The declared count where :attr:`skip_rows` is set, the detected
+            count otherwise, or ``None`` where neither gives one.
         """
-        sample = self._decode_head(head, self.encoding)
-        _skip, _ = self._detect_structure(sample)
-        skip = self.skip_rows if self.skip_rows is not None else _skip
+        if self.skip_rows is not None:
+            return self.skip_rows
+        return _detect_structure(str(path), self.encoding)[0]
+
+    def _separator_for(self, path: str | Path) -> str:
+        """Return the field separator of ``path``.
+
+        A declared :attr:`separator` wins over the detection. The method
+        then reads no bytes.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            The declared separator where :attr:`separator` is set, the
+            detected separator otherwise.
+        """
+        if self.separator is not None:
+            return self.separator
+        return _detect_structure(str(path), self.encoding)[1]
+
+    def _structure(self, path: str | Path) -> tuple[int, str]:
+        """Return the skip count and the separator that a read of ``path`` uses.
+
+        An unknown skip count collapses to zero here, because a read must
+        start on some line. :meth:`preamble` keeps the unknown instead.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            Tuple of ``(skip_rows, separator)``.
+        """
+        skip = self._skip_rows_for(path)
+        return (0 if skip is None else skip), self._separator_for(path)
+
+    def preamble(self, path: str | Path) -> list[str] | None:
+        """Return the preamble (skipped) lines read from ``path``'s head.
+
+        Args:
+            path: Local file path or URL to read.
+
+        Returns:
+            List of preamble lines that will be skipped during parsing, or
+            ``None`` where ``skip_rows`` is undeclared and detection reports
+            no skip count.
+        """
+        skip = self._skip_rows_for(path)
+        if skip is None:
+            return None
+        sample = self._decode_head(read_head(path), self.encoding)
         return sample.splitlines()[:skip]
 
     @staticmethod
@@ -473,10 +614,7 @@ class DelimTxtParser(TableParser):
             Polars LazyFrame with raw column names and data.
         """
         raw = read_head(path)
-        sample = self._decode_head(raw, self.encoding)
-        _skip, _sep = self._detect_structure(sample)
-        sep = self.separator if self.separator is not None else _sep
-        skip = self.skip_rows if self.skip_rows is not None else _skip
+        skip, sep = self._structure(path)
         is_utf8 = self.encoding.lower() in ("utf-8", "utf8")
         encoding_arg: Literal["utf8", "utf8-lossy"] = "utf8" if is_utf8 else "utf8-lossy"
         lf = pl.scan_csv(
@@ -504,11 +642,8 @@ class DelimTxtParser(TableParser):
         Returns:
             List of column header names.
         """
-        raw = read_head(path)
-        sample = self._decode_head(raw, self.encoding)
-        _skip, _sep = self._detect_structure(sample)
-        sep = self.separator if self.separator is not None else _sep
-        skip = self.skip_rows if self.skip_rows is not None else _skip
+        sample = self._decode_head(read_head(path), self.encoding)
+        skip, sep = self._structure(path)
         lines = sample.splitlines()
         if skip >= len(lines):
             return []

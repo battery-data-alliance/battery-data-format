@@ -18,4 +18,10 @@ def test_parse_metadata_from_source(case: SampleCase, data_dir: Path) -> None:
     pytest.importorskip("requests")
     resolved = get_sample_data_source(case.source, case.is_url, data_dir)
     parser = PLUGINS[case.plugin_id].metadata_parser
-    assert parser.parse(resolved) == case.expected_metadata
+    metadata = parser.parse(resolved)
+    assert case.expected_metadata is not None
+    for dotted_path, expected in case.expected_metadata.items():
+        node = metadata
+        for segment in dotted_path.split("."):
+            node = getattr(node, segment)
+        assert node == pytest.approx(expected)

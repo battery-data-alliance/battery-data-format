@@ -31,7 +31,9 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from .file_utils import is_url, read_head, resolve_source, strip_compression_suffix
-from .metadata_parsers import JsonSidecarParser, MetadataParser, MetadataSchema, TxtPreambleParser
+from .metadata_parsers import JsonSidecarParser, MetadataParser, RegexRule, TxtPreambleParser
+from .metadata_targets import METADATA
+from .normalization import AbsoluteTimeNormalization
 from .table_normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS, TableNormalizer
 from .table_parsers import (
     DelimTxtParser,
@@ -161,6 +163,11 @@ ARBIN_RES = Plugin(
     ),
 )
 
+# Basytec writes the acquisition timestamp in the preamble alone; the table's
+# own time column is elapsed, not absolute, so this format has no column
+# counterpart and is declared here rather than in bdf.normalization.
+_BASYTEC_DT_FMTS = ("%d.%m.%Y %H:%M:%S",)
+
 BASYTEC_TXT = Plugin(
     table_parser=DelimTxtParser(
         normalizer=NORMALIZERS["basytec"],
@@ -173,9 +180,20 @@ BASYTEC_TXT = Plugin(
             "basytec battery test system",
         ),
         encoding="latin-1",
-        regex_patterns=MetadataSchema[re.Pattern[str]](start_time=re.compile(r"~Start of Test:\s*(.+)")),
+        rules={
+            METADATA.battinfo_test.test.started_at: RegexRule(
+                pattern=re.compile(r"~Start of Test:\s*(.+)"),
+                normalization=AbsoluteTimeNormalization(formats=_BASYTEC_DT_FMTS),
+            ),
+        },
     ),
 )
+
+# BT-Lab/EC-Lab write the acquisition timestamp in the preamble; the .mpt table
+# itself carries elapsed time only, so this format has no column counterpart.
+# The declared format is EC-Lab's default representation; a file written on a
+# machine following the other locale is read with day_month_order.
+_BIOLOGIC_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S")
 
 BIOLOGIC_MPT = Plugin(
     table_parser=DelimTxtParser(
@@ -185,7 +203,12 @@ BIOLOGIC_MPT = Plugin(
     ),
     metadata_parser=TxtPreambleParser(
         magic=("bt-lab ascii file", "ec-lab ascii file"),
-        regex_patterns=MetadataSchema[re.Pattern[str]](start_time=re.compile(r"Acquisition started on\s*:\s*(.+)")),
+        rules={
+            METADATA.battinfo_test.test.started_at: RegexRule(
+                pattern=re.compile(r"Acquisition started on\s*:\s*(.+)"),
+                normalization=AbsoluteTimeNormalization(formats=_BIOLOGIC_DT_FMTS),
+            ),
+        },
     ),
 )
 
@@ -203,11 +226,32 @@ LANDT_TXT = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["landt_txt"], truncate_ragged_lines=True),
 )
 
+# MIMS writes the preamble timestamp in the client's own locale, and in a
+# different shape from the DPT Time column: the header carries a 12-hour clock
+# with seconds, or the date alone. The column tuple this plugin's normalizer
+# declares reads none of those, so the header states its own formats.
+_MACCOR_DT_HDR_FMTS = (
+    "%m/%d/%Y %I:%M:%S %p",
+    "%m/%d/%Y %H:%M:%S",
+    "%m/%d/%Y %H:%M",
+    "%m/%d/%Y",
+    "%d-%b-%y %I:%M:%S %p",
+    "%d-%b-%y %H:%M:%S",
+    "%d-%b-%y",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d",
+)
+
 MACCOR_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["maccor"]),
     metadata_parser=TxtPreambleParser(
         magic=("today's date ,", "date of test:,"),
-        regex_patterns=MetadataSchema[re.Pattern[str]](start_time=re.compile(r"Date of Test:,(.+)")),
+        rules={
+            METADATA.battinfo_test.test.started_at: RegexRule(
+                pattern=re.compile(r"Date of Test:,(.+)"),
+                normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_HDR_FMTS),
+            ),
+        },
     ),
 )
 

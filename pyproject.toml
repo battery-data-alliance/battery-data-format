@@ -35,6 +35,7 @@ dependencies = [
   "pint>=0.22",
   "platformdirs>=4.10.0",
   "polars>=1.41.2",
+  "babel>=2.15",
 ]
 
 [project.urls]
@@ -102,6 +103,10 @@ lint = [
 dev = [
   { include-group = "test" },
   { include-group = "lint" },
+  # Pinned: the checked-in `bdf.battinfo.generated` package is compared byte
+  # for byte against a fresh render, and the arm-selection rule behind
+  # `--use-default-factory-for-optional-nested-models` changed in 0.72.1.
+  "datamodel-code-generator[ruff]==0.72.3",
 ]
 docs = [
   "sphinx>=7.0",
@@ -134,6 +139,34 @@ markers = [
   "perf: performance/smoke thresholds",
   "notebooks: executes example notebooks",
 ]
+
+[tool.datamodel-codegen]
+# The whole render of `bdf.battinfo.generated`. `datamodel-codegen` reads this
+# section, so a regeneration is `datamodel-codegen` and a staleness check is
+# `datamodel-codegen --check`. The bundled schema files are the only input,
+# and the rendered package is committed exactly as the generator writes it.
+base-class = "bdf.battinfo._base._RecordModel"
+collapse-root-models = true
+# Without this, every header comment carries the render's wall-clock time, so
+# two renders of the same bundle never compare equal and `--check` can never pass.
+disable-timestamp = true
+enum-field-as-literal = "all"
+extra-fields = "forbid"
+force-optional = true
+# Ruff reads the repository `ruff.toml`, discovered from the output path, so
+# the generator and the pre-commit hooks format the package identically.
+formatters = ["ruff-check", "ruff-format"]
+input = "src/bdf/data/battinfo/schemas"
+input-file-type = "jsonschema"
+output = "src/bdf/battinfo/generated"
+output-model-type = "pydantic_v2.BaseModel"
+target-python-version = "3.10"
+# Renders `format: email` as a plain string, so the package needs no
+# `email-validator` at import.
+type-mappings = ["email=string"]
+use-annotated = true
+use-default-factory-for-optional-nested-models = true
+use-union-operator = true
 
 [tool.hatch.build.targets.wheel]
 packages = [

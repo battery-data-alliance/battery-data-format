@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from bdf.file_utils import read_head
+from bdf.normalization import AbsoluteTimeNormalization, LinearNormalization, RelativeTimeNormalization
 from bdf.plugins import PLUGINS
 from bdf.spec import COLUMN_ONTOLOGY
-from bdf.table_parsers import DelimTxtParser
+from bdf.table_parsers import _detect_structure
 from integration.test_cases import (
     ALL_CASES,
     SampleCase,
@@ -39,7 +39,7 @@ _CURRENT_CASES = [
 def test_sample_detect_structure(cid: str, case: SampleCase, data_dir: Path) -> None:
     """_detect_structure returns the line count and separator for vendor samples."""
     path = get_sample_data_source(case.source, case.is_url, data_dir)
-    skip, sep = DelimTxtParser._detect_structure(DelimTxtParser._decode_head(read_head(path)))
+    skip, sep = _detect_structure(str(path))
     assert skip == case.skip
     assert sep == case.sep
 
@@ -79,9 +79,11 @@ def test_sample_resolution_exact(cid: str, case: SampleCase, data_dir: Path) -> 
         rc = resolved[mr]
         assert rc.source_header == exp.source_header, f"{mr}: {rc.source_header!r} != {exp.source_header!r}"
         if exp.is_datetime:
-            assert bool(rc.datetime_fmts), f"{mr}: expected datetime_fmts"
+            assert isinstance(rc.normalization, (AbsoluteTimeNormalization, RelativeTimeNormalization))
+            assert bool(rc.normalization.formats), f"{mr}: expected datetime formats"
         else:
-            assert rc.scale == pytest.approx(exp.scale), f"{mr}: scale {rc.scale} != {exp.scale}"
+            scale = rc.normalization.scale if isinstance(rc.normalization, LinearNormalization) else 1.0
+            assert scale == pytest.approx(exp.scale), f"{mr}: scale {scale} != {exp.scale}"
 
 
 @pytest.mark.parametrize("cid,case", _CURRENT_CASES)

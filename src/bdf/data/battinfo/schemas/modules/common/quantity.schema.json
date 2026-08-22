@@ -1,0 +1,119 @@
+{
+  "$id": "https://w3id.org/battinfo/schema/modules/common/quantity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "required": [
+            "min_value"
+          ]
+        },
+        {
+          "required": [
+            "max_value"
+          ]
+        },
+        {
+          "required": [
+            "typical_value"
+          ]
+        },
+        {
+          "required": [
+            "value_text"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "required": [
+            "unit"
+          ]
+        },
+        {
+          "required": [
+            "unit_text"
+          ]
+        }
+      ]
+    }
+  ],
+  "description": "Quantitative value aligned to schema.org QuantitativeValue (value, min_value, max_value, unit, unit_text) with BattINFO extension typical_value.",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "properties": {
+    "co_type": {
+      "description": "Nature of the value: a directly Measured property, a declared Conventional/Nominal value, or a Rated value established under a rating procedure. Drives the EMMO property-nature co-type in JSON-LD.",
+      "enum": [
+        "Measured",
+        "Conventional",
+        "Rated",
+        "Nominal"
+      ],
+      "type": "string"
+    },
+    "conditions": {
+      "additionalProperties": false,
+      "description": "Measurement parameters/conditions under which this quantity holds (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Each entry is itself a quantity; emitted as hasMeasurementParameter in JSON-LD.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#"
+        }
+      },
+      "type": "object"
+    },
+    "max_value": {
+      "type": "number"
+    },
+    "min_value": {
+      "type": "number"
+    },
+    "sample_count": {
+      "description": "How many members the value (and standard_deviation) were computed over \u2014 e.g. 8 electrode discs. Without it a spread cannot be read.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "standard_deviation": {
+      "description": "Dispersion of the sample the value summarises, in the same unit as value. A sample standard deviation over sample_count members, not a measurement uncertainty. Zero is meaningful: it says every member carried the same number.",
+      "minimum": 0,
+      "type": "number"
+    },
+    "typical_value": {
+      "type": "number"
+    },
+    "unit": {
+      "description": "Canonical compact unit symbol/code, for example V, A, Ah, Wh/kg.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "unit_text": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "minLength": 1,
+          "type": "string"
+        }
+      ]
+    },
+    "value_text": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "title": "Quantity",
+  "type": "object"
+}

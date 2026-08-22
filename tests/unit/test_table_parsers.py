@@ -29,6 +29,7 @@ from bdf.table_parsers import (
     NdjsonParser,
     ParquetParser,
     TableParser,
+    _detect_structure,
 )
 
 
@@ -184,51 +185,75 @@ class TestTableParserConcreteMethods:
 
 
 class TestDelimTxtParserSniffing:
-    def test_detect_structure_no_preamble(self) -> None:
+    def test_detect_structure_no_preamble(self, tmp_path: Path) -> None:
         """_detect_structure returns (0, ',') when no preamble lines exist."""
         header = "a,b,c"
         data = "\n".join("1,2,3" for _ in range(15))
-        skip, sep = DelimTxtParser._detect_structure(f"{header}\n{data}")
+        p = tmp_path / "data.csv"
+        p.write_text(f"{header}\n{data}\n")
+        skip, sep = _detect_structure(str(p))
         assert skip == 0
         assert sep == ","
 
     @pytest.mark.parametrize("preamble", [1, 3, 7])
-    def test_detect_structure_preamble_sizes(self, preamble: int) -> None:
+    def test_detect_structure_preamble_sizes(self, preamble: int, tmp_path: Path) -> None:
         """_detect_structure returns correct skiprows for various preamble lengths."""
         pre = "\n".join(f"preamble line {i}" for i in range(preamble))
         body = "a,b,c\n" + "\n".join("1,2,3" for _ in range(15))
-        sample = pre + "\n" + body
-        skip, sep = DelimTxtParser._detect_structure(sample)
+        p = tmp_path / "data.csv"
+        p.write_text(pre + "\n" + body + "\n")
+        skip, sep = _detect_structure(str(p))
         assert skip == preamble
         assert sep == ","
 
-    def test_detect_structure_structured_preamble(self) -> None:
+    def test_detect_structure_structured_preamble(self, tmp_path: Path) -> None:
         """_detect_structure correctly detects data separator when preamble is space-delimited."""
         pre = "\n".join(f"preamble metadata line {i}" for i in range(16))
         body = "a,b,c\n" + "\n".join("1,2,3" for _ in range(15))
-        sample = pre + "\n" + body
-        skip, sep = DelimTxtParser._detect_structure(sample)
+        p = tmp_path / "data.csv"
+        p.write_text(pre + "\n" + body + "\n")
+        skip, sep = _detect_structure(str(p))
         assert skip == 16
         assert sep == ","
 
+    def test_detect_structure_intermittent_column(self, tmp_path: Path) -> None:
+        """A column that a vendor writes every fifth row keeps one data run."""
+        rows = [f"{i},2,{'4.5' if i % 5 == 0 else ''},3" for i in range(30)]
+        p = tmp_path / "data.csv"
+        p.write_text("a,b,c,d\n" + "\n".join(rows) + "\n")
+        skip, sep = _detect_structure(str(p))
+        assert skip == 0
+        assert sep == ","
+
+    def test_detect_structure_type_change_ends_run(self, tmp_path: Path) -> None:
+        """A field that states two different concrete classes still ends the run."""
+        rows = [f"{i},2,{'4.5' if i % 5 == 0 else 'text'},3" for i in range(30)]
+        p = tmp_path / "data.csv"
+        p.write_text("a,b,c,d\n" + "\n".join(rows) + "\n")
+        assert _detect_structure(str(p)) == (None, ",")
+
     @pytest.mark.parametrize("sep", ["\t", ";", "|"])
-    def test_detect_structure_separator_variants(self, sep: str) -> None:
+    def test_detect_structure_separator_variants(self, sep: str, tmp_path: Path) -> None:
         """_detect_structure detects tab, semicolon, and pipe separators."""
         header = sep.join(["alpha", "beta", "gamma"])
         data = "\n".join(sep.join(["1", "2", "3"]) for _ in range(15))
-        skip, detected_sep = DelimTxtParser._detect_structure(f"{header}\n{data}")
+        p = tmp_path / "data.csv"
+        p.write_text(f"{header}\n{data}\n")
+        skip, detected_sep = _detect_structure(str(p))
         assert skip == 0
         assert detected_sep == sep
 
-    def test_detect_structure_no_run_returns_default(self) -> None:
-        """_detect_structure returns (0, ',') when no multi-field runs exist."""
-        sample = "\n".join("a single undelimited column line" for _ in range(20))
-        assert DelimTxtParser._detect_structure(sample) == (0, ",")
+    def test_detect_structure_no_run_returns_default(self, tmp_path: Path) -> None:
+        """_detect_structure returns (None, ',') when no multi-field runs exist."""
+        p = tmp_path / "data.csv"
+        p.write_text("\n".join("a single undelimited column line" for _ in range(20)) + "\n")
+        assert _detect_structure(str(p)) == (None, ",")
 
-    def test_detect_structure_short_run_returns_default(self) -> None:
-        """_detect_structure returns (0, ',') when the data run is shorter than min_run."""
-        sample = "pre\na,b,c\n" + "\n".join("1,2,3" for _ in range(4))
-        assert DelimTxtParser._detect_structure(sample) == (0, ",")
+    def test_detect_structure_short_run_returns_default(self, tmp_path: Path) -> None:
+        """_detect_structure returns (None, ',') when the data run is shorter than min_run."""
+        p = tmp_path / "data.csv"
+        p.write_text("pre\na,b,c\n" + "\n".join("1,2,3" for _ in range(4)) + "\n")
+        assert _detect_structure(str(p)) == (None, ",")
 
     @pytest.mark.parametrize(
         "values,expected",
@@ -288,11 +313,23 @@ class TestHeadThreadingAndRead:
         p.write_text("a;b;c\n1;2;3\n4;5;6\n")
         assert DelimTxtParser(separator=";").read_column_headings(p) == ["a", "b", "c"]
 
-    def test_preamble_returns_skipped_lines(self) -> None:
-        """preamble() decodes head bytes and returns the skipped preamble lines."""
+    def test_preamble_returns_skipped_lines(self, tmp_path: Path) -> None:
+        """preamble() reads a path and returns the skipped preamble lines."""
         text = "meta line 1\nmeta line 2\n" + "a,b,c\n" + "\n".join("1,2,3" for _ in range(15)) + "\n"
-        head = text.encode("utf-8")
-        assert DelimTxtParser().preamble(head) == ["meta line 1", "meta line 2"]
+        p = tmp_path / "data.csv"
+        p.write_text(text)
+        assert DelimTxtParser().preamble(p) == ["meta line 1", "meta line 2"]
+
+    def test_binary_parser_preamble_returns_none(self, tmp_path: Path) -> None:
+        """preamble() on a parser that reads a binary format returns None for that file's path."""
+        p = tmp_path / "sample.mat"
+        assert MatParser().preamble(p) is None
+
+    def test_delimtxt_preamble_no_header_returns_none(self, tmp_path: Path) -> None:
+        """preamble() returns None for a file whose head holds no header row above a data run."""
+        p = tmp_path / "data.csv"
+        p.write_text("\n".join("1,2,3" for _ in range(15)) + "\n")
+        assert DelimTxtParser().preamble(p) is None
 
 
 class TestDecodeHead:
@@ -556,14 +593,15 @@ class TestEncodingIntegration:
         df = parser.read(p).collect()
         assert "Temperature T1 / degC" in df.columns
 
-    def test_preamble_honours_explicit_separator(self) -> None:
+    def test_preamble_honours_explicit_separator(self, tmp_path: Path) -> None:
         """preamble() correctly identifies skip rows when preamble lines contain the data separator."""
         pre = "key: a, b, c\nother: x, y, z\n"
         header = "time;voltage;current"
         rows = "\n".join(f"{i};{3.5 + i / 10};0.1" for i in range(15))
-        head = (pre + header + "\n" + rows + "\n").encode("utf-8")
+        p = tmp_path / "data.csv"
+        p.write_text(pre + header + "\n" + rows + "\n")
 
-        assert DelimTxtParser(separator=";").preamble(head) == ["key: a, b, c", "other: x, y, z"]
+        assert DelimTxtParser(separator=";").preamble(p) == ["key: a, b, c", "other: x, y, z"]
 
 
 class TestReadValidate:

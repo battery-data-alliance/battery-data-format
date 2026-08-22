@@ -19,7 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
   - `include_unknown` added, keeps all non-spec columns in the dataframe under their original names (default `False`).
   - `tz` kwarg added for naive datetimes.
 - `parse()` is removed — use `read(path, normalize=False, validate=False)`.
-- `save()` rewritten on Polars with more files supported, a `validate` kwarg, and a `labels` option (`"preferred" | "machine" | "unchanged"`) replacing the old `human=True/False` toggle. The `.metadata.json` sidecar behavior is unchanged.
+- `save()` rewritten on Polars with more files supported, a `validate` kwarg, and a `labels` option (`"preferred" | "machine" | "unchanged"`) replacing the old `human=True/False` toggle.
 - `save()` to JSON previously output NDJSON, which cannot be read by standard JSON parsers. These are now two distinct options, save to ".ndjson" to get newline-delimited JSON.
 - Top-level `plugins()` function removed; use `bdf.plugins.list_sources()` instead.
 - `ingest()` gets the same kwarg changes as `read`/`scan`/`save`: `include_optional` removed, `include_unknown` added, and `human: bool = False` → `labels: Literal["preferred", "machine", "unchanged"] = "machine"`.
@@ -31,6 +31,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `Quantity.unit_conversion` renamed to `convert_to`.
 - Arbin normalizers (csv, xlsx) map Charge/Discharge Capacity and Energy to the `schedule_*` columns (`Schedule Charging Capacity / Ah`, ...) from ontology 1.3.0, reflecting the operator-defined reset behavior Arbin confirmed; these columns previously landed on the never-resetting test-scoped terms.
 - `read()`/`scan()` raise `BDFValidationError` when an elapsed-time column's increments disagree with the recorded timestamps (e.g. milliseconds stored under a seconds header); pass `reconcile_time=True` to repair known unit factors or `validate=False` to load the data as-is.
+- `bdf.read` and `bdf.scan` return a typed `Metadata` model as the second tuple element, replacing the plain `dict`. Read a field by attribute (e.g. `metadata.bdf.source`, `metadata.battinfo_test.test.started_at`) rather than by key.
+- `bdf.save` takes a typed `Metadata` model in `metadata=`, replacing the plain `dict`. Pass `Metadata(...)`, the model `bdf.read` returns, or `Metadata.model_validate(mapping)` for a mapping an earlier version wrote.
 
 ### Added
 - BDF parsers/normalizers for BDF JSON, NDJSON, Arrow/Feather (IPC), XLSX.
@@ -45,6 +47,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - New optional extras `excel`, `mat`, `mpr`, `yaml` for additional file formats, and an `all` bundle covering all user-facing feature extras.
 - CLI piping: `convert` and `validate` accept `-` to read from stdin, and `convert --to -` writes BDF CSV to stdout; status messages go to stderr. Exit codes: 0 valid, 1 invalid, 2 unreadable.
 - Docs: example notebooks now execute live via myst-nb, plus a generated "Supported Plugins" reference page.
+- `read()` and `scan()` restore the `.metadata.json` sidecar a prior `save()` wrote, in place of the plugin parser's metadata.
+- `day_month_order` keyword-only override on `bdf.read`, `bdf.scan`, `bdf.normalize`, `TableParser.read`, and `TableNormalizer.normalize`, for a vendor datetime format that leaves a numeric day and month ambiguous. `"day_first"` reads such a date day then month, `"month_first"` reads it month then day, and the default `None` leaves every declared format exactly as the plugin states it. A year-first format (e.g. `%Y-%m-%d`) or a month-name format (e.g. `%d-%b-%y`) is never affected.
+- Network test that fails when the bundled BattINFO schemas differ from upstream `main`; the pinned-commit test could not catch a stale bundle, because a refetch at a commit reproduces it however far upstream moves. The comparison reads the parsed content of the eight managed schema files, so an upstream commit that reformats one of them or that leaves `assets/schemas/` alone keeps it green. `scripts/update_battinfo.py --check` reports the same comparison and exits non-zero when the bundle is stale, and the script now resolves a branch or tag to a commit before it stamps `VERSION`.
 
 ### Changed
 - I/O layer rebuilt on Polars.
@@ -55,6 +60,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `NDAParser` renamed to `NdaParser`; its magic-byte check now recognizes the `.ndax` zip container.
 - Package import is lazy: `import bdf` completes in ~0.15 s without loading pandas/polars/scipy; heavy dependencies import on first use, making CLI startup near-instant.
 - `save()` names the metadata sidecar by replacing the final extension (`x.bdf.parquet` -> `x.bdf.metadata.json`) instead of appending to the full filename.
+- A metadata sidecar that exists and cannot be restored now raises the new `BDFMetadataError` instead of reading as an empty `Metadata`: a document that does not decode as UTF-8, one that does not parse as JSON, and one holding a JSON value other than an object. This applies to the reserved `.metadata.json` sidecar and to a plugin-declared sidecar alike. An empty `Metadata` now states that no sidecar exists, so the documented `read()` then `save()` round trip can no longer write a degraded object over a sidecar the read failed on. The naive-timestamp `UserWarning` is unchanged.
+- `save()` no longer carries a metadata sidecar from one save to the next. A `save()` that states no `metadata=` beside an existing `.metadata.json` sidecar raises `FileExistsError`, because the sidecar describes the data the previous save wrote; pass `metadata=` to keep or update it, `metadata=Metadata()` to clear it, or save to a different path. An empty `Metadata` now deletes the sidecar, so a sidecar exists exactly where the artifact has metadata.
+- `read()` and `scan()` now cut a preamble metadata source where the table begins, so `raw` carries the preamble alone, with neither the header row nor a data row. A caller who drives a metadata parser directly (bypassing `read`/`scan`) states no boundary and keeps the whole decoded head, as before. Where the table parser cannot locate the header row, the boundary is unknown and `raw` keeps the whole decoded head. `raw` is `None` where a file's header row is its first line.
 
 ### Fixed
 - `arbin_res` extra is now part of the `all` bundle, and its mdbtools backend supports Python 3.10 (polars-access-mdbtools 0.1.3).
@@ -69,9 +77,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - BDF table normalizer now accepts machine-notation and deprecated on-disk headers, fixing read/validate round-trips of default `save()` artifacts.
 - `validate()` now uses plugin detection to decide whether a file is a BDF artifact.
 - `.json` artifacts are now valid standalone JSON (a records array via `write_json`); previously `save()` wrote JSON-Lines under the `.json` extension, producing files that failed to parse as JSON outside pandas. Use the new `.ndjson` format for JSON-Lines output.
-
-### Known limitations
-- `save()` writes a `.metadata.json` sidecar that `read()` does not yet read back; the typed metadata object (GH #48, tracked in #91) will close the loop.
 
 ## [0.1.0] - 2026-02-10
 ### Added

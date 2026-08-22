@@ -31,53 +31,61 @@ plugin or donating a sample data file.
 
 - **Table parser:** ``txt`` (``.csv``, ``.dat``, ``.tsv``, ``.txt``)
 
-.. dropdown:: Column synonyms -- 16 BDF fields, 17 synonyms (0 assumed)
+.. dropdown:: Column synonyms -- 16 BDF fields, 25 synonyms (0 assumed)
 
    **Test Time / s** -- ``test_time_second``
 
    - ``Test Time ({unit})``
+   - ``Test_Time({unit})``
 
    **Voltage / V** -- ``voltage_volt``
 
    - ``Voltage ({unit})``
+   - ``Voltage({unit})``
 
    **Current / A** -- ``current_ampere``
 
    - ``Current ({unit})``
+   - ``Current({unit})``
 
    **Unix Time / s** -- ``unix_time_second``
 
-   - ``Date Time`` -- formats: ``%m/%d/%Y %H:%M:%S%.f``, ``%m/%d/%Y %H:%M:%S``, ``%Y-%m-%d %H:%M:%S``
+   - ``Date Time`` -- formats: ``%m/%d/%Y %H:%M:%S%.f``, ``%m/%d/%Y %H:%M:%S``, ``%Y-%m-%d %H:%M:%S%.f``, ``%Y-%m-%d %H:%M:%S``, ``%Y/%m/%d %H:%M:%S``
+   - ``Date_Time`` -- formats: ``%m/%d/%Y %H:%M:%S%.f``, ``%m/%d/%Y %H:%M:%S``, ``%Y-%m-%d %H:%M:%S%.f``, ``%Y-%m-%d %H:%M:%S``, ``%Y/%m/%d %H:%M:%S``
 
    **Cycle Count / 1** -- ``cycle_count``
 
    - ``Cycle Index``
+   - ``Cycle_Index``
 
    **Step ID** -- ``step_id``
 
    - ``Step Index``
+   - ``Step_Index``
 
    **Record Index / 1** -- ``record_index``
 
    - ``Data Point``
+   - ``Data_Point``
 
    **Step Time / s** -- ``step_time_second``
 
    - ``Step Time ({unit})``
+   - ``Step_Time({unit})``
 
-   **Charging Capacity / Ah** -- ``charging_capacity_ah``
+   **Schedule Charging Capacity / Ah** -- ``schedule_charging_capacity_ah``
 
    - ``Charge Capacity ({unit})``
 
-   **Discharging Capacity / Ah** -- ``discharging_capacity_ah``
+   **Schedule Discharging Capacity / Ah** -- ``schedule_discharging_capacity_ah``
 
    - ``Discharge Capacity ({unit})``
 
-   **Charging Energy / Wh** -- ``charging_energy_wh``
+   **Schedule Charging Energy / Wh** -- ``schedule_charging_energy_wh``
 
    - ``Charge Energy ({unit})``
 
-   **Discharging Energy / Wh** -- ``discharging_energy_wh``
+   **Schedule Discharging Energy / Wh** -- ``schedule_discharging_energy_wh``
 
    - ``Discharge Energy ({unit})``
 
@@ -100,18 +108,87 @@ plugin or donating a sample data file.
 
 - **Metadata parser:** none
 
+``arbin_res``
+-------------
+
+- **Table parser:** ``mdb`` (``.mdb``, ``.res``)
+
+.. dropdown:: Column synonyms -- 15 BDF fields, 14 synonyms (14 assumed), 1 direct
+
+   **Test Time / s** -- ``test_time_second``
+
+   - ``Test_Time`` *(assumed)*
+
+   **Voltage / V** -- ``voltage_volt``
+
+   - ``Voltage`` *(assumed)*
+
+   **Current / A** -- ``current_ampere``
+
+   - ``Current`` *(assumed)*
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - Direct mapping from ``DateTime`` (scale 86400.0, offset -2209161600.0)
+
+   **Cycle Count / 1** -- ``cycle_count``
+
+   - ``Cycle_Index`` *(assumed)*
+
+   **Step ID** -- ``step_id``
+
+   - ``Step_Index`` *(assumed)*
+
+   **Record Index / 1** -- ``record_index``
+
+   - ``Data_Point`` *(assumed)*
+
+   **Step Time / s** -- ``step_time_second``
+
+   - ``Step_Time`` *(assumed)*
+
+   **Schedule Charging Capacity / Ah** -- ``schedule_charging_capacity_ah``
+
+   - ``Charge_Capacity`` *(assumed)*
+
+   **Schedule Discharging Capacity / Ah** -- ``schedule_discharging_capacity_ah``
+
+   - ``Discharge_Capacity`` *(assumed)*
+
+   **Schedule Charging Energy / Wh** -- ``schedule_charging_energy_wh``
+
+   - ``Charge_Energy`` *(assumed)*
+
+   **Schedule Discharging Energy / Wh** -- ``schedule_discharging_energy_wh``
+
+   - ``Discharge_Energy`` *(assumed)*
+
+   **DC Internal Resistance / ohm** -- ``dc_internal_resistance_ohm``
+
+   - ``Internal_Resistance`` *(assumed)*
+
+   **Absolute Impedance / ohm** -- ``absolute_impedance_ohm``
+
+   - ``AC_Impedance`` *(assumed)*
+
+   **Phase / deg** -- ``phase_degree``
+
+   - ``ACI_Phase_Angle`` *(assumed)*
+
+- **Metadata parser:** none
+
 ``basytec_txt``
 ---------------
 
 - **Table parser:** ``txt`` (``.csv``, ``.dat``, ``.tsv``, ``.txt``) -- encoding = ``latin-1``
 
-.. dropdown:: Column synonyms -- 10 BDF fields, 23 synonyms (18 assumed)
+.. dropdown:: Column synonyms -- 10 BDF fields, 23 synonyms (17 assumed)
 
    **Test Time / s** -- ``test_time_second``
 
    - ``Time[{unit}]`` *(assumed)*
    - ``Time`` *(assumed)*
-   - ``Time[h:min:s]`` -- formats: ``%H:%M:%S.%f`` *(assumed)*
+   - ``Time[h:min:s]`` *(assumed)*
 
    **Voltage / V** -- ``voltage_volt``
 
@@ -153,7 +230,7 @@ plugin or donating a sample data file.
 
    **Temperature T1 / degC** -- ``temperature_t1_celsius``
 
-   - ``T1[{unit}]`` *(assumed)*
+   - ``T1[{unit}]``
    - ``T1[°C]``
    - ``Temp[{unit}]`` *(assumed)*
    - ``Temp[°C]`` *(assumed)*
@@ -167,7 +244,7 @@ plugin or donating a sample data file.
    - Identified by magic tokens: ``resultfile from basytec battery test system``, ``basytec battery test system``
    - Extracted metadata fields:
 
-     - ``start_time`` -- regex ``~Start of Test:\s*(.+)``
+     - ``battinfo_test.test.started_at`` -- regex ``~Start of Test:\s*(.+)``
 
 
 ``biologic_mpt``
@@ -175,7 +252,7 @@ plugin or donating a sample data file.
 
 - **Table parser:** ``txt`` (``.csv``, ``.dat``, ``.mpt``, ``.tsv``, ``.txt``) -- encoding = ``latin-1``
 
-.. dropdown:: Column synonyms -- 14 BDF fields, 40 synonyms (28 assumed)
+.. dropdown:: Column synonyms -- 20 BDF fields, 47 synonyms (27 assumed)
 
    **Test Time / s** -- ``test_time_second``
 
@@ -188,7 +265,7 @@ plugin or donating a sample data file.
    **Voltage / V** -- ``voltage_volt``
 
    - ``Ecell/{unit}``
-   - ``Ewe/{unit}`` *(assumed)*
+   - ``Ewe/{unit}``
    - ``u/{unit}`` *(assumed)*
    - ``u[{unit}]`` *(assumed)*
    - ``Ewe ({unit})`` *(assumed)*
@@ -202,6 +279,10 @@ plugin or donating a sample data file.
    - ``Current({unit})`` *(assumed)*
    - ``I({unit})`` *(assumed)*
    - ``<I>/{unit}`` *(assumed)*
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - ``uts/s``
 
    **Cycle Count / 1** -- ``cycle_count``
 
@@ -239,10 +320,31 @@ plugin or donating a sample data file.
    **Power / W** -- ``power_watt``
 
    - ``P/{unit}``
+   - ``Pwe/{unit}``
 
    **Internal Resistance / ohm** -- ``internal_resistance_ohm``
 
    - ``R/{unit}``
+
+   **Real Impedance / ohm** -- ``real_impedance_ohm``
+
+   - ``Re(Z)/{unit}``
+
+   **Imaginary Impedance / ohm** -- ``imaginary_impedance_ohm``
+
+   - ``-Im(Z)/{unit}``
+
+   **Absolute Impedance / ohm** -- ``absolute_impedance_ohm``
+
+   - ``|Z|/{unit}``
+
+   **Phase / deg** -- ``phase_degree``
+
+   - ``Phase(Z)/{unit}``
+
+   **Frequency / Hz** -- ``frequency_hertz``
+
+   - ``freq/{unit}``
 
    **Temperature T1 / degC** -- ``temperature_t1_celsius``
 
@@ -266,8 +368,124 @@ plugin or donating a sample data file.
    - Identified by magic tokens: ``bt-lab ascii file``, ``ec-lab ascii file``
    - Extracted metadata fields:
 
-     - ``start_time`` -- regex ``Acquisition started on\s*:\s*(.+)``
+     - ``battinfo_test.test.started_at`` -- regex ``Acquisition started on\s*:\s*(.+)``
 
+
+``biologic_mpr``
+----------------
+
+- **Table parser:** ``mpr`` (``.mpr``)
+
+.. dropdown:: Column synonyms -- 20 BDF fields, 47 synonyms (27 assumed)
+
+   **Test Time / s** -- ``test_time_second``
+
+   - ``time/{unit}``
+   - ``time / {unit}`` *(assumed)*
+   - ``t ({unit})`` *(assumed)*
+   - ``time [{unit}]`` *(assumed)*
+   - ``relative time({unit})`` *(assumed)*
+
+   **Voltage / V** -- ``voltage_volt``
+
+   - ``Ecell/{unit}``
+   - ``Ewe/{unit}``
+   - ``u/{unit}`` *(assumed)*
+   - ``u[{unit}]`` *(assumed)*
+   - ``Ewe ({unit})`` *(assumed)*
+   - ``<Ewe>/{unit}`` *(assumed)*
+
+   **Current / A** -- ``current_ampere``
+
+   - ``I/{unit}``
+   - ``I[{unit}]`` *(assumed)*
+   - ``Current / {unit}`` *(assumed)*
+   - ``Current({unit})`` *(assumed)*
+   - ``I({unit})`` *(assumed)*
+   - ``<I>/{unit}`` *(assumed)*
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - ``uts/s``
+
+   **Cycle Count / 1** -- ``cycle_count``
+
+   - ``cycle number``
+   - ``z cycle`` *(assumed)*
+
+   **Step ID** -- ``step_id``
+
+   - ``Ns``
+
+   **Step Time / s** -- ``step_time_second``
+
+   - ``step time/{unit}``
+
+   **Net Capacity / Ah** -- ``net_capacity_ah``
+
+   - ``(Q-Qo)/{unit}``
+
+   **Charging Energy / Wh** -- ``charging_energy_wh``
+
+   - ``Energy charge/{unit}``
+
+   **Discharging Energy / Wh** -- ``discharging_energy_wh``
+
+   - ``Energy discharge/{unit}``
+
+   **Net Energy / Wh** -- ``net_energy_wh``
+
+   - ``Energy/{unit}``
+
+   **Cumulative Energy / Wh** -- ``cumulative_energy_wh``
+
+   - ``|Energy|/{unit}`` *(assumed)*
+
+   **Power / W** -- ``power_watt``
+
+   - ``P/{unit}``
+   - ``Pwe/{unit}``
+
+   **Internal Resistance / ohm** -- ``internal_resistance_ohm``
+
+   - ``R/{unit}``
+
+   **Real Impedance / ohm** -- ``real_impedance_ohm``
+
+   - ``Re(Z)/{unit}``
+
+   **Imaginary Impedance / ohm** -- ``imaginary_impedance_ohm``
+
+   - ``-Im(Z)/{unit}``
+
+   **Absolute Impedance / ohm** -- ``absolute_impedance_ohm``
+
+   - ``|Z|/{unit}``
+
+   **Phase / deg** -- ``phase_degree``
+
+   - ``Phase(Z)/{unit}``
+
+   **Frequency / Hz** -- ``frequency_hertz``
+
+   - ``freq/{unit}``
+
+   **Temperature T1 / degC** -- ``temperature_t1_celsius``
+
+   - ``Temperature/{unit}`` *(assumed)*
+   - ``Temperature/°C`` *(assumed)*
+   - ``Temperature/øc`` *(assumed)*
+   - ``Temperature/c`` *(assumed)*
+   - ``Temp/{unit}`` *(assumed)*
+   - ``Temp/°C`` *(assumed)*
+   - ``Temp/øc`` *(assumed)*
+   - ``Temp/c`` *(assumed)*
+   - ``T/{unit}`` *(assumed)*
+   - ``T/°C`` *(assumed)*
+   - ``T/øc`` *(assumed)*
+   - ``T/c`` *(assumed)*
+
+- **Metadata parser:** none
 
 ``digatron_csv``
 ----------------
@@ -571,7 +789,7 @@ plugin or donating a sample data file.
    - Identified by magic tokens: ``today's date ,``, ``date of test:,``
    - Extracted metadata fields:
 
-     - ``start_time`` -- regex ``Date of Test:,(.+)``
+     - ``battinfo_test.test.started_at`` -- regex ``Date of Test:,(.+)``
 
 
 ``neware_csv``
@@ -756,6 +974,88 @@ plugin or donating a sample data file.
 
 - **Metadata parser:** none
 
+``arbin_xlsx``
+--------------
+
+- **Table parser:** ``excel`` (``.xls``, ``.xlsm``, ``.xlsx``) -- sheet_pattern = ``^Channel[_-]``
+
+.. dropdown:: Column synonyms -- 16 BDF fields, 25 synonyms (0 assumed)
+
+   **Test Time / s** -- ``test_time_second``
+
+   - ``Test Time ({unit})``
+   - ``Test_Time({unit})``
+
+   **Voltage / V** -- ``voltage_volt``
+
+   - ``Voltage ({unit})``
+   - ``Voltage({unit})``
+
+   **Current / A** -- ``current_ampere``
+
+   - ``Current ({unit})``
+   - ``Current({unit})``
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - ``Date Time`` -- formats: ``%m/%d/%Y %H:%M:%S%.f``, ``%m/%d/%Y %H:%M:%S``, ``%Y-%m-%d %H:%M:%S%.f``, ``%Y-%m-%d %H:%M:%S``, ``%Y/%m/%d %H:%M:%S``
+   - ``Date_Time`` -- formats: ``%m/%d/%Y %H:%M:%S%.f``, ``%m/%d/%Y %H:%M:%S``, ``%Y-%m-%d %H:%M:%S%.f``, ``%Y-%m-%d %H:%M:%S``, ``%Y/%m/%d %H:%M:%S``
+
+   **Cycle Count / 1** -- ``cycle_count``
+
+   - ``Cycle Index``
+   - ``Cycle_Index``
+
+   **Step ID** -- ``step_id``
+
+   - ``Step Index``
+   - ``Step_Index``
+
+   **Record Index / 1** -- ``record_index``
+
+   - ``Data Point``
+   - ``Data_Point``
+
+   **Step Time / s** -- ``step_time_second``
+
+   - ``Step Time ({unit})``
+   - ``Step_Time({unit})``
+
+   **Schedule Charging Capacity / Ah** -- ``schedule_charging_capacity_ah``
+
+   - ``Charge Capacity ({unit})``
+
+   **Schedule Discharging Capacity / Ah** -- ``schedule_discharging_capacity_ah``
+
+   - ``Discharge Capacity ({unit})``
+
+   **Schedule Charging Energy / Wh** -- ``schedule_charging_energy_wh``
+
+   - ``Charge Energy ({unit})``
+
+   **Schedule Discharging Energy / Wh** -- ``schedule_discharging_energy_wh``
+
+   - ``Discharge Energy ({unit})``
+
+   **Power / W** -- ``power_watt``
+
+   - ``Power ({unit})``
+
+   **DC Internal Resistance / ohm** -- ``dc_internal_resistance_ohm``
+
+   - ``Internal Resistance ({unit})``
+
+   **AC Internal Resistance / ohm** -- ``ac_internal_resistance_ohm``
+
+   - ``ACR ({unit})``
+
+   **Temperature T1 / degC** -- ``temperature_t1_celsius``
+
+   - ``Aux_Temperature_1 (C)``
+   - ``Aux_Temperature_1 ({unit})``
+
+- **Metadata parser:** none
+
 ``novonix_csv``
 ---------------
 
@@ -912,6 +1212,1242 @@ plugin or donating a sample data file.
    **Step Net Energy / Wh** -- ``step_net_energy_wh``
 
    - ``energy_{unit}``
+
+- **Metadata parser:** none
+
+``bdf_json``
+------------
+
+- **Table parser:** ``json`` (``.json``)
+
+.. dropdown:: Column synonyms -- 58 BDF fields, 126 synonyms (0 assumed)
+
+   **Test Time / s** -- ``test_time_second``
+
+   - ``Test Time / ms``
+   - ``test_time_millisecond``
+   - ``Test Time / {unit}``
+   - ``test_time_second``
+
+   **Voltage / V** -- ``voltage_volt``
+
+   - ``Voltage / {unit}``
+   - ``voltage_volt``
+
+   **Current / A** -- ``current_ampere``
+
+   - ``Current / {unit}``
+   - ``current_ampere``
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - ``Unix Time / ms``
+   - ``unix_time_millisecond``
+   - ``Unix Time / {unit}``
+   - ``unix_time_second``
+
+   **Cycle Count / 1** -- ``cycle_count``
+
+   - ``Cycle Count / 1``
+   - ``cycle_count``
+
+   **Step Count / 1** -- ``step_count``
+
+   - ``Step Count / 1``
+   - ``step_count``
+
+   **Step ID** -- ``step_id``
+
+   - ``Step ID``
+   - ``step_id``
+
+   **Step Type** -- ``step_type``
+
+   - ``Step Type``
+   - ``step_type``
+
+   **Ambient Temperature / degC** -- ``ambient_temperature_celsius``
+
+   - ``Ambient Temperature / {unit}``
+   - ``ambient_temperature_celsius``
+
+   **Step Record Index / 1** -- ``step_record_index``
+
+   - ``Step Index / 1``
+   - ``step_index``
+   - ``Step Record Index / 1``
+   - ``step_record_index``
+
+   **Record Index / 1** -- ``record_index``
+
+   - ``Record Index / 1``
+   - ``record_index``
+
+   **Step Time / s** -- ``step_time_second``
+
+   - ``Step Time / {unit}``
+   - ``step_time_second``
+
+   **Charging Capacity / Ah** -- ``charging_capacity_ah``
+
+   - ``Charging Capacity / {unit}``
+   - ``charging_capacity_ah``
+
+   **Step Charging Capacity / Ah** -- ``step_charging_capacity_ah``
+
+   - ``Step Charging Capacity / {unit}``
+   - ``step_charging_capacity_ah``
+
+   **Cycle Charging Capacity / Ah** -- ``cycle_charging_capacity_ah``
+
+   - ``Cycle Charging Capacity / {unit}``
+   - ``cycle_charging_capacity_ah``
+
+   **Schedule Charging Capacity / Ah** -- ``schedule_charging_capacity_ah``
+
+   - ``Schedule Charging Capacity / {unit}``
+   - ``schedule_charging_capacity_ah``
+
+   **Discharging Capacity / Ah** -- ``discharging_capacity_ah``
+
+   - ``Discharging Capacity / {unit}``
+   - ``discharging_capacity_ah``
+
+   **Step Discharging Capacity / Ah** -- ``step_discharging_capacity_ah``
+
+   - ``Step Discharging Capacity / {unit}``
+   - ``step_discharging_capacity_ah``
+
+   **Cycle Discharging Capacity / Ah** -- ``cycle_discharging_capacity_ah``
+
+   - ``Cycle Discharging Capacity / {unit}``
+   - ``cycle_discharging_capacity_ah``
+
+   **Schedule Discharging Capacity / Ah** -- ``schedule_discharging_capacity_ah``
+
+   - ``Schedule Discharging Capacity / {unit}``
+   - ``schedule_discharging_capacity_ah``
+
+   **Net Capacity / Ah** -- ``net_capacity_ah``
+
+   - ``Net Capacity / {unit}``
+   - ``net_capacity_ah``
+
+   **Step Net Capacity / Ah** -- ``step_net_capacity_ah``
+
+   - ``Step Net Capacity / {unit}``
+   - ``step_net_capacity_ah``
+
+   **Cycle Net Capacity / Ah** -- ``cycle_net_capacity_ah``
+
+   - ``Cycle Net Capacity / {unit}``
+   - ``cycle_net_capacity_ah``
+
+   **Cumulative Capacity / Ah** -- ``cumulative_capacity_ah``
+
+   - ``Cumulative Capacity / {unit}``
+   - ``cumulative_capacity_ah``
+
+   **Step Cumulative Capacity / Ah** -- ``step_cumulative_capacity_ah``
+
+   - ``Step Capacity / Ah``
+   - ``step_capacity_ah``
+   - ``Step Cumulative Capacity / {unit}``
+   - ``step_cumulative_capacity_ah``
+
+   **Cycle Cumulative Capacity / Ah** -- ``cycle_cumulative_capacity_ah``
+
+   - ``Cycle Cumulative Capacity / {unit}``
+   - ``cycle_cumulative_capacity_ah``
+
+   **Charging Energy / Wh** -- ``charging_energy_wh``
+
+   - ``Charging Energy / {unit}``
+   - ``charging_energy_wh``
+
+   **Step Charging Energy / Wh** -- ``step_charging_energy_wh``
+
+   - ``Step Charging Energy / {unit}``
+   - ``step_charging_energy_wh``
+
+   **Cycle Charging Energy / Wh** -- ``cycle_charging_energy_wh``
+
+   - ``Cycle Charging Energy / {unit}``
+   - ``cycle_charging_energy_wh``
+
+   **Schedule Charging Energy / Wh** -- ``schedule_charging_energy_wh``
+
+   - ``Schedule Charging Energy / {unit}``
+   - ``schedule_charging_energy_wh``
+
+   **Discharging Energy / Wh** -- ``discharging_energy_wh``
+
+   - ``Discharging Energy / {unit}``
+   - ``discharging_energy_wh``
+
+   **Step Discharging Energy / Wh** -- ``step_discharging_energy_wh``
+
+   - ``Step Discharging Energy / {unit}``
+   - ``step_discharging_energy_wh``
+
+   **Cycle Discharging Energy / Wh** -- ``cycle_discharging_energy_wh``
+
+   - ``Cycle Discharging Energy / {unit}``
+   - ``cycle_discharging_energy_wh``
+
+   **Schedule Discharging Energy / Wh** -- ``schedule_discharging_energy_wh``
+
+   - ``Schedule Discharging Energy / {unit}``
+   - ``schedule_discharging_energy_wh``
+
+   **Net Energy / Wh** -- ``net_energy_wh``
+
+   - ``Net Energy / {unit}``
+   - ``net_energy_wh``
+
+   **Step Net Energy / Wh** -- ``step_net_energy_wh``
+
+   - ``Step Net Energy / {unit}``
+   - ``step_net_energy_wh``
+
+   **Cycle Net Energy / Wh** -- ``cycle_net_energy_wh``
+
+   - ``Cycle Net Energy / {unit}``
+   - ``cycle_net_energy_wh``
+
+   **Cumulative Energy / Wh** -- ``cumulative_energy_wh``
+
+   - ``Cumulative Energy / {unit}``
+   - ``cumulative_energy_wh``
+
+   **Step Cumulative Energy / Wh** -- ``step_cumulative_energy_wh``
+
+   - ``Step Energy / Wh``
+   - ``step_energy_wh``
+   - ``Step Cumulative Energy / {unit}``
+   - ``step_cumulative_energy_wh``
+
+   **Cycle Cumulative Energy / Wh** -- ``cycle_cumulative_energy_wh``
+
+   - ``Cycle Cumulative Energy / {unit}``
+   - ``cycle_cumulative_energy_wh``
+
+   **Power / W** -- ``power_watt``
+
+   - ``Power / {unit}``
+   - ``power_watt``
+
+   **Internal Resistance / ohm** -- ``internal_resistance_ohm``
+
+   - ``Internal Resistance / {unit}``
+   - ``internal_resistance_ohm``
+
+   **DC Internal Resistance / ohm** -- ``dc_internal_resistance_ohm``
+
+   - ``DC Internal Resistance / {unit}``
+   - ``dc_internal_resistance_ohm``
+
+   **AC Internal Resistance / ohm** -- ``ac_internal_resistance_ohm``
+
+   - ``AC Internal Resistance / {unit}``
+   - ``ac_internal_resistance_ohm``
+
+   **Real Impedance / ohm** -- ``real_impedance_ohm``
+
+   - ``Real Impedance / {unit}``
+   - ``real_impedance_ohm``
+
+   **Imaginary Impedance / ohm** -- ``imaginary_impedance_ohm``
+
+   - ``Imaginary Impedance / {unit}``
+   - ``imaginary_impedance_ohm``
+
+   **Absolute Impedance / ohm** -- ``absolute_impedance_ohm``
+
+   - ``Absolute Impedance / {unit}``
+   - ``absolute_impedance_ohm``
+
+   **Phase / deg** -- ``phase_degree``
+
+   - ``Phase / {unit}``
+   - ``phase_degree``
+
+   **Frequency / Hz** -- ``frequency_hertz``
+
+   - ``Frequency / {unit}``
+   - ``frequency_hertz``
+
+   **Ambient Pressure / Pa** -- ``ambient_pressure_pa``
+
+   - ``Ambient Pressure / {unit}``
+   - ``ambient_pressure_pa``
+
+   **Applied Pressure / Pa** -- ``applied_pressure_pa``
+
+   - ``Applied Pressure / {unit}``
+   - ``applied_pressure_pa``
+
+   **Surface Pressure / Pa** -- ``surface_pressure_pa``
+
+   - ``Surface Pressure / {unit}``
+   - ``surface_pressure_pa``
+
+   **Temperature T1 / degC** -- ``temperature_t1_celsius``
+
+   - ``Temperature T1 / {unit}``
+   - ``temperature_t1_celsius``
+
+   **Temperature T2 / degC** -- ``temperature_t2_celsius``
+
+   - ``Temperature T2 / {unit}``
+   - ``temperature_t2_celsius``
+
+   **Temperature T3 / degC** -- ``temperature_t3_celsius``
+
+   - ``Temperature T3 / {unit}``
+   - ``temperature_t3_celsius``
+
+   **Temperature T4 / degC** -- ``temperature_t4_celsius``
+
+   - ``Temperature T4 / {unit}``
+   - ``temperature_t4_celsius``
+
+   **Temperature T5 / degC** -- ``temperature_t5_celsius``
+
+   - ``Temperature T5 / {unit}``
+   - ``temperature_t5_celsius``
+
+   **Surface Temperature / degC** -- ``surface_temperature_celsius``
+
+   - ``Surface Temperature / {unit}``
+   - ``surface_temperature_celsius``
+
+- **Metadata parser:** none
+
+``bdf_ndjson``
+--------------
+
+- **Table parser:** ``ndjson`` (``.ndjson``)
+
+.. dropdown:: Column synonyms -- 58 BDF fields, 126 synonyms (0 assumed)
+
+   **Test Time / s** -- ``test_time_second``
+
+   - ``Test Time / ms``
+   - ``test_time_millisecond``
+   - ``Test Time / {unit}``
+   - ``test_time_second``
+
+   **Voltage / V** -- ``voltage_volt``
+
+   - ``Voltage / {unit}``
+   - ``voltage_volt``
+
+   **Current / A** -- ``current_ampere``
+
+   - ``Current / {unit}``
+   - ``current_ampere``
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - ``Unix Time / ms``
+   - ``unix_time_millisecond``
+   - ``Unix Time / {unit}``
+   - ``unix_time_second``
+
+   **Cycle Count / 1** -- ``cycle_count``
+
+   - ``Cycle Count / 1``
+   - ``cycle_count``
+
+   **Step Count / 1** -- ``step_count``
+
+   - ``Step Count / 1``
+   - ``step_count``
+
+   **Step ID** -- ``step_id``
+
+   - ``Step ID``
+   - ``step_id``
+
+   **Step Type** -- ``step_type``
+
+   - ``Step Type``
+   - ``step_type``
+
+   **Ambient Temperature / degC** -- ``ambient_temperature_celsius``
+
+   - ``Ambient Temperature / {unit}``
+   - ``ambient_temperature_celsius``
+
+   **Step Record Index / 1** -- ``step_record_index``
+
+   - ``Step Index / 1``
+   - ``step_index``
+   - ``Step Record Index / 1``
+   - ``step_record_index``
+
+   **Record Index / 1** -- ``record_index``
+
+   - ``Record Index / 1``
+   - ``record_index``
+
+   **Step Time / s** -- ``step_time_second``
+
+   - ``Step Time / {unit}``
+   - ``step_time_second``
+
+   **Charging Capacity / Ah** -- ``charging_capacity_ah``
+
+   - ``Charging Capacity / {unit}``
+   - ``charging_capacity_ah``
+
+   **Step Charging Capacity / Ah** -- ``step_charging_capacity_ah``
+
+   - ``Step Charging Capacity / {unit}``
+   - ``step_charging_capacity_ah``
+
+   **Cycle Charging Capacity / Ah** -- ``cycle_charging_capacity_ah``
+
+   - ``Cycle Charging Capacity / {unit}``
+   - ``cycle_charging_capacity_ah``
+
+   **Schedule Charging Capacity / Ah** -- ``schedule_charging_capacity_ah``
+
+   - ``Schedule Charging Capacity / {unit}``
+   - ``schedule_charging_capacity_ah``
+
+   **Discharging Capacity / Ah** -- ``discharging_capacity_ah``
+
+   - ``Discharging Capacity / {unit}``
+   - ``discharging_capacity_ah``
+
+   **Step Discharging Capacity / Ah** -- ``step_discharging_capacity_ah``
+
+   - ``Step Discharging Capacity / {unit}``
+   - ``step_discharging_capacity_ah``
+
+   **Cycle Discharging Capacity / Ah** -- ``cycle_discharging_capacity_ah``
+
+   - ``Cycle Discharging Capacity / {unit}``
+   - ``cycle_discharging_capacity_ah``
+
+   **Schedule Discharging Capacity / Ah** -- ``schedule_discharging_capacity_ah``
+
+   - ``Schedule Discharging Capacity / {unit}``
+   - ``schedule_discharging_capacity_ah``
+
+   **Net Capacity / Ah** -- ``net_capacity_ah``
+
+   - ``Net Capacity / {unit}``
+   - ``net_capacity_ah``
+
+   **Step Net Capacity / Ah** -- ``step_net_capacity_ah``
+
+   - ``Step Net Capacity / {unit}``
+   - ``step_net_capacity_ah``
+
+   **Cycle Net Capacity / Ah** -- ``cycle_net_capacity_ah``
+
+   - ``Cycle Net Capacity / {unit}``
+   - ``cycle_net_capacity_ah``
+
+   **Cumulative Capacity / Ah** -- ``cumulative_capacity_ah``
+
+   - ``Cumulative Capacity / {unit}``
+   - ``cumulative_capacity_ah``
+
+   **Step Cumulative Capacity / Ah** -- ``step_cumulative_capacity_ah``
+
+   - ``Step Capacity / Ah``
+   - ``step_capacity_ah``
+   - ``Step Cumulative Capacity / {unit}``
+   - ``step_cumulative_capacity_ah``
+
+   **Cycle Cumulative Capacity / Ah** -- ``cycle_cumulative_capacity_ah``
+
+   - ``Cycle Cumulative Capacity / {unit}``
+   - ``cycle_cumulative_capacity_ah``
+
+   **Charging Energy / Wh** -- ``charging_energy_wh``
+
+   - ``Charging Energy / {unit}``
+   - ``charging_energy_wh``
+
+   **Step Charging Energy / Wh** -- ``step_charging_energy_wh``
+
+   - ``Step Charging Energy / {unit}``
+   - ``step_charging_energy_wh``
+
+   **Cycle Charging Energy / Wh** -- ``cycle_charging_energy_wh``
+
+   - ``Cycle Charging Energy / {unit}``
+   - ``cycle_charging_energy_wh``
+
+   **Schedule Charging Energy / Wh** -- ``schedule_charging_energy_wh``
+
+   - ``Schedule Charging Energy / {unit}``
+   - ``schedule_charging_energy_wh``
+
+   **Discharging Energy / Wh** -- ``discharging_energy_wh``
+
+   - ``Discharging Energy / {unit}``
+   - ``discharging_energy_wh``
+
+   **Step Discharging Energy / Wh** -- ``step_discharging_energy_wh``
+
+   - ``Step Discharging Energy / {unit}``
+   - ``step_discharging_energy_wh``
+
+   **Cycle Discharging Energy / Wh** -- ``cycle_discharging_energy_wh``
+
+   - ``Cycle Discharging Energy / {unit}``
+   - ``cycle_discharging_energy_wh``
+
+   **Schedule Discharging Energy / Wh** -- ``schedule_discharging_energy_wh``
+
+   - ``Schedule Discharging Energy / {unit}``
+   - ``schedule_discharging_energy_wh``
+
+   **Net Energy / Wh** -- ``net_energy_wh``
+
+   - ``Net Energy / {unit}``
+   - ``net_energy_wh``
+
+   **Step Net Energy / Wh** -- ``step_net_energy_wh``
+
+   - ``Step Net Energy / {unit}``
+   - ``step_net_energy_wh``
+
+   **Cycle Net Energy / Wh** -- ``cycle_net_energy_wh``
+
+   - ``Cycle Net Energy / {unit}``
+   - ``cycle_net_energy_wh``
+
+   **Cumulative Energy / Wh** -- ``cumulative_energy_wh``
+
+   - ``Cumulative Energy / {unit}``
+   - ``cumulative_energy_wh``
+
+   **Step Cumulative Energy / Wh** -- ``step_cumulative_energy_wh``
+
+   - ``Step Energy / Wh``
+   - ``step_energy_wh``
+   - ``Step Cumulative Energy / {unit}``
+   - ``step_cumulative_energy_wh``
+
+   **Cycle Cumulative Energy / Wh** -- ``cycle_cumulative_energy_wh``
+
+   - ``Cycle Cumulative Energy / {unit}``
+   - ``cycle_cumulative_energy_wh``
+
+   **Power / W** -- ``power_watt``
+
+   - ``Power / {unit}``
+   - ``power_watt``
+
+   **Internal Resistance / ohm** -- ``internal_resistance_ohm``
+
+   - ``Internal Resistance / {unit}``
+   - ``internal_resistance_ohm``
+
+   **DC Internal Resistance / ohm** -- ``dc_internal_resistance_ohm``
+
+   - ``DC Internal Resistance / {unit}``
+   - ``dc_internal_resistance_ohm``
+
+   **AC Internal Resistance / ohm** -- ``ac_internal_resistance_ohm``
+
+   - ``AC Internal Resistance / {unit}``
+   - ``ac_internal_resistance_ohm``
+
+   **Real Impedance / ohm** -- ``real_impedance_ohm``
+
+   - ``Real Impedance / {unit}``
+   - ``real_impedance_ohm``
+
+   **Imaginary Impedance / ohm** -- ``imaginary_impedance_ohm``
+
+   - ``Imaginary Impedance / {unit}``
+   - ``imaginary_impedance_ohm``
+
+   **Absolute Impedance / ohm** -- ``absolute_impedance_ohm``
+
+   - ``Absolute Impedance / {unit}``
+   - ``absolute_impedance_ohm``
+
+   **Phase / deg** -- ``phase_degree``
+
+   - ``Phase / {unit}``
+   - ``phase_degree``
+
+   **Frequency / Hz** -- ``frequency_hertz``
+
+   - ``Frequency / {unit}``
+   - ``frequency_hertz``
+
+   **Ambient Pressure / Pa** -- ``ambient_pressure_pa``
+
+   - ``Ambient Pressure / {unit}``
+   - ``ambient_pressure_pa``
+
+   **Applied Pressure / Pa** -- ``applied_pressure_pa``
+
+   - ``Applied Pressure / {unit}``
+   - ``applied_pressure_pa``
+
+   **Surface Pressure / Pa** -- ``surface_pressure_pa``
+
+   - ``Surface Pressure / {unit}``
+   - ``surface_pressure_pa``
+
+   **Temperature T1 / degC** -- ``temperature_t1_celsius``
+
+   - ``Temperature T1 / {unit}``
+   - ``temperature_t1_celsius``
+
+   **Temperature T2 / degC** -- ``temperature_t2_celsius``
+
+   - ``Temperature T2 / {unit}``
+   - ``temperature_t2_celsius``
+
+   **Temperature T3 / degC** -- ``temperature_t3_celsius``
+
+   - ``Temperature T3 / {unit}``
+   - ``temperature_t3_celsius``
+
+   **Temperature T4 / degC** -- ``temperature_t4_celsius``
+
+   - ``Temperature T4 / {unit}``
+   - ``temperature_t4_celsius``
+
+   **Temperature T5 / degC** -- ``temperature_t5_celsius``
+
+   - ``Temperature T5 / {unit}``
+   - ``temperature_t5_celsius``
+
+   **Surface Temperature / degC** -- ``surface_temperature_celsius``
+
+   - ``Surface Temperature / {unit}``
+   - ``surface_temperature_celsius``
+
+- **Metadata parser:** none
+
+``bdf_ipc``
+-----------
+
+- **Table parser:** ``ipc`` (``.arrow``, ``.feather``, ``.ftr``, ``.ipc``)
+
+.. dropdown:: Column synonyms -- 58 BDF fields, 126 synonyms (0 assumed)
+
+   **Test Time / s** -- ``test_time_second``
+
+   - ``Test Time / ms``
+   - ``test_time_millisecond``
+   - ``Test Time / {unit}``
+   - ``test_time_second``
+
+   **Voltage / V** -- ``voltage_volt``
+
+   - ``Voltage / {unit}``
+   - ``voltage_volt``
+
+   **Current / A** -- ``current_ampere``
+
+   - ``Current / {unit}``
+   - ``current_ampere``
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - ``Unix Time / ms``
+   - ``unix_time_millisecond``
+   - ``Unix Time / {unit}``
+   - ``unix_time_second``
+
+   **Cycle Count / 1** -- ``cycle_count``
+
+   - ``Cycle Count / 1``
+   - ``cycle_count``
+
+   **Step Count / 1** -- ``step_count``
+
+   - ``Step Count / 1``
+   - ``step_count``
+
+   **Step ID** -- ``step_id``
+
+   - ``Step ID``
+   - ``step_id``
+
+   **Step Type** -- ``step_type``
+
+   - ``Step Type``
+   - ``step_type``
+
+   **Ambient Temperature / degC** -- ``ambient_temperature_celsius``
+
+   - ``Ambient Temperature / {unit}``
+   - ``ambient_temperature_celsius``
+
+   **Step Record Index / 1** -- ``step_record_index``
+
+   - ``Step Index / 1``
+   - ``step_index``
+   - ``Step Record Index / 1``
+   - ``step_record_index``
+
+   **Record Index / 1** -- ``record_index``
+
+   - ``Record Index / 1``
+   - ``record_index``
+
+   **Step Time / s** -- ``step_time_second``
+
+   - ``Step Time / {unit}``
+   - ``step_time_second``
+
+   **Charging Capacity / Ah** -- ``charging_capacity_ah``
+
+   - ``Charging Capacity / {unit}``
+   - ``charging_capacity_ah``
+
+   **Step Charging Capacity / Ah** -- ``step_charging_capacity_ah``
+
+   - ``Step Charging Capacity / {unit}``
+   - ``step_charging_capacity_ah``
+
+   **Cycle Charging Capacity / Ah** -- ``cycle_charging_capacity_ah``
+
+   - ``Cycle Charging Capacity / {unit}``
+   - ``cycle_charging_capacity_ah``
+
+   **Schedule Charging Capacity / Ah** -- ``schedule_charging_capacity_ah``
+
+   - ``Schedule Charging Capacity / {unit}``
+   - ``schedule_charging_capacity_ah``
+
+   **Discharging Capacity / Ah** -- ``discharging_capacity_ah``
+
+   - ``Discharging Capacity / {unit}``
+   - ``discharging_capacity_ah``
+
+   **Step Discharging Capacity / Ah** -- ``step_discharging_capacity_ah``
+
+   - ``Step Discharging Capacity / {unit}``
+   - ``step_discharging_capacity_ah``
+
+   **Cycle Discharging Capacity / Ah** -- ``cycle_discharging_capacity_ah``
+
+   - ``Cycle Discharging Capacity / {unit}``
+   - ``cycle_discharging_capacity_ah``
+
+   **Schedule Discharging Capacity / Ah** -- ``schedule_discharging_capacity_ah``
+
+   - ``Schedule Discharging Capacity / {unit}``
+   - ``schedule_discharging_capacity_ah``
+
+   **Net Capacity / Ah** -- ``net_capacity_ah``
+
+   - ``Net Capacity / {unit}``
+   - ``net_capacity_ah``
+
+   **Step Net Capacity / Ah** -- ``step_net_capacity_ah``
+
+   - ``Step Net Capacity / {unit}``
+   - ``step_net_capacity_ah``
+
+   **Cycle Net Capacity / Ah** -- ``cycle_net_capacity_ah``
+
+   - ``Cycle Net Capacity / {unit}``
+   - ``cycle_net_capacity_ah``
+
+   **Cumulative Capacity / Ah** -- ``cumulative_capacity_ah``
+
+   - ``Cumulative Capacity / {unit}``
+   - ``cumulative_capacity_ah``
+
+   **Step Cumulative Capacity / Ah** -- ``step_cumulative_capacity_ah``
+
+   - ``Step Capacity / Ah``
+   - ``step_capacity_ah``
+   - ``Step Cumulative Capacity / {unit}``
+   - ``step_cumulative_capacity_ah``
+
+   **Cycle Cumulative Capacity / Ah** -- ``cycle_cumulative_capacity_ah``
+
+   - ``Cycle Cumulative Capacity / {unit}``
+   - ``cycle_cumulative_capacity_ah``
+
+   **Charging Energy / Wh** -- ``charging_energy_wh``
+
+   - ``Charging Energy / {unit}``
+   - ``charging_energy_wh``
+
+   **Step Charging Energy / Wh** -- ``step_charging_energy_wh``
+
+   - ``Step Charging Energy / {unit}``
+   - ``step_charging_energy_wh``
+
+   **Cycle Charging Energy / Wh** -- ``cycle_charging_energy_wh``
+
+   - ``Cycle Charging Energy / {unit}``
+   - ``cycle_charging_energy_wh``
+
+   **Schedule Charging Energy / Wh** -- ``schedule_charging_energy_wh``
+
+   - ``Schedule Charging Energy / {unit}``
+   - ``schedule_charging_energy_wh``
+
+   **Discharging Energy / Wh** -- ``discharging_energy_wh``
+
+   - ``Discharging Energy / {unit}``
+   - ``discharging_energy_wh``
+
+   **Step Discharging Energy / Wh** -- ``step_discharging_energy_wh``
+
+   - ``Step Discharging Energy / {unit}``
+   - ``step_discharging_energy_wh``
+
+   **Cycle Discharging Energy / Wh** -- ``cycle_discharging_energy_wh``
+
+   - ``Cycle Discharging Energy / {unit}``
+   - ``cycle_discharging_energy_wh``
+
+   **Schedule Discharging Energy / Wh** -- ``schedule_discharging_energy_wh``
+
+   - ``Schedule Discharging Energy / {unit}``
+   - ``schedule_discharging_energy_wh``
+
+   **Net Energy / Wh** -- ``net_energy_wh``
+
+   - ``Net Energy / {unit}``
+   - ``net_energy_wh``
+
+   **Step Net Energy / Wh** -- ``step_net_energy_wh``
+
+   - ``Step Net Energy / {unit}``
+   - ``step_net_energy_wh``
+
+   **Cycle Net Energy / Wh** -- ``cycle_net_energy_wh``
+
+   - ``Cycle Net Energy / {unit}``
+   - ``cycle_net_energy_wh``
+
+   **Cumulative Energy / Wh** -- ``cumulative_energy_wh``
+
+   - ``Cumulative Energy / {unit}``
+   - ``cumulative_energy_wh``
+
+   **Step Cumulative Energy / Wh** -- ``step_cumulative_energy_wh``
+
+   - ``Step Energy / Wh``
+   - ``step_energy_wh``
+   - ``Step Cumulative Energy / {unit}``
+   - ``step_cumulative_energy_wh``
+
+   **Cycle Cumulative Energy / Wh** -- ``cycle_cumulative_energy_wh``
+
+   - ``Cycle Cumulative Energy / {unit}``
+   - ``cycle_cumulative_energy_wh``
+
+   **Power / W** -- ``power_watt``
+
+   - ``Power / {unit}``
+   - ``power_watt``
+
+   **Internal Resistance / ohm** -- ``internal_resistance_ohm``
+
+   - ``Internal Resistance / {unit}``
+   - ``internal_resistance_ohm``
+
+   **DC Internal Resistance / ohm** -- ``dc_internal_resistance_ohm``
+
+   - ``DC Internal Resistance / {unit}``
+   - ``dc_internal_resistance_ohm``
+
+   **AC Internal Resistance / ohm** -- ``ac_internal_resistance_ohm``
+
+   - ``AC Internal Resistance / {unit}``
+   - ``ac_internal_resistance_ohm``
+
+   **Real Impedance / ohm** -- ``real_impedance_ohm``
+
+   - ``Real Impedance / {unit}``
+   - ``real_impedance_ohm``
+
+   **Imaginary Impedance / ohm** -- ``imaginary_impedance_ohm``
+
+   - ``Imaginary Impedance / {unit}``
+   - ``imaginary_impedance_ohm``
+
+   **Absolute Impedance / ohm** -- ``absolute_impedance_ohm``
+
+   - ``Absolute Impedance / {unit}``
+   - ``absolute_impedance_ohm``
+
+   **Phase / deg** -- ``phase_degree``
+
+   - ``Phase / {unit}``
+   - ``phase_degree``
+
+   **Frequency / Hz** -- ``frequency_hertz``
+
+   - ``Frequency / {unit}``
+   - ``frequency_hertz``
+
+   **Ambient Pressure / Pa** -- ``ambient_pressure_pa``
+
+   - ``Ambient Pressure / {unit}``
+   - ``ambient_pressure_pa``
+
+   **Applied Pressure / Pa** -- ``applied_pressure_pa``
+
+   - ``Applied Pressure / {unit}``
+   - ``applied_pressure_pa``
+
+   **Surface Pressure / Pa** -- ``surface_pressure_pa``
+
+   - ``Surface Pressure / {unit}``
+   - ``surface_pressure_pa``
+
+   **Temperature T1 / degC** -- ``temperature_t1_celsius``
+
+   - ``Temperature T1 / {unit}``
+   - ``temperature_t1_celsius``
+
+   **Temperature T2 / degC** -- ``temperature_t2_celsius``
+
+   - ``Temperature T2 / {unit}``
+   - ``temperature_t2_celsius``
+
+   **Temperature T3 / degC** -- ``temperature_t3_celsius``
+
+   - ``Temperature T3 / {unit}``
+   - ``temperature_t3_celsius``
+
+   **Temperature T4 / degC** -- ``temperature_t4_celsius``
+
+   - ``Temperature T4 / {unit}``
+   - ``temperature_t4_celsius``
+
+   **Temperature T5 / degC** -- ``temperature_t5_celsius``
+
+   - ``Temperature T5 / {unit}``
+   - ``temperature_t5_celsius``
+
+   **Surface Temperature / degC** -- ``surface_temperature_celsius``
+
+   - ``Surface Temperature / {unit}``
+   - ``surface_temperature_celsius``
+
+- **Metadata parser:** none
+
+``bdf_xlsx``
+------------
+
+- **Table parser:** ``excel`` (``.xls``, ``.xlsm``, ``.xlsx``)
+
+.. dropdown:: Column synonyms -- 58 BDF fields, 126 synonyms (0 assumed)
+
+   **Test Time / s** -- ``test_time_second``
+
+   - ``Test Time / ms``
+   - ``test_time_millisecond``
+   - ``Test Time / {unit}``
+   - ``test_time_second``
+
+   **Voltage / V** -- ``voltage_volt``
+
+   - ``Voltage / {unit}``
+   - ``voltage_volt``
+
+   **Current / A** -- ``current_ampere``
+
+   - ``Current / {unit}``
+   - ``current_ampere``
+
+   **Unix Time / s** -- ``unix_time_second``
+
+   - ``Unix Time / ms``
+   - ``unix_time_millisecond``
+   - ``Unix Time / {unit}``
+   - ``unix_time_second``
+
+   **Cycle Count / 1** -- ``cycle_count``
+
+   - ``Cycle Count / 1``
+   - ``cycle_count``
+
+   **Step Count / 1** -- ``step_count``
+
+   - ``Step Count / 1``
+   - ``step_count``
+
+   **Step ID** -- ``step_id``
+
+   - ``Step ID``
+   - ``step_id``
+
+   **Step Type** -- ``step_type``
+
+   - ``Step Type``
+   - ``step_type``
+
+   **Ambient Temperature / degC** -- ``ambient_temperature_celsius``
+
+   - ``Ambient Temperature / {unit}``
+   - ``ambient_temperature_celsius``
+
+   **Step Record Index / 1** -- ``step_record_index``
+
+   - ``Step Index / 1``
+   - ``step_index``
+   - ``Step Record Index / 1``
+   - ``step_record_index``
+
+   **Record Index / 1** -- ``record_index``
+
+   - ``Record Index / 1``
+   - ``record_index``
+
+   **Step Time / s** -- ``step_time_second``
+
+   - ``Step Time / {unit}``
+   - ``step_time_second``
+
+   **Charging Capacity / Ah** -- ``charging_capacity_ah``
+
+   - ``Charging Capacity / {unit}``
+   - ``charging_capacity_ah``
+
+   **Step Charging Capacity / Ah** -- ``step_charging_capacity_ah``
+
+   - ``Step Charging Capacity / {unit}``
+   - ``step_charging_capacity_ah``
+
+   **Cycle Charging Capacity / Ah** -- ``cycle_charging_capacity_ah``
+
+   - ``Cycle Charging Capacity / {unit}``
+   - ``cycle_charging_capacity_ah``
+
+   **Schedule Charging Capacity / Ah** -- ``schedule_charging_capacity_ah``
+
+   - ``Schedule Charging Capacity / {unit}``
+   - ``schedule_charging_capacity_ah``
+
+   **Discharging Capacity / Ah** -- ``discharging_capacity_ah``
+
+   - ``Discharging Capacity / {unit}``
+   - ``discharging_capacity_ah``
+
+   **Step Discharging Capacity / Ah** -- ``step_discharging_capacity_ah``
+
+   - ``Step Discharging Capacity / {unit}``
+   - ``step_discharging_capacity_ah``
+
+   **Cycle Discharging Capacity / Ah** -- ``cycle_discharging_capacity_ah``
+
+   - ``Cycle Discharging Capacity / {unit}``
+   - ``cycle_discharging_capacity_ah``
+
+   **Schedule Discharging Capacity / Ah** -- ``schedule_discharging_capacity_ah``
+
+   - ``Schedule Discharging Capacity / {unit}``
+   - ``schedule_discharging_capacity_ah``
+
+   **Net Capacity / Ah** -- ``net_capacity_ah``
+
+   - ``Net Capacity / {unit}``
+   - ``net_capacity_ah``
+
+   **Step Net Capacity / Ah** -- ``step_net_capacity_ah``
+
+   - ``Step Net Capacity / {unit}``
+   - ``step_net_capacity_ah``
+
+   **Cycle Net Capacity / Ah** -- ``cycle_net_capacity_ah``
+
+   - ``Cycle Net Capacity / {unit}``
+   - ``cycle_net_capacity_ah``
+
+   **Cumulative Capacity / Ah** -- ``cumulative_capacity_ah``
+
+   - ``Cumulative Capacity / {unit}``
+   - ``cumulative_capacity_ah``
+
+   **Step Cumulative Capacity / Ah** -- ``step_cumulative_capacity_ah``
+
+   - ``Step Capacity / Ah``
+   - ``step_capacity_ah``
+   - ``Step Cumulative Capacity / {unit}``
+   - ``step_cumulative_capacity_ah``
+
+   **Cycle Cumulative Capacity / Ah** -- ``cycle_cumulative_capacity_ah``
+
+   - ``Cycle Cumulative Capacity / {unit}``
+   - ``cycle_cumulative_capacity_ah``
+
+   **Charging Energy / Wh** -- ``charging_energy_wh``
+
+   - ``Charging Energy / {unit}``
+   - ``charging_energy_wh``
+
+   **Step Charging Energy / Wh** -- ``step_charging_energy_wh``
+
+   - ``Step Charging Energy / {unit}``
+   - ``step_charging_energy_wh``
+
+   **Cycle Charging Energy / Wh** -- ``cycle_charging_energy_wh``
+
+   - ``Cycle Charging Energy / {unit}``
+   - ``cycle_charging_energy_wh``
+
+   **Schedule Charging Energy / Wh** -- ``schedule_charging_energy_wh``
+
+   - ``Schedule Charging Energy / {unit}``
+   - ``schedule_charging_energy_wh``
+
+   **Discharging Energy / Wh** -- ``discharging_energy_wh``
+
+   - ``Discharging Energy / {unit}``
+   - ``discharging_energy_wh``
+
+   **Step Discharging Energy / Wh** -- ``step_discharging_energy_wh``
+
+   - ``Step Discharging Energy / {unit}``
+   - ``step_discharging_energy_wh``
+
+   **Cycle Discharging Energy / Wh** -- ``cycle_discharging_energy_wh``
+
+   - ``Cycle Discharging Energy / {unit}``
+   - ``cycle_discharging_energy_wh``
+
+   **Schedule Discharging Energy / Wh** -- ``schedule_discharging_energy_wh``
+
+   - ``Schedule Discharging Energy / {unit}``
+   - ``schedule_discharging_energy_wh``
+
+   **Net Energy / Wh** -- ``net_energy_wh``
+
+   - ``Net Energy / {unit}``
+   - ``net_energy_wh``
+
+   **Step Net Energy / Wh** -- ``step_net_energy_wh``
+
+   - ``Step Net Energy / {unit}``
+   - ``step_net_energy_wh``
+
+   **Cycle Net Energy / Wh** -- ``cycle_net_energy_wh``
+
+   - ``Cycle Net Energy / {unit}``
+   - ``cycle_net_energy_wh``
+
+   **Cumulative Energy / Wh** -- ``cumulative_energy_wh``
+
+   - ``Cumulative Energy / {unit}``
+   - ``cumulative_energy_wh``
+
+   **Step Cumulative Energy / Wh** -- ``step_cumulative_energy_wh``
+
+   - ``Step Energy / Wh``
+   - ``step_energy_wh``
+   - ``Step Cumulative Energy / {unit}``
+   - ``step_cumulative_energy_wh``
+
+   **Cycle Cumulative Energy / Wh** -- ``cycle_cumulative_energy_wh``
+
+   - ``Cycle Cumulative Energy / {unit}``
+   - ``cycle_cumulative_energy_wh``
+
+   **Power / W** -- ``power_watt``
+
+   - ``Power / {unit}``
+   - ``power_watt``
+
+   **Internal Resistance / ohm** -- ``internal_resistance_ohm``
+
+   - ``Internal Resistance / {unit}``
+   - ``internal_resistance_ohm``
+
+   **DC Internal Resistance / ohm** -- ``dc_internal_resistance_ohm``
+
+   - ``DC Internal Resistance / {unit}``
+   - ``dc_internal_resistance_ohm``
+
+   **AC Internal Resistance / ohm** -- ``ac_internal_resistance_ohm``
+
+   - ``AC Internal Resistance / {unit}``
+   - ``ac_internal_resistance_ohm``
+
+   **Real Impedance / ohm** -- ``real_impedance_ohm``
+
+   - ``Real Impedance / {unit}``
+   - ``real_impedance_ohm``
+
+   **Imaginary Impedance / ohm** -- ``imaginary_impedance_ohm``
+
+   - ``Imaginary Impedance / {unit}``
+   - ``imaginary_impedance_ohm``
+
+   **Absolute Impedance / ohm** -- ``absolute_impedance_ohm``
+
+   - ``Absolute Impedance / {unit}``
+   - ``absolute_impedance_ohm``
+
+   **Phase / deg** -- ``phase_degree``
+
+   - ``Phase / {unit}``
+   - ``phase_degree``
+
+   **Frequency / Hz** -- ``frequency_hertz``
+
+   - ``Frequency / {unit}``
+   - ``frequency_hertz``
+
+   **Ambient Pressure / Pa** -- ``ambient_pressure_pa``
+
+   - ``Ambient Pressure / {unit}``
+   - ``ambient_pressure_pa``
+
+   **Applied Pressure / Pa** -- ``applied_pressure_pa``
+
+   - ``Applied Pressure / {unit}``
+   - ``applied_pressure_pa``
+
+   **Surface Pressure / Pa** -- ``surface_pressure_pa``
+
+   - ``Surface Pressure / {unit}``
+   - ``surface_pressure_pa``
+
+   **Temperature T1 / degC** -- ``temperature_t1_celsius``
+
+   - ``Temperature T1 / {unit}``
+   - ``temperature_t1_celsius``
+
+   **Temperature T2 / degC** -- ``temperature_t2_celsius``
+
+   - ``Temperature T2 / {unit}``
+   - ``temperature_t2_celsius``
+
+   **Temperature T3 / degC** -- ``temperature_t3_celsius``
+
+   - ``Temperature T3 / {unit}``
+   - ``temperature_t3_celsius``
+
+   **Temperature T4 / degC** -- ``temperature_t4_celsius``
+
+   - ``Temperature T4 / {unit}``
+   - ``temperature_t4_celsius``
+
+   **Temperature T5 / degC** -- ``temperature_t5_celsius``
+
+   - ``Temperature T5 / {unit}``
+   - ``temperature_t5_celsius``
+
+   **Surface Temperature / degC** -- ``surface_temperature_celsius``
+
+   - ``Surface Temperature / {unit}``
+   - ``surface_temperature_celsius``
 
 - **Metadata parser:** none
 
