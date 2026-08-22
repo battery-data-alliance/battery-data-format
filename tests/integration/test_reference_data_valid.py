@@ -30,11 +30,8 @@ REFERENCE_DIR = Path(__file__).resolve().parents[2] / "docs" / "examples" / "ref
 # filename -> tracking issue(s). See #52 for the audit.
 KNOWN_NONCOMPLIANT: dict[str, str] = {
     "FZJ__INR21700__20250606__HPPC__25degC__Digatron.bdf.csv": "#54, #55, #56",
-    "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv": "#54",
-    "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv": "#54, #56",
-    "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv": "#54",
     "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.csv": "#55",
-    "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.bdf.csv": "#55",
+    "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.bdf.csv": "#98",
 }
 
 
