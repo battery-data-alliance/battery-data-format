@@ -68,9 +68,9 @@ jobs:
       - name: Install MDB Tools
         run: sudo apt-get install -y mdbtools
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --group test-optional
       - name: Run tests (offline)
-        run: uv run --all-extras pytest -q -m "not network" --cov=bdf --cov-report=xml
+        run: uv run --all-extras --group test-optional pytest -q -m "not network" --cov=bdf --cov-report=xml
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:

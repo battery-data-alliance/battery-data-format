@@ -88,8 +88,12 @@ test = [
   "nbclient>=0.9",
   "nbformat>=5.9",
   "ipykernel>=6.0",
-  # pybamm package not required for the table normalizer, only used in tests
-  "pybamm"
+]
+# Test-only dependencies that no default install carries. `pybamm` serves the
+# PyBaMM integration test alone, and `pybammsolvers` has no wheel for Linux on
+# ARM, so the marker excludes that platform.
+test-optional = [
+  "pybamm; sys_platform != 'linux' or platform_machine == 'x86_64'",
 ]
 lint = [
   # ruff and mypy are also run via pre-commit; pinned here to the same versions
