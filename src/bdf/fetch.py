@@ -79,14 +79,31 @@ def _safe_cache_name(url: str, filename: Optional[str]) -> str:
 
 
 def _download(url: str, dest: Path, timeout: int = 120) -> None:
-    with requests.get(url, stream=True, timeout=timeout) as r:
-        r.raise_for_status()
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            for chunk in r.iter_content(chunk_size=1 << 20):
-                if chunk:
-                    tmp.write(chunk)
-            tmp_path = Path(tmp.name)
-    tmp_path.replace(dest)
+    """Download ``url`` to ``dest`` through a temporary file in the same directory.
+
+    A rename is atomic only inside one filesystem. The system temporary
+    directory is often on another filesystem, so the temporary file must sit
+    beside ``dest``.
+
+    Args:
+        url: Source URL.
+        dest: Destination path.
+        timeout: Per-request timeout in seconds.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False, suffix=".tmp") as tmp:
+        tmp_path = Path(tmp.name)
+    try:
+        with requests.get(url, stream=True, timeout=timeout) as r:
+            r.raise_for_status()
+            with open(tmp_path, "wb") as fh:
+                for chunk in r.iter_content(chunk_size=1 << 20):
+                    if chunk:
+                        fh.write(chunk)
+        tmp_path.replace(dest)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 
 def fetch_url(
