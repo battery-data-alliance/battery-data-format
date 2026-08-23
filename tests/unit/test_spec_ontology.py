@@ -784,6 +784,7 @@ def _bundled_snapshot_version() -> str:
 
 @pytest.mark.network
 @pytest.mark.live_network
+@pytest.mark.freshness
 def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
     """Bundled snapshot is byte-equivalent (per-quantity) to the ontology release it declares.
 
@@ -811,6 +812,7 @@ def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
 
 @pytest.mark.network
 @pytest.mark.live_network
+@pytest.mark.freshness
 def test_live_ontology_is_superset_of_bundled(tmp_path: Path) -> None:
     """Live ontology main never loses or alters a quantity the bundled release has.
 

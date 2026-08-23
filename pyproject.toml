@@ -138,6 +138,7 @@ markers = [
   "slow: may be slow or large I/O",
   "network: requires internet access",
   "live_network: needs a live socket even with a warm cache",
+  "freshness: compares bundled content against upstream; runs once, not per Python version",
   "registry: uses remote registry on Zenodo",
   "golden: compares against golden files",
   "perf: performance/smoke thresholds",

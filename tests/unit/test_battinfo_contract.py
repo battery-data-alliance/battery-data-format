@@ -540,6 +540,7 @@ def test_update_mode_stamps_the_commit_a_branch_resolves_to() -> None:
 
 @pytest.mark.network
 @pytest.mark.live_network
+@pytest.mark.freshness
 def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
     """The stamp never lies about the bundle: fetching the eight managed
     schema files at the ref the bundled ``VERSION`` stamp declares reproduces
@@ -552,6 +553,7 @@ def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
 
 @pytest.mark.network
 @pytest.mark.live_network
+@pytest.mark.freshness
 def test_bundle_matches_the_upstream_default_branch() -> None:
     """The bundle never ages silently. The stamp alone cannot catch that: it
     pins a commit, and a refetch at a commit reproduces the bundle however far
