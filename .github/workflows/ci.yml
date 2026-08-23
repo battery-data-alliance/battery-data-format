@@ -51,8 +51,29 @@ jobs:
           uv build
           uvx twine check dist/*
 
-  offline-tests:
+  freshness-tests:
+    # The bundled BattINFO schemas and ontology snapshot are repository
+    # content. A comparison against upstream reads the same files on every
+    # interpreter, so this job runs once instead of across the matrix.
+    #
+    # It gates the rest of the suite: a stale bundle invalidates every result
+    # the other jobs produce, so the run stops here instead of spending the
+    # matrix on content that must change.
     needs: pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: uv sync --all-extras
+      - name: Run tests (bundled content against upstream)
+        run: uv run --all-extras pytest -q -m freshness
+
+  offline-tests:
+    needs: freshness-tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -111,6 +132,7 @@ jobs:
           path: ${{ github.workspace }}/.bdf-cache
           key: ${{ steps.key.outputs.k }}
 
+
   network-tests:
     needs: warm-cache
     runs-on: ubuntu-latest
@@ -136,7 +158,7 @@ jobs:
           path: ${{ github.workspace }}/.bdf-cache
           key: ${{ needs.warm-cache.outputs.cache-key }}
       - name: Run tests (network, cache-backed sockets blocked)
-        run: uv run --all-extras pytest -q -m network --block-cached-sockets --cov=bdf --cov-report=xml
+        run: uv run --all-extras pytest -q -m "network and not freshness" --block-cached-sockets --cov=bdf --cov-report=xml
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:
