@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -344,33 +344,87 @@ def scan(
     return cast(pl.LazyFrame, bdf_df), metadata
 
 
-_FMT_EXTS = {
-    "csv": {".csv", ".bdf.csv"},
-    "parquet": {".parquet", ".bdf.parquet", ".pq", ".bdf.pq"},
-    "ipc": {".ipc", ".bdf.ipc", ".feather", ".bdf.feather", ".ftr", ".bdf.ftr", ".arrow", ".bdf.arrow"},
-    "json": {".json", ".bdf.json"},
-    "ndjson": {".ndjson", ".bdf.ndjson"},
-    "xlsx": {".xlsx", ".bdf.xlsx"},
+class _ArtifactFormat(NamedTuple):
+    """How one BDF artifact format is recognized and written.
+
+    Attributes:
+        extensions: Suffixes that name the format, compression suffix removed.
+        write: ``polars.DataFrame`` method that writes an eager frame.
+        sink: ``polars.LazyFrame`` method that streams a lazy frame straight to
+            the target, or None where polars has no sink for the format. A
+            format with no sink collects the frame first.
+        compressible: False where the writer needs a real file path, so a
+            compressed target is an error.
+    """
+
+    extensions: tuple[str, ...]
+    write: str
+    sink: str | None
+    compressible: bool = True
+
+
+_FORMATS: dict[str, _ArtifactFormat] = {
+    "csv": _ArtifactFormat((".csv", ".bdf.csv"), "write_csv", "sink_csv"),
+    "parquet": _ArtifactFormat((".parquet", ".bdf.parquet", ".pq", ".bdf.pq"), "write_parquet", "sink_parquet"),
+    "ipc": _ArtifactFormat(
+        (".ipc", ".bdf.ipc", ".feather", ".bdf.feather", ".ftr", ".bdf.ftr", ".arrow", ".bdf.arrow"),
+        "write_ipc",
+        "sink_ipc",
+    ),
+    "json": _ArtifactFormat((".json", ".bdf.json"), "write_json", None),
+    "ndjson": _ArtifactFormat((".ndjson", ".bdf.ndjson"), "write_ndjson", "sink_ndjson"),
+    "xlsx": _ArtifactFormat((".xlsx", ".bdf.xlsx"), "write_excel", None, compressible=False),
 }
 
 
 def _detect_format(path: Path) -> str:
-    """Return the BDF artifact format ("csv"/"parquet"/"feather"/"json") for ``path``.
+    """Return the BDF artifact format ("csv"/"parquet"/"ipc"/"json"/"ndjson"/"xlsx") for ``path``.
 
     Args:
         path: File path whose suffixes are inspected (e.g. ``.bdf.csv.gz``).
 
     Returns:
-        Format name matched against :data:`_FMT_EXTS`, falling back to the final suffix.
+        Format name whose extensions in :data:`_FORMATS` match ``path``.
 
     Raises:
         ValueError: If no known format extension is found in ``path``.
     """
     sfx = "".join(Path(strip_compression_suffix(path.name)).suffixes).lower()
-    for fmt, exts in _FMT_EXTS.items():
-        if any(sfx.endswith(e) for e in exts):
+    for fmt, spec in _FORMATS.items():
+        if any(sfx.endswith(e) for e in spec.extensions):
             return fmt
     raise ValueError(f"Unknown BDF artifact format: {path.name}")
+
+
+def _as_polars(df: pl.DataFrame | pl.LazyFrame | pd.DataFrame) -> pl.DataFrame | pl.LazyFrame:
+    """Return ``df`` as a polars frame, keeping a LazyFrame lazy.
+
+    Args:
+        df: Table to write, polars eager, polars lazy, or pandas.
+
+    Returns:
+        ``df`` unchanged where it is already a polars frame, a
+        ``polars.DataFrame`` built from it otherwise.
+    """
+    if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
+        return df
+    return pl.DataFrame(df)
+
+
+def _write_sidecar(sidecar: Path, metadata: Metadata) -> None:
+    """Write ``metadata`` to ``sidecar``, or delete the sidecar where it carries nothing.
+
+    Args:
+        sidecar: Path of the ``.metadata.json`` file beside the artifact.
+        metadata: Metadata to write. Only the values that differ from their
+            defaults reach the file, so a ``Metadata`` that carries nothing
+            writes no sidecar at all, and deletes one the target already had.
+    """
+    payload = metadata.model_dump(mode="json", exclude_defaults=True)
+    if payload:
+        sidecar.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    else:
+        sidecar.unlink(missing_ok=True)
 
 
 def save(
@@ -386,6 +440,11 @@ def save(
 
     Detects format and compression from the file extension and creates parent
     directories as needed.
+
+    A ``LazyFrame`` reaches the target through the polars ``sink_*`` writer of
+    the format, so polars streams the table and does not materialize it first.
+    JSON and xlsx have no sink, so a ``LazyFrame`` collects for those two
+    formats.
 
     Args:
         df: BDF table to write.
@@ -405,7 +464,8 @@ def save(
             "unchanged": Keep column names as-is
         **opts: Additional keyword arguments forwarded to the polars writer
             (``write_csv``/``write_parquet``/``write_ipc``/``write_json``/``write_ndjson``/
-            ``write_excel``).
+            ``write_excel``), or to the matching ``sink_*`` writer where ``df`` is a
+            streamed ``LazyFrame``.
 
     Raises:
         ValueError: If the format is unsupported, or compression is requested for xlsx output.
@@ -423,52 +483,28 @@ def save(
         )
         raise FileExistsError(msg)
 
-    p.parent.mkdir(parents=True, exist_ok=True)
     fmt = _detect_format(p)
+    spec = _FORMATS[fmt]
+    compressed = strip_compression_suffix(p.name) != p.name
+    if compressed and not spec.compressible:
+        msg = f"Compression is not supported for {fmt} output"
+        raise ValueError(msg)
 
-    if isinstance(df, pl.LazyFrame):
-        df = df.collect()
-    elif not isinstance(df, pl.DataFrame):
-        df = pl.DataFrame(df)
+    frame = _as_polars(df)
+    COLUMN_ONTOLOGY.validate_df(frame, raise_on_error=validate)
+    frame = COLUMN_ONTOLOGY.rename_labels(frame, labels)
 
-    COLUMN_ONTOLOGY.validate_df(df, raise_on_error=validate)
+    if isinstance(frame, pl.LazyFrame) and spec.sink is None:
+        frame = frame.collect()
+    writer = getattr(frame, spec.sink if isinstance(frame, pl.LazyFrame) else spec.write)
 
-    df = COLUMN_ONTOLOGY.rename_labels(df, labels)
-
-    assert isinstance(df, pl.DataFrame)
-
+    p.parent.mkdir(parents=True, exist_ok=True)
     target: Any = open_compressed(p)
     try:
-        if fmt == "csv":
-            df.write_csv(target, **opts)
-        elif fmt == "parquet":
-            df.write_parquet(target, **opts)
-        elif fmt == "ipc":
-            df.write_ipc(target, **opts)
-        elif fmt == "json":
-            df.write_json(target, **opts)
-        elif fmt == "ndjson":
-            df.write_ndjson(target, **opts)
-        elif fmt == "xlsx":
-            if not isinstance(target, Path):
-                msg = "Compression is not supported for xlsx output"
-                raise ValueError(msg)
-            df.write_excel(target, **opts)
-        else:
-            raise ValueError(f"Unsupported format: {fmt}")
+        writer(target, **opts)
     finally:
         if not isinstance(target, Path):
             target.close()
 
     if metadata is not None:
-        # Only the values that differ from their defaults, so a Metadata
-        # carrying nothing writes no sidecar at all, and deletes one the
-        # target already had.
-        payload = metadata.model_dump(mode="json", exclude_defaults=True)
-        if payload:
-            sidecar.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        else:
-            sidecar.unlink(missing_ok=True)
+        _write_sidecar(sidecar, metadata)
