@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from typer.testing import CliRunner
 
 from bdf.cli import app
@@ -71,6 +72,7 @@ def test_cli_convert_and_plot(tmp_path: Path, monkeypatch):
     assert "Voltage / V" in conv_human_df.columns
     assert "Current / A" in conv_human_df.columns
 
+    pytest.importorskip("matplotlib", reason="plot extra not installed")
     res_plot = runner.invoke(
         app,
         [

@@ -9,6 +9,7 @@ import pytest
 
 from bdf.plugins import PLUGINS
 from bdf.spec import COLUMN_ONTOLOGY
+from bdf.table_parsers import MDBParser
 
 _ALL_DELIM_IDS: frozenset[str] = frozenset(
     {
@@ -599,7 +600,13 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "net_capacity_ah": ColExpect("(Q-Qo)/mA·h", 0.001),
                 "power_watt": ColExpect("Pwe/W", 1.0),
             },
-            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+            marks=(
+                pytest.mark.filterwarnings("ignore:No current column in original MPR"),
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
@@ -619,7 +626,13 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "current_ampere": ColExpect("I/mA", 0.001),
                 "step_id": ColExpect("Ns", 1.0),
             },
-            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+            marks=(
+                pytest.mark.filterwarnings("ignore:No current column in original MPR"),
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
@@ -642,7 +655,13 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "step_id": ColExpect("Ns", 1.0),
                 "cycle_count": ColExpect("cycle number", 1.0),
             },
-            marks=(pytest.mark.filterwarnings("ignore:No current column in original MPR"),),
+            marks=(
+                pytest.mark.filterwarnings("ignore:No current column in original MPR"),
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
@@ -668,6 +687,12 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "absolute_impedance_ohm": ColExpect("|Z|/Ω", 1.0),
                 "phase_degree": ColExpect("Phase(Z)/deg", 1.0),
             },
+            marks=(
+                pytest.mark.skipif(
+                    pytest.importorskip("yadg", reason="yadg not installed") is None,
+                    reason="yadg not installed",
+                ),
+            ),
         ),
     ),
     (
@@ -697,6 +722,12 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
                 "schedule_charging_energy_wh": ColExpect("Charge_Energy", 1.0),
                 "schedule_discharging_energy_wh": ColExpect("Discharge_Energy", 1.0),
             },
+            marks=(
+                pytest.mark.skipif(
+                    not MDBParser._has_mdbtools(),
+                    reason="MDB Tools not installed",
+                ),
+            ),
         ),
     ),
     (

@@ -102,12 +102,18 @@ eight schema files under `src/bdf/data/battinfo/schemas/`. The model package
 `src/bdf/data/battinfo/VERSION` stamps the upstream commit they came from.
 
 - To change a schema, open a PR on the **BattINFO repo**, not here.
-- A network test (`test_bundle_matches_the_upstream_default_branch`) fails when
-  the bundle differs from upstream `main`. The comparison reads parsed content,
-  so an upstream commit that reformats one of the eight files, or that leaves
-  `assets/schemas/` alone, keeps it green. Only a real schema change turns it
-  red. Run `python scripts/update_battinfo.py --check` to see the same
+- A `freshness` test (`test_bundle_matches_the_upstream_default_branch`) fails
+  when the bundle differs from upstream `main`. The comparison reads parsed
+  content, so an upstream commit that reformats one of the eight files, or that
+  leaves `assets/schemas/` alone, keeps it green. Only a real schema change
+  turns it red. Run `python scripts/update_battinfo.py --check` to see the same
   comparison as a report.
+- The `freshness` marker covers every test that compares bundled content
+  against upstream, here and for the ontology snapshot. Those tests read the
+  repository and never the interpreter, so CI runs them once in the
+  `freshness-tests` job and the version matrix skips them. That job gates the
+  rest of the suite, because a stale bundle invalidates every result the other
+  jobs produce. Run it locally with `uv run --all-extras pytest -m freshness`.
 - To clear a red check, run `python scripts/update_battinfo.py main` and commit
   the result. The script fetches the eight files, stamps the commit that `main`
   resolves to, and regenerates the model package. Review that diff: an upstream
