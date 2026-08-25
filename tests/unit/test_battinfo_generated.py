@@ -15,6 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from pydantic import BaseModel
 
 import bdf.battinfo.generated
@@ -66,7 +67,9 @@ def test_committed_package_matches_a_fresh_render() -> None:
     non-zero on any difference. It modifies nothing, and it reads the render
     configuration from ``[tool.datamodel-codegen]``, so this test and a
     regeneration can never disagree about the flags. No network: the schema
-    files are already on disk."""
+    files are already on disk. Without the generator installed, the test
+    skips."""
+    pytest.importorskip("datamodel_code_generator", reason="the generator is a dev dependency")
     result = subprocess.run(
         [sys.executable, "-m", "datamodel_code_generator", "--check"],
         cwd=_REPO_ROOT,
