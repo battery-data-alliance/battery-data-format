@@ -494,9 +494,12 @@ def save(
     COLUMN_ONTOLOGY.validate_df(frame, raise_on_error=validate)
     frame = COLUMN_ONTOLOGY.rename_labels(frame, labels)
 
-    if isinstance(frame, pl.LazyFrame) and spec.sink is None:
-        frame = frame.collect()
-    writer = getattr(frame, spec.sink if isinstance(frame, pl.LazyFrame) else spec.write)
+    if isinstance(frame, pl.LazyFrame) and spec.sink is not None:
+        writer = getattr(frame, spec.sink)
+    else:
+        if isinstance(frame, pl.LazyFrame):
+            frame = frame.collect()
+        writer = getattr(frame, spec.write)
 
     p.parent.mkdir(parents=True, exist_ok=True)
     target: Any = open_compressed(p)
