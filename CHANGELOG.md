@@ -45,6 +45,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - Ontology 1.3.0: `schedule_*` capacity/energy terms for schedule-driven accumulators and `step_record_index` (replacing the deprecated `step_index`).
 - Ontology release pinning with a bundled snapshot, `BDF_CACHE_DIR` cache override, and a daily auto-sync workflow.
 - New optional extras `excel`, `mat`, `mpr`, `yaml` for additional file formats, and an `all` bundle covering all user-facing feature extras.
+- `save()` streams a `LazyFrame` straight to disk via the polars `sink_*` writers (csv, parquet, ipc, ndjson), so a scanned table no longer has to fit in memory to be written; json and xlsx still collect.
 - CLI piping: `convert` and `validate` accept `-` to read from stdin, and `convert --to -` writes BDF CSV to stdout; status messages go to stderr. Exit codes: 0 valid, 1 invalid, 2 unreadable.
 - Docs: example notebooks now execute live via myst-nb, plus a generated "Supported Plugins" reference page.
 - `read()` and `scan()` restore the `.metadata.json` sidecar a prior `save()` wrote, in place of the plugin parser's metadata.
