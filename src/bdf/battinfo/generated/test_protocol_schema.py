@@ -14,85 +14,124 @@ class Record(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    current_mA: Annotated[float | None, Field(gt=0.0)] = None
-    time_s: Annotated[float | None, Field(gt=0.0)] = None
-    voltage_V: Annotated[float | None, Field(gt=0.0)] = None
+    current_mA: Annotated[
+        float | None, Field(description="Record a data point on a current change of this many milliamps.", gt=0.0)
+    ] = None
+    time_s: Annotated[float | None, Field(description="Record a data point every this many seconds.", gt=0.0)] = None
+    voltage_V: Annotated[
+        float | None, Field(description="Record a data point on a voltage change of this many volts.", gt=0.0)
+    ] = None
 
 
 class Safety(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    delay_s: float | None = None
-    max_capacity_mAh: float | None = None
-    max_current_mA: float | None = None
+    delay_s: Annotated[
+        float | None, Field(description="Grace period in seconds before the safety limits are enforced.")
+    ] = None
+    max_capacity_mAh: Annotated[float | None, Field(description="Hard capacity limit in milliamp-hours.")] = None
+    max_current_mA: Annotated[float | None, Field(description="Hard upper current limit in milliamps.")] = None
     max_temperature_degC: float | None = None
-    max_voltage_V: float | None = None
-    min_current_mA: float | None = None
+    max_voltage_V: Annotated[
+        float | None, Field(description="Hard upper voltage limit in volts; the instrument aborts beyond it.")
+    ] = None
+    min_current_mA: Annotated[float | None, Field(description="Hard lower current limit in milliamps.")] = None
     min_temperature_degC: float | None = None
-    min_voltage_V: float | None = None
+    min_voltage_V: Annotated[float | None, Field(description="Hard lower voltage limit in volts.")] = None
 
 
 class Artifact(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    byte_size: Annotated[int | None, Field(ge=0)] = None
-    conforms_to: str | None = None
-    format: Annotated[str | None, Field(min_length=1)] = None
-    generated: list[str] | None = None
-    generated_from: str | None = None
-    locator: Annotated[str | None, Field(min_length=1)] = None
-    media_type: str | None = None
-    role: Literal["source_protocol", "executed_protocol", "vendor_export", "simulation_input", "other"] | None = None
-    sha256: Annotated[str | None, Field(pattern="^[0-9a-f]{64}$")] = None
+    byte_size: Annotated[int | None, Field(description="File size in bytes.", ge=0)] = None
+    conforms_to: Annotated[
+        str | None, Field(description="IRI or label of the format specification the artifact conforms to.")
+    ] = None
+    format: Annotated[
+        str | None,
+        Field(description="Artifact format label (e.g. 'pybamm', 'neware-xml', 'biologic-mps').", min_length=1),
+    ] = None
+    generated: Annotated[
+        list[str] | None,
+        Field(
+            description="Locators of artifacts generated from this one (e.g. an executed program exported from the source protocol)."
+        ),
+    ] = None
+    generated_from: Annotated[str | None, Field(description="Locator of the artifact this one was generated from.")] = (
+        None
+    )
+    locator: Annotated[
+        str | None,
+        Field(description="Where the artifact lives: a URL, DOI, or path within the linked dataset.", min_length=1),
+    ] = None
+    media_type: Annotated[str | None, Field(description="IANA media type of the file.")] = None
+    role: Annotated[
+        Literal["source_protocol", "executed_protocol", "vendor_export", "simulation_input", "other"] | None,
+        Field(
+            description="How the artifact relates to the record: the authored protocol, the executed program, a vendor export, or a simulation input."
+        ),
+    ] = None
+    sha256: Annotated[str | None, Field(description="SHA-256 hash of the file.", pattern="^[0-9a-f]{64}$")] = None
 
 
 class Funder(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
-    type: Literal["Organization"] | None = None
-    url: AnyUrl | None = None
+    name: Annotated[str | None, Field(description="Funder name (e.g. 'European Commission').", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI for the funder (e.g. a ROR or DOI funder IRI).")
+    ] = None
+    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Funder homepage URL.")] = None
 
 
 class Funding(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    acronym: str | None = None
-    funder: Annotated[Funder | None, Field(default_factory=Funder)]
-    id: AnyUrl | None = None
-    identifier: Annotated[str | None, Field(min_length=1)] = None
-    name: str | None = None
-    program: str | None = None
-    type: Literal["Grant"] | None = None
+    acronym: Annotated[str | None, Field(description="Project acronym.")] = None
+    funder: Annotated[Funder | None, Field(default_factory=Funder, description="Organization that awarded the grant.")]
+    id: Annotated[AnyUrl | None, Field(description="Resolvable IRI of the grant (e.g. a CORDIS project IRI).")] = None
+    identifier: Annotated[
+        str | None, Field(description="Grant number as assigned by the funder (e.g. '101069765').", min_length=1)
+    ] = None
+    name: Annotated[str | None, Field(description="Project title.")] = None
+    program: Annotated[str | None, Field(description="Funding programme or call (e.g. 'Horizon Europe').")] = None
+    type: Annotated[Literal["Grant"] | None, Field(description="JSON-LD type discriminator.")] = None
 
 
 class Organization(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
-    type: Literal["Organization"] | None = None
-    url: AnyUrl | None = None
+    name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI for this organization (e.g. ROR or Wikidata).")
+    ] = None
+    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Homepage URL.")] = None
 
 
 class Person(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    affiliation: Annotated[Organization | None, Field(default_factory=Organization)]
-    email: str | None = None
-    family_name: Annotated[str | None, Field(min_length=1)] = None
-    given_name: Annotated[str | None, Field(min_length=1)] = None
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
-    type: Literal["Person"] | None = None
-    url: AnyUrl | None = None
+    affiliation: Annotated[
+        Organization | None,
+        Field(default_factory=Organization, description="Organization the person is affiliated with."),
+    ]
+    email: Annotated[str | None, Field(description="Contact e-mail address.")] = None
+    family_name: Annotated[str | None, Field(description="Family (last) name.", min_length=1)] = None
+    given_name: Annotated[str | None, Field(description="Given (first) name.", min_length=1)] = None
+    name: Annotated[str | None, Field(description="Full name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI, typically an ORCID (https://orcid.org/...).")
+    ] = None
+    type: Annotated[Literal["Person"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Personal or institutional web page.")] = None
 
 
 class Quantity1(_RecordModel):
@@ -111,56 +150,100 @@ class Quantity1(_RecordModel):
             description="Lower bound of a window quantity (e.g. a 2.5-4.2 V voltage window); field names align with modules/common/quantity.schema.json."
         ),
     ] = None
-    unit: Annotated[str | None, Field(min_length=1)] = None
-    value: float | None = None
+    unit: Annotated[str | None, Field(description="Unit symbol (e.g. 'V', 'mA', 'h').", min_length=1)] = None
+    value: Annotated[float | None, Field(description="Numeric value.")] = None
 
 
 class Termination(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    direction: Literal["below", "above", "elapsed"] | None = None
-    quantity: Literal["voltage", "current", "c_rate", "capacity", "duration"] | None = None
-    unit: Annotated[str | None, Field(min_length=1)] = None
-    value: float | None = None
+    direction: Annotated[
+        Literal["below", "above", "elapsed"] | None,
+        Field(
+            description="Whether the step ends when the quantity falls below or rises above the threshold, or when the duration has elapsed."
+        ),
+    ] = None
+    quantity: Annotated[
+        Literal["voltage", "current", "c_rate", "capacity", "duration"] | None,
+        Field(description="Quantity monitored for the termination condition."),
+    ] = None
+    unit: Annotated[str | None, Field(description="Unit of the threshold value.", min_length=1)] = None
+    value: Annotated[float | None, Field(description="Threshold value.")] = None
 
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
-    citation: AnyUrl | None = None
-    citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
-    comment: str | None = None
-    curated_by: str | None = None
+    battinfo_version: Annotated[
+        str | None,
+        Field(
+            description="Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
+            pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+        ),
+    ] = None
+    citation: Annotated[
+        AnyUrl | None, Field(description="Resolvable citation target to use for attribution, typically a DOI URL.")
+    ] = None
+    citation_doi: Annotated[
+        str | None,
+        Field(
+            description="DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
+            pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+        ),
+    ] = None
+    comment: Annotated[str | None, Field(description="Free-text provenance comment.")] = None
+    curated_by: Annotated[
+        str | None, Field(description="Name or identifier of the person who curated this record.")
+    ] = None
     derived_from_artifact: Annotated[
         str | None, Field(description="Role or locator of the artifact this method was derived from.")
     ] = None
-    file_hash: Annotated[str | None, Field(pattern="^[A-Fa-f0-9]{64}$")] = None
-    retrieved_at: Annotated[
-        int | None, Field(description="Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.", ge=0)
+    file_hash: Annotated[
+        str | None,
+        Field(description="SHA-256 hash of the source file, for integrity verification.", pattern="^[A-Fa-f0-9]{64}$"),
     ] = None
-    source_file: str | None = None
-    source_name: str | None = None
-    source_type: Literal["manual", "lab", "simulation", "import", "other"] | None = None
-    source_url: AnyUrl | None = None
-    workflow_version: str | None = None
+    retrieved_at: Annotated[
+        int | None,
+        Field(
+            description="Unix timestamp (seconds since epoch, UTC) when the source was retrieved or the record was captured.",
+            ge=0,
+        ),
+    ] = None
+    source_file: Annotated[
+        str | None, Field(description="Filename or path of the source file, when the record was derived from a file.")
+    ] = None
+    source_name: Annotated[
+        str | None, Field(description="Human-readable name of the source (document title, instrument, lab, or system).")
+    ] = None
+    source_type: Annotated[
+        Literal["manual", "lab", "simulation", "import", "other"] | None,
+        Field(description="Kind of source this record was created from."),
+    ] = None
+    source_url: Annotated[
+        AnyUrl | None, Field(description="URL of the source document or landing page, when available.")
+    ] = None
+    workflow_version: Annotated[
+        str | None, Field(description="Version of the ingest/curation workflow that produced this record.")
+    ] = None
 
 
 class TestSpec(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    description: str | None = None
+    description: Annotated[str | None, Field(description="Free-text description of the procedure.")] = None
     id: Annotated[
         str | None,
         Field(
             pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
         ),
     ] = None
-    identifier: Annotated[str | None, Field(min_length=1)] = None
-    kind: (
+    identifier: Annotated[
+        str | None, Field(description="Local identifier for the protocol (e.g. a lab protocol code).", min_length=1)
+    ] = None
+    kind: Annotated[
         Literal[
             "cycling",
             "capacity_check",
@@ -183,29 +266,53 @@ class TestSpec(_RecordModel):
             "characterization",
             "other",
         ]
-        | None
-    ) = None
-    name: Annotated[str | None, Field(min_length=1)] = None
-    protocol_url: AnyUrl | None = None
-    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
-    version: str | None = None
+        | None,
+        Field(description="Kind of test the protocol implements."),
+    ] = None
+    name: Annotated[str | None, Field(description="Human-readable protocol name.", min_length=1)] = None
+    protocol_url: Annotated[AnyUrl | None, Field(description="URL of the protocol document.")] = None
+    short_id: Annotated[
+        str | None,
+        Field(
+            description="Short human-friendly identifier derived from the record IRI (Crockford base32, 6-16 characters).",
+            pattern="^[0-9a-hjkmnp-tv-z]{6,16}$",
+        ),
+    ] = None
+    version: Annotated[str | None, Field(description="Protocol version label.")] = None
 
 
 class Step(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    count: Annotated[int | None, Field(ge=1)] = None
-    description: str | None = None
-    direction: Literal["charge", "discharge", "hold", "rest", "none"] | None = None
-    duration: Annotated[Quantity1 | None, Field(default_factory=Quantity1)]
-    mode: Literal["cc", "cv", "cccv", "cp", "cr", "rest", "eis", "scan", "group"] | None = None
-    period: dict[str, Any] | None = None
-    setpoints: dict[str, Quantity1] | None = None
-    steps: list[Step] | None = None
-    tags: list[str] | None = None
-    temperature: Annotated[Quantity1 | None, Field(default_factory=Quantity1)]
-    termination: list[Termination] | None = None
+    count: Annotated[int | None, Field(description="Repeat count when this step is a repeated group.", ge=1)] = None
+    description: Annotated[str | None, Field(description="Free-text description of the step.")] = None
+    direction: Annotated[
+        Literal["charge", "discharge", "hold", "rest", "none"] | None,
+        Field(description="Current direction or role of the step."),
+    ] = None
+    duration: Annotated[Quantity1 | None, Field(default_factory=Quantity1, description="Fixed step duration.")]
+    mode: Annotated[
+        Literal["cc", "cv", "cccv", "cp", "cr", "rest", "eis", "scan", "group"] | None,
+        Field(description="Electrochemical mode of the step (constant current, constant voltage, rest, EIS, ...)."),
+    ] = None
+    period: Annotated[
+        dict[str, Any] | None, Field(description="Step-level data-recording cadence overriding the protocol default.")
+    ] = None
+    setpoints: Annotated[
+        dict[str, Quantity1] | None,
+        Field(
+            description="Controlled setpoints for the step (e.g. current, c_rate, voltage, power), each a value+unit quantity."
+        ),
+    ] = None
+    steps: Annotated[list[Step] | None, Field(description="Child steps of a repeated group.")] = None
+    tags: Annotated[
+        list[str] | None, Field(description="Free-form labels for querying (e.g. 'formation', 'checkup').")
+    ] = None
+    temperature: Annotated[
+        Quantity1 | None, Field(default_factory=Quantity1, description="Ambient temperature setpoint for the step.")
+    ]
+    termination: Annotated[list[Termination] | None, Field(description="Conditions that end the step.")] = None
 
 
 class BattinfoTestProtocol(_RecordModel):
@@ -217,7 +324,9 @@ class BattinfoTestProtocol(_RecordModel):
     ] = None
     conditions: Annotated[
         dict[str, Quantity1] | None,
-        Field(description="Protocol-level ambient conditions, each a typed quantity (e.g. temperature)."),
+        Field(
+            description="Planned protocol-level conditions, as a map of condition name to a {value, unit} quantity. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate. As-run values or deviations are recorded on the test record."
+        ),
     ] = None
     contributor: Annotated[
         list[Person] | None,
@@ -232,7 +341,10 @@ class BattinfoTestProtocol(_RecordModel):
             description="Derived rollup index of the method for cheap filtering. Computed from `method`; never authored by hand."
         ),
     ] = None
-    funding: Annotated[Funding | None, Field(default_factory=Funding)]
+    funding: Annotated[
+        Funding | None,
+        Field(default_factory=Funding, description="Funding project (grant) under which the record was produced."),
+    ]
     license: Annotated[
         str | None,
         Field(
@@ -244,8 +356,14 @@ class BattinfoTestProtocol(_RecordModel):
         list[Step] | None,
         Field(description="Ordered, typed descriptive steps. Canonical structured form of the procedure."),
     ] = None
-    notes: list[str] | None = None
-    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
+    notes: Annotated[list[str] | None, Field(description="Free-text notes carried with the record.")] = None
+    provenance: Annotated[
+        Provenance | None,
+        Field(
+            default_factory=Provenance,
+            description="Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
+        ),
+    ]
     record: Annotated[
         Record | None,
         Field(
@@ -257,8 +375,16 @@ class BattinfoTestProtocol(_RecordModel):
         Safety | None,
         Field(default_factory=Safety, description="Global instrument hard limits, distinct from per-step termination."),
     ]
-    schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
-    test_spec: Annotated[TestSpec | None, Field(default_factory=TestSpec)]
+    schema_version: Annotated[
+        str | None,
+        Field(
+            description="Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
+            pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+        ),
+    ] = None
+    test_spec: Annotated[
+        TestSpec | None, Field(default_factory=TestSpec, description="Identity and classification of the protocol.")
+    ]
 
 
 Step.model_rebuild()

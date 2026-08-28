@@ -2,35 +2,44 @@
   "$defs": {
     "Artifact": {
       "additionalProperties": false,
+      "description": "A runnable or vendor-produced protocol/data file linked to the record.",
       "properties": {
         "byte_size": {
+          "description": "File size in bytes.",
           "minimum": 0,
           "type": "integer"
         },
         "conforms_to": {
+          "description": "IRI or label of the format specification the artifact conforms to.",
           "type": "string"
         },
         "format": {
+          "description": "Artifact format label (e.g. 'pybamm', 'neware-xml', 'biologic-mps').",
           "minLength": 1,
           "type": "string"
         },
         "generated": {
+          "description": "Locators of artifacts generated from this one (e.g. an executed program exported from the source protocol).",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "generated_from": {
+          "description": "Locator of the artifact this one was generated from.",
           "type": "string"
         },
         "locator": {
+          "description": "Where the artifact lives: a URL, DOI, or path within the linked dataset.",
           "minLength": 1,
           "type": "string"
         },
         "media_type": {
+          "description": "IANA media type of the file.",
           "type": "string"
         },
         "role": {
+          "description": "How the artifact relates to the record: the authored protocol, the executed program, a vendor export, or a simulation input.",
           "enum": [
             "source_protocol",
             "executed_protocol",
@@ -41,6 +50,7 @@
           "type": "string"
         },
         "sha256": {
+          "description": "SHA-256 hash of the file.",
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         }
@@ -53,6 +63,7 @@
       "type": "object"
     },
     "CellIri": {
+      "description": "Canonical BattINFO IRI in the cell/ namespace (https://w3id.org/battinfo/cell/xxxx-xxxx-xxxx-xxxx).",
       "pattern": "^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
@@ -61,6 +72,7 @@
       "type": "string"
     },
     "DatasetIri": {
+      "description": "Canonical BattINFO IRI in the dataset/ namespace (https://w3id.org/battinfo/dataset/xxxx-xxxx-xxxx-xxxx).",
       "pattern": "^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
@@ -73,23 +85,29 @@
       "description": "Funding project (grant) under which the record was produced. Maps to schema:funding / schema:Grant in JSON-LD.",
       "properties": {
         "acronym": {
+          "description": "Project acronym.",
           "type": "string"
         },
         "funder": {
           "additionalProperties": false,
+          "description": "Organization that awarded the grant.",
           "properties": {
             "name": {
+              "description": "Funder name (e.g. 'European Commission').",
               "minLength": 1,
               "type": "string"
             },
             "same_as": {
+              "description": "External identifier IRI for the funder (e.g. a ROR or DOI funder IRI).",
               "format": "uri",
               "type": "string"
             },
             "type": {
-              "const": "Organization"
+              "const": "Organization",
+              "description": "JSON-LD type discriminator."
             },
             "url": {
+              "description": "Funder homepage URL.",
               "format": "uri",
               "type": "string"
             }
@@ -100,21 +118,26 @@
           "type": "object"
         },
         "id": {
+          "description": "Resolvable IRI of the grant (e.g. a CORDIS project IRI).",
           "format": "uri",
           "type": "string"
         },
         "identifier": {
+          "description": "Grant number as assigned by the funder (e.g. '101069765').",
           "minLength": 1,
           "type": "string"
         },
         "name": {
+          "description": "Project title.",
           "type": "string"
         },
         "program": {
+          "description": "Funding programme or call (e.g. 'Horizon Europe').",
           "type": "string"
         },
         "type": {
-          "const": "Grant"
+          "const": "Grant",
+          "description": "JSON-LD type discriminator."
         }
       },
       "required": [
@@ -124,19 +147,24 @@
     },
     "Organization": {
       "additionalProperties": false,
+      "description": "An organization referenced by name, with an optional canonical BattINFO organization IRI.",
       "properties": {
         "name": {
+          "description": "Organization name.",
           "minLength": 1,
           "type": "string"
         },
         "same_as": {
+          "description": "External identifier IRI for this organization (e.g. ROR or Wikidata).",
           "format": "uri",
           "type": "string"
         },
         "type": {
-          "const": "Organization"
+          "const": "Organization",
+          "description": "JSON-LD type discriminator."
         },
         "url": {
+          "description": "Homepage URL.",
           "format": "uri",
           "type": "string"
         }
@@ -148,34 +176,43 @@
     },
     "Person": {
       "additionalProperties": false,
+      "description": "A person, in schema.org Person terms; an ORCID may be given in same_as.",
       "properties": {
         "affiliation": {
-          "$ref": "#/$defs/Organization"
+          "$ref": "#/$defs/Organization",
+          "description": "Organization the person is affiliated with."
         },
         "email": {
+          "description": "Contact e-mail address.",
           "format": "email",
           "type": "string"
         },
         "family_name": {
+          "description": "Family (last) name.",
           "minLength": 1,
           "type": "string"
         },
         "given_name": {
+          "description": "Given (first) name.",
           "minLength": 1,
           "type": "string"
         },
         "name": {
+          "description": "Full name.",
           "minLength": 1,
           "type": "string"
         },
         "same_as": {
+          "description": "External identifier IRI, typically an ORCID (https://orcid.org/...).",
           "format": "uri",
           "type": "string"
         },
         "type": {
-          "const": "Person"
+          "const": "Person",
+          "description": "JSON-LD type discriminator."
         },
         "url": {
+          "description": "Personal or institutional web page.",
           "format": "uri",
           "type": "string"
         }
@@ -186,6 +223,7 @@
       "type": "object"
     },
     "ShortId": {
+      "description": "Short human-friendly identifier derived from the record IRI (Crockford base32, 6-16 characters).",
       "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
       "type": "string"
     },
@@ -194,6 +232,7 @@
       "type": "string"
     },
     "TestIri": {
+      "description": "Canonical BattINFO IRI in the test/ namespace (https://w3id.org/battinfo/test/xxxx-xxxx-xxxx-xxxx).",
       "pattern": "^https://w3id\\.org/battinfo/test/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
@@ -225,7 +264,8 @@
       "type": "array"
     },
     "funding": {
-      "$ref": "#/$defs/Funding"
+      "$ref": "#/$defs/Funding",
+      "description": "Funding project (grant) under which the record was produced."
     },
     "license": {
       "description": "License under which this record and its data are released, as an SPDX license identifier (e.g. \"cc-by-4.0\") or a license URL. Stamped from the workspace default (ws.license) and emitted as dcterms:license in JSON-LD.",
@@ -233,6 +273,7 @@
       "type": "string"
     },
     "notes": {
+      "description": "Free-text notes carried with the record.",
       "items": {
         "type": "string"
       },
@@ -240,39 +281,50 @@
     },
     "provenance": {
       "additionalProperties": false,
+      "description": "Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
       "properties": {
         "battinfo_version": {
+          "description": "Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
           "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
           "type": "string"
         },
         "citation": {
+          "description": "Resolvable citation target to use for attribution, typically a DOI URL.",
           "format": "uri",
           "type": "string"
         },
         "citation_doi": {
+          "description": "DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
           "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
           "type": "string"
         },
         "comment": {
+          "description": "Free-text provenance comment.",
           "type": "string"
         },
         "curated_by": {
+          "description": "Name or identifier of the person who curated this record.",
           "type": "string"
         },
         "file_hash": {
+          "description": "SHA-256 hash of the source file, for integrity verification.",
           "pattern": "^[A-Fa-f0-9]{64}$",
           "type": "string"
         },
         "retrieved_at": {
-          "$ref": "#/$defs/UnixTime"
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp (seconds since epoch, UTC) when the source was retrieved or the record was captured."
         },
         "source_file": {
+          "description": "Filename or path of the source file, when the record was derived from a file.",
           "type": "string"
         },
         "source_name": {
+          "description": "Human-readable name of the source (document title, instrument, lab, or system).",
           "type": "string"
         },
         "source_type": {
+          "description": "Kind of source this record was created from.",
           "enum": [
             "measurement",
             "lab",
@@ -291,9 +343,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "URL of the source document or landing page, when available."
         },
         "workflow_version": {
+          "description": "Version of the ingest/curation workflow that produced this record.",
           "type": "string"
         }
       },
@@ -304,23 +358,28 @@
       "type": "object"
     },
     "schema_version": {
+      "description": "Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
       "type": "string"
     },
     "test": {
       "additionalProperties": false,
+      "description": "The test activity being described.",
       "properties": {
         "cell_id": {
-          "$ref": "#/$defs/CellIri"
+          "$ref": "#/$defs/CellIri",
+          "description": "IRI of the cell instance the test was run on."
         },
         "channel_id": {
           "$ref": "#/$defs/ChannelIri"
         },
         "conditions": {
           "additionalProperties": false,
-          "description": "Test conditions and parameters (temperature, voltage window, C-rate, frequency range, etc.).",
+          "description": "As-run test conditions, as a map of condition name to a {value, unit} quantity. Planned conditions belong on the test protocol; record here the values actually applied or deviations from the protocol. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate, state_of_charge.",
           "patternProperties": {
-            "^[a-z][a-z0-9_]*$": {}
+            "^[a-z][a-z0-9_]*$": {
+              "$ref": "modules/common/quantity.schema.json"
+            }
           },
           "type": "object"
         },
@@ -329,6 +388,7 @@
           "description": "Assessment of how well this record followed the spec that governs it.",
           "properties": {
             "deviations": {
+              "description": "Individual deviations from the governing spec or protocol.",
               "items": {
                 "additionalProperties": false,
                 "properties": {
@@ -352,13 +412,16 @@
                     "type": "string"
                   },
                   "description": {
+                    "description": "Free-text description of the deviation.",
                     "type": "string"
                   },
                   "duration_s": {
+                    "description": "Duration of the deviation in seconds.",
                     "minimum": 0,
                     "type": "integer"
                   },
                   "impact": {
+                    "description": "Assessed impact severity of the deviation.",
                     "enum": [
                       "minor",
                       "moderate",
@@ -367,12 +430,14 @@
                     "type": "string"
                   },
                   "occurred_at": {
+                    "description": "When the deviation occurred (ISO 8601 string or Unix timestamp).",
                     "type": [
                       "integer",
                       "string"
                     ]
                   },
                   "step_index": {
+                    "description": "Zero-based protocol step during which the deviation occurred.",
                     "minimum": 0,
                     "type": "integer"
                   },
@@ -393,6 +458,7 @@
               "type": "string"
             },
             "status": {
+              "description": "Overall conformance verdict.",
               "enum": [
                 "conformant",
                 "non-conformant",
@@ -407,6 +473,7 @@
           "type": "object"
         },
         "dataset_ids": {
+          "description": "IRIs of dataset records produced by the test. Back-reference to dataset records. dataset.about is the source of truth for what a dataset describes; when records are saved together through a workspace the library fills this list from each dataset's cell and test links, and hand-authored records may set it directly.",
           "items": {
             "$ref": "#/$defs/DatasetIri"
           },
@@ -414,25 +481,31 @@
           "uniqueItems": true
         },
         "description": {
+          "description": "Free-text description of the test.",
           "type": "string"
         },
         "ended_at": {
-          "$ref": "#/$defs/UnixTime"
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp when the test ended."
         },
         "equipment_id": {
           "$ref": "#/$defs/EquipmentIri"
         },
         "id": {
-          "$ref": "#/$defs/TestIri"
+          "$ref": "#/$defs/TestIri",
+          "description": "Canonical IRI of this test record."
         },
         "identifier": {
+          "description": "Local identifier for the test (e.g. a channel or run id).",
           "minLength": 1,
           "type": "string"
         },
         "instrument_name": {
+          "description": "Instrument or cycler the test was run on.",
           "type": "string"
         },
         "kind": {
+          "description": "Kind of test performed.",
           "enum": [
             "cycling",
             "capacity_check",
@@ -458,16 +531,20 @@
           "type": "string"
         },
         "name": {
+          "description": "Human-readable test name.",
           "minLength": 1,
           "type": "string"
         },
         "protocol_id": {
-          "$ref": "#/$defs/SpecIri"
+          "$ref": "#/$defs/SpecIri",
+          "description": "IRI of the test-protocol (test spec) this test executed."
         },
         "protocol_name": {
+          "description": "Protocol name for display, when no protocol record is linked.",
           "type": "string"
         },
         "protocol_url": {
+          "description": "URL of the protocol document.",
           "format": "uri",
           "type": "string"
         },
@@ -475,9 +552,11 @@
           "$ref": "#/$defs/ShortId"
         },
         "started_at": {
-          "$ref": "#/$defs/UnixTime"
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp when the test started."
         },
         "status": {
+          "description": "Execution status of the test.",
           "enum": [
             "planned",
             "running",
