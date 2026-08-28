@@ -63,15 +63,19 @@ class TestCacheDir:
         assert cache_dir() == override
         assert override.is_dir()
 
-    def test_fallback_when_unset(self, monkeypatch) -> None:
+    def test_fallback_when_unset(self, tmp_path: Path, monkeypatch) -> None:
+        fallback = tmp_path / "bdf-fallback"
         monkeypatch.delenv("BDF_CACHE_DIR", raising=False)
-        monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: "/tmp/bdf-fallback-xyz")
-        assert cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
+        monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: str(fallback))
+        assert cache_dir("bdf") == fallback
+        assert fallback.is_dir()
 
-    def test_fallback_when_empty(self, monkeypatch) -> None:
+    def test_fallback_when_empty(self, tmp_path: Path, monkeypatch) -> None:
+        fallback = tmp_path / "bdf-fallback"
         monkeypatch.setenv("BDF_CACHE_DIR", "")
-        monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: "/tmp/bdf-fallback-xyz")
-        assert cache_dir("bdf") == Path("/tmp/bdf-fallback-xyz")
+        monkeypatch.setattr(fetch, "user_cache_dir", lambda subdir: str(fallback))
+        assert cache_dir("bdf") == fallback
+        assert fallback.is_dir()
 
     def test_cache_reuse_no_redownload(self, tmp_path: Path, monkeypatch) -> None:
         monkeypatch.setenv("BDF_CACHE_DIR", str(tmp_path))

@@ -347,6 +347,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--human", action="store_true", help="Write human-prefLabel headers instead of machine labels.")
     parser.add_argument("--fail-fast", action="store_true")
     parser.add_argument(
+        "--only",
+        default="",
+        help="Regex against the source file name; cases that do not match are skipped before download.",
+    )
+    parser.add_argument(
+        "--reconcile-time-filter",
+        default="",
+        help=(
+            "Regex against the source file name; a matching file is read with reconcile_time=True, "
+            "so a vendor elapsed-time column stored in the wrong unit (e.g. ms under a seconds "
+            "header, GH #65) is rescaled on conversion."
+        ),
+    )
+    parser.add_argument(
         "--strict",
         action="store_true",
         help="Exit non-zero if any generated file has derived-column inconsistencies.",
@@ -404,6 +418,12 @@ def main() -> int:
     for case in cases:
         download_url = str(case["download_url"])
         filename_hint = case.get("filename_hint")
+        source_name = _source_name_for_case(case)
+        if args.only and not re.search(args.only, source_name, re.IGNORECASE):
+            continue
+        reconcile_time = bool(
+            args.reconcile_time_filter and re.search(args.reconcile_time_filter, source_name, re.IGNORECASE)
+        )
         try:
             local_file = _download_file(
                 cache_dir,
@@ -422,7 +442,6 @@ def main() -> int:
                     keywords=case.get("dataset_keywords"),
                 )
 
-            source_name = _source_name_for_case(case)
             out_path = _output_path(output_dir, source_name=source_name)
             if out_path.exists() and not args.overwrite:
                 results.append(
@@ -436,7 +455,7 @@ def main() -> int:
                 )
                 continue
 
-            df, _ = bdf.read(local_file, plugin=plugin, validate=False)
+            df, _ = bdf.read(local_file, plugin=plugin, validate=False, reconcile_time=reconcile_time)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             bdf.save(df, out_path, labels="preferred" if args.human else "machine")
             # Gate: never publish reference data that contradicts the ontology's
