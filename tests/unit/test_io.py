@@ -97,6 +97,92 @@ def test_compression_compresses(tmp_path: Path):
         assert path.stat().st_size < uncompressed_size
 
 
+def test_save_lazyframe_roundtrips(tmp_path: Path):
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0, 2.0],
+            "Voltage / V": [3.7, 3.6, 3.5],
+            "Current / A": [0.1, 0.1, 0.1],
+        }
+    )
+
+    exts = [".csv", ".parquet", ".json", ".ndjson", ".feather", ".arrow", ".ipc", ".xlsx"]
+    comps = ["", ".gz", ".bz2", ".xz", ".zst"]
+
+    for ext in exts:
+        for comp in comps:
+            path = tmp_path / ("lazy.bdf" + ext + comp)
+            if ext == ".xlsx" and comp:
+                with pytest.raises(ValueError, match="Compression is not supported for xlsx"):
+                    io.save(df.lazy(), path)
+            else:
+                io.save(df.lazy(), path)
+                loaded, _metadata = io.read(path)
+                assert_frame_equal(df, loaded)
+
+
+@pytest.mark.parametrize(
+    ("ext", "expected_writer"),
+    [
+        (".csv", "sink_csv"),
+        (".csv.gz", "sink_csv"),
+        (".parquet", "sink_parquet"),
+        (".ipc", "sink_ipc"),
+        (".ndjson", "sink_ndjson"),
+        (".json", "write_json"),
+        (".xlsx", "write_excel"),
+    ],
+)
+def test_save_lazyframe_uses_the_streaming_writer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ext: str, expected_writer: str
+):
+    """save() streams a LazyFrame through sink_*, and collects only where no sink exists.
+
+    Args:
+        tmp_path: Temporary directory for the artifact.
+        monkeypatch: Fixture used to record which polars writer save() calls.
+        ext: Artifact extension under test.
+        expected_writer: Name of the polars writer the format must use.
+    """
+    df = pl.DataFrame(
+        {
+            "Test Time / s": [0.0, 1.0],
+            "Voltage / V": [3.7, 3.6],
+            "Current / A": [0.1, 0.1],
+        }
+    )
+    path = tmp_path / ("sink.bdf" + ext)
+
+    called: list[str] = []
+    watched = [(pl.LazyFrame, spec.sink) for spec in io._FORMATS.values() if spec.sink is not None]
+    watched += [(pl.DataFrame, spec.write) for spec in io._FORMATS.values() if spec.sink is None]
+
+    with monkeypatch.context() as m:
+        for owner, name in watched:
+            original = getattr(owner, name)
+
+            def recording(self, *args, _name=name, _original=original, **kwargs):
+                called.append(_name)
+                return _original(self, *args, **kwargs)
+
+            m.setattr(owner, name, recording)
+        io.save(df.lazy(), path)
+
+    assert called == [expected_writer]
+    assert path.exists()
+
+
+def test_save_xlsx_compression_writes_no_file(tmp_path: Path):
+    """A compressed xlsx target raises before save() creates the file."""
+    df = pl.DataFrame({"Voltage / V": [3.7]})
+    path = tmp_path / "data.bdf.xlsx.gz"
+
+    with pytest.raises(ValueError, match="Compression is not supported for xlsx"):
+        io.save(df, path, validate=False)
+
+    assert not path.exists()
+
+
 def test_detect_format_unknown_raises(tmp_path: Path):
     bad = tmp_path / "file.unknown"
     bad.touch()
