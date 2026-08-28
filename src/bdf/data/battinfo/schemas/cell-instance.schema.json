@@ -1,20 +1,25 @@
 {
   "$defs": {
     "CellIri": {
+      "description": "Canonical BattINFO IRI in the cell/ namespace (https://w3id.org/battinfo/cell/xxxx-xxxx-xxxx-xxxx).",
       "pattern": "^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
     "DatasetIri": {
+      "description": "Canonical BattINFO IRI in the dataset/ namespace (https://w3id.org/battinfo/dataset/xxxx-xxxx-xxxx-xxxx).",
       "pattern": "^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
     "DatasetLink": {
       "additionalProperties": false,
+      "description": "Link to a dataset record, with the role the dataset plays for this record.",
       "properties": {
         "id": {
-          "$ref": "#/$defs/DatasetIri"
+          "$ref": "#/$defs/DatasetIri",
+          "description": "Canonical IRI of the linked dataset record."
         },
         "role": {
+          "description": "Role of the linked dataset as a whole relative to this record (record level; the per-file role lives on the dataset's distribution entries).",
           "enum": [
             "raw",
             "processed",
@@ -35,12 +40,14 @@
       "type": "string"
     },
     "FlexDate": {
+      "description": "Date as an ISO 8601 string (YYYY, YYYY-MM, or YYYY-MM-DD) or a Unix timestamp in seconds.",
       "oneOf": [
         {
           "$ref": "#/$defs/UnixTime"
         },
         {
-          "description": "ISO 8601 date string (YYYY-MM-DD or YYYY-MM).",
+          "description": "ISO 8601 calendar date string: YYYY, YYYY-MM, or YYYY-MM-DD.",
+          "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
           "type": "string"
         }
       ]
@@ -50,23 +57,29 @@
       "description": "Funding project (grant) under which the record was produced. Maps to schema:funding / schema:Grant in JSON-LD.",
       "properties": {
         "acronym": {
+          "description": "Project acronym.",
           "type": "string"
         },
         "funder": {
           "additionalProperties": false,
+          "description": "Organization that awarded the grant.",
           "properties": {
             "name": {
+              "description": "Funder name (e.g. 'European Commission').",
               "minLength": 1,
               "type": "string"
             },
             "same_as": {
+              "description": "External identifier IRI for the funder (e.g. a ROR or DOI funder IRI).",
               "format": "uri",
               "type": "string"
             },
             "type": {
-              "const": "Organization"
+              "const": "Organization",
+              "description": "JSON-LD type discriminator."
             },
             "url": {
+              "description": "Funder homepage URL.",
               "format": "uri",
               "type": "string"
             }
@@ -77,21 +90,26 @@
           "type": "object"
         },
         "id": {
+          "description": "Resolvable IRI of the grant (e.g. a CORDIS project IRI).",
           "format": "uri",
           "type": "string"
         },
         "identifier": {
+          "description": "Grant number as assigned by the funder (e.g. '101069765').",
           "minLength": 1,
           "type": "string"
         },
         "name": {
+          "description": "Project title.",
           "type": "string"
         },
         "program": {
+          "description": "Funding programme or call (e.g. 'Horizon Europe').",
           "type": "string"
         },
         "type": {
-          "const": "Grant"
+          "const": "Grant",
+          "description": "JSON-LD type discriminator."
         }
       },
       "required": [
@@ -101,19 +119,24 @@
     },
     "Organization": {
       "additionalProperties": false,
+      "description": "An organization referenced by name, with an optional canonical BattINFO organization IRI.",
       "properties": {
         "name": {
+          "description": "Organization name.",
           "minLength": 1,
           "type": "string"
         },
         "same_as": {
+          "description": "External identifier IRI for this organization (e.g. ROR or Wikidata).",
           "format": "uri",
           "type": "string"
         },
         "type": {
-          "const": "Organization"
+          "const": "Organization",
+          "description": "JSON-LD type discriminator."
         },
         "url": {
+          "description": "Homepage URL.",
           "format": "uri",
           "type": "string"
         }
@@ -125,34 +148,43 @@
     },
     "Person": {
       "additionalProperties": false,
+      "description": "A person, in schema.org Person terms; an ORCID may be given in same_as.",
       "properties": {
         "affiliation": {
-          "$ref": "#/$defs/Organization"
+          "$ref": "#/$defs/Organization",
+          "description": "Organization the person is affiliated with."
         },
         "email": {
+          "description": "Contact e-mail address.",
           "format": "email",
           "type": "string"
         },
         "family_name": {
+          "description": "Family (last) name.",
           "minLength": 1,
           "type": "string"
         },
         "given_name": {
+          "description": "Given (first) name.",
           "minLength": 1,
           "type": "string"
         },
         "name": {
+          "description": "Full name.",
           "minLength": 1,
           "type": "string"
         },
         "same_as": {
+          "description": "External identifier IRI, typically an ORCID (https://orcid.org/...).",
           "format": "uri",
           "type": "string"
         },
         "type": {
-          "const": "Person"
+          "const": "Person",
+          "description": "JSON-LD type discriminator."
         },
         "url": {
+          "description": "Personal or institutional web page.",
           "format": "uri",
           "type": "string"
         }
@@ -163,6 +195,7 @@
       "type": "object"
     },
     "ShortId": {
+      "description": "Short human-friendly identifier derived from the record IRI (Crockford base32, 6-16 characters).",
       "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
       "type": "string"
     },
@@ -179,13 +212,15 @@
   "$id": "https://w3id.org/battinfo/schema/cell-instance.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Physical cell instance derived from a cell type.",
+  "description": "A physical cell realizing a cell spec.",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "properties": {
     "cell_instance": {
       "additionalProperties": false,
+      "description": "The physical cell being described.",
       "properties": {
         "batch_id": {
+          "description": "Production or lab batch this cell belongs to.",
           "type": "string"
         },
         "battery_status": {
@@ -200,13 +235,15 @@
           "type": "string"
         },
         "cell_spec_id": {
-          "$ref": "#/$defs/SpecIri"
+          "$ref": "#/$defs/SpecIri",
+          "description": "IRI of the cell spec this physical cell realizes."
         },
         "conformance": {
           "additionalProperties": false,
           "description": "Assessment of how well this record followed the spec that governs it.",
           "properties": {
             "deviations": {
+              "description": "Individual deviations from the governing spec or protocol.",
               "items": {
                 "additionalProperties": false,
                 "properties": {
@@ -230,13 +267,16 @@
                     "type": "string"
                   },
                   "description": {
+                    "description": "Free-text description of the deviation.",
                     "type": "string"
                   },
                   "duration_s": {
+                    "description": "Duration of the deviation in seconds.",
                     "minimum": 0,
                     "type": "integer"
                   },
                   "impact": {
+                    "description": "Assessed impact severity of the deviation.",
                     "enum": [
                       "minor",
                       "moderate",
@@ -245,12 +285,14 @@
                     "type": "string"
                   },
                   "occurred_at": {
+                    "description": "When the deviation occurred (ISO 8601 string or Unix timestamp).",
                     "type": [
                       "integer",
                       "string"
                     ]
                   },
                   "step_index": {
+                    "description": "Zero-based protocol step during which the deviation occurred.",
                     "minimum": 0,
                     "type": "integer"
                   },
@@ -271,6 +313,7 @@
               "type": "string"
             },
             "status": {
+              "description": "Overall conformance verdict.",
               "enum": [
                 "conformant",
                 "non-conformant",
@@ -300,18 +343,19 @@
         },
         "expires_at": {
           "$ref": "#/$defs/FlexDate",
-          "description": "Expiration / best-before date. ISO 8601 string (YYYY-MM-DD, YYYY-MM) or Unix timestamp."
+          "description": "Expiration / best-before date. ISO 8601 string (YYYY, YYYY-MM, YYYY-MM-DD) or Unix timestamp."
         },
         "grade": {
           "description": "Quality grade assigned to this cell (e.g. 'A', 'B', 'C', 'reject').",
           "type": "string"
         },
         "id": {
-          "$ref": "#/$defs/CellIri"
+          "$ref": "#/$defs/CellIri",
+          "description": "Canonical IRI of this cell instance."
         },
         "manufactured_at": {
           "$ref": "#/$defs/FlexDate",
-          "description": "Production date. ISO 8601 string (YYYY-MM-DD, YYYY-MM) or Unix timestamp."
+          "description": "Production date. ISO 8601 string (YYYY, YYYY-MM, YYYY-MM-DD) or Unix timestamp."
         },
         "name": {
           "description": "Human-readable name / label for this cell (e.g. a lab batch ID). The primary identifier; usually present even without a manufacturer serial number.",
@@ -353,6 +397,7 @@
       "type": "array"
     },
     "datasets": {
+      "description": "Datasets recorded for this cell. Back-reference to dataset records. dataset.about is the source of truth for what a dataset describes; when records are saved together through a workspace the library fills this list from each dataset's cell and test links, and hand-authored records may set it directly.",
       "items": {
         "$ref": "#/$defs/DatasetLink"
       },
@@ -360,7 +405,8 @@
       "uniqueItems": true
     },
     "funding": {
-      "$ref": "#/$defs/Funding"
+      "$ref": "#/$defs/Funding",
+      "description": "Funding project (grant) under which the record was produced."
     },
     "license": {
       "description": "License under which this record and its data are released, as an SPDX license identifier (e.g. \"cc-by-4.0\") or a license URL. Stamped from the workspace default (ws.license) and emitted as dcterms:license in JSON-LD.",
@@ -368,9 +414,11 @@
       "type": "string"
     },
     "measured": {
-      "$ref": "cell-canonical.schema.json#/$defs/SpecSet"
+      "$ref": "cell-canonical.schema.json#/$defs/SpecSet",
+      "description": "Measured cell properties using the same keys as the spec's properties map; read each key as the value measured for this cell (e.g. nominal_capacity = measured discharge capacity, mass = weighed mass)."
     },
     "notes": {
+      "description": "Free-text notes carried with the record.",
       "items": {
         "type": "string"
       },
@@ -378,31 +426,39 @@
     },
     "provenance": {
       "additionalProperties": false,
+      "description": "Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
       "properties": {
         "battinfo_version": {
+          "description": "Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
           "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
           "type": "string"
         },
         "citation": {
+          "description": "Resolvable citation target to use for attribution, typically a DOI URL.",
           "format": "uri",
           "type": "string"
         },
         "citation_doi": {
+          "description": "DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
           "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
           "type": "string"
         },
         "comment": {
+          "description": "Free-text provenance comment.",
           "type": "string"
         },
         "curated_by": {
+          "description": "Name or identifier of the person who curated this record.",
           "type": "string"
         },
         "file_hash": {
+          "description": "SHA-256 hash of the source file, for integrity verification.",
           "pattern": "^[A-Fa-f0-9]{64}$",
           "type": "string"
         },
         "retrieved_at": {
-          "$ref": "#/$defs/UnixTime"
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp (seconds since epoch, UTC) when the source was retrieved or the record was captured."
         },
         "source_file": {
           "anyOf": [
@@ -412,12 +468,15 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "Filename or path of the source file, when the record was derived from a file."
         },
         "source_name": {
+          "description": "Human-readable name of the source (document title, instrument, lab, or system).",
           "type": "string"
         },
         "source_type": {
+          "description": "Kind of source this record was created from.",
           "enum": [
             "measurement",
             "lab",
@@ -427,6 +486,7 @@
           "type": "string"
         },
         "source_url": {
+          "description": "URL of the source document or landing page, when available.",
           "oneOf": [
             {
               "format": "uri",
@@ -438,6 +498,7 @@
           ]
         },
         "workflow_version": {
+          "description": "Version of the ingest/curation workflow that produced this record.",
           "type": "string"
         }
       },
@@ -447,6 +508,7 @@
       "type": "object"
     },
     "schema_version": {
+      "description": "Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
       "type": "string"
     }

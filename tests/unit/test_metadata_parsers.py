@@ -182,7 +182,9 @@ def test_cell_naming_and_conditions_targets_construct(tmp_path: Path) -> None:
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
-    (tmp_path / "cell.json").write_text(json.dumps({"cell_name": "Cell-01", "temp_c": 25}))
+    (tmp_path / "cell.json").write_text(
+        json.dumps({"cell_name": "Cell-01", "temp_c": {"value": 25, "unit_text": "degC"}})
+    )
 
     parser = JsonSidecarParser(
         rules={
@@ -191,7 +193,9 @@ def test_cell_naming_and_conditions_targets_construct(tmp_path: Path) -> None:
         }
     )
     meta = parser.parse(data)
-    assert meta.battinfo_test.test.conditions["temperature_c"] == 25  # type: ignore[union-attr,index]
+    cond = meta.battinfo_test.test.conditions["temperature_c"]  # type: ignore[union-attr,index]
+    assert cond.value == 25
+    assert cond.unit_text == "degC"
 
 
 def test_wrong_typed_sidecar_value_raises(tmp_path: Path) -> None:

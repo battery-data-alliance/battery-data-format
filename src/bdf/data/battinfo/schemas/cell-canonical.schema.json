@@ -2,14 +2,18 @@
   "$defs": {
     "Cell": {
       "additionalProperties": false,
+      "description": "Core identity of the cell spec (manufacturer, model, format, chemistry).",
       "properties": {
         "chemistry": {
+          "description": "Overall cell chemistry label (e.g. 'Li-ion', 'NiMH'). Use the recognised labels where they apply (see the property keys reference); other values are carried as literals.",
           "type": "string"
         },
         "datasheet_revision": {
+          "description": "Revision label of the source datasheet.",
           "type": "string"
         },
         "format": {
+          "description": "Mechanical format of the cell.",
           "enum": [
             "cylindrical",
             "prismatic",
@@ -21,15 +25,19 @@
           "type": "string"
         },
         "id": {
-          "$ref": "#/$defs/SpecIri"
+          "$ref": "#/$defs/SpecIri",
+          "description": "Canonical IRI of the cell spec."
         },
         "manufacturer": {
+          "description": "Manufacturer name.",
           "type": "string"
         },
         "model_name": {
+          "description": "Manufacturer model designation.",
           "type": "string"
         },
         "size_code": {
+          "description": "Standard size designation (e.g. '18650').",
           "type": "string"
         }
       },
@@ -44,17 +52,22 @@
     },
     "Measurement": {
       "additionalProperties": false,
+      "description": "A measured quantity attached to the item, complementing declared datasheet properties.",
       "properties": {
         "name": {
+          "description": "Name of the measured property (snake_case key).",
           "type": "string"
         },
         "property": {
+          "description": "Ontology label or IRI of the measured property, when known.",
           "type": "string"
         },
         "quantity": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Measured value and unit."
         },
         "source": {
+          "description": "Where the measurement came from (instrument, dataset, or report).",
           "type": "string"
         }
       },
@@ -66,30 +79,38 @@
     },
     "Provenance": {
       "additionalProperties": false,
+      "description": "Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
       "properties": {
         "battinfo_version": {
+          "description": "Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
           "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
           "type": "string"
         },
         "citation": {
+          "description": "Resolvable citation target to use for attribution, typically a DOI URL.",
           "format": "uri",
           "type": "string"
         },
         "citation_doi": {
+          "description": "DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
           "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
           "type": "string"
         },
         "extracted_at": {
+          "description": "ISO 8601 timestamp when the information was extracted from the source.",
           "format": "date-time",
           "type": "string"
         },
         "source_file": {
+          "description": "Path of the source document the record was extracted from.",
           "type": "string"
         },
         "source_id": {
+          "description": "Identifier of this record's source in the originating system.",
           "type": "string"
         },
         "source_type": {
+          "description": "Whether the record was hand-curated or extracted from a datasheet.",
           "enum": [
             "curated",
             "datasheet"
@@ -97,6 +118,7 @@
           "type": "string"
         },
         "source_url": {
+          "description": "URL of the source document or landing page, when available.",
           "oneOf": [
             {
               "format": "uri",
@@ -116,20 +138,24 @@
     },
     "Quality": {
       "additionalProperties": false,
+      "description": "Extraction quality report listing missing or inferred fields and warnings.",
       "properties": {
         "inferred_fields": {
+          "description": "Property keys filled by inference rather than read directly from the source.",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "missing_fields": {
+          "description": "Property keys expected but not found in the source.",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "warnings": {
+          "description": "Human-readable warnings raised during extraction.",
           "items": {
             "type": "string"
           },
@@ -140,6 +166,7 @@
     },
     "RangeSpec": {
       "additionalProperties": false,
+      "description": "Minimum/maximum pair of SpecItems for range-valued properties.",
       "properties": {
         "max": {
           "$ref": "#/$defs/SpecItem"
@@ -155,17 +182,21 @@
     },
     "RawExtraction": {
       "additionalProperties": false,
+      "description": "Verbatim extraction context recording where in the source a value came from.",
       "properties": {
         "confidence": {
+          "description": "Extraction confidence between 0 and 1.",
           "maximum": 1,
           "minimum": 0,
           "type": "number"
         },
         "page": {
+          "description": "1-based page number in the source document.",
           "minimum": 1,
           "type": "integer"
         },
         "text": {
+          "description": "Verbatim source text the value was extracted from.",
           "type": "string"
         }
       },
@@ -227,15 +258,39 @@
           ]
         }
       ],
+      "description": "A single quantitative property: point value or range plus a unit, with optional verbatim extraction context, a co_type stating the nature of the value (Nominal, Measured, Rated, Conventional), and the conditions under which it holds.",
       "properties": {
+        "co_type": {
+          "description": "Nature of the value. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet 'rated capacity'). Conventional: fixed by convention or calculation (e.g. theoretical capacity). Drives the EMMO property-nature co-type in JSON-LD; until the EMMO RatedProperty class is published, Rated is exported as ConventionalProperty.",
+          "enum": [
+            "Measured",
+            "Conventional",
+            "Rated",
+            "Nominal"
+          ],
+          "type": "string"
+        },
+        "conditions": {
+          "additionalProperties": false,
+          "description": "Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Emitted as hasMeasurementParameter in JSON-LD.",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "$ref": "modules/common/quantity.schema.json"
+            }
+          },
+          "type": "object"
+        },
         "max_value": {
+          "description": "Upper bound when the source specifies a range.",
           "type": "number"
         },
         "min_value": {
+          "description": "Lower bound when the source specifies a range.",
           "type": "number"
         },
         "raw": {
-          "$ref": "#/$defs/RawExtraction"
+          "$ref": "#/$defs/RawExtraction",
+          "description": "Verbatim extraction context (source text, page, confidence) this value was parsed from."
         },
         "sample_count": {
           "description": "How many members the value (and standard_deviation) were computed over \u2014 e.g. 8 cells. Without it a spread cannot be read.",
@@ -248,24 +303,30 @@
           "type": "number"
         },
         "typical_value": {
+          "description": "Typical value when the source distinguishes typical from nominal or limit values.",
           "type": "number"
         },
         "unit": {
+          "description": "Canonical compact unit symbol/code, for example V, A, Ah, Wh/kg.",
           "minLength": 1,
           "type": "string"
         },
         "unit_code": {
+          "description": "Machine-readable unit code (schema.org unitCode convention, e.g. UN/CEFACT).",
           "minLength": 1,
           "type": "string"
         },
         "unit_text": {
+          "description": "Human-readable unit text as written in the source (schema.org unitText).",
           "minLength": 1,
           "type": "string"
         },
         "value": {
+          "description": "Point numeric value. A value that is not purely numeric belongs in value_text, never as a string here.",
           "type": "number"
         },
         "value_text": {
+          "description": "Verbatim value text when the source value cannot be parsed to a number.",
           "minLength": 1,
           "type": "string"
         }
@@ -274,99 +335,142 @@
     },
     "SpecSet": {
       "additionalProperties": false,
+      "description": "Named quantity map of datasheet-style cell properties; every allowed key holds a SpecItem quantity. Under cell-spec `properties`, read each key as the declared value for the cell model. Under cell-instance `measured`, read each key as the value measured for this cell (e.g. nominal_capacity = measured discharge capacity).",
       "properties": {
         "ac_internal_resistance": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "AC internal resistance, typically at 1 kHz."
         },
         "calendar_life": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Calendar life: storage time to the end-of-life threshold."
         },
         "capacity_fade": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Capacity fade over the stated test."
         },
         "capacity_threshold_exhaustion": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Capacity threshold defining end of life (e.g. 80% of nominal)."
         },
         "certified_usable_energy": {
+          "$ref": "#/$defs/SpecItem",
+          "description": "Certified usable energy (EU Battery Regulation)."
+        },
+        "charging_capacity": {
           "$ref": "#/$defs/SpecItem"
         },
         "charging_cutoff_voltage": {
           "$ref": "#/$defs/SpecItem"
         },
-        "charging_temperature_max": {
+        "charging_energy": {
           "$ref": "#/$defs/SpecItem"
+        },
+        "charging_temperature_max": {
+          "$ref": "#/$defs/SpecItem",
+          "description": "Alias of maximum_charging_temperature used by some sources."
         },
         "charging_temperature_min": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Alias of minimum_charging_temperature used by some sources."
         },
         "charging_time": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Typical time to full charge."
         },
         "charging_voltage": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Recommended end-of-charge voltage."
         },
         "continuous_charging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Continuous charging current."
         },
         "continuous_discharging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Continuous discharging current."
         },
         "cycle_life": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Number of full cycles to the end-of-life capacity threshold."
         },
         "cycle_life_c_rate": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "C-rate at which the cycle-life figure was established."
         },
         "dc_internal_resistance": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "DC internal resistance (pulse method)."
         },
         "diameter": {
+          "$ref": "#/$defs/SpecItem",
+          "description": "Cell diameter (cylindrical and coin formats). Not allowed for prismatic or pouch formats."
+        },
+        "discharging_capacity": {
           "$ref": "#/$defs/SpecItem"
         },
         "discharging_cutoff_voltage": {
+          "$ref": "#/$defs/SpecItem",
+          "description": "Discharge cut-off voltage."
+        },
+        "discharging_energy": {
           "$ref": "#/$defs/SpecItem"
         },
         "discharging_temperature_max": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Alias of maximum_discharging_temperature used by some sources."
         },
         "discharging_temperature_min": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Alias of minimum_discharging_temperature used by some sources."
         },
         "energy_density": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Volumetric energy density (energy per unit volume)."
         },
         "height": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Cell height: the terminal-to-base dimension along the cell axis. For coin cells this is the total thickness per IEC 60086. Allowed for all formats."
         },
         "impedance": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "AC impedance, typically at 1 kHz."
         },
         "initial_coulombic_efficiency": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "First-cycle coulombic efficiency."
         },
         "internal_resistance": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Internal resistance, by the method the source states."
         },
         "length": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Cell length: the larger of the two in-plane dimensions of a prismatic or pouch cell (length >= width). Not allowed for cylindrical or coin formats."
         },
         "mass": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Cell mass."
         },
         "maximum_charging_temperature": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Highest permitted charging temperature."
         },
         "maximum_continuous_charging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Maximum continuous charging current."
         },
         "maximum_continuous_discharging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Maximum continuous discharging current."
         },
         "maximum_discharging_temperature": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Highest permitted discharging temperature."
         },
         "maximum_power": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Maximum power."
         },
         "maximum_pulse_charging_current": {
           "$ref": "#/$defs/SpecItem"
@@ -375,37 +479,48 @@
           "$ref": "#/$defs/SpecItem"
         },
         "maximum_storage_temperature": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Highest permitted storage temperature."
         },
         "min_capacity": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Alias of minimum_capacity used by some sources."
         },
         "minimum_capacity": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Minimum guaranteed capacity."
         },
         "minimum_charging_temperature": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Lowest permitted charging temperature."
         },
         "minimum_discharging_temperature": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Lowest permitted discharging temperature."
         },
         "minimum_storage_temperature": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Lowest permitted storage temperature."
         },
         "nominal_capacity": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Nominal capacity declared by the manufacturer."
         },
         "nominal_continuous_charging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Nominal continuous charging current."
         },
         "nominal_continuous_discharging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Nominal continuous discharging current."
         },
         "nominal_energy": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Nominal energy."
         },
         "nominal_voltage": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Nominal (average discharge) voltage."
         },
         "operating_temperature_max": {
           "$ref": "#/$defs/SpecItem"
@@ -414,67 +529,86 @@
           "$ref": "#/$defs/SpecItem"
         },
         "power_capability": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Power capability under the stated conditions."
         },
         "power_density": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Volumetric power density (power per unit volume)."
         },
         "power_energy_ratio": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Ratio of maximum power to energy (P/E ratio)."
         },
         "pulse_charging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Maximum pulse charging current."
         },
         "pulse_discharging_current": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Maximum pulse discharging current."
         },
         "rated_capacity": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Rated capacity established under the manufacturer's rating procedure."
         },
         "rated_energy": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Rated energy established under the rating procedure."
         },
         "round_trip_energy_efficiency": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Round-trip energy efficiency."
         },
         "round_trip_energy_efficiency_50pct": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Round-trip energy efficiency at 50% of expected cycle life (EU Battery Regulation)."
         },
         "self_discharge_rate": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Self-discharge rate (e.g. percent per month)."
         },
         "specific_energy": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Gravimetric energy density (energy per unit mass)."
         },
         "specific_power": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Gravimetric power density (power per unit mass)."
         },
         "state_of_health": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "State of health relative to nominal capacity."
         },
         "storage_temperature_max": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Alias of maximum_storage_temperature used by some sources."
         },
         "storage_temperature_min": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Alias of minimum_storage_temperature used by some sources."
         },
         "thickness": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Cell thickness: the smallest dimension of a prismatic or pouch cell. Not allowed for cylindrical or coin formats."
         },
         "typical_capacity": {
           "$ref": "#/$defs/SpecItem"
         },
         "typical_energy": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Typical energy delivered under the datasheet reference conditions."
         },
         "upper_voltage_limit": {
           "$ref": "#/$defs/SpecItem"
         },
         "volume": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Cell volume."
         },
         "width": {
-          "$ref": "#/$defs/SpecItem"
+          "$ref": "#/$defs/SpecItem",
+          "description": "Cell width: the smaller of the two in-plane dimensions of a prismatic or pouch cell (length >= width). Not allowed for cylindrical or coin formats."
         }
       },
       "type": "object"
@@ -483,34 +617,41 @@
   "$id": "https://w3id.org/battinfo/schema/cell-canonical.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Harmonized cell instance schema derived from curated and datasheet sources.",
+  "description": "Harmonized cell record shape shared by cell specs and cell instances: identity, a named map of quantitative properties (SpecSet), measurements, and provenance.",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "properties": {
     "cell": {
-      "$ref": "#/$defs/Cell"
+      "$ref": "#/$defs/Cell",
+      "description": "Core identity of the cell spec (manufacturer, model, format, chemistry)."
     },
     "measurements": {
+      "description": "Measured quantities complementing the datasheet values.",
       "items": {
         "$ref": "#/$defs/Measurement"
       },
       "type": "array"
     },
     "notes": {
+      "description": "Free-text notes carried with the record.",
       "items": {
         "type": "string"
       },
       "type": "array"
     },
     "properties": {
-      "$ref": "#/$defs/SpecSet"
+      "$ref": "#/$defs/SpecSet",
+      "description": "Extracted datasheet properties of the cell."
     },
     "provenance": {
-      "$ref": "#/$defs/Provenance"
+      "$ref": "#/$defs/Provenance",
+      "description": "Where the extracted cell information came from."
     },
     "quality": {
-      "$ref": "#/$defs/Quality"
+      "$ref": "#/$defs/Quality",
+      "description": "Extraction quality report."
     },
     "schema_version": {
+      "description": "Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
       "type": "string"
     }

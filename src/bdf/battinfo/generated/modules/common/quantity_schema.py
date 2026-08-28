@@ -11,7 +11,12 @@ from bdf.battinfo._base import _RecordModel
 
 
 class Value(RootModel[str | None]):
-    root: Annotated[str | None, Field(min_length=1)] = None
+    root: Annotated[
+        str | None,
+        Field(
+            description="Point value, numeric or as a string when the source value is not purely numeric.", min_length=1
+        ),
+    ] = None
 
 
 class Quantity(_RecordModel):
@@ -21,17 +26,17 @@ class Quantity(_RecordModel):
     co_type: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
         Field(
-            description="Nature of the value: a directly Measured property, a declared Conventional/Nominal value, or a Rated value established under a rating procedure. Drives the EMMO property-nature co-type in JSON-LD."
+            description="Nature of the value. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet 'rated capacity'). Conventional: fixed by convention or calculation (e.g. theoretical capacity). Drives the EMMO property-nature co-type in JSON-LD; until the EMMO RatedProperty class is published, Rated is exported as ConventionalProperty."
         ),
     ] = None
     conditions: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Quantity] | None,
         Field(
-            description="Measurement parameters/conditions under which this quantity holds (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Each entry is itself a quantity; emitted as hasMeasurementParameter in JSON-LD."
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Emitted as hasMeasurementParameter in JSON-LD."
         ),
     ] = None
-    max_value: float | None = None
-    min_value: float | None = None
+    max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None
+    min_value: Annotated[float | None, Field(description="Lower bound when the source specifies a range.")] = None
     sample_count: Annotated[
         int | None,
         Field(
@@ -46,13 +51,28 @@ class Quantity(_RecordModel):
             ge=0.0,
         ),
     ] = None
-    typical_value: float | None = None
+    typical_value: Annotated[
+        float | None,
+        Field(description="Typical value when the source distinguishes typical from nominal or limit values."),
+    ] = None
     unit: Annotated[
         str | None, Field(description="Canonical compact unit symbol/code, for example V, A, Ah, Wh/kg.", min_length=1)
     ] = None
-    unit_text: Annotated[str | None, Field(min_length=1)] = None
-    value: Annotated[float | Value | None, Field(default_factory=Value)]
-    value_text: Annotated[str | None, Field(min_length=1)] = None
+    unit_text: Annotated[
+        str | None,
+        Field(description="Human-readable unit text as written in the source (schema.org unitText).", min_length=1),
+    ] = None
+    value: Annotated[
+        float | Value | None,
+        Field(
+            default_factory=Value,
+            description="Point value, numeric or as a string when the source value is not purely numeric.",
+        ),
+    ]
+    value_text: Annotated[
+        str | None,
+        Field(description="Verbatim value text when the source value cannot be parsed to a number.", min_length=1),
+    ] = None
 
 
 Quantity.model_rebuild()

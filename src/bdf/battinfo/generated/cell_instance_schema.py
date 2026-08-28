@@ -36,11 +36,17 @@ class Deviation(_RecordModel):
         | None,
         Field(description="Broad classification of the deviation."),
     ] = None
-    description: str | None = None
-    duration_s: Annotated[int | None, Field(ge=0)] = None
-    impact: Literal["minor", "moderate", "major"] | None = None
-    occurred_at: int | str | None = None
-    step_index: Annotated[int | None, Field(ge=0)] = None
+    description: Annotated[str | None, Field(description="Free-text description of the deviation.")] = None
+    duration_s: Annotated[int | None, Field(description="Duration of the deviation in seconds.", ge=0)] = None
+    impact: Annotated[
+        Literal["minor", "moderate", "major"] | None, Field(description="Assessed impact severity of the deviation.")
+    ] = None
+    occurred_at: Annotated[
+        int | str | None, Field(description="When the deviation occurred (ISO 8601 string or Unix timestamp).")
+    ] = None
+    step_index: Annotated[
+        int | None, Field(description="Zero-based protocol step during which the deviation occurred.", ge=0)
+    ] = None
     type: Annotated[str | None, Field(description="Specific deviation label within the category (free text).")] = None
 
 
@@ -48,9 +54,13 @@ class Conformance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    deviations: list[Deviation] | None = None
+    deviations: Annotated[
+        list[Deviation] | None, Field(description="Individual deviations from the governing spec or protocol.")
+    ] = None
     note: Annotated[str | None, Field(description="Free-text summary of the assessment.")] = None
-    status: Literal["conformant", "non-conformant", "unknown"] | None = None
+    status: Annotated[
+        Literal["conformant", "non-conformant", "unknown"] | None, Field(description="Overall conformance verdict.")
+    ] = None
 
 
 class DatasetLink(_RecordModel):
@@ -59,56 +69,85 @@ class DatasetLink(_RecordModel):
     )
     id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            description="Canonical IRI of the linked dataset record.",
+            pattern="^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+        ),
     ] = None
-    role: Literal["raw", "processed", "report", "metadata", "other"] | None = None
+    role: Annotated[
+        Literal["raw", "processed", "report", "metadata", "other"] | None,
+        Field(
+            description="Role of the linked dataset as a whole relative to this record (record level; the per-file role lives on the dataset's distribution entries)."
+        ),
+    ] = None
+
+
+class FlexDate1(RootModel[str | None]):
+    root: Annotated[
+        str | None,
+        Field(
+            description="ISO 8601 calendar date string: YYYY, YYYY-MM, or YYYY-MM-DD.",
+            pattern="^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+        ),
+    ] = None
 
 
 class Funder(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
-    type: Literal["Organization"] | None = None
-    url: AnyUrl | None = None
+    name: Annotated[str | None, Field(description="Funder name (e.g. 'European Commission').", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI for the funder (e.g. a ROR or DOI funder IRI).")
+    ] = None
+    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Funder homepage URL.")] = None
 
 
 class Funding(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    acronym: str | None = None
-    funder: Annotated[Funder | None, Field(default_factory=Funder)]
-    id: AnyUrl | None = None
-    identifier: Annotated[str | None, Field(min_length=1)] = None
-    name: str | None = None
-    program: str | None = None
-    type: Literal["Grant"] | None = None
+    acronym: Annotated[str | None, Field(description="Project acronym.")] = None
+    funder: Annotated[Funder | None, Field(default_factory=Funder, description="Organization that awarded the grant.")]
+    id: Annotated[AnyUrl | None, Field(description="Resolvable IRI of the grant (e.g. a CORDIS project IRI).")] = None
+    identifier: Annotated[
+        str | None, Field(description="Grant number as assigned by the funder (e.g. '101069765').", min_length=1)
+    ] = None
+    name: Annotated[str | None, Field(description="Project title.")] = None
+    program: Annotated[str | None, Field(description="Funding programme or call (e.g. 'Horizon Europe').")] = None
+    type: Annotated[Literal["Grant"] | None, Field(description="JSON-LD type discriminator.")] = None
 
 
 class Organization(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
-    type: Literal["Organization"] | None = None
-    url: AnyUrl | None = None
+    name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI for this organization (e.g. ROR or Wikidata).")
+    ] = None
+    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Homepage URL.")] = None
 
 
 class Person(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    affiliation: Annotated[Organization | None, Field(default_factory=Organization)]
-    email: str | None = None
-    family_name: Annotated[str | None, Field(min_length=1)] = None
-    given_name: Annotated[str | None, Field(min_length=1)] = None
-    name: Annotated[str | None, Field(min_length=1)] = None
-    same_as: AnyUrl | None = None
-    type: Literal["Person"] | None = None
-    url: AnyUrl | None = None
+    affiliation: Annotated[
+        Organization | None,
+        Field(default_factory=Organization, description="Organization the person is affiliated with."),
+    ]
+    email: Annotated[str | None, Field(description="Contact e-mail address.")] = None
+    family_name: Annotated[str | None, Field(description="Family (last) name.", min_length=1)] = None
+    given_name: Annotated[str | None, Field(description="Given (first) name.", min_length=1)] = None
+    name: Annotated[str | None, Field(description="Full name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI, typically an ORCID (https://orcid.org/...).")
+    ] = None
+    type: Annotated[Literal["Person"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Personal or institutional web page.")] = None
 
 
 class UnixTime(RootModel[int | None]):
@@ -121,27 +160,61 @@ class Provenance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
-    citation: AnyUrl | None = None
-    citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
-    comment: str | None = None
-    curated_by: str | None = None
-    file_hash: Annotated[str | None, Field(pattern="^[A-Fa-f0-9]{64}$")] = None
-    retrieved_at: Annotated[
-        int | None, Field(description="Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.", ge=0)
+    battinfo_version: Annotated[
+        str | None,
+        Field(
+            description="Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
+            pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+        ),
     ] = None
-    source_file: str | None = None
-    source_name: str | None = None
-    source_type: Literal["measurement", "lab", "bms", "other"] | None = None
-    source_url: AnyUrl | None = None
-    workflow_version: str | None = None
+    citation: Annotated[
+        AnyUrl | None, Field(description="Resolvable citation target to use for attribution, typically a DOI URL.")
+    ] = None
+    citation_doi: Annotated[
+        str | None,
+        Field(
+            description="DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
+            pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+        ),
+    ] = None
+    comment: Annotated[str | None, Field(description="Free-text provenance comment.")] = None
+    curated_by: Annotated[
+        str | None, Field(description="Name or identifier of the person who curated this record.")
+    ] = None
+    file_hash: Annotated[
+        str | None,
+        Field(description="SHA-256 hash of the source file, for integrity verification.", pattern="^[A-Fa-f0-9]{64}$"),
+    ] = None
+    retrieved_at: Annotated[
+        int | None,
+        Field(
+            description="Unix timestamp (seconds since epoch, UTC) when the source was retrieved or the record was captured.",
+            ge=0,
+        ),
+    ] = None
+    source_file: Annotated[
+        str | None, Field(description="Filename or path of the source file, when the record was derived from a file.")
+    ] = None
+    source_name: Annotated[
+        str | None, Field(description="Human-readable name of the source (document title, instrument, lab, or system).")
+    ] = None
+    source_type: Annotated[
+        Literal["measurement", "lab", "bms", "other"] | None,
+        Field(description="Kind of source this record was created from."),
+    ] = None
+    source_url: Annotated[
+        AnyUrl | None, Field(description="URL of the source document or landing page, when available.")
+    ] = None
+    workflow_version: Annotated[
+        str | None, Field(description="Version of the ingest/curation workflow that produced this record.")
+    ] = None
 
 
 class CellInstance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    batch_id: str | None = None
+    batch_id: Annotated[str | None, Field(description="Production or lab batch this cell belongs to.")] = None
     battery_status: Annotated[
         Literal["original", "repurposed", "re-used", "remanufactured", "waste"] | None,
         Field(description="Current status of the battery per EU Battery Regulation Annex XIII."),
@@ -149,7 +222,8 @@ class CellInstance(_RecordModel):
     cell_spec_id: Annotated[
         str | None,
         Field(
-            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+            description="IRI of the cell spec this physical cell realizes.",
+            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
         ),
     ] = None
     conformance: Annotated[
@@ -171,10 +245,10 @@ class CellInstance(_RecordModel):
         Field(description="Status of this digital product passport record."),
     ] = None
     expires_at: Annotated[
-        UnixTime | str | None,
+        UnixTime | FlexDate1 | None,
         Field(
             default_factory=UnixTime,
-            description="Expiration / best-before date. ISO 8601 string (YYYY-MM-DD, YYYY-MM) or Unix timestamp.",
+            description="Expiration / best-before date. ISO 8601 string (YYYY, YYYY-MM, YYYY-MM-DD) or Unix timestamp.",
         ),
     ]
     grade: Annotated[
@@ -182,13 +256,16 @@ class CellInstance(_RecordModel):
     ] = None
     id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            description="Canonical IRI of this cell instance.",
+            pattern="^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+        ),
     ] = None
     manufactured_at: Annotated[
-        UnixTime | str | None,
+        UnixTime | FlexDate1 | None,
         Field(
             default_factory=UnixTime,
-            description="Production date. ISO 8601 string (YYYY-MM-DD, YYYY-MM) or Unix timestamp.",
+            description="Production date. ISO 8601 string (YYYY, YYYY-MM, YYYY-MM-DD) or Unix timestamp.",
         ),
     ]
     name: Annotated[
@@ -203,7 +280,13 @@ class CellInstance(_RecordModel):
     service_start_date: Annotated[
         date | None, Field(description="ISO 8601 date when the battery was first put into service.")
     ] = None
-    short_id: Annotated[str | None, Field(pattern="^[0-9a-hjkmnp-tv-z]{6,16}$")] = None
+    short_id: Annotated[
+        str | None,
+        Field(
+            description="Short human-friendly identifier derived from the record IRI (Crockford base32, 6-16 characters).",
+            pattern="^[0-9a-hjkmnp-tv-z]{6,16}$",
+        ),
+    ] = None
     supersedes: Annotated[
         str | None,
         Field(
@@ -224,7 +307,9 @@ class BattinfoCellInstance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    cell_instance: Annotated[CellInstance | None, Field(default_factory=CellInstance)]
+    cell_instance: Annotated[
+        CellInstance | None, Field(default_factory=CellInstance, description="The physical cell being described.")
+    ]
     contributor: Annotated[
         list[Person] | None,
         Field(
@@ -232,8 +317,16 @@ class BattinfoCellInstance(_RecordModel):
             min_length=1,
         ),
     ] = None
-    datasets: list[DatasetLink] | None = None
-    funding: Annotated[Funding | None, Field(default_factory=Funding)]
+    datasets: Annotated[
+        list[DatasetLink] | None,
+        Field(
+            description="Datasets recorded for this cell. Back-reference to dataset records. dataset.about is the source of truth for what a dataset describes; when records are saved together through a workspace the library fills this list from each dataset's cell and test links, and hand-authored records may set it directly."
+        ),
+    ] = None
+    funding: Annotated[
+        Funding | None,
+        Field(default_factory=Funding, description="Funding project (grant) under which the record was produced."),
+    ]
     license: Annotated[
         str | None,
         Field(
@@ -241,7 +334,25 @@ class BattinfoCellInstance(_RecordModel):
             min_length=1,
         ),
     ] = None
-    measured: Annotated[cell_canonical_schema.SpecSet | None, Field(default_factory=cell_canonical_schema.SpecSet)]
-    notes: list[str] | None = None
-    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
-    schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
+    measured: Annotated[
+        cell_canonical_schema.SpecSet | None,
+        Field(
+            default_factory=cell_canonical_schema.SpecSet,
+            description="Measured cell properties using the same keys as the spec's properties map; read each key as the value measured for this cell (e.g. nominal_capacity = measured discharge capacity, mass = weighed mass).",
+        ),
+    ]
+    notes: Annotated[list[str] | None, Field(description="Free-text notes carried with the record.")] = None
+    provenance: Annotated[
+        Provenance | None,
+        Field(
+            default_factory=Provenance,
+            description="Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
+        ),
+    ]
+    schema_version: Annotated[
+        str | None,
+        Field(
+            description="Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
+            pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+        ),
+    ] = None

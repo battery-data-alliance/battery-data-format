@@ -2,35 +2,44 @@
   "$defs": {
     "Artifact": {
       "additionalProperties": false,
+      "description": "A runnable or vendor-produced protocol/data file linked to the record.",
       "properties": {
         "byte_size": {
+          "description": "File size in bytes.",
           "minimum": 0,
           "type": "integer"
         },
         "conforms_to": {
+          "description": "IRI or label of the format specification the artifact conforms to.",
           "type": "string"
         },
         "format": {
+          "description": "Artifact format label (e.g. 'pybamm', 'neware-xml', 'biologic-mps').",
           "minLength": 1,
           "type": "string"
         },
         "generated": {
+          "description": "Locators of artifacts generated from this one (e.g. an executed program exported from the source protocol).",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "generated_from": {
+          "description": "Locator of the artifact this one was generated from.",
           "type": "string"
         },
         "locator": {
+          "description": "Where the artifact lives: a URL, DOI, or path within the linked dataset.",
           "minLength": 1,
           "type": "string"
         },
         "media_type": {
+          "description": "IANA media type of the file.",
           "type": "string"
         },
         "role": {
+          "description": "How the artifact relates to the record: the authored protocol, the executed program, a vendor export, or a simulation input.",
           "enum": [
             "source_protocol",
             "executed_protocol",
@@ -41,6 +50,7 @@
           "type": "string"
         },
         "sha256": {
+          "description": "SHA-256 hash of the file.",
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         }
@@ -57,23 +67,29 @@
       "description": "Funding project (grant) under which the record was produced. Maps to schema:funding / schema:Grant in JSON-LD.",
       "properties": {
         "acronym": {
+          "description": "Project acronym.",
           "type": "string"
         },
         "funder": {
           "additionalProperties": false,
+          "description": "Organization that awarded the grant.",
           "properties": {
             "name": {
+              "description": "Funder name (e.g. 'European Commission').",
               "minLength": 1,
               "type": "string"
             },
             "same_as": {
+              "description": "External identifier IRI for the funder (e.g. a ROR or DOI funder IRI).",
               "format": "uri",
               "type": "string"
             },
             "type": {
-              "const": "Organization"
+              "const": "Organization",
+              "description": "JSON-LD type discriminator."
             },
             "url": {
+              "description": "Funder homepage URL.",
               "format": "uri",
               "type": "string"
             }
@@ -84,21 +100,26 @@
           "type": "object"
         },
         "id": {
+          "description": "Resolvable IRI of the grant (e.g. a CORDIS project IRI).",
           "format": "uri",
           "type": "string"
         },
         "identifier": {
+          "description": "Grant number as assigned by the funder (e.g. '101069765').",
           "minLength": 1,
           "type": "string"
         },
         "name": {
+          "description": "Project title.",
           "type": "string"
         },
         "program": {
+          "description": "Funding programme or call (e.g. 'Horizon Europe').",
           "type": "string"
         },
         "type": {
-          "const": "Grant"
+          "const": "Grant",
+          "description": "JSON-LD type discriminator."
         }
       },
       "required": [
@@ -108,19 +129,24 @@
     },
     "Organization": {
       "additionalProperties": false,
+      "description": "An organization referenced by name, with an optional canonical BattINFO organization IRI.",
       "properties": {
         "name": {
+          "description": "Organization name.",
           "minLength": 1,
           "type": "string"
         },
         "same_as": {
+          "description": "External identifier IRI for this organization (e.g. ROR or Wikidata).",
           "format": "uri",
           "type": "string"
         },
         "type": {
-          "const": "Organization"
+          "const": "Organization",
+          "description": "JSON-LD type discriminator."
         },
         "url": {
+          "description": "Homepage URL.",
           "format": "uri",
           "type": "string"
         }
@@ -132,34 +158,43 @@
     },
     "Person": {
       "additionalProperties": false,
+      "description": "A person, in schema.org Person terms; an ORCID may be given in same_as.",
       "properties": {
         "affiliation": {
-          "$ref": "#/$defs/Organization"
+          "$ref": "#/$defs/Organization",
+          "description": "Organization the person is affiliated with."
         },
         "email": {
+          "description": "Contact e-mail address.",
           "format": "email",
           "type": "string"
         },
         "family_name": {
+          "description": "Family (last) name.",
           "minLength": 1,
           "type": "string"
         },
         "given_name": {
+          "description": "Given (first) name.",
           "minLength": 1,
           "type": "string"
         },
         "name": {
+          "description": "Full name.",
           "minLength": 1,
           "type": "string"
         },
         "same_as": {
+          "description": "External identifier IRI, typically an ORCID (https://orcid.org/...).",
           "format": "uri",
           "type": "string"
         },
         "type": {
-          "const": "Person"
+          "const": "Person",
+          "description": "JSON-LD type discriminator."
         },
         "url": {
+          "description": "Personal or institutional web page.",
           "format": "uri",
           "type": "string"
         }
@@ -188,6 +223,7 @@
           ]
         }
       ],
+      "description": "A bare value+unit pair.",
       "properties": {
         "max_value": {
           "description": "Upper bound of a window quantity; field names align with modules/common/quantity.schema.json.",
@@ -198,10 +234,12 @@
           "type": "number"
         },
         "unit": {
+          "description": "Unit symbol (e.g. 'V', 'mA', 'h').",
           "minLength": 1,
           "type": "string"
         },
         "value": {
+          "description": "Numeric value.",
           "type": "number"
         }
       },
@@ -211,6 +249,7 @@
       "type": "object"
     },
     "ShortId": {
+      "description": "Short human-friendly identifier derived from the record IRI (Crockford base32, 6-16 characters).",
       "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
       "type": "string"
     },
@@ -220,15 +259,19 @@
     },
     "Step": {
       "additionalProperties": false,
+      "description": "One typed step of the protocol, or a repeated group of child steps.",
       "properties": {
         "count": {
+          "description": "Repeat count when this step is a repeated group.",
           "minimum": 1,
           "type": "integer"
         },
         "description": {
+          "description": "Free-text description of the step.",
           "type": "string"
         },
         "direction": {
+          "description": "Current direction or role of the step.",
           "enum": [
             "charge",
             "discharge",
@@ -239,9 +282,11 @@
           "type": "string"
         },
         "duration": {
-          "$ref": "#/$defs/Quantity"
+          "$ref": "#/$defs/Quantity",
+          "description": "Fixed step duration."
         },
         "mode": {
+          "description": "Electrochemical mode of the step (constant current, constant voltage, rest, EIS, ...).",
           "enum": [
             "cc",
             "cv",
@@ -257,30 +302,36 @@
         },
         "period": {
           "additionalProperties": true,
+          "description": "Step-level data-recording cadence overriding the protocol default.",
           "type": "object"
         },
         "setpoints": {
           "additionalProperties": {
             "$ref": "#/$defs/Quantity"
           },
+          "description": "Controlled setpoints for the step (e.g. current, c_rate, voltage, power), each a value+unit quantity.",
           "type": "object"
         },
         "steps": {
+          "description": "Child steps of a repeated group.",
           "items": {
             "$ref": "#/$defs/Step"
           },
           "type": "array"
         },
         "tags": {
+          "description": "Free-form labels for querying (e.g. 'formation', 'checkup').",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "temperature": {
-          "$ref": "#/$defs/Quantity"
+          "$ref": "#/$defs/Quantity",
+          "description": "Ambient temperature setpoint for the step."
         },
         "termination": {
+          "description": "Conditions that end the step.",
           "items": {
             "$ref": "#/$defs/Termination"
           },
@@ -294,8 +345,10 @@
     },
     "Termination": {
       "additionalProperties": false,
+      "description": "A condition that ends a protocol step.",
       "properties": {
         "direction": {
+          "description": "Whether the step ends when the quantity falls below or rises above the threshold, or when the duration has elapsed.",
           "enum": [
             "below",
             "above",
@@ -304,6 +357,7 @@
           "type": "string"
         },
         "quantity": {
+          "description": "Quantity monitored for the termination condition.",
           "enum": [
             "voltage",
             "current",
@@ -314,10 +368,12 @@
           "type": "string"
         },
         "unit": {
+          "description": "Unit of the threshold value.",
           "minLength": 1,
           "type": "string"
         },
         "value": {
+          "description": "Threshold value.",
           "type": "number"
         }
       },
@@ -351,7 +407,7 @@
       "additionalProperties": {
         "$ref": "#/$defs/Quantity"
       },
-      "description": "Protocol-level ambient conditions, each a typed quantity (e.g. temperature).",
+      "description": "Planned protocol-level conditions, as a map of condition name to a {value, unit} quantity. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate. As-run values or deviations are recorded on the test record.",
       "type": "object"
     },
     "contributor": {
@@ -368,7 +424,8 @@
       "type": "object"
     },
     "funding": {
-      "$ref": "#/$defs/Funding"
+      "$ref": "#/$defs/Funding",
+      "description": "Funding project (grant) under which the record was produced."
     },
     "license": {
       "description": "License under which this record and its data are released, as an SPDX license identifier (e.g. \"cc-by-4.0\") or a license URL. Stamped from the workspace default (ws.license) and emitted as dcterms:license in JSON-LD.",
@@ -383,6 +440,7 @@
       "type": "array"
     },
     "notes": {
+      "description": "Free-text notes carried with the record.",
       "items": {
         "type": "string"
       },
@@ -390,23 +448,29 @@
     },
     "provenance": {
       "additionalProperties": false,
+      "description": "Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
       "properties": {
         "battinfo_version": {
+          "description": "Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
           "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
           "type": "string"
         },
         "citation": {
+          "description": "Resolvable citation target to use for attribution, typically a DOI URL.",
           "format": "uri",
           "type": "string"
         },
         "citation_doi": {
+          "description": "DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
           "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
           "type": "string"
         },
         "comment": {
+          "description": "Free-text provenance comment.",
           "type": "string"
         },
         "curated_by": {
+          "description": "Name or identifier of the person who curated this record.",
           "type": "string"
         },
         "derived_from_artifact": {
@@ -414,19 +478,24 @@
           "type": "string"
         },
         "file_hash": {
+          "description": "SHA-256 hash of the source file, for integrity verification.",
           "pattern": "^[A-Fa-f0-9]{64}$",
           "type": "string"
         },
         "retrieved_at": {
-          "$ref": "#/$defs/UnixTime"
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp (seconds since epoch, UTC) when the source was retrieved or the record was captured."
         },
         "source_file": {
+          "description": "Filename or path of the source file, when the record was derived from a file.",
           "type": "string"
         },
         "source_name": {
+          "description": "Human-readable name of the source (document title, instrument, lab, or system).",
           "type": "string"
         },
         "source_type": {
+          "description": "Kind of source this record was created from.",
           "enum": [
             "manual",
             "lab",
@@ -445,9 +514,11 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "URL of the source document or landing page, when available."
         },
         "workflow_version": {
+          "description": "Version of the ingest/curation workflow that produced this record.",
           "type": "string"
         }
       },
@@ -462,14 +533,17 @@
       "description": "Protocol-level default data-recording cadence (PyBaMM `period` / aurora `record`).",
       "properties": {
         "current_mA": {
+          "description": "Record a data point on a current change of this many milliamps.",
           "exclusiveMinimum": 0,
           "type": "number"
         },
         "time_s": {
+          "description": "Record a data point every this many seconds.",
           "exclusiveMinimum": 0,
           "type": "number"
         },
         "voltage_V": {
+          "description": "Record a data point on a voltage change of this many volts.",
           "exclusiveMinimum": 0,
           "type": "number"
         }
@@ -481,18 +555,21 @@
       "description": "Global instrument hard limits, distinct from per-step termination.",
       "properties": {
         "delay_s": {
+          "description": "Grace period in seconds before the safety limits are enforced.",
           "type": [
             "number",
             "null"
           ]
         },
         "max_capacity_mAh": {
+          "description": "Hard capacity limit in milliamp-hours.",
           "type": [
             "number",
             "null"
           ]
         },
         "max_current_mA": {
+          "description": "Hard upper current limit in milliamps.",
           "type": [
             "number",
             "null"
@@ -505,12 +582,14 @@
           ]
         },
         "max_voltage_V": {
+          "description": "Hard upper voltage limit in volts; the instrument aborts beyond it.",
           "type": [
             "number",
             "null"
           ]
         },
         "min_current_mA": {
+          "description": "Hard lower current limit in milliamps.",
           "type": [
             "number",
             "null"
@@ -523,6 +602,7 @@
           ]
         },
         "min_voltage_V": {
+          "description": "Hard lower voltage limit in volts.",
           "type": [
             "number",
             "null"
@@ -532,23 +612,28 @@
       "type": "object"
     },
     "schema_version": {
+      "description": "Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
       "type": "string"
     },
     "test_spec": {
       "additionalProperties": false,
+      "description": "Identity and classification of the protocol.",
       "properties": {
         "description": {
+          "description": "Free-text description of the procedure.",
           "type": "string"
         },
         "id": {
           "$ref": "#/$defs/SpecIri"
         },
         "identifier": {
+          "description": "Local identifier for the protocol (e.g. a lab protocol code).",
           "minLength": 1,
           "type": "string"
         },
         "kind": {
+          "description": "Kind of test the protocol implements.",
           "enum": [
             "cycling",
             "capacity_check",
@@ -574,10 +659,12 @@
           "type": "string"
         },
         "name": {
+          "description": "Human-readable protocol name.",
           "minLength": 1,
           "type": "string"
         },
         "protocol_url": {
+          "description": "URL of the protocol document.",
           "format": "uri",
           "type": "string"
         },
@@ -585,6 +672,7 @@
           "$ref": "#/$defs/ShortId"
         },
         "version": {
+          "description": "Protocol version label.",
           "type": "string"
         }
       },
