@@ -5,50 +5,130 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
+from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, constr
 
 from bdf.battinfo._base import _RecordModel
+
+from .modules.common import quantity_schema
 
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
-    citation: AnyUrl | None = None
-    citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
-    extracted_at: AwareDatetime | None = None
-    source_file: str | None = None
-    source_id: str | None = None
-    source_type: Literal["curated", "datasheet"] | None = None
-    source_url: AnyUrl | None = None
+    battinfo_version: Annotated[
+        str | None,
+        Field(
+            description="Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
+            pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+        ),
+    ] = None
+    citation: Annotated[
+        AnyUrl | None, Field(description="Resolvable citation target to use for attribution, typically a DOI URL.")
+    ] = None
+    citation_doi: Annotated[
+        str | None,
+        Field(
+            description="DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
+            pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+        ),
+    ] = None
+    extracted_at: Annotated[
+        AwareDatetime | None,
+        Field(description="ISO 8601 timestamp when the information was extracted from the source."),
+    ] = None
+    source_file: Annotated[
+        str | None, Field(description="Path of the source document the record was extracted from.")
+    ] = None
+    source_id: Annotated[
+        str | None, Field(description="Identifier of this record's source in the originating system.")
+    ] = None
+    source_type: Annotated[
+        Literal["curated", "datasheet"] | None,
+        Field(description="Whether the record was hand-curated or extracted from a datasheet."),
+    ] = None
+    source_url: Annotated[
+        AnyUrl | None, Field(description="URL of the source document or landing page, when available.")
+    ] = None
 
 
 class Quality(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    inferred_fields: list[str] | None = None
-    missing_fields: list[str] | None = None
-    warnings: list[str] | None = None
+    inferred_fields: Annotated[
+        list[str] | None,
+        Field(description="Property keys filled by inference rather than read directly from the source."),
+    ] = None
+    missing_fields: Annotated[
+        list[str] | None, Field(description="Property keys expected but not found in the source.")
+    ] = None
+    warnings: Annotated[list[str] | None, Field(description="Human-readable warnings raised during extraction.")] = None
 
 
 class RawExtraction(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    confidence: Annotated[float | None, Field(ge=0.0, le=1.0)] = None
-    page: Annotated[int | None, Field(ge=1)] = None
-    text: str | None = None
+    confidence: Annotated[float | None, Field(description="Extraction confidence between 0 and 1.", ge=0.0, le=1.0)] = (
+        None
+    )
+    page: Annotated[int | None, Field(description="1-based page number in the source document.", ge=1)] = None
+    text: Annotated[str | None, Field(description="Verbatim source text the value was extracted from.")] = None
+
+
+class Cell(_RecordModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    chemistry: Annotated[
+        str | None,
+        Field(
+            description="Overall cell chemistry label (e.g. 'Li-ion', 'NiMH'). Use the recognised labels where they apply (see the property keys reference); other values are carried as literals."
+        ),
+    ] = None
+    datasheet_revision: Annotated[str | None, Field(description="Revision label of the source datasheet.")] = None
+    format: Annotated[
+        Literal["cylindrical", "prismatic", "pouch", "coin", "other", "unknown"] | None,
+        Field(description="Mechanical format of the cell."),
+    ] = None
+    id: Annotated[
+        str | None,
+        Field(
+            description="Canonical IRI of the cell spec.",
+            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+        ),
+    ] = None
+    manufacturer: Annotated[str | None, Field(description="Manufacturer name.")] = None
+    model_name: Annotated[str | None, Field(description="Manufacturer model designation.")] = None
+    size_code: Annotated[str | None, Field(description="Standard size designation (e.g. '18650').")] = None
 
 
 class SpecItem(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    max_value: float | None = None
-    min_value: float | None = None
-    raw: Annotated[RawExtraction | None, Field(default_factory=RawExtraction)]
+    co_type: Annotated[
+        Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
+        Field(
+            description="Nature of the value. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet 'rated capacity'). Conventional: fixed by convention or calculation (e.g. theoretical capacity). Drives the EMMO property-nature co-type in JSON-LD; until the EMMO RatedProperty class is published, Rated is exported as ConventionalProperty."
+        ),
+    ] = None
+    conditions: Annotated[
+        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity] | None,
+        Field(
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Emitted as hasMeasurementParameter in JSON-LD."
+        ),
+    ] = None
+    max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None
+    min_value: Annotated[float | None, Field(description="Lower bound when the source specifies a range.")] = None
+    raw: Annotated[
+        RawExtraction | None,
+        Field(
+            default_factory=RawExtraction,
+            description="Verbatim extraction context (source text, page, confidence) this value was parsed from.",
+        ),
+    ]
     sample_count: Annotated[
         int | None,
         Field(
@@ -63,113 +143,280 @@ class SpecItem(_RecordModel):
             ge=0.0,
         ),
     ] = None
-    typical_value: float | None = None
-    unit: Annotated[str | None, Field(min_length=1)] = None
-    unit_code: Annotated[str | None, Field(min_length=1)] = None
-    unit_text: Annotated[str | None, Field(min_length=1)] = None
-    value: float | None = None
-    value_text: Annotated[str | None, Field(min_length=1)] = None
+    typical_value: Annotated[
+        float | None,
+        Field(description="Typical value when the source distinguishes typical from nominal or limit values."),
+    ] = None
+    unit: Annotated[
+        str | None, Field(description="Canonical compact unit symbol/code, for example V, A, Ah, Wh/kg.", min_length=1)
+    ] = None
+    unit_code: Annotated[
+        str | None,
+        Field(description="Machine-readable unit code (schema.org unitCode convention, e.g. UN/CEFACT).", min_length=1),
+    ] = None
+    unit_text: Annotated[
+        str | None,
+        Field(description="Human-readable unit text as written in the source (schema.org unitText).", min_length=1),
+    ] = None
+    value: Annotated[
+        float | None,
+        Field(
+            description="Point numeric value. A value that is not purely numeric belongs in value_text, never as a string here."
+        ),
+    ] = None
+    value_text: Annotated[
+        str | None,
+        Field(description="Verbatim value text when the source value cannot be parsed to a number.", min_length=1),
+    ] = None
 
 
 class SpecSet(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    ac_internal_resistance: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    calendar_life: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    capacity_fade: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    capacity_threshold_exhaustion: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    certified_usable_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    ac_internal_resistance: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="AC internal resistance, typically at 1 kHz.")
+    ]
+    calendar_life: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Calendar life: storage time to the end-of-life threshold."),
+    ]
+    capacity_fade: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Capacity fade over the stated test.")
+    ]
+    capacity_threshold_exhaustion: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Capacity threshold defining end of life (e.g. 80% of nominal)."),
+    ]
+    certified_usable_energy: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Certified usable energy (EU Battery Regulation).")
+    ]
+    charging_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
     charging_cutoff_voltage: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    charging_temperature_max: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    charging_temperature_min: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    charging_time: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    charging_voltage: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    continuous_charging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    continuous_discharging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    cycle_life: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    cycle_life_c_rate: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    dc_internal_resistance: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    diameter: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    discharging_cutoff_voltage: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    discharging_temperature_max: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    discharging_temperature_min: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    energy_density: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    height: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    impedance: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    initial_coulombic_efficiency: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    internal_resistance: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    length: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    mass: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    maximum_charging_temperature: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    maximum_continuous_charging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    maximum_continuous_discharging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    maximum_discharging_temperature: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    maximum_power: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    charging_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    charging_temperature_max: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Alias of maximum_charging_temperature used by some sources."),
+    ]
+    charging_temperature_min: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Alias of minimum_charging_temperature used by some sources."),
+    ]
+    charging_time: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Typical time to full charge.")
+    ]
+    charging_voltage: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Recommended end-of-charge voltage.")
+    ]
+    continuous_charging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Continuous charging current.")
+    ]
+    continuous_discharging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Continuous discharging current.")
+    ]
+    cycle_life: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Number of full cycles to the end-of-life capacity threshold."),
+    ]
+    cycle_life_c_rate: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="C-rate at which the cycle-life figure was established."),
+    ]
+    dc_internal_resistance: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="DC internal resistance (pulse method).")
+    ]
+    diameter: Annotated[
+        SpecItem | None,
+        Field(
+            default_factory=SpecItem,
+            description="Cell diameter (cylindrical and coin formats). Not allowed for prismatic or pouch formats.",
+        ),
+    ]
+    discharging_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    discharging_cutoff_voltage: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Discharge cut-off voltage.")
+    ]
+    discharging_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    discharging_temperature_max: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Alias of maximum_discharging_temperature used by some sources."),
+    ]
+    discharging_temperature_min: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Alias of minimum_discharging_temperature used by some sources."),
+    ]
+    energy_density: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Volumetric energy density (energy per unit volume)."),
+    ]
+    height: Annotated[
+        SpecItem | None,
+        Field(
+            default_factory=SpecItem,
+            description="Cell height: the terminal-to-base dimension along the cell axis. For coin cells this is the total thickness per IEC 60086. Allowed for all formats.",
+        ),
+    ]
+    impedance: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="AC impedance, typically at 1 kHz.")
+    ]
+    initial_coulombic_efficiency: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="First-cycle coulombic efficiency.")
+    ]
+    internal_resistance: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Internal resistance, by the method the source states."),
+    ]
+    length: Annotated[
+        SpecItem | None,
+        Field(
+            default_factory=SpecItem,
+            description="Cell length: the larger of the two in-plane dimensions of a prismatic or pouch cell (length >= width). Not allowed for cylindrical or coin formats.",
+        ),
+    ]
+    mass: Annotated[SpecItem | None, Field(default_factory=SpecItem, description="Cell mass.")]
+    maximum_charging_temperature: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Highest permitted charging temperature.")
+    ]
+    maximum_continuous_charging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Maximum continuous charging current.")
+    ]
+    maximum_continuous_discharging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Maximum continuous discharging current.")
+    ]
+    maximum_discharging_temperature: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Highest permitted discharging temperature.")
+    ]
+    maximum_power: Annotated[SpecItem | None, Field(default_factory=SpecItem, description="Maximum power.")]
     maximum_pulse_charging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
     maximum_pulse_discharging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    maximum_storage_temperature: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    min_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    minimum_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    minimum_charging_temperature: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    minimum_discharging_temperature: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    minimum_storage_temperature: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    nominal_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    nominal_continuous_charging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    nominal_continuous_discharging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    nominal_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    nominal_voltage: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    maximum_storage_temperature: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Highest permitted storage temperature.")
+    ]
+    min_capacity: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Alias of minimum_capacity used by some sources.")
+    ]
+    minimum_capacity: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Minimum guaranteed capacity.")
+    ]
+    minimum_charging_temperature: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Lowest permitted charging temperature.")
+    ]
+    minimum_discharging_temperature: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Lowest permitted discharging temperature.")
+    ]
+    minimum_storage_temperature: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Lowest permitted storage temperature.")
+    ]
+    nominal_capacity: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Nominal capacity declared by the manufacturer.")
+    ]
+    nominal_continuous_charging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Nominal continuous charging current.")
+    ]
+    nominal_continuous_discharging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Nominal continuous discharging current.")
+    ]
+    nominal_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem, description="Nominal energy.")]
+    nominal_voltage: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Nominal (average discharge) voltage.")
+    ]
     operating_temperature_max: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
     operating_temperature_min: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    power_capability: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    power_density: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    power_energy_ratio: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    pulse_charging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    pulse_discharging_current: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    rated_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    rated_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    round_trip_energy_efficiency: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    round_trip_energy_efficiency_50pct: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    self_discharge_rate: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    specific_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    specific_power: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    state_of_health: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    storage_temperature_max: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    storage_temperature_min: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    thickness: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    typical_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    typical_energy: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    upper_voltage_limit: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    volume: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    width: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-
-
-class Cell(_RecordModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    chemistry: str | None = None
-    datasheet_revision: str | None = None
-    format: Literal["cylindrical", "prismatic", "pouch", "coin", "other", "unknown"] | None = None
-    id: Annotated[
-        str | None,
+    power_capability: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Power capability under the stated conditions.")
+    ]
+    power_density: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Volumetric power density (power per unit volume)."),
+    ]
+    power_energy_ratio: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Ratio of maximum power to energy (P/E ratio).")
+    ]
+    pulse_charging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Maximum pulse charging current.")
+    ]
+    pulse_discharging_current: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Maximum pulse discharging current.")
+    ]
+    rated_capacity: Annotated[
+        SpecItem | None,
         Field(
-            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+            default_factory=SpecItem,
+            description="Rated capacity established under the manufacturer's rating procedure.",
         ),
-    ] = None
-    manufacturer: str | None = None
-    model_name: str | None = None
-    size_code: str | None = None
+    ]
+    rated_energy: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Rated energy established under the rating procedure."),
+    ]
+    round_trip_energy_efficiency: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Round-trip energy efficiency.")
+    ]
+    round_trip_energy_efficiency_50pct: Annotated[
+        SpecItem | None,
+        Field(
+            default_factory=SpecItem,
+            description="Round-trip energy efficiency at 50% of expected cycle life (EU Battery Regulation).",
+        ),
+    ]
+    self_discharge_rate: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Self-discharge rate (e.g. percent per month).")
+    ]
+    specific_energy: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Gravimetric energy density (energy per unit mass)."),
+    ]
+    specific_power: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="Gravimetric power density (power per unit mass).")
+    ]
+    state_of_health: Annotated[
+        SpecItem | None, Field(default_factory=SpecItem, description="State of health relative to nominal capacity.")
+    ]
+    storage_temperature_max: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Alias of maximum_storage_temperature used by some sources."),
+    ]
+    storage_temperature_min: Annotated[
+        SpecItem | None,
+        Field(default_factory=SpecItem, description="Alias of minimum_storage_temperature used by some sources."),
+    ]
+    thickness: Annotated[
+        SpecItem | None,
+        Field(
+            default_factory=SpecItem,
+            description="Cell thickness: the smallest dimension of a prismatic or pouch cell. Not allowed for cylindrical or coin formats.",
+        ),
+    ]
+    typical_capacity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    typical_energy: Annotated[
+        SpecItem | None,
+        Field(
+            default_factory=SpecItem, description="Typical energy delivered under the datasheet reference conditions."
+        ),
+    ]
+    upper_voltage_limit: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
+    volume: Annotated[SpecItem | None, Field(default_factory=SpecItem, description="Cell volume.")]
+    width: Annotated[
+        SpecItem | None,
+        Field(
+            default_factory=SpecItem,
+            description="Cell width: the smaller of the two in-plane dimensions of a prismatic or pouch cell (length >= width). Not allowed for cylindrical or coin formats.",
+        ),
+    ]
 
 
 class Measurement(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: str | None = None
-    property: str | None = None
-    quantity: Annotated[SpecItem | None, Field(default_factory=SpecItem)]
-    source: str | None = None
+    name: Annotated[str | None, Field(description="Name of the measured property (snake_case key).")] = None
+    property: Annotated[
+        str | None, Field(description="Ontology label or IRI of the measured property, when known.")
+    ] = None
+    quantity: Annotated[SpecItem | None, Field(default_factory=SpecItem, description="Measured value and unit.")]
+    source: Annotated[
+        str | None, Field(description="Where the measurement came from (instrument, dataset, or report).")
+    ] = None
 
 
 class RangeSpec(_RecordModel):
@@ -185,10 +432,28 @@ class BattinfoCanonicalCellInstance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    cell: Annotated[Cell | None, Field(default_factory=Cell)]
-    measurements: list[Measurement] | None = None
-    notes: list[str] | None = None
-    properties: Annotated[SpecSet | None, Field(default_factory=SpecSet)]
-    provenance: Annotated[Provenance | None, Field(default_factory=Provenance)]
-    quality: Annotated[Quality | None, Field(default_factory=Quality)]
-    schema_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
+    cell: Annotated[
+        Cell | None,
+        Field(
+            default_factory=Cell, description="Core identity of the cell spec (manufacturer, model, format, chemistry)."
+        ),
+    ]
+    measurements: Annotated[
+        list[Measurement] | None, Field(description="Measured quantities complementing the datasheet values.")
+    ] = None
+    notes: Annotated[list[str] | None, Field(description="Free-text notes carried with the record.")] = None
+    properties: Annotated[
+        SpecSet | None, Field(default_factory=SpecSet, description="Extracted datasheet properties of the cell.")
+    ]
+    provenance: Annotated[
+        Provenance | None,
+        Field(default_factory=Provenance, description="Where the extracted cell information came from."),
+    ]
+    quality: Annotated[Quality | None, Field(default_factory=Quality, description="Extraction quality report.")]
+    schema_version: Annotated[
+        str | None,
+        Field(
+            description="Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
+            pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+        ),
+    ] = None
