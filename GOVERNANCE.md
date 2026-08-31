@@ -15,9 +15,10 @@ or review comments. No membership is required; see
 contributions, keep CI green, and are accountable for what merges. The current
 committers are listed in [COMMITTERS.md](COMMITTERS.md).
 
-**Project lead** coordinates releases and represents the project toward the
-Battery Data Alliance Technical Steering Committee (TSC). The role is listed in
-[COMMITTERS.md](COMMITTERS.md).
+**Release manager** is a per-release coordination role a committer takes on
+for a given release train; it carries no special authority. Alliance-level
+authority rests with the Battery Data Alliance Technical Steering Committee
+(TSC).
 
 ## Decision making
 
@@ -31,8 +32,8 @@ Decisions are made by lazy consensus in public, in this order of preference:
 3. **The mailing list, forum, and monthly sync** for direction-setting:
    release scope, ontology versioning, cross-project coordination.
 
-If consensus does not emerge, the project lead decides after the discussion
-has had a reasonable airing; anyone can appeal a decision to the BDA TSC.
+If consensus does not emerge after a reasonable airing, the question goes to
+the BDA TSC, whose decision stands.
 
 ## Becoming a committer
 
