@@ -15,6 +15,12 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 - **Data Consistency**: With a common format, labs and cycler brands can eliminate the inconsistencies in data structure that arise with each software update.
 - **Model Compatibility**: A unified format means battery model developers can easily adapt their models to accept BDF data, making it possible for scientists to experiment with multiple models without custom coding each time.
 
+## Feedback and contributions
+
+- Bugs and feature requests: [GitHub issues](https://github.com/battery-data-alliance/battery-data-format/issues)
+- Questions and discussion: [the BDA forum](https://bda.discourse.group)
+- Contributing code or data: see [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## Initial Scope of the BDF
 
 - The initial scope is intended to facilitate use and comparison of cycler time-series data.  
