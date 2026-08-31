@@ -1,5 +1,7 @@
 # Battery Data Format (.bdf)
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14378/badge)](https://www.bestpractices.dev/projects/14378)
+
 ## Why introduce an industry standard format for battery data?
 
 It is well known that organizing, cleaning, and preparing battery data for analytics takes significant time and effort, creating a high barrier to leveraging advances in battery modeling for battery development cycles.
