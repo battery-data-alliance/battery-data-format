@@ -848,7 +848,9 @@ def test_save_metadata(tmp_path: Path) -> None:
     assert p.exists()
     assert p_meta.exists()
     metadata = json.loads(p_meta.read_text())
-    assert metadata == {"bdf": {"source": "bdf_parquet"}}
+    assert metadata["bdf"]["source"] == "bdf_parquet"
+    # every written sidecar also carries the writer's version stamps (GH #106)
+    assert set(metadata["bdf"]) == {"source", "bdf_version", "ontology_version", "battinfo_ref"}
 
 
 def test_metadata_roundtrips_through_save_and_read(tmp_path: Path) -> None:
@@ -895,7 +897,7 @@ def test_save_without_metadata_refuses_an_existing_sidecar(tmp_path: Path) -> No
     io.save(df, p, metadata=original)
     sidecar = p.with_suffix(".metadata.json")
 
-    with pytest.raises(FileExistsError, match=str(sidecar)):
+    with pytest.raises(FileExistsError, match=re.escape(str(sidecar))):
         io.save(other, p)
 
     # The refusal precedes the table write, so neither file changed.
@@ -1086,7 +1088,7 @@ def test_read_unlocatable_boundary_keeps_the_whole_head(tmp_path: Path) -> None:
     # the preamble line as the header still parses a consistent shape; only
     # one data row follows, too few for structure detection to find a table.
     text = "~Start of Test: 2024-01-15 00:00:00,,\nTest Time / s,Voltage / V,Current / A\n0,3.7,0.1\n"
-    p.write_text(text)
+    p.write_text(text, newline="\n")
 
     rule = RegexRule(
         pattern=re.compile(r"~Start of Test:\s*([^,]+)"),
@@ -1216,11 +1218,41 @@ def test_unrecognised_sidecar_key_fails_the_read(tmp_path: Path) -> None:
     sidecar = p.with_suffix(".metadata.json")
 
     sidecar.write_text(json.dumps({"not_a_real_field": "x"}))
-    with pytest.raises(ValidationError, match="not_a_real_field"):
+    with pytest.raises(BDFMetadataError, match="not_a_real_field"):
         io.read(p)
 
     sidecar.write_text(json.dumps({"battinfo_test": {"test": {"started_at": "not-an-int"}}}))
-    with pytest.raises(ValidationError):
+    with pytest.raises(BDFMetadataError):
+        io.read(p)
+
+
+def test_sidecar_from_a_newer_bdf_says_to_upgrade(tmp_path: Path) -> None:
+    """A sidecar that fails validation and claims a newer bdf_version raises with
+    an upgrade instruction instead of the raw validation error."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    p.with_suffix(".metadata.json").write_text(
+        json.dumps({"field_from_the_future": "x", "bdf": {"bdf_version": "99.0.0"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BDFMetadataError, match="written by bdf 99.0.0.*Upgrade"):
+        io.read(p)
+
+
+def test_sidecar_with_a_malformed_claimed_version_still_wraps(tmp_path: Path) -> None:
+    """An unparseable claimed version never crashes the error path; the generic
+    BDFMetadataError wrap raises instead."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    p.with_suffix(".metadata.json").write_text(
+        json.dumps({"field_from_the_future": "x", "bdf": {"bdf_version": "not-a-version"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BDFMetadataError, match="does not validate"):
         io.read(p)
 
 
@@ -1332,3 +1364,60 @@ def test_table_parser_read_accepts_day_month_order(tmp_path: Path) -> None:
     out = parser.read(p, validate=False, day_month_order="day_first").collect()  # type: ignore[call-arg]
     expected = datetime(2024, 3, 2, 12, 0, 0, tzinfo=timezone.utc).timestamp()
     assert out["Unix Time / s"][0] == pytest.approx(expected, abs=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# Writer-version stamps (GH #106)
+# ---------------------------------------------------------------------------
+
+
+def test_save_stamps_writer_versions_into_the_sidecar(tmp_path: Path) -> None:
+    """A written sidecar carries bdf_version, ontology_version, and battinfo_ref,
+    and stamping never mutates the caller's object."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    meta = Metadata()
+    meta.battinfo_test.test.name = "cell-1"  # type: ignore[union-attr]
+    p = tmp_path / "data.bdf.csv"
+
+    io.save(df, p, metadata=meta)
+
+    import bdf
+    from bdf.battinfo import bundled_ref
+
+    doc = json.loads(p.with_suffix(".metadata.json").read_text(encoding="utf-8"))
+    assert doc["bdf"]["bdf_version"] == bdf.__version__
+    assert doc["bdf"]["ontology_version"]
+    assert doc["bdf"]["battinfo_ref"] == bundled_ref()
+    assert meta.bdf.bdf_version is None
+
+
+def test_stamps_overwrite_the_previous_writers_stamp(tmp_path: Path) -> None:
+    """The stamps identify the writer: a read-then-save replaces an old file's
+    stamp with the version performing the save."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    old = tmp_path / "old.bdf.csv"
+    df.write_csv(old)
+    old.with_suffix(".metadata.json").write_text(
+        json.dumps({"battinfo_test": {"test": {"name": "cell-1"}}, "bdf": {"bdf_version": "0.1.0"}}),
+        encoding="utf-8",
+    )
+
+    _, meta = io.read(old)
+    assert meta.bdf.bdf_version == "0.1.0"
+    new = tmp_path / "new.bdf.csv"
+    io.save(df, new, metadata=meta)
+
+    import bdf
+
+    doc = json.loads(new.with_suffix(".metadata.json").read_text(encoding="utf-8"))
+    assert doc["bdf"]["bdf_version"] == bdf.__version__
+
+
+def test_empty_metadata_is_not_stamped_into_existence(tmp_path: Path) -> None:
+    """Stamps describe a sidecar; they never create one for an empty Metadata."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+
+    io.save(df, p, metadata=Metadata())
+
+    assert not p.with_suffix(".metadata.json").exists()

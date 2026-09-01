@@ -63,7 +63,7 @@ def test_direct_parse_keeps_the_whole_head(tmp_path: Path) -> None:
 
     p = tmp_path / "f.txt"
     text = "~Start of Test: 30-Apr-24 08:00:00 AM\nsome other line\n"
-    p.write_text(text)
+    p.write_text(text, newline="\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS))
     parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})

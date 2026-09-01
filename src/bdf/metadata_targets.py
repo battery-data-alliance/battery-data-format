@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, RootModel
 
 from .battinfo.generated.cell_instance_schema import BattinfoCellInstance
 from .battinfo.generated.channel_schema import BattinfoChannelInstance
+from .battinfo.generated.dataset_schema import BattinfoDatasetSchemaOrgAligned
 from .battinfo.generated.equipment_schema import BattinfoEquipmentInstance
 from .battinfo.generated.test_protocol_schema import BattinfoTestProtocol
 from .battinfo.generated.test_schema import BattinfoTest
@@ -90,6 +91,7 @@ _ROOTS: dict[str, type[BaseModel]] = {
     "battinfo_channel": BattinfoChannelInstance,
     "battinfo_equipment": BattinfoEquipmentInstance,
     "battinfo_test_protocol": BattinfoTestProtocol,
+    "battinfo_dataset": BattinfoDatasetSchemaOrgAligned,
 }
 
 _ARRAY_ORIGINS = (list, tuple, set, frozenset)

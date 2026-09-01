@@ -5,20 +5,20 @@ Usage: ``python scripts/update_battinfo.py REF``
        ``python scripts/update_battinfo.py --check [REF]``
 
 ``REF`` is a commit, tag, or branch of ``BIG-MAP/BattINFO``. The script fetches
-the eight managed schema files at that ref, replaces the bundled copies
+the managed schema files at that ref, replaces the bundled copies
 atomically, stamps ``VERSION`` with the commit the ref resolves to, and
 regenerates ``bdf.battinfo.generated``. It writes each file in the canonical
 form ``normalize`` states, and not in the upstream byte layout, so an upstream
 commit that only reorders keys produces no diff.
 
 ``--check`` compares alone, and it exits non-zero when the bundle is stale. It
-fetches the eight files at ``REF`` (``main`` by default) and reports which ones
+fetches the managed files at ``REF`` (``main`` by default) and reports which ones
 differ from the bundle. The comparison reads parsed content, so an upstream
 commit that reformats a file, or that touches nothing under ``assets/schemas/``,
 reports no difference. CI runs this mode on every pull request, which is why an
 unrelated upstream commit does not turn a pull request red.
 
-BDF pins eight upstream schema files under ``bdf/data/battinfo/schemas/``: the
+BDF pins nine upstream schema files under ``bdf/data/battinfo/schemas/``: the
 five entity schemas (``test``, ``cell-instance``, ``channel``, ``equipment``,
 ``test-protocol``), ``cell-instance``'s ``cell-canonical`` dependency, and the
 two shared ``modules/common`` files ``channel`` and ``equipment`` depend on.
@@ -46,7 +46,7 @@ from typing import Any
 _REPO = "BIG-MAP/BattINFO"
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# Upstream paths (within BIG-MAP/BattINFO) for the eight managed schema files,
+# Upstream paths (within BIG-MAP/BattINFO) for the managed schema files,
 # keyed by their path relative to the bundled schema directory.
 MANAGED_SCHEMA_PATHS: dict[str, str] = {
     "test.schema.json": "assets/schemas/test.schema.json",
@@ -55,6 +55,7 @@ MANAGED_SCHEMA_PATHS: dict[str, str] = {
     "channel.schema.json": "assets/schemas/channel.schema.json",
     "equipment.schema.json": "assets/schemas/equipment.schema.json",
     "test-protocol.schema.json": "assets/schemas/test-protocol.schema.json",
+    "dataset.schema.json": "assets/schemas/dataset.schema.json",
     "modules/common/quantitative-properties.schema.json": "assets/schemas/modules/common/quantitative-properties.schema.json",
     "modules/common/quantity.schema.json": "assets/schemas/modules/common/quantity.schema.json",
 }
@@ -82,7 +83,7 @@ def bundle_dir() -> Path:
 
 
 def schema_dir() -> Path:
-    """Return the directory holding the eight managed schema files.
+    """Return the directory holding the managed schema files.
 
     Returns:
         The generator's input directory, which holds schema files alone.
@@ -91,7 +92,7 @@ def schema_dir() -> Path:
 
 
 def load_managed(source: Path | None = None) -> dict[str, dict[str, Any]]:
-    """Load the eight managed schema files the model package is rendered from.
+    """Load the managed schema files the model package is rendered from.
 
     Args:
         source: Directory holding the schema files. Defaults to the bundled
@@ -169,7 +170,7 @@ def load_version(source: Path | None = None) -> dict[str, str]:
 
 
 def fetch_schemas(ref: str) -> dict[str, bytes]:
-    """Fetch the eight managed schema files at ``ref``.
+    """Fetch the managed schema files at ``ref``.
 
     Args:
         ref: Upstream ``BIG-MAP/BattINFO`` commit or tag to pin.
