@@ -26,6 +26,7 @@ import pytest
 import bdf.metadata
 from bdf.battinfo.generated.cell_instance_schema import BattinfoCellInstance
 from bdf.battinfo.generated.channel_schema import BattinfoChannelInstance
+from bdf.battinfo.generated.dataset_schema import BattinfoDatasetSchemaOrgAligned
 from bdf.battinfo.generated.equipment_schema import BattinfoEquipmentInstance
 from bdf.battinfo.generated.test_protocol_schema import BattinfoTestProtocol
 from bdf.battinfo.generated.test_schema import BattinfoTest
@@ -276,6 +277,24 @@ def test_test_protocol_record_fields_resolve_upstream() -> None:
     assert expected <= walked
 
 
+def test_dataset_record_fields_resolve_upstream() -> None:
+    """Every field path the dataset record declares is a valid location in the
+    pinned dataset.schema.json, and the walk covers at least the identity and
+    the file-distribution facts the record exists to carry (#92)."""
+
+    doc = _load_schema("dataset.schema.json")
+
+    walked = _assert_fields_resolve(BattinfoDatasetSchemaOrgAligned, doc, doc["properties"], "")
+
+    expected = {
+        "schema_version",
+        "dataset.name",
+        "dataset.access_url",
+        "provenance.source_type",
+    }
+    assert expected <= walked
+
+
 def test_no_runtime_battinfo_import() -> None:
     """BDF must never import battinfo at runtime, keeping the
     battinfo[processing] -> batterydf dependency direction acyclic: the
@@ -319,14 +338,15 @@ _MOCK_MANAGED_SCHEMA_CONTENT: dict[str, bytes] = {
     "channel.schema.json": b'{"title": "channel schema", "properties": {}}',
     "equipment.schema.json": b'{"title": "equipment schema", "properties": {}}',
     "test-protocol.schema.json": b'{"title": "test-protocol schema", "properties": {}}',
+    "dataset.schema.json": b'{"title": "dataset schema", "properties": {}}',
     "modules/common/quantitative-properties.schema.json": b'{"title": "quantitative-properties schema"}',
     "modules/common/quantity.schema.json": b'{"title": "quantity schema", "properties": {}}',
 }
 
 
-def test_bundle_loads_eight_schemas_and_version_stamp() -> None:
+def test_bundle_loads_the_managed_schemas_and_version_stamp() -> None:
     """The package-data loader reads the bundle under ``bdf/data/battinfo/``
-    and exposes the eight managed schema files that ``bdf.battinfo.generated``
+    and exposes every managed schema file that ``bdf.battinfo.generated``
     is rendered from, and a ``VERSION`` stamp carrying a commit ref."""
     managed = load_managed()
 
