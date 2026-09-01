@@ -33,7 +33,8 @@ Decisions are made by lazy consensus in public, in this order of preference:
    release scope, ontology versioning, cross-project coordination.
 
 If consensus does not emerge after a reasonable airing, the question goes to
-the BDA TSC, whose decision stands.
+the BDA TSC, whose decision stands. Today the committers and the TSC
+substantially overlap; the escalation path exists for when they don't.
 
 ## Becoming a committer
 
