@@ -20,7 +20,9 @@ def bundled_ref() -> str | None:
     import importlib.resources
 
     try:
-        text = importlib.resources.files("bdf.data").joinpath("battinfo", "VERSION").read_text(encoding="utf-8")
+        text = (
+            importlib.resources.files("bdf.data").joinpath("battinfo").joinpath("VERSION").read_text(encoding="utf-8")
+        )
     except OSError:
         return None
     for line in text.splitlines():
