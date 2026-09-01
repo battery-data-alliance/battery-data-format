@@ -848,7 +848,9 @@ def test_save_metadata(tmp_path: Path) -> None:
     assert p.exists()
     assert p_meta.exists()
     metadata = json.loads(p_meta.read_text())
-    assert metadata == {"bdf": {"source": "bdf_parquet"}}
+    assert metadata["bdf"]["source"] == "bdf_parquet"
+    # every written sidecar also carries the writer's version stamps (GH #106)
+    assert set(metadata["bdf"]) == {"source", "bdf_version", "ontology_version", "battinfo_ref"}
 
 
 def test_metadata_roundtrips_through_save_and_read(tmp_path: Path) -> None:
@@ -895,7 +897,7 @@ def test_save_without_metadata_refuses_an_existing_sidecar(tmp_path: Path) -> No
     io.save(df, p, metadata=original)
     sidecar = p.with_suffix(".metadata.json")
 
-    with pytest.raises(FileExistsError, match=str(sidecar)):
+    with pytest.raises(FileExistsError, match=re.escape(str(sidecar))):
         io.save(other, p)
 
     # The refusal precedes the table write, so neither file changed.
@@ -1086,7 +1088,7 @@ def test_read_unlocatable_boundary_keeps_the_whole_head(tmp_path: Path) -> None:
     # the preamble line as the header still parses a consistent shape; only
     # one data row follows, too few for structure detection to find a table.
     text = "~Start of Test: 2024-01-15 00:00:00,,\nTest Time / s,Voltage / V,Current / A\n0,3.7,0.1\n"
-    p.write_text(text)
+    p.write_text(text, newline="\n")
 
     rule = RegexRule(
         pattern=re.compile(r"~Start of Test:\s*([^,]+)"),
