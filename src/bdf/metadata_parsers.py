@@ -27,7 +27,7 @@ import warnings
 from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError as PydanticValidationError, model_validator
 
 from ._errors import BDFMetadataError
 from .file_utils import read_head
@@ -337,6 +337,17 @@ def _load_json_object(sidecar: Path) -> dict:
     return data
 
 
+def _version_tuple(text: object) -> tuple[int, ...] | None:
+    """Parse the leading numeric part of a version string, or None.
+
+    Tolerates rc and dev suffixes ("0.2.0rc2", "0.0.0-dev"): the comparison
+    only needs the release triple. Returns None for anything unparseable, so
+    a malformed claimed version can never raise inside an error path.
+    """
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", str(text))
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
 class MetadataParser(BaseModel):
     """Base / null metadata parser: never matches, extracts nothing.
 
@@ -592,9 +603,10 @@ class BdfSidecarParser(MetadataParser):
     carries canonical values, so :meth:`parse` runs no normalization. ``raw``
     restores as an ordinary declared field, which keeps a repeated save and
     read from nesting a copy of the sidecar inside itself. A top-level key
-    that ``Metadata`` does not declare raises out of ``model_validate``,
-    naming that key, and a declared field with an invalid value raises the
-    same way. A sidecar that exists and cannot be read at all raises
+    that ``Metadata`` does not declare raises ``BDFMetadataError`` naming
+    that key, and a declared field with an invalid value raises the same
+    way; a document claiming a newer ``bdf_version`` raises with an
+    upgrade instruction (GH #106). A sidecar that exists and cannot be read at all raises
     :class:`BDFMetadataError`, so an empty ``Metadata`` always means that no
     sidecar exists.
     """
@@ -649,11 +661,27 @@ class BdfSidecarParser(MetadataParser):
             BDFMetadataError: The sidecar exists and does not decode as
                 UTF-8, does not parse as JSON, or holds a JSON value that is
                 not an object.
-            pydantic.ValidationError: The sidecar states a top-level key no
-                ``Metadata`` field declares, or a recognised field an
-                invalid value.
+            BDFMetadataError: The sidecar states a top-level key no
+                ``Metadata`` field declares, or a recognised field an invalid
+                value. Where the document also claims a newer ``bdf_version``
+                than the installed package, the message says to upgrade.
         """
         sidecar = self.sidecar_path(path)
         if not sidecar.exists():
             return Metadata()
-        return Metadata.model_validate(_load_json_object(sidecar))
+        data = _load_json_object(sidecar)
+        try:
+            return Metadata.model_validate(data)
+        except PydanticValidationError as exc:
+            import bdf
+
+            bdf_block = data.get("bdf")
+            claimed = bdf_block.get("bdf_version") if isinstance(bdf_block, dict) else None
+            claimed_tuple = _version_tuple(claimed)
+            current_tuple = _version_tuple(bdf.__version__)
+            if claimed_tuple and current_tuple and claimed_tuple > current_tuple:
+                raise BDFMetadataError(
+                    f"metadata sidecar {sidecar} was written by bdf {claimed}; this is bdf "
+                    f"{bdf.__version__}. Upgrade batterydf to read it."
+                ) from exc
+            raise BDFMetadataError(f"metadata sidecar {sidecar} does not validate: {exc}") from exc

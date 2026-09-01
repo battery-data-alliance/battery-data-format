@@ -1216,11 +1216,41 @@ def test_unrecognised_sidecar_key_fails_the_read(tmp_path: Path) -> None:
     sidecar = p.with_suffix(".metadata.json")
 
     sidecar.write_text(json.dumps({"not_a_real_field": "x"}))
-    with pytest.raises(ValidationError, match="not_a_real_field"):
+    with pytest.raises(BDFMetadataError, match="not_a_real_field"):
         io.read(p)
 
     sidecar.write_text(json.dumps({"battinfo_test": {"test": {"started_at": "not-an-int"}}}))
-    with pytest.raises(ValidationError):
+    with pytest.raises(BDFMetadataError):
+        io.read(p)
+
+
+def test_sidecar_from_a_newer_bdf_says_to_upgrade(tmp_path: Path) -> None:
+    """A sidecar that fails validation and claims a newer bdf_version raises with
+    an upgrade instruction instead of the raw validation error."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    p.with_suffix(".metadata.json").write_text(
+        json.dumps({"field_from_the_future": "x", "bdf": {"bdf_version": "99.0.0"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BDFMetadataError, match="written by bdf 99.0.0.*Upgrade"):
+        io.read(p)
+
+
+def test_sidecar_with_a_malformed_claimed_version_still_wraps(tmp_path: Path) -> None:
+    """An unparseable claimed version never crashes the error path; the generic
+    BDFMetadataError wrap raises instead."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    p.with_suffix(".metadata.json").write_text(
+        json.dumps({"field_from_the_future": "x", "bdf": {"bdf_version": "not-a-version"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BDFMetadataError, match="does not validate"):
         io.read(p)
 
 
