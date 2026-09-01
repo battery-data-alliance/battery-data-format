@@ -84,3 +84,5 @@ openspec
 .worktrees
 .github/*
 !.github/workflows
+!.github/CODEOWNERS
+!.github/ISSUE_TEMPLATE/
