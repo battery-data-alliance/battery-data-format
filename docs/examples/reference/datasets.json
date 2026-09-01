@@ -1,6 +1,13 @@
 {
   "artifact_record": {
     "doi": "10.5281/zenodo.22230066",
+    "excluded_fixtures": {
+      "files": [
+        "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.csv",
+        "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv"
+      ],
+      "note": "Data-quality test fixtures (deliberate acquisition problems, __Bug filename suffix) are kept in the repository for testing and bdf.clean demonstrations but are not published in the canonical artifact record: the record carries the clean set only. Their raw exports remain on the raw-data record."
+    },
     "note": "The DOI of the Zenodo record that publishes these BDF artifacts (the 0.2.0 canonical set). The top-level zenodo_record/doi fields identify the RAW-data record the artifacts were converted from."
   },
   "column_key_convention": "Machine-readable notation from the BDF ontology (e.g. test_time_second); one key per quantity with the canonical unit baked in. See https://battery-data-alliance.github.io/battery-data-format-ontology/pages/specification.html",
