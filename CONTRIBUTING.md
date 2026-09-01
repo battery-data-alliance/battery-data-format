@@ -123,6 +123,10 @@ managed schema files under `src/bdf/data/battinfo/schemas/` (nine today). The mo
   package against a fresh render (`datamodel-codegen --check`), and a hand
   edit fails that check.
 
+## Reference artifacts are byte-exact
+
+The files under `docs/examples/reference/` are hashed into `datasets.json`, so `.gitattributes` marks them `-text` and git must never rewrite their line endings. After pulling the change that introduced this, a pre-existing checkout may show all of them as modified and fail the manifest sha test: nothing is wrong with the data - refresh the working copies with `git checkout -- docs/examples/reference`.
+
 ## Release workflow (summary)
 - Ensure CI is green (lint/type/tests/docs/build).
 - Bump version in `pyproject.toml` and update `CHANGELOG.md`.

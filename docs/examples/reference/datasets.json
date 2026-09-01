@@ -1,4 +1,8 @@
 {
+  "artifact_record": {
+    "doi": null,
+    "note": "The DOI of the Zenodo record that publishes these BDF artifacts. Back-filled from the draft's reserved DOI before the record publishes. The top-level zenodo_record/doi fields identify the RAW-data record the artifacts were converted from."
+  },
   "column_key_convention": "Machine-readable notation from the BDF ontology (e.g. test_time_second); one key per quantity with the canonical unit baked in. See https://battery-data-alliance.github.io/battery-data-format-ontology/pages/specification.html",
   "datasets": [
     {
@@ -22,7 +26,7 @@
         "record_id": null
       },
       "bdf_file": "DLR__LiGrHydra0b__20221114__GITT__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "cfc400994e25e1259ddef5eb9fe830c87865820a6cc40c40f13ad2db1246987f",
+      "bdf_sha256": "b328b855efdf100be057bcd6fcc692512b8e65259cf52c1a53f4fb70bc47a7c4",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -66,7 +70,7 @@
         "record_id": null
       },
       "bdf_file": "DLR__LiGrHydra0b__20230131__POCV__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "c73d4465ff34cb8e7f987ba9cbbee48c75491b7d3a094b6f53537942f67abdff",
+      "bdf_sha256": "aba7d4693c4ebdcc25b04fef52aa210c8bf4226a5eb9766f8ed28d097ab5637e",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -110,7 +114,7 @@
         "record_id": null
       },
       "bdf_file": "DLR__LiLNMOHydra0b__20221125__POCV__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "7f8f980f25bd539779cfc9eb66a7cf4ef71ad41c060ee2acf3d29e269ea55774",
+      "bdf_sha256": "95b7f8646da7b7c1cd7d0e4eaccc242b5fdc3b11750d2ccf673903cb0e86dd06",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -154,7 +158,7 @@
         "record_id": null
       },
       "bdf_file": "DLR__LiLNMOHydra0b__20221130__GITT__25degC__Basytec.bdf.csv",
-      "bdf_sha256": "b54df597404a98cbce6326b9cbe4825e6c0256a1fb07c80e9d62f0b4dc8034fd",
+      "bdf_sha256": "e7ecb72402001356781a00d1a6e8259dc143fdbfa3d4002300efcf55177726a2",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -236,7 +240,7 @@
         "record_id": null
       },
       "bdf_file": "SINTEF__G20M7-202512-Gru6mV__20251228__C30__25degC__Neware.bdf.csv",
-      "bdf_sha256": "52a853ba9e2133e29bb7bbdf7c7e41726a486dd42def0a2cdc1c0a9a50f61f4c",
+      "bdf_sha256": "bfbd35f58b5a354906ff6a95b73db96297e169aa104b4cda14d963ef7ea87722",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -286,7 +290,7 @@
         "record_id": null
       },
       "bdf_file": "SINTEF__LiGrR2032__2024-04-30__25degC__Landt.bdf.csv",
-      "bdf_sha256": "e7ea478aa3fd9882d1c2fa3c568e8ba83c406d2fb9c6dfb5d5afff89fe7d7d66",
+      "bdf_sha256": "6b56bfa3dc0daa651f8982414b4146e17b691d42d6cf4b6d33c2b97b8bb96e28",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -346,7 +350,7 @@
         "record_id": null
       },
       "bdf_file": "SINTEF__NaCR32140-MP10-04__2025-08-25__CCCV_0p02C_25degC__BioLogic__Outlier_Bug.bdf.csv",
-      "bdf_sha256": "b01ea95116c54d284ca13e6b14ebf3312397b867315084397697cc40da0e3c8e",
+      "bdf_sha256": "cfba0bcf7bdf564477660437885482418403e9425cf93d103bfed646ba8fd238",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -404,7 +408,7 @@
         "record_id": null
       },
       "bdf_file": "SINTEF__NaCR32140-MP10-04__2025-08-25__GITT_0p05C_25degC__BioLogic.bdf.csv",
-      "bdf_sha256": "3a71547ad1c6e0e212a0ac09e338fcd30a970a5fb2af42a51d8e061586bf6f75",
+      "bdf_sha256": "935ea83f1106a1ffd28bb52144f4f6c260c91d33f31b56fdcc66d19255ab9881",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -454,7 +458,7 @@
         "record_id": null
       },
       "bdf_file": "SINTEF__SLPBA842124HV__2024-10-23__Rate_25degC__Neware__Time_Bug.bdf.csv",
-      "bdf_sha256": "90aa25c3852ded3b5268d8596d1e3c42185dbf12c3da7e1b458c859a801618e8",
+      "bdf_sha256": "c05d5434c95a3512f400ddf91c742af0944f34ce3b15b4aecc0a00cb6d3d1698",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -560,7 +564,7 @@
         "record_id": null
       },
       "bdf_file": "faraday__lg-INR21700M50-2019-002__2019-06-02__rate__25degC__maccor.bdf.csv",
-      "bdf_sha256": "9b29f9c63f27cd17c9bfe89194f097e25a4aa93a49a30a97122210c5bbd8806d",
+      "bdf_sha256": "1c89d3d71da8359e7789cc274ff1874cc4a691c9212051a26e321721d0941d8f",
       "columns": [
         "test_time_second",
         "voltage_volt",
@@ -647,6 +651,7 @@
   "description": "Provenance manifest pairing every canonical BDF reference artifact in this directory with the raw vendor export it was generated from. See README.md and the Reference Datasets documentation page.",
   "doi": "10.5281/zenodo.18986774",
   "license": "CC-BY-4.0",
+  "manifest_version": 1,
   "regenerated_with": "python scripts/generate_zenodo_reference_bdf.py --registry-url https://zenodo.org/records/18986774/files/metadata.json --record-api-url https://zenodo.org/api/records/18986774 --include-record-files",
   "unconverted_raw_files": [
     {
@@ -663,7 +668,7 @@
     },
     {
       "raw_file": "stanford__a123- ANR26650m1B-2020-k1__1C__25degC__arbin.xlsx",
-      "reason": "Arbin Excel export; no Arbin-Excel plugin exists yet (the generic Excel parser expects a 'record' sheet).",
+      "reason": "Single-sheet Excel re-save of an Arbin CSV-style export (headers Date_Time, Test_Time(s), ... in 'Sheet1'). Not a native Arbin MITS workbook: the arbin_xlsx plugin requires Channel_* data sheets, and the generic Excel parser expects a 'record' sheet, so no current plugin reads it. The headers match the Arbin normalizer, so a sole-sheet fallback in the Excel parser would convert it.",
       "size_bytes": 1115392,
       "url": "https://zenodo.org/api/records/18986774/files/stanford__a123-%20ANR26650m1B-2020-k1__1C__25degC__arbin.xlsx/content"
     },

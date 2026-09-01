@@ -63,6 +63,33 @@ def _failures(path: Path) -> list[str]:
     return failures
 
 
+def _manifest() -> dict:
+    import json
+
+    return json.loads((REFERENCE_DIR / "datasets.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.skipif(not _reference_files(), reason="no reference data present")
+def test_manifest_matches_the_files_on_disk() -> None:
+    """Every artifact datasets.json names exists with exactly the sha256 it states,
+    and every artifact on disk has a manifest entry. The shas hash stored bytes
+    (LF), which .gitattributes pins; a mismatch on a fresh clone is real, while a
+    mismatch in a pre-existing checkout usually means stale line endings - run
+    `git checkout -- docs/examples/reference` and retry."""
+    import hashlib
+
+    entries = {e["bdf_file"]: e["bdf_sha256"] for e in _manifest()["datasets"]}
+    on_disk = {p.name for p in _reference_files()}
+    assert set(entries) == on_disk, f"manifest/disk mismatch: {set(entries) ^ on_disk}"
+    bad = [
+        name for name, sha in entries.items() if hashlib.sha256((REFERENCE_DIR / name).read_bytes()).hexdigest() != sha
+    ]
+    assert not bad, (
+        f"sha256 mismatch for {bad}; if this is a pre-existing checkout, refresh line endings "
+        "with `git checkout -- docs/examples/reference` and retry."
+    )
+
+
 @pytest.mark.skipif(not _reference_files(), reason="no reference data present")
 @pytest.mark.parametrize("path", _reference_files(), ids=lambda p: p.name)
 def test_reference_file_compliance(path: Path) -> None:
