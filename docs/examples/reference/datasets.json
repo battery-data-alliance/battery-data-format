@@ -1,7 +1,7 @@
 {
   "artifact_record": {
     "doi": "10.5281/zenodo.22230066",
-    "note": "The DOI of the Zenodo record that publishes these BDF artifacts (reserved 2026-09-01; publishes with the v0.2.0 tag). The top-level zenodo_record/doi fields identify the RAW-data record the artifacts were converted from."
+    "note": "The DOI of the Zenodo record that publishes these BDF artifacts (the 0.2.0 canonical set). The top-level zenodo_record/doi fields identify the RAW-data record the artifacts were converted from."
   },
   "column_key_convention": "Machine-readable notation from the BDF ontology (e.g. test_time_second); one key per quantity with the canonical unit baked in. See https://battery-data-alliance.github.io/battery-data-format-ontology/pages/specification.html",
   "datasets": [
