@@ -34,6 +34,16 @@ class BdfReadInfo(_RecordModel):
 
     source: str | None = None
     time_reconciliation: list[dict] | None = None
+    bdf_version: str | None = None
+    """The batterydf package version that wrote this sidecar. Stamped by
+    ``save()`` on every sidecar it writes, overwriting any earlier stamp: the
+    stamps identify the file's writer, so a read-then-save records the version
+    that performed the save, not the one that wrote the file it read."""
+    ontology_version: str | None = None
+    """The BDF ontology release the writer's column spec was pinned to."""
+    battinfo_ref: str | None = None
+    """The upstream BattINFO commit the writer's bundled schemas were fetched
+    at (a release tag once upstream versions its schemas)."""
 
 
 class Metadata(_RecordModel):

@@ -411,8 +411,34 @@ def _as_polars(df: pl.DataFrame | pl.LazyFrame | pd.DataFrame) -> pl.DataFrame |
     return pl.DataFrame(df)
 
 
+def _version_stamps() -> dict[str, str | None]:
+    """Return the writer-identity stamps a written sidecar carries (GH #106).
+
+    Returns:
+        ``bdf_version`` (the installed package version), ``ontology_version``
+        (the pinned BDF ontology release), and ``battinfo_ref`` (the upstream
+        commit the bundled BattINFO schemas were fetched at).
+    """
+    import bdf
+    from bdf.battinfo import bundled_ref
+
+    return {
+        "bdf_version": bdf.__version__,
+        "ontology_version": COLUMN_ONTOLOGY.ontology_version or None,
+        "battinfo_ref": bundled_ref(),
+    }
+
+
 def _write_sidecar(sidecar: Path, metadata: Metadata) -> None:
     """Write ``metadata`` to ``sidecar``, or delete the sidecar where it carries nothing.
+
+    A written sidecar is stamped with the writer's versions (GH #106):
+    ``bdf.bdf_version``, ``bdf.ontology_version``, and ``bdf.battinfo_ref``.
+    The stamps identify the file's writer, so they overwrite any stamps the
+    caller's object carries, and a read-then-save records the version that
+    performed the save. The caller's object is not modified. A ``Metadata``
+    that carries nothing still writes no sidecar: the stamps describe a
+    sidecar, so they never create one.
 
     Args:
         sidecar: Path of the ``.metadata.json`` file beside the artifact.
@@ -422,6 +448,8 @@ def _write_sidecar(sidecar: Path, metadata: Metadata) -> None:
     """
     payload = metadata.model_dump(mode="json", exclude_defaults=True)
     if payload:
+        payload.setdefault("bdf", {})
+        payload["bdf"].update({k: v for k, v in _version_stamps().items() if v})
         sidecar.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     else:
         sidecar.unlink(missing_ok=True)

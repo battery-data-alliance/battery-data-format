@@ -1332,3 +1332,60 @@ def test_table_parser_read_accepts_day_month_order(tmp_path: Path) -> None:
     out = parser.read(p, validate=False, day_month_order="day_first").collect()  # type: ignore[call-arg]
     expected = datetime(2024, 3, 2, 12, 0, 0, tzinfo=timezone.utc).timestamp()
     assert out["Unix Time / s"][0] == pytest.approx(expected, abs=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# Writer-version stamps (GH #106)
+# ---------------------------------------------------------------------------
+
+
+def test_save_stamps_writer_versions_into_the_sidecar(tmp_path: Path) -> None:
+    """A written sidecar carries bdf_version, ontology_version, and battinfo_ref,
+    and stamping never mutates the caller's object."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    meta = Metadata()
+    meta.battinfo_test.test.name = "cell-1"  # type: ignore[union-attr]
+    p = tmp_path / "data.bdf.csv"
+
+    io.save(df, p, metadata=meta)
+
+    import bdf
+    from bdf.battinfo import bundled_ref
+
+    doc = json.loads(p.with_suffix(".metadata.json").read_text(encoding="utf-8"))
+    assert doc["bdf"]["bdf_version"] == bdf.__version__
+    assert doc["bdf"]["ontology_version"]
+    assert doc["bdf"]["battinfo_ref"] == bundled_ref()
+    assert meta.bdf.bdf_version is None
+
+
+def test_stamps_overwrite_the_previous_writers_stamp(tmp_path: Path) -> None:
+    """The stamps identify the writer: a read-then-save replaces an old file's
+    stamp with the version performing the save."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    old = tmp_path / "old.bdf.csv"
+    df.write_csv(old)
+    old.with_suffix(".metadata.json").write_text(
+        json.dumps({"battinfo_test": {"test": {"name": "cell-1"}}, "bdf": {"bdf_version": "0.1.0"}}),
+        encoding="utf-8",
+    )
+
+    _, meta = io.read(old)
+    assert meta.bdf.bdf_version == "0.1.0"
+    new = tmp_path / "new.bdf.csv"
+    io.save(df, new, metadata=meta)
+
+    import bdf
+
+    doc = json.loads(new.with_suffix(".metadata.json").read_text(encoding="utf-8"))
+    assert doc["bdf"]["bdf_version"] == bdf.__version__
+
+
+def test_empty_metadata_is_not_stamped_into_existence(tmp_path: Path) -> None:
+    """Stamps describe a sidecar; they never create one for an empty Metadata."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+
+    io.save(df, p, metadata=Metadata())
+
+    assert not p.with_suffix(".metadata.json").exists()
