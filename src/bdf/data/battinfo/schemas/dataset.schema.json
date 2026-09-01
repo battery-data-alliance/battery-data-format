@@ -1,0 +1,1054 @@
+{
+  "$defs": {
+    "AboutRef": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CellTypeIri"
+        },
+        {
+          "$ref": "#/$defs/CellIri"
+        },
+        {
+          "$ref": "#/$defs/TestIri"
+        },
+        {
+          "format": "uri",
+          "type": "string"
+        }
+      ],
+      "description": "Reference to what the dataset is about: a canonical cell or test IRI, or an external URI."
+    },
+    "CellIri": {
+      "description": "Canonical BattINFO IRI in the cell/ namespace (https://w3id.org/battinfo/cell/xxxx-xxxx-xxxx-xxxx).",
+      "pattern": "^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "CellTypeIri": {
+      "description": "Canonical BattINFO IRI in the cell/ namespace (https://w3id.org/battinfo/cell/xxxx-xxxx-xxxx-xxxx).",
+      "pattern": "^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "Checksum": {
+      "additionalProperties": false,
+      "description": "Integrity checksum of a distribution file.",
+      "properties": {
+        "algorithm": {
+          "description": "Hash algorithm used.",
+          "enum": [
+            "sha256",
+            "sha512",
+            "md5",
+            "other"
+          ],
+          "type": "string"
+        },
+        "value": {
+          "description": "Hex-encoded digest.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Citation": {
+      "additionalProperties": false,
+      "description": "A related work to cite alongside the dataset.",
+      "properties": {
+        "citation_key": {
+          "description": "Short key for pairing the citation with in-text references.",
+          "type": "string"
+        },
+        "doi": {
+          "description": "DOI of the cited work.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "What kind of work the citation points to.",
+          "enum": [
+            "dataset",
+            "article",
+            "software",
+            "other"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "description": "Title of the cited work.",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL of the cited work.",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "CsvwMainEntity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CsvwTable"
+        },
+        {
+          "$ref": "#/$defs/CsvwTableGroup"
+        }
+      ],
+      "description": "One or more CSVW table or table-group descriptions."
+    },
+    "CsvwTable": {
+      "additionalProperties": false,
+      "description": "CSVW description of one tabular file.",
+      "properties": {
+        "description": {
+          "description": "What the table contains.",
+          "type": "string"
+        },
+        "id": {
+          "description": "IRI of this table description.",
+          "format": "uri",
+          "type": "string"
+        },
+        "name": {
+          "description": "Table name.",
+          "type": "string"
+        },
+        "table_schema": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/CsvwTableSchema"
+            }
+          ],
+          "description": "Column schema: an inline CsvwTableSchema or the URL of an external schema document."
+        },
+        "type": {
+          "const": "Table",
+          "description": "JSON-LD type discriminator."
+        },
+        "url": {
+          "description": "File name or URL of the table this description documents.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "url",
+        "table_schema"
+      ],
+      "type": "object"
+    },
+    "CsvwTableColumn": {
+      "additionalProperties": false,
+      "description": "One column of a tabular file.",
+      "properties": {
+        "datatype": {
+          "description": "Column datatype (XSD/CSVW datatype name).",
+          "minLength": 1,
+          "type": "string"
+        },
+        "description": {
+          "description": "What the column contains.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Column name as it appears in the file header.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "required": {
+          "description": "Whether every row must have a value in this column.",
+          "type": "boolean"
+        },
+        "same_as": {
+          "description": "Ontology IRI identifying the physical quantity (e.g. an EMMO class).",
+          "format": "uri",
+          "type": "string"
+        },
+        "titles": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ],
+          "description": "Human-readable column title(s)."
+        },
+        "unit_text": {
+          "description": "Unit of the column values.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "CsvwTableGroup": {
+      "additionalProperties": false,
+      "description": "CSVW group of related tables.",
+      "properties": {
+        "description": {
+          "description": "What the table group contains.",
+          "type": "string"
+        },
+        "id": {
+          "description": "IRI of this table-group description.",
+          "format": "uri",
+          "type": "string"
+        },
+        "name": {
+          "description": "Table-group name.",
+          "type": "string"
+        },
+        "table": {
+          "description": "Member table descriptions.",
+          "items": {
+            "$ref": "#/$defs/CsvwTable"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "type": {
+          "const": "TableGroup",
+          "description": "JSON-LD type discriminator."
+        },
+        "url": {
+          "description": "URL associated with the table group.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "table"
+      ],
+      "type": "object"
+    },
+    "CsvwTableSchema": {
+      "additionalProperties": false,
+      "description": "Column-level schema of a tabular file.",
+      "properties": {
+        "columns": {
+          "description": "Ordered column descriptions.",
+          "items": {
+            "$ref": "#/$defs/CsvwTableColumn"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "description": {
+          "description": "What the schema describes.",
+          "type": "string"
+        },
+        "id": {
+          "description": "IRI of this schema description.",
+          "format": "uri",
+          "type": "string"
+        },
+        "name": {
+          "description": "Schema name.",
+          "type": "string"
+        },
+        "primary_key": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ],
+          "description": "Column name(s) forming the primary key."
+        }
+      },
+      "required": [
+        "columns"
+      ],
+      "type": "object"
+    },
+    "DataCatalog": {
+      "additionalProperties": false,
+      "description": "A catalog the dataset is listed in.",
+      "properties": {
+        "description": {
+          "description": "What the catalog is.",
+          "type": "string"
+        },
+        "id": {
+          "description": "IRI of the catalog.",
+          "format": "uri",
+          "type": "string"
+        },
+        "name": {
+          "description": "Catalog name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "description": "External IRI identifying the catalog.",
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "DataCatalog",
+          "description": "JSON-LD type discriminator."
+        },
+        "url": {
+          "description": "Catalog URL.",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "DataDistribution": {
+      "additionalProperties": false,
+      "description": "A downloadable file within the dataset (schema.org DataDownload).",
+      "properties": {
+        "access_level": {
+          "description": "Access level of the file.",
+          "enum": [
+            "open",
+            "restricted",
+            "embargoed",
+            "closed",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/$defs/Checksum",
+          "description": "Integrity checksum of the file."
+        },
+        "conditions": {
+          "additionalProperties": false,
+          "description": "Per-file measurement conditions (e.g. {\"soc\": 0.5} for EIS files split by SOC).",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {}
+          },
+          "type": "object"
+        },
+        "content_size": {
+          "description": "Human-readable file size (e.g. '12.4 MB').",
+          "type": "string"
+        },
+        "content_url": {
+          "description": "Direct download URL of the file.",
+          "format": "uri",
+          "type": "string"
+        },
+        "description": {
+          "description": "What the file contains.",
+          "type": "string"
+        },
+        "encoding_format": {
+          "description": "File format as a media type or format label (e.g. 'text/csv', 'parquet').",
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "description": "File name or label.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Role of this individual file within the dataset (file level): a normalised 'processed' file, the original 'raw' instrument file kept for provenance, a report, a metadata file, or other. The record-level role of the whole dataset is given by DatasetLink.role on the linking record.",
+          "enum": [
+            "processed",
+            "raw",
+            "report",
+            "metadata",
+            "other"
+          ],
+          "type": "string"
+        },
+        "type": {
+          "const": "DataDownload",
+          "description": "JSON-LD type discriminator."
+        }
+      },
+      "required": [
+        "content_url",
+        "encoding_format"
+      ],
+      "type": "object"
+    },
+    "DatasetIri": {
+      "description": "Canonical BattINFO IRI in the dataset/ namespace (https://w3id.org/battinfo/dataset/xxxx-xxxx-xxxx-xxxx).",
+      "pattern": "^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "Funding": {
+      "additionalProperties": false,
+      "description": "Funding project (grant) under which the record was produced. Maps to schema:funding / schema:Grant in JSON-LD.",
+      "properties": {
+        "acronym": {
+          "description": "Project acronym.",
+          "type": "string"
+        },
+        "funder": {
+          "additionalProperties": false,
+          "description": "Organization that awarded the grant.",
+          "properties": {
+            "name": {
+              "description": "Funder name (e.g. 'European Commission').",
+              "minLength": 1,
+              "type": "string"
+            },
+            "same_as": {
+              "description": "External identifier IRI for the funder (e.g. a ROR or DOI funder IRI).",
+              "format": "uri",
+              "type": "string"
+            },
+            "type": {
+              "const": "Organization",
+              "description": "JSON-LD type discriminator."
+            },
+            "url": {
+              "description": "Funder homepage URL.",
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "description": "Resolvable IRI of the grant (e.g. a CORDIS project IRI).",
+          "format": "uri",
+          "type": "string"
+        },
+        "identifier": {
+          "description": "Grant number as assigned by the funder (e.g. '101069765').",
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "description": "Project title.",
+          "type": "string"
+        },
+        "program": {
+          "description": "Funding programme or call (e.g. 'Horizon Europe').",
+          "type": "string"
+        },
+        "type": {
+          "const": "Grant",
+          "description": "JSON-LD type discriminator."
+        }
+      },
+      "required": [
+        "identifier"
+      ],
+      "type": "object"
+    },
+    "Identifier": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/PropertyValue"
+        },
+        {
+          "items": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/PropertyValue"
+              }
+            ]
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      ],
+      "description": "One or more identifiers: plain strings and/or PropertyValue pairs naming the identifier scheme."
+    },
+    "Organization": {
+      "additionalProperties": false,
+      "description": "An organization referenced by name, with an optional canonical BattINFO organization IRI.",
+      "properties": {
+        "name": {
+          "description": "Organization name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "description": "External identifier IRI for this organization (e.g. ROR or Wikidata).",
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Organization",
+          "description": "JSON-LD type discriminator."
+        },
+        "url": {
+          "description": "Homepage URL.",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "description": "A person, in schema.org Person terms; an ORCID may be given in same_as.",
+      "properties": {
+        "affiliation": {
+          "$ref": "#/$defs/Organization",
+          "description": "Organization the person is affiliated with."
+        },
+        "email": {
+          "description": "Contact e-mail address.",
+          "format": "email",
+          "type": "string"
+        },
+        "family_name": {
+          "description": "Family (last) name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "given_name": {
+          "description": "Given (first) name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "description": "Full name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "description": "External identifier IRI, typically an ORCID (https://orcid.org/...).",
+          "format": "uri",
+          "type": "string"
+        },
+        "type": {
+          "const": "Person",
+          "description": "JSON-LD type discriminator."
+        },
+        "url": {
+          "description": "Personal or institutional web page.",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "PersonOrOrganization": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Person"
+        },
+        {
+          "$ref": "#/$defs/Organization"
+        }
+      ],
+      "description": "Either a Person or an Organization object."
+    },
+    "PropertyValue": {
+      "additionalProperties": false,
+      "description": "An identifier value qualified by the scheme it belongs to (schema.org PropertyValue).",
+      "properties": {
+        "property_id": {
+          "description": "Identifier scheme or property IRI the value belongs to.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "description": "Identifier value within that scheme.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id",
+        "value"
+      ],
+      "type": "object"
+    },
+    "ShortId": {
+      "description": "Short human-friendly identifier derived from the record IRI (Crockford base32, 6-16 characters).",
+      "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
+      "type": "string"
+    },
+    "TestIri": {
+      "description": "Canonical BattINFO IRI in the test/ namespace (https://w3id.org/battinfo/test/xxxx-xxxx-xxxx-xxxx).",
+      "pattern": "^https://w3id\\.org/battinfo/test/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "UnixTime": {
+      "description": "Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "VariableMeasured": {
+      "additionalProperties": false,
+      "description": "A variable (column or signal) recorded in the dataset.",
+      "properties": {
+        "description": {
+          "description": "What the variable is.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Variable name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "same_as": {
+          "description": "Ontology IRI for the variable (e.g. an EMMO class).",
+          "format": "uri",
+          "type": "string"
+        },
+        "unit_text": {
+          "description": "Unit of the variable.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://w3id.org/battinfo/schema/dataset.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Canonical BattINFO dataset metadata using schema.org Dataset terms with minimal registry provenance extensions.",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "properties": {
+    "contributor": {
+      "description": "People who contributed this record to the platform (attribution/provenance). Each is a schema:Person; an ORCID may be given in same_as. Distinct from data authorship (creators).",
+      "items": {
+        "$ref": "#/$defs/Person"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "dataset": {
+      "additionalProperties": false,
+      "description": "The dataset being described, in schema.org Dataset terms.",
+      "properties": {
+        "about": {
+          "description": "What the dataset is about: canonical cell or test IRIs, or external URIs. Source of truth for what a dataset describes; the cell-instance datasets list and test.dataset_ids are back-references derived from it.",
+          "items": {
+            "$ref": "#/$defs/AboutRef"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "access_url": {
+          "description": "Landing page or direct access URL for the dataset.",
+          "format": "uri",
+          "type": "string"
+        },
+        "additional_type": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          ],
+          "description": "Extra JSON-LD type IRIs or labels stacked onto the record's @type."
+        },
+        "citations": {
+          "description": "Related works to cite alongside the dataset (papers, source datasets, software).",
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "type": "array"
+        },
+        "conditions_of_access": {
+          "description": "Human-readable access conditions (e.g. 'registration required').",
+          "type": "string"
+        },
+        "created_at": {
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp when the dataset was created."
+        },
+        "creators": {
+          "description": "People and/or organizations that created the data.",
+          "items": {
+            "$ref": "#/$defs/PersonOrOrganization"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "description": {
+          "description": "Free-text description of the dataset.",
+          "type": "string"
+        },
+        "distributions": {
+          "description": "Downloadable files that make up the dataset.",
+          "items": {
+            "$ref": "#/$defs/DataDistribution"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "funders": {
+          "description": "Parties that funded creation of the dataset.",
+          "items": {
+            "$ref": "#/$defs/PersonOrOrganization"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/DatasetIri",
+          "description": "Canonical IRI of this dataset record."
+        },
+        "identifier": {
+          "$ref": "#/$defs/Identifier",
+          "description": "Identifier(s) for the dataset (e.g. DOI, accession number), as strings or PropertyValue pairs."
+        },
+        "in_language": {
+          "description": "Language of the dataset metadata (BCP 47 tag).",
+          "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+          "type": "string"
+        },
+        "included_in_data_catalog": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/DataCatalog"
+            }
+          ],
+          "description": "Catalog(s) the dataset is listed in (e.g. the Battery Genome registry)."
+        },
+        "is_accessible_for_free": {
+          "description": "Whether access is free of charge.",
+          "type": "boolean"
+        },
+        "is_based_on": {
+          "description": "URIs of resources this dataset is derived from.",
+          "items": {
+            "format": "uri",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "keywords": {
+          "description": "Free-text keywords for discovery.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "license": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "minLength": 1,
+              "type": "string"
+            }
+          ],
+          "description": "License IRI or SPDX identifier governing reuse."
+        },
+        "main_entity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CsvwMainEntity"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/CsvwMainEntity"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ],
+          "description": "CSVW table description(s) documenting the tabular structure of the data files (the data dictionary)."
+        },
+        "measurement_methods": {
+          "description": "Measurement methods used, as labels or ontology IRIs.",
+          "items": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "format": "uri",
+                "type": "string"
+              }
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "measurement_techniques": {
+          "description": "Measurement techniques used, as labels or ontology IRIs.",
+          "items": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "format": "uri",
+                "type": "string"
+              }
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "modified_at": {
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp when the dataset was last modified."
+        },
+        "name": {
+          "description": "Dataset title.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "published_at": {
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp when the dataset was published."
+        },
+        "publisher": {
+          "$ref": "#/$defs/Organization",
+          "description": "Organization that published the dataset."
+        },
+        "same_as": {
+          "description": "Other IRIs identifying the same dataset (e.g. a Zenodo DOI URL).",
+          "items": {
+            "format": "uri",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "series_id": {
+          "$ref": "#/$defs/DatasetIri"
+        },
+        "short_id": {
+          "$ref": "#/$defs/ShortId"
+        },
+        "spatial_coverage": {
+          "description": "Geographic area the data covers.",
+          "type": "string"
+        },
+        "temporal_coverage": {
+          "description": "Time period the data covers (ISO 8601 interval).",
+          "type": "string"
+        },
+        "variable_measured": {
+          "description": "Variables (columns or signals) recorded in the dataset.",
+          "items": {
+            "$ref": "#/$defs/VariableMeasured"
+          },
+          "type": "array"
+        },
+        "version": {
+          "description": "Dataset version label.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "identifier",
+        "name",
+        "access_url"
+      ],
+      "type": "object"
+    },
+    "funding": {
+      "$ref": "#/$defs/Funding",
+      "description": "Funding project (grant) under which the record was produced."
+    },
+    "notes": {
+      "description": "Free-text notes carried with the record.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "description": "Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
+      "properties": {
+        "battinfo_version": {
+          "description": "Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "type": "string"
+        },
+        "citation": {
+          "description": "Resolvable citation target to use for attribution, typically a DOI URL.",
+          "format": "uri",
+          "type": "string"
+        },
+        "citation_doi": {
+          "description": "DOI of the source publication (bare '10.xxxx/...' form). Prefer provenance.citation with a DOI resolver URL.",
+          "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+          "type": "string"
+        },
+        "comment": {
+          "description": "Free-text provenance comment.",
+          "type": "string"
+        },
+        "curated_by": {
+          "description": "Name or identifier of the person who curated this record.",
+          "type": "string"
+        },
+        "file_hash": {
+          "description": "SHA-256 hash of the source file, for integrity verification.",
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "ingest_status": {
+          "description": "Curation status of this entry in the intake pipeline.",
+          "enum": [
+            "ready",
+            "needs_review",
+            "blocked"
+          ],
+          "type": "string"
+        },
+        "quality_flags": {
+          "description": "Machine-generated flags noting quality issues found during intake.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/UnixTime",
+          "description": "Unix timestamp (seconds since epoch, UTC) when the source was retrieved or the record was captured."
+        },
+        "source_dataset_key": {
+          "description": "Stable key of this dataset within the source catalog, used for idempotent re-ingest.",
+          "type": "string"
+        },
+        "source_file": {
+          "description": "Filename or path of the source file, when the record was derived from a file.",
+          "type": "string"
+        },
+        "source_name": {
+          "description": "Human-readable name of the source (document title, instrument, lab, or system).",
+          "type": "string"
+        },
+        "source_row": {
+          "description": "1-based row number within the source sheet.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "source_sheet": {
+          "description": "Worksheet name within the source workbook.",
+          "type": "string"
+        },
+        "source_type": {
+          "description": "Kind of source this record was created from.",
+          "enum": [
+            "catalog",
+            "measurement",
+            "lab",
+            "simulation",
+            "external",
+            "manual",
+            "other"
+          ],
+          "type": "string"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "URL of the source document or landing page, when available."
+        },
+        "source_workbook_sha256": {
+          "description": "SHA-256 hash of the source workbook.",
+          "pattern": "^[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "workflow_version": {
+          "description": "Version of the ingest/curation workflow that produced this record.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_type",
+        "retrieved_at"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "description": "Version of the record schema this document conforms to (semantic versioning); stamped by the library on save.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "dataset",
+    "provenance"
+  ],
+  "title": "BattINFO Dataset (Schema.org-Aligned)",
+  "type": "object"
+}

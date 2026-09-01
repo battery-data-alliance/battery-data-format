@@ -11,6 +11,7 @@ from pydantic import Field
 from bdf.battinfo._base import _RecordModel
 from bdf.battinfo.generated.cell_instance_schema import BattinfoCellInstance
 from bdf.battinfo.generated.channel_schema import BattinfoChannelInstance
+from bdf.battinfo.generated.dataset_schema import BattinfoDatasetSchemaOrgAligned
 from bdf.battinfo.generated.equipment_schema import BattinfoEquipmentInstance
 from bdf.battinfo.generated.test_protocol_schema import BattinfoTestProtocol
 from bdf.battinfo.generated.test_schema import BattinfoTest
@@ -22,6 +23,10 @@ except Exception:  # pragma: no cover
     pd = None  # type: ignore
 
 from bdf import spec
+
+# The generated root class carries the schema title verbatim; the short name
+# is the public one, matching the record field it types.
+BattinfoDataset = BattinfoDatasetSchemaOrgAligned
 
 
 class BdfReadInfo(_RecordModel):
@@ -67,6 +72,12 @@ class Metadata(_RecordModel):
     """The physical equipment unit that ran the test, a named cycler for example."""
     battinfo_test_protocol: BattinfoTestProtocol = Field(default_factory=BattinfoTestProtocol)
     """The reusable protocol the test followed: its typed steps, and links to the files that state them."""
+    battinfo_dataset: BattinfoDataset = Field(default_factory=BattinfoDataset)
+    """The dataset this file belongs to: its distributions (raw and processed files,
+    checksums, formats), identifiers, and links to the cell and test that produced it.
+    Mirrors a pre-1.0 upstream schema and may evolve with it. Nothing fills this
+    record automatically yet: it is the documented place for a user or a downstream
+    tool (e.g. the battinfo package) to record file-level provenance (#92)."""
     bdf: BdfReadInfo = Field(default_factory=BdfReadInfo)
     """BDF's own audit of this read: the source it read, and every rescale that the time reconciliation applied."""
 

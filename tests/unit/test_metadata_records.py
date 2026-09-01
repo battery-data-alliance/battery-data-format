@@ -18,7 +18,7 @@ from bdf.battinfo.generated.channel_schema import BattinfoChannelInstance, Chann
 from bdf.battinfo.generated.equipment_schema import BattinfoEquipmentInstance, Equipment
 from bdf.battinfo.generated.test_protocol_schema import BattinfoTestProtocol, TestSpec
 from bdf.battinfo.generated.test_schema import BattinfoTest, Test
-from bdf.metadata import BdfReadInfo, Metadata
+from bdf.metadata import BattinfoDataset, BdfReadInfo, Metadata
 
 VALID_CELL_IRI = "https://w3id.org/battinfo/cell/abcd-efgh-jkmn-pqrs"
 
@@ -52,23 +52,19 @@ def _iri_field_names(model: type[BaseModel]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_read_metadata_declares_the_five_entity_records_bdf_raw_and_extras_only() -> None:
-    """Metadata's field set is the five BattINFO entity records, bdf, raw, and extras."""
+def test_read_metadata_declares_the_six_entity_records_bdf_raw_and_extras_only() -> None:
+    """Metadata's field set is the six BattINFO entity records, bdf, raw, and extras."""
     assert set(Metadata.model_fields) == {
         "battinfo_test",
         "battinfo_cell",
         "battinfo_channel",
         "battinfo_equipment",
         "battinfo_test_protocol",
+        "battinfo_dataset",
         "bdf",
         "raw",
         "extras",
     }
-
-
-def test_no_dataset_record_field_exists() -> None:
-    """No field on Metadata stages a BattINFO dataset record."""
-    assert "dataset_record" not in Metadata.model_fields
 
 
 def test_fresh_read_metadata_auto_constructs_every_entity_record() -> None:
@@ -78,6 +74,7 @@ def test_fresh_read_metadata_auto_constructs_every_entity_record() -> None:
     assert isinstance(meta.battinfo_test, BattinfoTest)
     assert isinstance(meta.battinfo_cell, BattinfoCellInstance)
     assert isinstance(meta.battinfo_channel, BattinfoChannelInstance)
+    assert isinstance(meta.battinfo_dataset, BattinfoDataset)
     assert isinstance(meta.battinfo_equipment, BattinfoEquipmentInstance)
     assert isinstance(meta.battinfo_test_protocol, BattinfoTestProtocol)
     assert isinstance(meta.bdf, BdfReadInfo)
