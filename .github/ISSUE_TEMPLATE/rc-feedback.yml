@@ -1,0 +1,26 @@
+name: 0.2.0 release candidate feedback
+description: Something surprising while testing a 0.2.0 release candidate
+labels: ["0.2.0rc"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `bdf --version`
+      placeholder: bdf 0.2.0rc2 (ontology snapshot 1.3.0)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, what you got. Tracebacks and small data snippets welcome.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Data source
+      description: Cycler/vendor and file type, if relevant (e.g. Neware .ndax, BioLogic .mpr)
+    validations:
+      required: false
