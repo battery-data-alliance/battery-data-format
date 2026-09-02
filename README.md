@@ -23,6 +23,13 @@ Developed with input from leading scientists and engineers, the BDF addresses tw
 - Questions and discussion: [the BDA forum](https://bda.discourse.group)
 - Contributing code or data: see [CONTRIBUTING.md](CONTRIBUTING.md)
 
+## Project governance and direction
+
+- [GOVERNANCE.md](GOVERNANCE.md), [COMMITTERS.md](COMMITTERS.md): how the project is run and by whom.
+- [ARCHITECTURE.md](ARCHITECTURE.md): how the pieces fit together, for contributors.
+- [ROADMAP.md](ROADMAP.md): what we intend to do, and not do, over the next year.
+- [GROWTH.md](GROWTH.md): the community growth plan and the outlined path to LF Energy Early Adoption.
+
 ## Initial Scope of the BDF
 
 - The initial scope is intended to facilitate use and comparison of cycler time-series data.  

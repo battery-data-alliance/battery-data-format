@@ -1,0 +1,12 @@
+# Default owners for review requests. Merge rights and the path to becoming
+# a committer are described in GOVERNANCE.md; the people behind these handles
+# are listed in COMMITTERS.md.
+
+* @jsimonclark @pghege @tomjholland @g-kimbell
+
+# Subsystem stewards (first-line reviewers; anyone above can merge).
+/src/bdf/battinfo/        @tomjholland
+/src/bdf/metadata*.py     @tomjholland
+/src/bdf/spec.py          @jsimonclark @pghege
+/docs/examples/reference/ @jsimonclark
+/scripts/                 @jsimonclark @pghege
