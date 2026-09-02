@@ -305,6 +305,12 @@ class Step(_RecordModel):
             description="Controlled setpoints for the step (e.g. current, c_rate, voltage, power), each a value+unit quantity."
         ),
     ] = None
+    step_id: Annotated[
+        int | None,
+        Field(
+            description="Identifier assigned to this step in the test program/schedule. Corresponds to BDF step_id. Not constrained to zero-based, contiguous, monotonic, or unique values."
+        ),
+    ] = None
     steps: Annotated[list[Step] | None, Field(description="Child steps of a repeated group.")] = None
     tags: Annotated[
         list[str] | None, Field(description="Free-form labels for querying (e.g. 'formation', 'checkup').")
