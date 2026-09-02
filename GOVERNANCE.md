@@ -26,7 +26,11 @@ Decisions are made by lazy consensus in public, in this order of preference:
 
 1. **Pull requests** for anything expressible as a change: code, spec,
    ontology synchronization, documentation, or this file. One committer
-   review other than the author is required; substantive changes to the
+   review other than the author is required, with one exception: a change
+   that cannot alter behavior -- typo and formatting fixes, changelog and
+   documentation wording, comment corrections, and dependency bumps that
+   only refresh a lockfile -- may merge on green CI without a second
+   review. When in doubt, it is not trivial. Substantive changes to the
    column ontology or the public API get discussed with the group first.
 2. **GitHub issues** for design questions and anything needing a record.
 3. **The mailing list, forum, and monthly sync** for direction-setting:
