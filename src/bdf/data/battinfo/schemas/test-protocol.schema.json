@@ -312,6 +312,10 @@
           "description": "Controlled setpoints for the step (e.g. current, c_rate, voltage, power), each a value+unit quantity.",
           "type": "object"
         },
+        "step_id": {
+          "description": "Identifier assigned to this step in the test program/schedule. Corresponds to BDF step_id. Not constrained to zero-based, contiguous, monotonic, or unique values.",
+          "type": "integer"
+        },
         "steps": {
           "description": "Child steps of a repeated group.",
           "items": {
