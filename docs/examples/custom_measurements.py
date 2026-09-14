@@ -55,6 +55,10 @@ def example_data() -> tuple[pl.DataFrame, Metadata]:
                         {
                             "name": "Thickness",
                             "unit_text": "mm",
+                            # Reuse the existing EMMO quantity even though BDF has
+                            # no core thickness column. Intermittency changes the
+                            # observation schedule, not the physical quantity.
+                            "same_as": "https://w3id.org/emmo#EMMO_43003c86_9d15_433b_9789_ee2940920656",
                             "description": (
                                 "Fabricated pouch thickness representing parallel plate height-gauge "
                                 "measurements at 100% SOC every 100 cycles, from cycle 100 to 1000. "

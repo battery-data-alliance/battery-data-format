@@ -7,6 +7,7 @@
         {
           "description": "Fabricated pouch thickness representing parallel plate height-gauge measurements at 100% SOC every 100 cycles, from cycle 100 to 1000. Each value belongs to its row's test time and cycle. Null means no observation on that row; do not fill or interpolate.",
           "name": "Thickness",
+          "same_as": "https://w3id.org/emmo#EMMO_43003c86_9d15_433b_9789_ee2940920656",
           "unit_text": "mm"
         }
       ]

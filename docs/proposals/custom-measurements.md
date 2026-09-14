@@ -7,8 +7,10 @@ in the published 0.2.0rc2. Consider 0.3.0 only if it cannot be ready for 0.2.0.
 [Phil's proposal](https://bda.discourse.group/t/adding-optionality-for-custom-measurement-integration/56)
 describes pouch thickness measured intermittently during a 1,000-cycle test.
 These repeated observations belong in a sparse column, distinct from baseline
-cell dimensions. Existing BattINFO fields can describe them in the optional
-`.metadata.json` sidecar:
+cell dimensions. Thickness already maps to EMMO's `Thickness` in
+[BattINFO's property reference](https://big-map.github.io/BattINFO/dev/pages/property-reference.html).
+Here, "custom" means outside BDF's current column list, not outside the ontology.
+The optional `.metadata.json` sidecar can reuse that term:
 
 ```json
 {
@@ -17,6 +19,7 @@ cell dimensions. Existing BattINFO fields can describe them in the optional
       "variable_measured": [{
         "name": "Thickness",
         "unit_text": "mm",
+        "same_as": "https://w3id.org/emmo#EMMO_43003c86_9d15_433b_9789_ee2940920656",
         "description": "Pouch thickness measured with a parallel plate height gauge at 100% SOC every 100 cycles."
       }]
     }
@@ -26,6 +29,8 @@ cell dimensions. Existing BattINFO fields can describe them in the optional
 
 Custom declarations require nonblank `name` and `unit_text`. `description` and
 `same_as` (an ontology IRI) are optional; links are stored without fetching them.
+Reuse known terms; allowing descriptions without a suitable term is a separate
+extension question, not a requirement established by Phil's thickness example.
 
 - **Binding:** `Thickness` plus `mm` identifies `Thickness / mm`; alternatively,
   `name` can be the exact header. If both exact and composed headers exist, the
