@@ -180,6 +180,9 @@ packages = [
 include = [
   "src/bdf/schemas/*.json",
   "src/bdf/data/bdf-ontology-snapshot.ttl",
+  "src/bdf/data/ontology-terms.json",
+  "src/bdf/data/ontology-terms.NOTICE",
+  "src/bdf/data/ontology-terms.LICENSE",
 ]
 
 [tool.hatch.build.targets.sdist]

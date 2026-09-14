@@ -1,0 +1,627 @@
+{
+  "format_version": 1,
+  "scope": "Curated BattINFO property mappings; not the entire ontology.",
+  "source": {
+    "license": "Apache-2.0",
+    "mapping_version": "0.4.0",
+    "path": "assets/mappings/domain-battery/property_map.curated.json",
+    "ref": "567972ecacc604feb77c0d38e2a78e3daf2ae672",
+    "repository": "https://github.com/BIG-MAP/BattINFO",
+    "sha256": "cab719f2388367a389fb18de44e1efe128cbc3e2eb1584ffc0634ef003d07e68"
+  },
+  "terms": [
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_964cd426_f3cf_4a52_8c5d_0490cf48edb5",
+      "label": "ACInternalResistance",
+      "names": [
+        "ACInternalResistance",
+        "ac_internal_resistance"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_bcb33f7e_5573_4bc2_b636_4ea313a9dd3a",
+      "label": "AreicCapacity",
+      "names": [
+        "AreicCapacity",
+        "rated_areal_discharge_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_743c71a3_b80c_42e3_92fa_13a67b8167df",
+      "label": "CalendarLife",
+      "names": [
+        "CalendarLife",
+        "calendar_life"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_520995f8_ec9c_4b3c_bb64_2cd691947379",
+      "label": "CalenderedDensity",
+      "names": [
+        "CalenderedDensity",
+        "press_density"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_5b59a86e_99b4_493e_ae12_33ae8b5ec7c0",
+      "label": "CapacityFadeRate",
+      "names": [
+        "CapacityFadeRate",
+        "capacity_fade"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_10763eb0_dbc9_4d34_bd1a_7b8996590d45",
+      "label": "ChargingCapacity",
+      "names": [
+        "ChargingCapacity",
+        "charging_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_2ab7af60_da58_4243_b3bc_cbb2155cac53",
+      "label": "ChargingEnergy",
+      "names": [
+        "ChargingEnergy",
+        "charging_energy"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_a3d54f83_4dc2_4833_acc2_c8652702d9b7",
+      "label": "ChargingTime",
+      "names": [
+        "ChargingTime",
+        "charging_time"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_79a9e1be_35b0_4c3c_8087_b5f967ca0e87",
+      "label": "ChargingVoltage",
+      "names": [
+        "ChargingVoltage",
+        "charging_voltage"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_ae782b14_88ce_4cdd_9418_12aca00be937",
+      "label": "CycleLife",
+      "names": [
+        "CycleLife",
+        "cycle_life"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_3cfdfc10_a5cb_4e3e_b1a1_281010d1465c",
+      "label": "D50ParticleSize",
+      "names": [
+        "D50ParticleSize",
+        "d50_particle_size"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_7b3eb826_b968_493a_8396_cc3a5f09ecb3",
+      "label": "DCInternalResistance",
+      "names": [
+        "DCInternalResistance",
+        "dc_internal_resistance"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_c1c8ac3c_8a1c_4777_8e0b_14c1f9f9b0c6",
+      "label": "Diameter",
+      "names": [
+        "Diameter",
+        "diameter"
+      ],
+      "reference_unit": "m"
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_0141b5c2_9f15_46f4_82e6_92a104faa476",
+      "label": "DischargingCapacity",
+      "names": [
+        "DischargingCapacity",
+        "discharging_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_ca36cbf3_1fed_4b88_9177_b4e16ad00cf7",
+      "label": "DischargingEnergy",
+      "names": [
+        "DischargingEnergy",
+        "discharging_energy"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_884650fd_6cc6_4ec6_8264_c18fbe6b90ee",
+      "label": "DischargingSpecificCapacity",
+      "names": [
+        "DischargingSpecificCapacity",
+        "rated_specific_discharge_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_79a02de5_b884_4eab_bc18_f67997d597a2",
+      "label": "ElectricImpedance",
+      "names": [
+        "ElectricImpedance",
+        "impedance"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_02dc55b3_18a1_438e_bee0_ab77670cb2d5",
+      "label": "EndOfLifeCapacityThreshold",
+      "names": [
+        "EndOfLifeCapacityThreshold",
+        "capacity_threshold_exhaustion"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_4aa1b96e_44a0_4b1a_a0ac_723d0223d80b",
+      "label": "EnergyDensity",
+      "names": [
+        "EnergyDensity",
+        "energy_density"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_08bcf1d6_e719_46c8_bb21_24bc9bf34dba",
+      "label": "Height",
+      "names": [
+        "Height",
+        "height"
+      ],
+      "reference_unit": "m"
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_469b9516_a96d_4aa2_b8e5_05ae982e2084",
+      "label": "InitialCoulombicEfficiency",
+      "names": [
+        "InitialCoulombicEfficiency",
+        "initial_coulombic_efficiency"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_9bf40017_3f58_4030_ada7_cb37a3dfda2d",
+      "label": "InternalResistance",
+      "names": [
+        "InternalResistance",
+        "internal_resistance"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_cd2cd0de_e0cc_4ef1_b27e_2e88db027bac",
+      "label": "Length",
+      "names": [
+        "Length",
+        "length"
+      ],
+      "reference_unit": "m"
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_534dd59c_904c_45d9_8550_ae9d2eb6bbc9",
+      "label": "LowerVoltageLimit",
+      "names": [
+        "LowerVoltageLimit",
+        "discharging_cutoff_voltage"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_ed4af7ae_63a2_497e_bb88_2309619ea405",
+      "label": "Mass",
+      "names": [
+        "Mass",
+        "cap_assembly_weight",
+        "mass",
+        "weight"
+      ],
+      "reference_unit": "kg"
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_c955c089_6ee1_41a2_95fc_d534c5cfd3d5",
+      "label": "MassLoading",
+      "names": [
+        "MassLoading",
+        "double_side_loading",
+        "single_side_loading"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_4a354510_4dc2_4803_8845_f4024a1a7260",
+      "label": "MaximumChargingTemperature",
+      "names": [
+        "MaximumChargingTemperature",
+        "charging_temperature_max",
+        "maximum_charging_temperature"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_39d8a6ee_cd55_4855_8b5b_d42bef95ac78",
+      "label": "MaximumContinuousChargingCurrent",
+      "names": [
+        "MaximumContinuousChargingCurrent",
+        "continuous_charging_current",
+        "maximum_continuous_charging_current"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_ba7ac581_0e13_4815_b888_013c378932f5",
+      "label": "MaximumContinuousDischargingCurrent",
+      "names": [
+        "MaximumContinuousDischargingCurrent",
+        "continuous_discharging_current",
+        "maximum_continuous_discharging_current"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_de612af2_a029_4a02_8090_4a75ab13271d",
+      "label": "MaximumDischargingTemperature",
+      "names": [
+        "MaximumDischargingTemperature",
+        "discharging_temperature_max",
+        "maximum_discharging_temperature"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_e999bd7d_93ad_47fb_8d8d_dd667e4ef553",
+      "label": "MaximumOperatingTemperature",
+      "names": [
+        "MaximumOperatingTemperature",
+        "operating_temperature_max"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_4e6c4e9d_64cb_4c24_a0f3_5b4146ebbeb0",
+      "label": "MaximumPower",
+      "names": [
+        "MaximumPower",
+        "maximum_power",
+        "power_capability"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_1b2a7137_64d4_483a_8437_dcb3bedcb6da",
+      "label": "MaximumPulseChargingCurrent",
+      "names": [
+        "MaximumPulseChargingCurrent",
+        "maximum_pulse_charging_current",
+        "pulse_charging_current"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_3e54f9e3_a31d_4821_9bfb_ef953a42c35b",
+      "label": "MaximumPulseDischargingCurrent",
+      "names": [
+        "MaximumPulseDischargingCurrent",
+        "maximum_pulse_discharging_current",
+        "pulse_discharging_current"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_0ea4d188_9701_4699_a5ca_812a98a9afa7",
+      "label": "MaximumStorageTemperature",
+      "names": [
+        "MaximumStorageTemperature",
+        "maximum_storage_temperature",
+        "storage_temperature_max"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_d3c0078e_c1d3_461e_873d_e5c3adf441c5",
+      "label": "MinimumCapacity",
+      "names": [
+        "MinimumCapacity",
+        "min_capacity",
+        "minimum_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_b90b1ad7_b9a8_44df_ad45_bfd25aac2e49",
+      "label": "MinimumChargingTemperature",
+      "names": [
+        "MinimumChargingTemperature",
+        "charging_temperature_min",
+        "minimum_charging_temperature"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_2a1de79f_e927_45a2_9619_3799a0d61e9b",
+      "label": "MinimumDischargingTemperature",
+      "names": [
+        "MinimumDischargingTemperature",
+        "discharging_temperature_min",
+        "minimum_discharging_temperature"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_08a73f4b_3242_4356_af24_68ba0bf66d51",
+      "label": "MinimumOperatingTemperature",
+      "names": [
+        "MinimumOperatingTemperature",
+        "operating_temperature_min"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_0ddfd57a_d338_4690_be45_b26884ed6302",
+      "label": "MinimumStorageTemperature",
+      "names": [
+        "MinimumStorageTemperature",
+        "minimum_storage_temperature",
+        "storage_temperature_min"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_05012606_b93d_4016_bbc7_8a927efdf723",
+      "label": "NPRatio",
+      "names": [
+        "NPRatio",
+        "n_p_ratio"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_8abde9d0_84f6_4b4f_a87e_86028a397100",
+      "label": "NominalCapacity",
+      "names": [
+        "NominalCapacity",
+        "nominal_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_19e27aa3_0970_43a6_86d3_e3cdd956134d",
+      "label": "NominalEnergy",
+      "names": [
+        "NominalEnergy",
+        "certified_usable_energy",
+        "nominal_energy",
+        "rated_energy",
+        "typical_energy"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_639b844a_e801_436b_985d_28926129ead6",
+      "label": "NominalVoltage",
+      "names": [
+        "NominalVoltage",
+        "nominal_voltage"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_a7eb870c_4ef7_4ccd_85e8_4b7b726d7a2a",
+      "label": "PowerDensity",
+      "names": [
+        "PowerDensity",
+        "power_density"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_917660a7_2d98_4564_9ce7_6b5d1087de2c",
+      "label": "PowerToEnergyRatio",
+      "names": [
+        "PowerToEnergyRatio",
+        "power_energy_ratio"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_9b3b4668_0795_4a35_9965_2af383497a26",
+      "label": "RatedCapacity",
+      "names": [
+        "RatedCapacity",
+        "rated_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_c413d29a_b814_4d88_8db0_0fd0171cff11",
+      "label": "RoundTripEnergyEfficiency",
+      "names": [
+        "RoundTripEnergyEfficiency",
+        "round_trip_energy_efficiency"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_c3e97d58_1854_4c23_bb42_d2972172865e",
+      "label": "SelfDischargeRate",
+      "names": [
+        "SelfDischargeRate",
+        "self_discharge_rate"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_e218c625_6a39_47a9_8d08_a2ef41c152a9",
+      "label": "SpecificEnergy",
+      "names": [
+        "SpecificEnergy",
+        "specific_energy"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_c762a928_5a74_46fd_9929_4ac2d7a3a8d7",
+      "label": "SpecificPower",
+      "names": [
+        "SpecificPower",
+        "specific_power"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_a7a4614f_2426_46f3_8475_cda4a9fabfce",
+      "label": "StateOfHealth",
+      "names": [
+        "StateOfHealth",
+        "state_of_health"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_372c89d0_adab_4585_9662_33c912acef23",
+      "label": "TheoreticalCapacity",
+      "names": [
+        "TheoreticalCapacity",
+        "theoretical_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_43003c86_9d15_433b_9789_ee2940920656",
+      "label": "Thickness",
+      "names": [
+        "Thickness",
+        "foil_thickness",
+        "thickness",
+        "wall_thickness"
+      ],
+      "reference_unit": "m"
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_c413d96f_c57b_4c70_9ac1_312db6c009a8",
+      "label": "Tortuosity",
+      "names": [
+        "Tortuosity",
+        "tortuosity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_34d6cdd9_d3a7_4302_a54d_9dbd8a3b5e68",
+      "label": "TypicalCapacity",
+      "names": [
+        "TypicalCapacity",
+        "typical_capacity"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo/domain/electrochemistry#electrochemistry_6dcd5baf_58cd_43f5_a692_51508e036c88",
+      "label": "UpperVoltageLimit",
+      "names": [
+        "UpperVoltageLimit",
+        "charging_cutoff_voltage",
+        "upper_voltage_limit"
+      ],
+      "reference_unit": null
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_f1a51559_aa3d_43a0_9327_918039f0dfed",
+      "label": "Volume",
+      "names": [
+        "Volume",
+        "available_volume",
+        "volume"
+      ],
+      "reference_unit": "m**3"
+    },
+    {
+      "definition": null,
+      "iri": "https://w3id.org/emmo#EMMO_e4de48b1_dabb_4490_ac2b_040f926c64f0",
+      "label": "Width",
+      "names": [
+        "Width",
+        "width"
+      ],
+      "reference_unit": "m"
+    }
+  ],
+  "unit_hints": "BDF-maintained dimensional hints for elementary geometry and mass only."
+}

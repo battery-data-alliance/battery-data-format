@@ -8,6 +8,7 @@
    Supported Plugins <plugins>
    Reference <reference>
    Proposal: Custom Measurements <proposals/custom-measurements>
+   Finding Ontology Terms <ontology-terms>
 
 Battery Data Format (bdf)
 =========================

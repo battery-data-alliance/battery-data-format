@@ -334,7 +334,7 @@ def _print_report(rep: Dict[str, Any]) -> None:
         for c in rep["missing"]:
             print(f"     - {c}")
     if rep["extras"]:
-        print("   Non-canonical columns (ignored by BDF):")
+        print("   Additional columns (outside the core BDF checks):")
         for c in rep["extras"]:
             print(f"     - {c}")
 
@@ -350,16 +350,32 @@ def _print_report(rep: Dict[str, Any]) -> None:
     for issue in derived.get("issues", []):
         print(f"   ⚠️ {issue}")
 
+    if "ontology_terms" in rep:
+        from .ontology_terms import format_term_report
+
+        advisory = format_term_report(rep["ontology_terms"])
+        if advisory:
+            print(advisory)
+
 
 def validate_df(
     df,
     *,
     report: bool = False,
     raise_on_error: bool = True,
+    metadata=None,
 ) -> Dict[str, Any]:
-    """Validate a BDF table; accepts polars (eager or lazy) or pandas frames."""
+    """Validate a BDF table; accepts polars (eager or lazy) or pandas frames.
+
+    Supply ``metadata`` to include advisory ontology suggestions for unlinked
+    additional columns. Suggestions do not change validation success or values.
+    """
     _classify_df(df)  # raise early on unsupported types
     rep = _collect_report(_to_polars_lazy(df).collect())
+    if metadata is not None:
+        from .ontology_terms import suggest_terms
+
+        rep["ontology_terms"] = suggest_terms(_to_polars_lazy(df).collect_schema().names(), metadata)
 
     # Warning, not an error
     ts = rep.get("time_stats", {})
@@ -461,7 +477,7 @@ def validate(
         try:
             from .io import read
 
-            df, _metadata = read(p)
+            df, metadata = read(p, normalize=False, validate=False, include_unknown=True)
         except Exception as e:
             return _bad_report(
                 kind="io_error",
@@ -470,7 +486,7 @@ def validate(
             )
 
         # Validate columns/units only; do NOT normalize or modify
-        return validate_df(df, report=report, raise_on_error=raise_on_error)
+        return validate_df(df, report=report, raise_on_error=raise_on_error, metadata=metadata)
 
     # Anything else: wrong type
     return _bad_report(

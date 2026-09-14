@@ -35,6 +35,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `bdf.save` takes a typed `Metadata` model in `metadata=`, replacing the plain `dict`. Pass `Metadata(...)`, the model `bdf.read` returns, or `Metadata.model_validate(mapping)` for a mapping an earlier version wrote.
 
 ### Added
+- Offline ontology suggestions for unlinked additional columns in CLI conversion and file validation. `bdf terms` reviews candidates, saves explicit selections to metadata, and exports reusable mapping profiles. The bundled BattINFO index is pinned; links do not trigger live fetching or unit conversion. CLI conversion now carries measurement metadata into its output sidecar. See [Finding ontology terms](docs/ontology-terms.md).
 - Custom columns described in dataset `variable_measured` metadata are retained by default through `read()`, `scan()`, and `save()`. Names, units, optional descriptions and ontology links accompany sparse observations; invalid column bindings raise `BDFMetadataError` (`validate=False` warns). Custom CSV cells remain text; Parquet preserves numeric types. See the [0.2.0 proposal](docs/proposals/custom-measurements.md) for the compatibility decision still under review.
 - BDF parsers/normalizers for BDF JSON, NDJSON, Arrow/Feather (IPC), XLSX.
 - Arbin MITS XLSX parser.

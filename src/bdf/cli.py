@@ -256,7 +256,7 @@ def validate(
         if json:
             import json as _json
 
-            print(_json.dumps({"ok": False, "errors": str(e).splitlines(), "warnings": []}, indent=2))
+            typer.echo(_json.dumps({"ok": False, "errors": str(e).splitlines(), "warnings": []}, indent=2))
         else:
             print(f"[bdf] INVALID\n{e}")
         raise typer.Exit(code=1) from None
@@ -271,7 +271,7 @@ def validate(
     if json:
         import json as _json
 
-        print(_json.dumps(report, indent=2, default=str))
+        typer.echo(_json.dumps(report, indent=2, default=str))
     else:
         status = "OK" if ok else "INVALID"
         missing = report.get("missing") or []
@@ -282,10 +282,41 @@ def validate(
             for c in missing:
                 print(f"  - {c}")
         if extras:
-            print("Non-canonical columns (ignored by BDF):")
+            print("Additional columns (outside the core BDF checks):")
             for c in extras:
                 print(f"  - {c}")
     raise typer.Exit(code=0 if ok else 1)
+
+
+@app.command("terms")
+def terms(
+    path: Path = typer.Argument(..., help="Local data file to inspect; measurement values are never rewritten"),
+    accept: List[str] = typer.Option([], "--accept", help="Explicitly link COLUMN=IRI; repeat for multiple columns"),
+    mappings: Optional[Path] = typer.Option(None, "--mappings", help="Apply a previously accepted mapping profile"),
+    save_mappings: Optional[Path] = typer.Option(
+        None, "--save-mappings", help="Save selected mappings to a new reusable profile"
+    ),
+    json: bool = typer.Option(False, "--json", help="Output a machine-readable advisory report"),
+):
+    """Suggest ontology terms offline, or save explicitly accepted metadata links."""
+    from ._errors import BDFMetadataError
+    from ._terms_cli import run_terms
+    from .ontology_terms import format_term_report
+
+    try:
+        result = run_terms(path, accept=accept, mappings_path=mappings, save_mappings=save_mappings)
+    except (BDFMetadataError, OSError, ValueError) as exc:
+        typer.echo(f"[bdf] {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if json:
+        import json as _json
+
+        typer.echo(_json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        if result["applied"]:
+            typer.echo(f"Saved {len(result['applied'])} ontology link(s) to {result['sidecar']}.")
+        advisory = format_term_report(result)
+        typer.echo(advisory or "No unlinked additional columns.")
 
 
 @app.command()
@@ -340,7 +371,9 @@ def convert(
     Data goes to the output path (stdout with '--to -'); status messages go to stderr.
     Stdin input has no filename, so detection relies on content; use --as if it is ambiguous.
     """
-    from .io import read, save
+    from ._errors import BDFMetadataError
+    from .io import read, save, scan
+    from .ontology_terms import format_term_report, suggest_terms
 
     if human is not None:
         labels = "preferred" if human else "machine"
@@ -349,7 +382,15 @@ def convert(
 
     src: str | Path = _stdin_to_tmp() if path == "-" else path
     try:
-        df, _ = read(src, plugin=as_, validate=validate, include_unknown=include_unknown)
+        raw, raw_metadata = scan(src, plugin=as_, normalize=False, validate=False, include_unknown=True)
+        try:
+            term_report = suggest_terms(raw.collect_schema().names(), raw_metadata)
+        except BDFMetadataError as exc:
+            if validate:
+                raise
+            typer.echo(f"[bdf] Ontology suggestions skipped: {exc}", err=True)
+            term_report = {"unlinked": []}
+        df, metadata = read(src, plugin=as_, validate=validate, include_unknown=include_unknown)
     finally:
         if path == "-":
             Path(src).unlink(missing_ok=True)
@@ -357,11 +398,21 @@ def convert(
     if to == "-":
         with tempfile.TemporaryDirectory() as td:
             out = Path(td) / "out.bdf.csv"
-            save(df, out, validate=validate, labels=labels)
+            save(df, out, metadata=metadata, validate=validate, labels=labels)
             sys.stdout.buffer.write(out.read_bytes())
+        if raw_metadata.battinfo_dataset.dataset and raw_metadata.battinfo_dataset.dataset.variable_measured:
+            typer.echo(
+                "[bdf] Metadata sidecars are not emitted to stdout; use a file output to retain measurement descriptions and links.",
+                err=True,
+            )
     else:
-        save(df, to, validate=validate, labels=labels)
+        save(df, to, metadata=metadata, validate=validate, labels=labels)
         typer.echo(f"[bdf] wrote {to}", err=True)
+    for finding in term_report["unlinked"]:
+        finding["retained"] = finding["column"] in df.columns
+    advisory = format_term_report(term_report)
+    if advisory:
+        typer.echo(advisory, err=True)
 
 
 @app.command()

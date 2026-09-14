@@ -49,27 +49,27 @@ Invalid custom bindings raise `BDFMetadataError`. `validate=False` warns and ski
 invalid bindings, so their columns are not guaranteed retention. Metadata remains
 optional; saving does not invent descriptions.
 
-**Proposed addition: help users find ontology terms (not implemented yet).**
-Users should not need to know whether their column already has a term. During
-conversion or validation, BDF should check unlinked columns and offer a concise,
-non-blocking report:
+**Ontology suggestions are implemented on this branch.** Users should not need
+to know whether their column already has a term. CLI conversion and file
+validation check unlinked additional columns and show a non-blocking report:
 
 > `Thickness / mm` has no ontology link. Suggested term: EMMO Thickness.
 > Review and apply this mapping.
 
-For 0.2.0, start with curated names and synonyms from a versioned, bundled index
-based on BattINFO's mappings, using unit compatibility where available to narrow
-candidates. Show each candidate's label, definition where available, and IRI.
-The index extends beyond BDF's core columns but does not cover the entire ontology.
-Users explicitly accept a suggestion before it is saved to metadata; accepted
-mappings should be reusable for subsequent files from the same setup. A matching
-name or compatible unit alone does not establish the measurement's meaning.
+`bdf terms FILE` inspects without writing. `--accept 'COLUMN=IRI'` saves an explicit
+selection to the metadata sidecar without rewriting data. `--save-mappings FILE`
+exports selections for reuse with `--mappings FILE` on the same setup. Existing
+links and measurement descriptions are preserved; conflicting mappings fail
+before writing. See the [usage guide](../ontology-terms.md) for complete commands.
 
-Unresolved columns remain usable under the preservation rules above. Report
-"No matching term found in this index" and provide a route to search further or
-propose a term. Group reminders in the report rather than repeating them for
-every read. Broader matching can follow. This makes ontology adoption easier
-while allowing explicitly described measurements to remain unlinked.
+The index is bundled from a pinned BattINFO commit and loaded locally only when
+needed. It matches curated names and spelling variants; BDF adds limited
+dimensional hints for basic geometry and mass. Other units remain unchecked.
+Candidates show labels and IRIs; the source currently supplies no definitions.
+No ontology is fetched during use. Unresolved columns remain usable under the
+preservation rules above. "No matching term found in this index" links to further
+lookup and community discussion, without claiming the entire ontology lacks a
+term. Ordinary reads do not repeat reminders. Broader matching can follow.
 
 **Compatibility decision before release:** previously descriptive custom entries
 now control retention and can reject a read. Review existing sidecars before
@@ -82,7 +82,7 @@ inference remains a discussion choice, deferred from this prototype.
 [Issue #37](https://github.com/battery-data-alliance/battery-data-format/issues/37)
 addresses broader extension schemas. Live ontology fetching, automatic semantic
 assignment or unit conversion, and generated BattINFO schema changes remain
-outside this work. The proposed local suggestions do not require live fetching.
+outside this work.
 
 **Evidence:** the [executable example](../examples/custom_measurements.py),
 [CSV](../examples/custom_measurements/sparse_thickness.bdf.csv), and
@@ -92,11 +92,15 @@ new experimental data is unnecessary for proposal review.
 
 Run `python docs/examples/custom_measurements.py` with this branch installed.
 Output is temporary unless `--output-dir PATH` is supplied.
+Run `python docs/examples/ontology_terms.py` to exercise term discovery, explicit
+acceptance, profile reuse, conversion and validation with temporary files.
 
-**Verification (Python 3.12):** 49 [acceptance checks](../../tests/unit/test_custom_measurements.py)
-pass; the broader offline suite reports 1,191 passed, 37 skipped and 139 expected
-failures (network/freshness/notebook cases excluded). Formatting passes; docs build
-with existing warnings. Release gates remain red: upstream BattINFO freshness
+**Verification (Python 3.12):** 49 [preservation checks](../../tests/unit/test_custom_measurements.py)
+and 38 [term workflow checks](../../tests/unit/test_ontology_terms.py) pass. The broader
+offline suite reports 1,229 passed, 37 skipped and 139 expected failures
+(network/freshness/notebook cases excluded). Both executable examples pass.
+The built wheel includes the index and resolves Thickness with network access
+blocked. Index regeneration is reproducible; formatting and focused type checks
+pass. Docs build with existing warnings. Known release blockers remain: BattINFO freshness
 (two unchanged bundled schemas differ) and pre-existing type errors reproduced
 on main. These are not changes to the prototype's data-preservation behavior.
-These results cover preservation and binding, not the proposed suggestion feature.
