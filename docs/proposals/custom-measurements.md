@@ -49,6 +49,28 @@ Invalid custom bindings raise `BDFMetadataError`. `validate=False` warns and ski
 invalid bindings, so their columns are not guaranteed retention. Metadata remains
 optional; saving does not invent descriptions.
 
+**Proposed addition: help users find ontology terms (not implemented yet).**
+Users should not need to know whether their column already has a term. During
+conversion or validation, BDF should check unlinked columns and offer a concise,
+non-blocking report:
+
+> `Thickness / mm` has no ontology link. Suggested term: EMMO Thickness.
+> Review and apply this mapping.
+
+For 0.2.0, start with curated names and synonyms from a versioned, bundled index
+based on BattINFO's mappings, using unit compatibility where available to narrow
+candidates. Show each candidate's label, definition where available, and IRI.
+The index extends beyond BDF's core columns but does not cover the entire ontology.
+Users explicitly accept a suggestion before it is saved to metadata; accepted
+mappings should be reusable for subsequent files from the same setup. A matching
+name or compatible unit alone does not establish the measurement's meaning.
+
+Unresolved columns remain usable under the preservation rules above. Report
+"No matching term found in this index" and provide a route to search further or
+propose a term. Group reminders in the report rather than repeating them for
+every read. Broader matching can follow. This makes ontology adoption easier
+while allowing explicitly described measurements to remain unlinked.
+
 **Compatibility decision before release:** previously descriptive custom entries
 now control retention and can reject a read. Review existing sidecars before
 adopting this default, or choose explicit activation.
@@ -58,8 +80,9 @@ text with nulls preserved. Unit declarations do not trigger casts. Automatic typ
 inference remains a discussion choice, deferred from this prototype.
 
 [Issue #37](https://github.com/battery-data-alliance/battery-data-format/issues/37)
-addresses broader extension schemas. Ontology loading, automatic interpretation
-or conversion, and generated BattINFO schema changes remain outside this work.
+addresses broader extension schemas. Live ontology fetching, automatic semantic
+assignment or unit conversion, and generated BattINFO schema changes remain
+outside this work. The proposed local suggestions do not require live fetching.
 
 **Evidence:** the [executable example](../examples/custom_measurements.py),
 [CSV](../examples/custom_measurements/sparse_thickness.bdf.csv), and
@@ -76,3 +99,4 @@ failures (network/freshness/notebook cases excluded). Formatting passes; docs bu
 with existing warnings. Release gates remain red: upstream BattINFO freshness
 (two unchanged bundled schemas differ) and pre-existing type errors reproduced
 on main. These are not changes to the prototype's data-preservation behavior.
+These results cover preservation and binding, not the proposed suggestion feature.
