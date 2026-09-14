@@ -1,7 +1,8 @@
 # Custom measurements: prototype proposal
 
-**Status:** prototype for discussion with Simon and Graham; candidate for 0.3.0,
-outside 0.2.0. Inclusion in a possible October 1.0 release is not committed.
+**Status:** target 0.2.0 final through a subsequent release candidate, subject to
+agreement with Simon and Graham and passing release checks. This feature is not
+in the published 0.2.0rc2. Consider 0.3.0 only if it cannot be ready for 0.2.0.
 
 [Phil's proposal](https://bda.discourse.group/t/adding-optionality-for-custom-measurement-integration/56)
 describes pouch thickness measured intermittently during a 1,000-cycle test.
@@ -42,6 +43,10 @@ Custom declarations require nonblank `name` and `unit_text`. `description` and
 Invalid custom bindings raise `BDFMetadataError`. `validate=False` warns and skips
 invalid bindings, so their columns are not guaranteed retention. Metadata remains
 optional; saving does not invent descriptions.
+
+**Compatibility decision before release:** previously descriptive custom entries
+now control retention and can reject a read. Review existing sidecars before
+adopting this default, or choose explicit activation.
 
 **Prototype limitation:** Parquet preserves numeric types; CSV custom cells remain
 text with nulls preserved. Unit declarations do not trigger casts. Automatic type
