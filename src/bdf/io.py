@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     import pandas as pd
 import polars as pl
 
+from bdf._custom_measurements import bind_custom_measurements, custom_measurements
 from bdf._time_scale import detect_scale_mismatch
 from bdf.file_utils import open_compressed, strip_compression_suffix
 from bdf.metadata import Metadata
@@ -88,17 +89,42 @@ def _read(
     else:
         raise ValueError(f"invalid plugin argument: {plugin!r}")
 
-    bdf_df = resolved_plugin.table_parser.read(
-        path,
-        normalize=normalize,
-        validate=validate,
-        include_unknown=include_unknown,
-        lazy=lazy,
-        tz=tz,
-        day_month_order=day_month_order,
-    )
-
     metadata = _assemble_metadata(path, resolved_plugin, tz=tz, day_month_order=day_month_order)
+
+    parser = resolved_plugin.table_parser
+    if custom_measurements(metadata):
+        # Bind against source headers before normalization can discard a declared
+        # column. Keep the raw read lazy so this requires schema inspection only.
+        raw = parser.read(path, normalize=False, lazy=True)
+        assert isinstance(raw, pl.LazyFrame)
+        headers = raw.collect_schema().names()
+        claimed = (
+            tuple(column.source_header for column in parser.normalizer.resolve(headers).values()) if normalize else ()
+        )
+        preserved = bind_custom_measurements(metadata, headers, validate=validate, normalized_sources=claimed)
+        result = (
+            parser.normalizer.normalize(
+                raw,
+                validate=validate,
+                include_unknown=include_unknown,
+                preserve_columns=preserved,
+                tz=tz,
+                day_month_order=day_month_order,
+            )
+            if normalize
+            else raw
+        )
+        bdf_df = result if lazy else result.collect()
+    else:
+        bdf_df = parser.read(
+            path,
+            normalize=normalize,
+            validate=validate,
+            include_unknown=include_unknown,
+            lazy=lazy,
+            tz=tz,
+            day_month_order=day_month_order,
+        )
 
     if normalize:
         bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
@@ -241,7 +267,9 @@ def read(
             raw source columns unchanged.
         validate: Check columns against the BDF ontology, error if missing required columns
             (default True); set to False to only warn.
-        include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
+        include_unknown: Keep undeclared columns outside of the BDF spec (default False).
+            Custom columns described in the sidecar's dataset ``variable_measured``
+            are preserved regardless, with their original names, values, and nulls.
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
         day_month_order: Field order applied to an ambiguous numeric date the table
@@ -305,7 +333,9 @@ def scan(
             raw source columns unchanged.
         validate: Check columns against the BDF ontology, raising on missing required ones
             (default True); False only warns.
-        include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
+        include_unknown: Keep undeclared columns outside of the BDF spec (default False).
+            Custom columns described in the sidecar's dataset ``variable_measured``
+            are preserved regardless, with their original names, values, and nulls.
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
         day_month_order: Field order applied to an ambiguous numeric date the table
@@ -519,8 +549,13 @@ def save(
         raise ValueError(msg)
 
     frame = _as_polars(df)
-    COLUMN_ONTOLOGY.validate_df(frame, raise_on_error=validate)
-    frame = COLUMN_ONTOLOGY.rename_labels(frame, labels)
+    declared = (
+        bind_custom_measurements(metadata, frame.collect_schema().names(), validate=validate)
+        if metadata is not None
+        else ()
+    )
+    COLUMN_ONTOLOGY.validate_df(frame, raise_on_error=validate, extra_columns=declared)
+    frame = COLUMN_ONTOLOGY.rename_labels(frame, labels, extra_columns=declared)
 
     if isinstance(frame, pl.LazyFrame) and spec.sink is not None:
         writer = getattr(frame, spec.sink)

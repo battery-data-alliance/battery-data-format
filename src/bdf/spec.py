@@ -658,7 +658,9 @@ class ColumnOntology:
         return tuple(q.formatted_label for _, q in self if not q.required and not q.deprecated)
 
     @coerce_dataframe
-    def validate_df(self, df: pl.LazyFrame, *, raise_on_error: bool = True) -> pl.LazyFrame:
+    def validate_df(
+        self, df: pl.LazyFrame, *, raise_on_error: bool = True, extra_columns: tuple[str, ...] = ()
+    ) -> pl.LazyFrame:
         """Check ``df`` column names against BDF canonical labels.
 
         Accepts pandas DataFrame, polars DataFrame, or polars LazyFrame.
@@ -674,6 +676,8 @@ class ColumnOntology:
             df: DataFrame to validate (pandas or polars).
             raise_on_error: Raise ``BDFValidationError`` on missing required columns (default
                 True); False emits a ``UserWarning`` instead.
+            extra_columns: Custom columns with separately validated descriptions.
+                These do not trigger unknown-column warnings or replace required quantities.
 
         Returns:
             Validated DataFrame coerced back to the original input type.
@@ -741,7 +745,7 @@ class ColumnOntology:
                 stacklevel=2,
             )
 
-        extra = cols - canonical - handled
+        extra = cols - canonical - handled - set(extra_columns)
 
         if missing:
             detail = f"Missing required BDF columns: {sorted(missing)}"
@@ -826,7 +830,13 @@ class ColumnOntology:
         return first_deprecated
 
     @coerce_dataframe
-    def rename_labels(self, df: pl.LazyFrame, mode: Literal["preferred", "machine", "unchanged"]) -> pl.LazyFrame:
+    def rename_labels(
+        self,
+        df: pl.LazyFrame,
+        mode: Literal["preferred", "machine", "unchanged"],
+        *,
+        extra_columns: tuple[str, ...] = (),
+    ) -> pl.LazyFrame:
         """Rename BDF columns between preferred-label and machine-readable notation.
 
         E.g. ``"Voltage / V"`` <-> ``"voltage_volt"``.
@@ -838,6 +848,7 @@ class ColumnOntology:
                 "preferred": Rename to BDF preferred label, e.g. "Voltage / V".
                 "machine": Rename to BDF machine-readable notation, e.g. "voltage_volt".
                 "unchanged": Leave columns as-is.
+            extra_columns: Described custom columns, left unchanged without a rename warning.
 
         Returns:
             DataFrame of the same type, with matched columns renamed.
@@ -855,7 +866,7 @@ class ColumnOntology:
             raise ValueError(msg)
         cols = df.collect_schema().names()
         mapping = {c: mapping_source[c] for c in cols if c in mapping_source}
-        unmatched = [c for c in cols if c not in mapping_source and c not in already_target]
+        unmatched = [c for c in cols if c not in mapping_source and c not in already_target and c not in extra_columns]
         if unmatched:
             warnings.warn(
                 f"The following columns could not be converted to '{mode}' and were left as-is: {unmatched}",

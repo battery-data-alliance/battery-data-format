@@ -473,6 +473,7 @@ class TableNormalizer(BaseModel):
         *,
         validate: bool = True,
         include_unknown: bool = False,
+        preserve_columns: tuple[str, ...] = (),
         tz: str = "UTC",
         day_month_order: DayMonthOrder | None = None,
     ) -> pl.LazyFrame:
@@ -488,6 +489,8 @@ class TableNormalizer(BaseModel):
             validate: Validate column names against the BDF ontology when True (default;
                 raises on missing required columns instead of warning).
             include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
+            preserve_columns: Validated custom headers to retain even when ``include_unknown=False``.
+                Standard source columns still undergo normal normalization.
             tz: IANA timezone applied to naive (no embedded offset) ``unix_time_second``
                 datetime formats. Defaults to ``"UTC"``; emits a ``UserWarning`` when a
                 naive format is in play and ``tz`` is left at its default. Around
@@ -549,15 +552,15 @@ class TableNormalizer(BaseModel):
                 continue
             exprs.append(resolved_column.get_expr(mr_name, tz, day_month_order))
 
-        if include_unknown:
+        if include_unknown or preserve_columns:
             claimed_headers = {rc.source_header for rc in resolved.values()}
-            unknown = [h for h in headers if h not in claimed_headers]
+            unknown = [h for h in headers if h not in claimed_headers and (include_unknown or h in preserve_columns)]
             exprs.extend([pl.col(h) for h in unknown])
 
         if exprs:
             df = df.select(exprs)
 
-        COLUMN_ONTOLOGY.validate_df(df, raise_on_error=validate)
+        COLUMN_ONTOLOGY.validate_df(df, raise_on_error=validate, extra_columns=preserve_columns)
         return df
 
 

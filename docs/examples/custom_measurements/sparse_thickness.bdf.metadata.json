@@ -1,0 +1,15 @@
+{
+  "battinfo_dataset": {
+    "dataset": {
+      "description": "Entirely fabricated values for a BDF prototype, not Microsoft or laboratory data. An illustrative 21-row excerpt from an invented 1,000-cycle test; the rows and their times are fabricated, not a complete cycler record.",
+      "name": "SYNTHETIC sparse pouch-thickness example",
+      "variable_measured": [
+        {
+          "description": "Fabricated pouch thickness representing parallel plate height-gauge measurements at 100% SOC every 100 cycles, from cycle 100 to 1000. Each value belongs to its row's test time and cycle. Null means no observation on that row; do not fill or interpolate.",
+          "name": "Thickness",
+          "unit_text": "mm"
+        }
+      ]
+    }
+  }
+}

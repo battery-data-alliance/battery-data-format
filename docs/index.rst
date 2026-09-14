@@ -7,6 +7,7 @@
    User Guide <user_guide>
    Supported Plugins <plugins>
    Reference <reference>
+   Proposal: Custom Measurements <proposals/custom-measurements>
 
 Battery Data Format (bdf)
 =========================
