@@ -49,7 +49,7 @@ class Equipment(_RecordModel):
     location: str | None = None
     name: str | None = None
     property: Annotated[
-        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity] | None,
+        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity3] | None,
         Field(
             description="Named quantity map for technical properties at any component level.",
             title="Quantitative Properties",

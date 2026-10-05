@@ -134,7 +134,7 @@ class Person(_RecordModel):
     url: Annotated[AnyUrl | None, Field(description="Personal or institutional web page.")] = None
 
 
-class Quantity1(_RecordModel):
+class Quantity4(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -165,7 +165,7 @@ class Termination(_RecordModel):
         ),
     ] = None
     quantity: Annotated[
-        Literal["voltage", "current", "c_rate", "capacity", "duration"] | None,
+        Literal["voltage", "current", "c_rate", "capacity", "soc", "duration"] | None,
         Field(description="Quantity monitored for the termination condition."),
     ] = None
     unit: Annotated[str | None, Field(description="Unit of the threshold value.", min_length=1)] = None
@@ -251,6 +251,7 @@ class TestSpec(_RecordModel):
             "hppc",
             "ici",
             "gitt",
+            "pitt",
             "dcir",
             "eis",
             "impedance",
@@ -258,6 +259,7 @@ class TestSpec(_RecordModel):
             "formation",
             "rpt",
             "quasi_ocv",
+            "cyclic_voltammetry",
             "field",
             "duty_cycle",
             "wltp",
@@ -291,7 +293,7 @@ class Step(_RecordModel):
         Literal["charge", "discharge", "hold", "rest", "none"] | None,
         Field(description="Current direction or role of the step."),
     ] = None
-    duration: Annotated[Quantity1 | None, Field(default_factory=Quantity1, description="Fixed step duration.")]
+    duration: Annotated[Quantity4 | None, Field(default_factory=Quantity4, description="Fixed step duration.")]
     mode: Annotated[
         Literal["cc", "cv", "cccv", "cp", "cr", "rest", "eis", "scan", "group"] | None,
         Field(description="Electrochemical mode of the step (constant current, constant voltage, rest, EIS, ...)."),
@@ -300,7 +302,7 @@ class Step(_RecordModel):
         dict[str, Any] | None, Field(description="Step-level data-recording cadence overriding the protocol default.")
     ] = None
     setpoints: Annotated[
-        dict[str, Quantity1] | None,
+        dict[str, Quantity4] | None,
         Field(
             description="Controlled setpoints for the step (e.g. current, c_rate, voltage, power), each a value+unit quantity."
         ),
@@ -316,7 +318,7 @@ class Step(_RecordModel):
         list[str] | None, Field(description="Free-form labels for querying (e.g. 'formation', 'checkup').")
     ] = None
     temperature: Annotated[
-        Quantity1 | None, Field(default_factory=Quantity1, description="Ambient temperature setpoint for the step.")
+        Quantity4 | None, Field(default_factory=Quantity4, description="Ambient temperature setpoint for the step.")
     ]
     termination: Annotated[list[Termination] | None, Field(description="Conditions that end the step.")] = None
 
@@ -329,9 +331,9 @@ class BattinfoTestProtocol(_RecordModel):
         list[Artifact] | None, Field(description="Actionable-layer links to runnable protocol files.")
     ] = None
     conditions: Annotated[
-        dict[str, Quantity1] | None,
+        dict[str, Quantity4] | None,
         Field(
-            description="Planned protocol-level conditions, as a map of condition name to a {value, unit} quantity. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate. As-run values or deviations are recorded on the test record."
+            description="Planned protocol-level conditions, as a map of condition name to a {value, unit} quantity. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate. As-run values or deviations are recorded on the test record. Recommended keys include initial_state_of_charge (unit '1') and ambient_temperature - the declared starting state of the cell, the convention protocol importers (aurora-unicycler, UCP) map initial-state settings onto."
         ),
     ] = None
     contributor: Annotated[

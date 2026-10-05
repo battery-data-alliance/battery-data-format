@@ -235,7 +235,7 @@ class Test(_RecordModel):
         Field(pattern="^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
     ] = None
     conditions: Annotated[
-        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity] | None,
+        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity3] | None,
         Field(
             description="As-run test conditions, as a map of condition name to a {value, unit} quantity. Planned conditions belong on the test protocol; record here the values actually applied or deviations from the protocol. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate, state_of_charge."
         ),
@@ -276,9 +276,11 @@ class Test(_RecordModel):
             "capacity_check",
             "rate_capability",
             "quasi_ocv",
+            "cyclic_voltammetry",
             "hppc",
             "ici",
             "gitt",
+            "pitt",
             "dcir",
             "eis",
             "impedance",

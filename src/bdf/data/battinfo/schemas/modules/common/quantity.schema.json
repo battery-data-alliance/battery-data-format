@@ -43,6 +43,41 @@
           "required": [
             "unit_text"
           ]
+        },
+        {
+          "allOf": [
+            {
+              "required": [
+                "value_text"
+              ]
+            },
+            {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "value"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "min_value"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "max_value"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "typical_value"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
         }
       ]
     }
@@ -51,7 +86,7 @@
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "properties": {
     "co_type": {
-      "description": "Nature of the value. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet 'rated capacity'). Conventional: fixed by convention or calculation (e.g. theoretical capacity). Drives the EMMO property-nature co-type in JSON-LD; until the EMMO RatedProperty class is published, Rated is exported as ConventionalProperty.",
+      "description": "Deprecated alias of value_basis; accepted so existing records keep validating.",
       "enum": [
         "Measured",
         "Conventional",
@@ -62,7 +97,7 @@
     },
     "conditions": {
       "additionalProperties": false,
-      "description": "Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Emitted as hasMeasurementParameter in JSON-LD.",
+      "description": "Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself.",
       "patternProperties": {
         "^[a-z][a-z0-9_]*$": {
           "$ref": "#"
@@ -113,6 +148,16 @@
         }
       ],
       "description": "Point value, numeric or as a string when the source value is not purely numeric."
+    },
+    "value_basis": {
+      "description": "The basis on which the value is stated. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet rated capacity). Conventional: fixed by convention or standard practice.",
+      "enum": [
+        "Measured",
+        "Conventional",
+        "Rated",
+        "Nominal"
+      ],
+      "type": "string"
     },
     "value_text": {
       "description": "Verbatim value text when the source value cannot be parsed to a number.",
