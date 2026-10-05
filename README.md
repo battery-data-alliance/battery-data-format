@@ -176,6 +176,13 @@ The **Battery Data Format (.bdf)** is a step toward unifying and accelerating ba
 pip install batterydf
 ```
 
+Release candidates are published as pre-releases. Installers skip them unless you ask:
+
+```bash
+pip install --pre batterydf        # latest release, candidates included
+pip install batterydf==0.2.0rc2    # a specific candidate
+```
+
 Optional extras add support for specific vendor formats or plotting backends.
 Combine as needed, e.g. `batterydf[nda,plot]`, or use `batterydf[all]` to get everything:
 ```bash

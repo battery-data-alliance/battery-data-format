@@ -130,4 +130,7 @@ The files under `docs/examples/reference/` are hashed into `datasets.json`, so `
 ## Release workflow (summary)
 - Ensure CI is green (lint/type/tests/docs/build).
 - Bump version in `pyproject.toml` and update `CHANGELOG.md`.
-- Tag and publish (TestPyPI first is recommended).
+- Tag the release. A `v*` tag builds and publishes to PyPI from CI.
+- Release candidates are published to PyPI as well, as pre-releases.
+  `pip` and `uv` skip pre-releases unless asked, so testers opt in with
+  `--pre` or an exact pin. TestPyPI is only for rehearsing the workflow.
