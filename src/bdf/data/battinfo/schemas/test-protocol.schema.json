@@ -367,6 +367,7 @@
             "current",
             "c_rate",
             "capacity",
+            "soc",
             "duration"
           ],
           "type": "string"
@@ -411,7 +412,7 @@
       "additionalProperties": {
         "$ref": "#/$defs/Quantity"
       },
-      "description": "Planned protocol-level conditions, as a map of condition name to a {value, unit} quantity. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate. As-run values or deviations are recorded on the test record.",
+      "description": "Planned protocol-level conditions, as a map of condition name to a {value, unit} quantity. Recommended keys: ambient_temperature, upper_voltage_limit, lower_voltage_limit, c_rate. As-run values or deviations are recorded on the test record. Recommended keys include initial_state_of_charge (unit '1') and ambient_temperature - the declared starting state of the cell, the convention protocol importers (aurora-unicycler, UCP) map initial-state settings onto.",
       "type": "object"
     },
     "contributor": {
@@ -645,6 +646,7 @@
             "hppc",
             "ici",
             "gitt",
+            "pitt",
             "dcir",
             "eis",
             "impedance",
@@ -652,6 +654,7 @@
             "formation",
             "rpt",
             "quasi_ocv",
+            "cyclic_voltammetry",
             "field",
             "duty_cycle",
             "wltp",

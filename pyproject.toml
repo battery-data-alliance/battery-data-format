@@ -110,7 +110,7 @@ dev = [
   # Pinned: the checked-in `bdf.battinfo.generated` package is compared byte
   # for byte against a fresh render, and the arm-selection rule behind
   # `--use-default-factory-for-optional-nested-models` changed in 0.72.1.
-  "datamodel-code-generator[ruff]==0.72.3",
+  "datamodel-code-generator[ruff]==0.83.0",
 ]
 docs = [
   "sphinx>=7.0",

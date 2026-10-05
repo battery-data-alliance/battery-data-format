@@ -10,6 +10,12 @@ from pydantic import ConfigDict, Field, RootModel, constr
 from bdf.battinfo._base import _RecordModel
 
 
+class Quantity1(_RecordModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
+
 class Value(RootModel[str | None]):
     root: Annotated[
         str | None,
@@ -19,20 +25,18 @@ class Value(RootModel[str | None]):
     ] = None
 
 
-class Quantity(_RecordModel):
+class Quantity2(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
     co_type: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
-        Field(
-            description="Nature of the value. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet 'rated capacity'). Conventional: fixed by convention or calculation (e.g. theoretical capacity). Drives the EMMO property-nature co-type in JSON-LD; until the EMMO RatedProperty class is published, Rated is exported as ConventionalProperty."
-        ),
+        Field(description="Deprecated alias of value_basis; accepted so existing records keep validating."),
     ] = None
     conditions: Annotated[
-        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Quantity] | None,
+        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Quantity3] | None,
         Field(
-            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharge_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, counter_electrode, cycle_number). Emitted as hasMeasurementParameter in JSON-LD."
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself."
         ),
     ] = None
     max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None
@@ -69,10 +73,77 @@ class Quantity(_RecordModel):
             description="Point value, numeric or as a string when the source value is not purely numeric.",
         ),
     ]
+    value_basis: Annotated[
+        Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
+        Field(
+            description="The basis on which the value is stated. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet rated capacity). Conventional: fixed by convention or standard practice."
+        ),
+    ] = None
     value_text: Annotated[
         str | None,
         Field(description="Verbatim value text when the source value cannot be parsed to a number.", min_length=1),
     ] = None
 
 
-Quantity.model_rebuild()
+class Quantity3(Quantity1, Quantity2):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    co_type: Annotated[
+        Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
+        Field(description="Deprecated alias of value_basis; accepted so existing records keep validating."),
+    ] = None
+    conditions: Annotated[
+        dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Quantity3] | None,
+        Field(
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself."
+        ),
+    ] = None
+    max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None
+    min_value: Annotated[float | None, Field(description="Lower bound when the source specifies a range.")] = None
+    sample_count: Annotated[
+        int | None,
+        Field(
+            description="How many members the value (and standard_deviation) were computed over — e.g. 8 electrode discs. Without it a spread cannot be read.",
+            ge=1,
+        ),
+    ] = None
+    standard_deviation: Annotated[
+        float | None,
+        Field(
+            description="Dispersion of the sample the value summarises, in the same unit as value. A sample standard deviation over sample_count members, not a measurement uncertainty. Zero is meaningful: it says every member carried the same number.",
+            ge=0.0,
+        ),
+    ] = None
+    typical_value: Annotated[
+        float | None,
+        Field(description="Typical value when the source distinguishes typical from nominal or limit values."),
+    ] = None
+    unit: Annotated[
+        str | None, Field(description="Canonical compact unit symbol/code, for example V, A, Ah, Wh/kg.", min_length=1)
+    ] = None
+    unit_text: Annotated[
+        str | None,
+        Field(description="Human-readable unit text as written in the source (schema.org unitText).", min_length=1),
+    ] = None
+    value: Annotated[
+        float | Value | None,
+        Field(
+            default_factory=Value,
+            description="Point value, numeric or as a string when the source value is not purely numeric.",
+        ),
+    ]
+    value_basis: Annotated[
+        Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
+        Field(
+            description="The basis on which the value is stated. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet rated capacity). Conventional: fixed by convention or standard practice."
+        ),
+    ] = None
+    value_text: Annotated[
+        str | None,
+        Field(description="Verbatim value text when the source value cannot be parsed to a number.", min_length=1),
+    ] = None
+
+
+Quantity2.model_rebuild()
+Quantity3.model_rebuild()
