@@ -5,7 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [Unreleased]
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-10-06
 ### Breaking
 - Dropped Python 3.9 and 3.10 support; now requires Python ≥3.11 (tested through 3.14). Python 3.10 is end-of-life and missing important security fixes.
 - `read()` gives a `(polars.DataFrame, metadata)` tuple, replacing the old pandas `read(...) -> pandas.DataFrame`.
