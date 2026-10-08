@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
+import secrets
+import stat
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
@@ -467,7 +470,9 @@ def save(
     """Save a BDF table to a CSV/parquet/IPC/JSON/ndjson/xlsx artifact.
 
     Detects format and compression from the file extension and creates parent
-    directories as needed.
+    directories as needed. Artifacts are staged in the destination directory and
+    replaced only after a successful write; metadata sidecars are updated
+    separately and are not part of the atomic replacement.
 
     A ``LazyFrame`` reaches the target through the polars ``sink_*`` writer of
     the format, so polars streams the table and does not materialize it first.
@@ -530,12 +535,29 @@ def save(
         writer = getattr(frame, spec.write)
 
     p.parent.mkdir(parents=True, exist_ok=True)
-    target: Any = open_compressed(p)
+    # Follow existing destination symlinks, as the previous direct writer did.
+    # Stage on that target filesystem while retaining the requested compression suffix.
+    destination = p.resolve() if p.is_symlink() else p
+    existing_mode = stat.S_IMODE(destination.stat().st_mode) if destination.exists() else None
+    staged = destination.with_name(f".bdf-{secrets.token_hex(12)}{p.suffix}")
+    # O_EXCL prevents collisions; O_CREAT applies the caller's normal umask.
+    # An existing target's mode also limits access while staging its replacement.
+    fd = os.open(staged, os.O_CREAT | os.O_EXCL | os.O_WRONLY, existing_mode if existing_mode is not None else 0o666)
+    os.close(fd)
     try:
-        writer(target, **opts)
+        target: Any = open_compressed(staged)
+        try:
+            writer(target, **opts)
+        finally:
+            if not isinstance(target, Path):
+                target.close()
+
+        # An atomic replacement must not silently revoke existing team access.
+        if existing_mode is not None:
+            staged.chmod(existing_mode)
+        os.replace(staged, destination)
     finally:
-        if not isinstance(target, Path):
-            target.close()
+        staged.unlink(missing_ok=True)
 
     if metadata is not None:
         _write_sidecar(sidecar, metadata)
