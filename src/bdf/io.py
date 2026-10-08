@@ -539,7 +539,7 @@ def save(
     # Stage on that target filesystem while retaining the requested compression suffix.
     destination = p.resolve() if p.is_symlink() else p
     existing_mode = stat.S_IMODE(destination.stat().st_mode) if destination.exists() else None
-    staged = destination.with_name(f".{p.stem}.{secrets.token_hex(12)}{p.suffix}")
+    staged = destination.with_name(f".bdf-{secrets.token_hex(12)}{p.suffix}")
     # O_EXCL prevents collisions; O_CREAT applies the caller's normal umask.
     # An existing target's mode also limits access while staging its replacement.
     fd = os.open(staged, os.O_CREAT | os.O_EXCL | os.O_WRONLY, existing_mode if existing_mode is not None else 0o666)

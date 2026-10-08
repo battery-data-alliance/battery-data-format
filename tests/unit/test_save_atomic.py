@@ -173,3 +173,40 @@ def test_staging_permissions_not_broader_than_old_file(tmp_path, monkeypatch, da
     io.save(data.lazy(), path)
     assert observed
     assert stat.S_IMODE(path.stat().st_mode) == mode
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Test assumes POSIX filename length limits")
+def test_long_valid_filename_does_not_break_staging(tmp_path, data):
+    path = tmp_path / ("x" * 235 + ".csv")
+    path.write_bytes(b"previous-valid-artifact")
+    io.save(data, path)
+    loaded, _ = io.read(path)
+    assert_frame_equal(data, loaded)
+    assert set(tmp_path.iterdir()) == {path}
+
+
+def test_compressed_writer_close_failure_preserves_destination(tmp_path, monkeypatch, data):
+    path = tmp_path / "case.bdf.csv.gz"
+    path.write_bytes(b"previous-valid-artifact")
+    closed = []
+
+    class FailingClose:
+        def write(self, content):
+            return len(content)
+
+        def close(self):
+            closed.append(True)
+            raise OSError("injected close failure")
+
+    def successful_sink(self, target, **opts):
+        target.write(b"staged-data")
+
+    monkeypatch.setattr(io, "open_compressed", lambda path: FailingClose())
+    monkeypatch.setattr(pl.LazyFrame, "sink_csv", successful_sink)
+
+    with pytest.raises(OSError, match="injected close failure"):
+        io.save(data.lazy(), path)
+
+    assert closed == [True]
+    assert path.read_bytes() == b"previous-valid-artifact"
+    assert set(tmp_path.iterdir()) == {path}
