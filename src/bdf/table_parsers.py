@@ -25,7 +25,7 @@ from typing import Any, ClassVar, Literal
 import polars as pl
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .file_utils import read_head, resolve_source
+from .file_utils import extract_mpr, read_head, resolve_source
 from .normalization import DayMonthOrder
 from .table_normalizers import TableNormalizer
 
@@ -1245,13 +1245,7 @@ class MprParser(TableParser):
         Raises:
             RuntimeError: If yadg is not installed.
         """
-        try:
-            import yadg  # type: ignore
-        except ImportError as exc:
-            raise RuntimeError("MprParser requires yadg. Install with `pip install yadg`.") from exc
-        resolved = resolve_source(path)
-        dt = yadg.extractors.extract("eclab.mpr", str(resolved))
-        ds = dt.to_dataset()
+        ds = extract_mpr(path).to_dataset()
         uncertainty_cols = {
             n for var in ds.variables.values() for n in str(var.attrs.get("ancillary_variables", "")).split()
         }

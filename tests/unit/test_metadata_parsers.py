@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from bdf.metadata_parsers import (
     JsonRule,
     JsonSidecarParser,
+    MprMetadataParser,
     NdaMetadataParser,
     RegexRule,
     TxtPreambleParser,
@@ -441,3 +442,28 @@ def test_nda_parse_captures_nested_metadata_into_raw(data_dir: Path) -> None:
     head_info = meta.raw["Step"]["Head_Info"]
     assert head_info["Creator"]["Value"] == "Graham"
     assert meta.raw["TestInfo"]["TestInfo"]["Barcode"] == "commercial_cell_001"
+
+
+@pytest.mark.parametrize("name", ["cell.mpr", "CELL.MPR"])
+def test_mpr_matches_biologic_extension(tmp_path: Path, name: str) -> None:
+    assert MprMetadataParser().matches(tmp_path / name) is True
+
+
+@pytest.mark.parametrize("name", ["cell.mpt", "cell.csv", "cell.ndax"])
+def test_mpr_rejects_other_extensions(tmp_path: Path, name: str) -> None:
+    assert MprMetadataParser().matches(tmp_path / name) is False
+
+
+def test_mpr_parse_splits_original_metadata_and_yadg_provenance(data_dir: Path) -> None:
+    """parse() decodes original_metadata into raw and keeps yadg's other attrs in bdf.reader."""
+    pytest.importorskip("yadg")
+    mpr = data_dir / "mpr" / "GCPL-0.mpr"
+    if not mpr.exists():
+        pytest.skip(f"missing {mpr}")
+    meta = MprMetadataParser().parse(mpr)
+    assert isinstance(meta.raw, dict)
+    assert set(meta.raw) == {"settings", "params", "log"}
+    assert meta.raw["settings"]["technique"] == "GCPL"
+    assert meta.bdf.reader is not None
+    assert "original_metadata" not in meta.bdf.reader
+    assert meta.bdf.reader["yadg_version"]
