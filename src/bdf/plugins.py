@@ -31,7 +31,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from .file_utils import is_url, read_head, resolve_source, strip_compression_suffix
-from .metadata_parsers import JsonSidecarParser, MetadataParser, RegexRule, TxtPreambleParser
+from .metadata_parsers import JsonSidecarParser, MetadataParser, NdaMetadataParser, RegexRule, TxtPreambleParser
 from .metadata_targets import METADATA
 from .normalization import AbsoluteTimeNormalization
 from .table_normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS, TableNormalizer
@@ -71,7 +71,7 @@ TableParserUnion = Annotated[
     Field(discriminator="kind"),
 ]
 MetadataUnion = Annotated[
-    MetadataParser | TxtPreambleParser | JsonSidecarParser,
+    MetadataParser | TxtPreambleParser | JsonSidecarParser | NdaMetadataParser,
     Field(discriminator="kind"),
 ]
 
@@ -275,7 +275,10 @@ NOVONIX_CSV = Plugin(
     metadata_parser=TxtPreambleParser(magic=("[summary]", "[data]", "novonix uhpc data file", "novonix")),
 )
 
-NEWARE_NDA = Plugin(table_parser=NdaParser(normalizer=NDA_NORMALIZER))
+NEWARE_NDA = Plugin(
+    table_parser=NdaParser(normalizer=NDA_NORMALIZER),
+    metadata_parser=NdaMetadataParser(),
+)
 
 BDF_CSV = Plugin(
     table_parser=DelimTxtParser(
