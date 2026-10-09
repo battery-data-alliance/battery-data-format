@@ -259,6 +259,14 @@ class Test(_RecordModel):
         str | None,
         Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
     ] = None
+    handle: Annotated[
+        str | None,
+        Field(
+            description="Short readable slug, unique within one registry workspace (e.g. 'flores-ocv/graphite-aq-1-063b77-cell'). Display text, never part of the identity.",
+            max_length=120,
+            pattern="^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*$",
+        ),
+    ] = None
     id: Annotated[
         str | None,
         Field(

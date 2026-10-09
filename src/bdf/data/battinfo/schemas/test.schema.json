@@ -145,6 +145,12 @@
       ],
       "type": "object"
     },
+    "Handle": {
+      "description": "Short readable slug for this record, unique within one registry workspace and shown as <workspace>/<handle> (e.g. 'flores-ocv/graphite-aq-1-063b77-cell'). Lowercase ASCII segments joined by '/', each made of letters and digits separated by single hyphens; at most 120 characters. Display text only: the record's identity is its IRI, and a handle may be corrected without moving it. Build one with battinfo.naming.handle_for().",
+      "maxLength": 120,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*$",
+      "type": "string"
+    },
     "Organization": {
       "additionalProperties": false,
       "description": "An organization referenced by name, with an optional canonical BattINFO organization IRI.",
@@ -490,6 +496,10 @@
         },
         "equipment_id": {
           "$ref": "#/$defs/EquipmentIri"
+        },
+        "handle": {
+          "$ref": "#/$defs/Handle",
+          "description": "Short readable slug, unique within one registry workspace (e.g. 'flores-ocv/graphite-aq-1-063b77-cell'). Display text, never part of the identity."
         },
         "id": {
           "$ref": "#/$defs/TestIri",

@@ -254,6 +254,14 @@ class CellInstance(_RecordModel):
     grade: Annotated[
         str | None, Field(description="Quality grade assigned to this cell (e.g. 'A', 'B', 'C', 'reject').")
     ] = None
+    handle: Annotated[
+        str | None,
+        Field(
+            description="Short readable slug, unique within one registry workspace (e.g. 'flores-ocv/graphite-aq-1-063b77-cell'). Display text, never part of the identity.",
+            max_length=120,
+            pattern="^[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*$",
+        ),
+    ] = None
     id: Annotated[
         str | None,
         Field(
