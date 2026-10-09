@@ -536,6 +536,7 @@ def save(
     # at the target survives. The name keeps the real extension, so the format and
     # compression are still detected from it, and sits in the same directory, so the
     # rename stays on one filesystem and is atomic.
+   # Signed-off-by: Hamza Duale <Hamza01567@gmail.com>
     tmp = p.with_name(f".{uuid.uuid4().hex}.{p.name}")
     try:
         target: Any = open_compressed(tmp)
