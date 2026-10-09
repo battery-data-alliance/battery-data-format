@@ -33,7 +33,7 @@ from typing import Annotated, Any, ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError as PydanticValidationError, model_validator
 
 from ._errors import BDFMetadataError
-from .file_utils import read_head, resolve_source
+from .file_utils import extract_mpr, read_head, resolve_source
 from .metadata import Metadata
 from .metadata_targets import ExtrasTarget, MetadataTarget
 from .normalization import (
@@ -738,3 +738,50 @@ class NdaMetadataParser(MetadataParser):
         except ImportError as exc:
             raise RuntimeError("NdaMetadataParser requires fastnda. Install with `pip install fastnda`.") from exc
         return Metadata(raw=fastnda.read_metadata(resolve_source(path)))
+
+
+class MprMetadataParser(MetadataParser):
+    """Reads Biologic .mpr metadata, yadg's ``original_metadata`` is JSON loaded and put in ``raw``."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["mpr"] = "mpr"  # type: ignore[assignment]
+
+    def matches(self, path: str | Path) -> bool:
+        """Return True when the resolved local file has an ``.mpr`` extension.
+
+        Args:
+            path: Local file path or URL to check.
+
+        Returns:
+            True if the resolved file is a Biologic binary file.
+        """
+        return resolve_source(path).suffix.lower() == ".mpr"
+
+    def parse(
+        self,
+        path: str | Path,
+        tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
+        preamble_lines: int | None = None,
+    ) -> Metadata:
+        """Read the file's ``original_metadata`` into ``raw`` and yadg's provenance into ``bdf.reader``.
+
+        Args:
+            path: Local file path or URL to .mpr file.
+            tz: IANA timezone; unused, because no rule normalizes a value.
+            day_month_order: Field order for an ambiguous numeric date; unused.
+            preamble_lines: Number of head lines that belong to the preamble;
+                unused, because the source is a binary file.
+
+        Returns:
+            A ``Metadata`` whose ``raw`` holds the decoded ``original_metadata``
+            (``settings``, ``params``, and ``log`` where present), and whose
+            ``bdf.reader`` holds every other attribute yadg set.
+
+        Raises:
+            RuntimeError: If yadg is not installed.
+        """
+        attrs = dict(extract_mpr(path).attrs)  # Copies to not mutate cached
+        raw = json.loads(attrs.pop("original_metadata"))
+        return Metadata.model_validate({"raw": raw, "bdf": {"reader": attrs or None}})

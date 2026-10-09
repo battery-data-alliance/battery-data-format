@@ -34,6 +34,8 @@ class BdfReadInfo(_RecordModel):
 
     source: str | None = None
     time_reconciliation: list[dict] | None = None
+    reader: dict[str, Any] | None = None
+    """The vendor reader library's own metadata of how it read the source."""
     bdf_version: str | None = None
     """The batterydf package version that wrote this sidecar. Stamped by
     ``save()`` on every sidecar it writes, overwriting any earlier stamp: the

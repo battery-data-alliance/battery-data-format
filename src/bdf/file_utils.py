@@ -227,3 +227,35 @@ def resolve_source(path: str | Path) -> Path:
     else:
         local = Path(path)
     return _decompress(local)
+
+
+@lru_cache(maxsize=1)
+def _extract_mpr_cached(resolved: str, mtime_ns: int, size: int) -> Any:
+    """Run yadg's eclab.mpr extractor. ``mtime_ns`` and ``size`` are for keying the cache."""
+    try:
+        import yadg  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError("Reading .mpr files requires yadg. Install with `pip install yadg`.") from exc
+    return yadg.extractors.extract("eclab.mpr", resolved)
+
+
+def extract_mpr(path: str | Path) -> Any:
+    """Return yadg's ``DataTree`` for a Biologic .mpr file.
+
+    The table and metadata parsers both need to extract the .mpr.
+    yadg extract reads both data and metadata.
+    This function caches the result so bdf does not extract the same file twice.
+    Callers must not mutate the returned tree.
+
+    Args:
+        path: Local file path or URL to a .mpr file.
+
+    Returns:
+        The ``xarray.DataTree`` that ``yadg.extractors.extract`` returns.
+
+    Raises:
+        RuntimeError: If yadg is not installed.
+    """
+    resolved = resolve_source(path)
+    stat = resolved.stat()
+    return _extract_mpr_cached(str(resolved), stat.st_mtime_ns, stat.st_size)

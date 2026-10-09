@@ -31,7 +31,14 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from .file_utils import is_url, read_head, resolve_source, strip_compression_suffix
-from .metadata_parsers import JsonSidecarParser, MetadataParser, NdaMetadataParser, RegexRule, TxtPreambleParser
+from .metadata_parsers import (
+    JsonSidecarParser,
+    MetadataParser,
+    MprMetadataParser,
+    NdaMetadataParser,
+    RegexRule,
+    TxtPreambleParser,
+)
 from .metadata_targets import METADATA
 from .normalization import AbsoluteTimeNormalization
 from .table_normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS, TableNormalizer
@@ -71,7 +78,7 @@ TableParserUnion = Annotated[
     Field(discriminator="kind"),
 ]
 MetadataUnion = Annotated[
-    MetadataParser | TxtPreambleParser | JsonSidecarParser | NdaMetadataParser,
+    MetadataParser | TxtPreambleParser | JsonSidecarParser | NdaMetadataParser | MprMetadataParser,
     Field(discriminator="kind"),
 ]
 
@@ -212,7 +219,10 @@ BIOLOGIC_MPT = Plugin(
     ),
 )
 
-BIOLOGIC_MPR = Plugin(table_parser=MprParser(normalizer=NORMALIZERS["biologic"]))
+BIOLOGIC_MPR = Plugin(
+    table_parser=MprParser(normalizer=NORMALIZERS["biologic"]),
+    metadata_parser=MprMetadataParser(),
+)
 
 DIGATRON_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["digatron"]),
