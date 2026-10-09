@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- `save()` writes to a temporary file beside the target and renames it into place only once the writer succeeds. A failing lazy plan no longer leaves a partial artifact, and an artifact already at the target survives a failed save (#104).
 
 ## [0.2.0] - Unreleased
 ### Breaking

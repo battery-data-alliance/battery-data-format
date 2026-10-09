@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
@@ -530,12 +531,24 @@ def save(
         writer = getattr(frame, spec.write)
 
     p.parent.mkdir(parents=True, exist_ok=True)
-    target: Any = open_compressed(p)
+    # Write beside the target under a temporary name, then rename onto it once the writer
+    # succeeds. A failing plan then leaves no partial artifact, and an existing artifact
+    # at the target survives. The name keeps the real extension, so the format and
+    # compression are still detected from it, and sits in the same directory, so the
+    # rename stays on one filesystem and is atomic.
+   # Signed-off-by: Hamza Duale <Hamza01567@gmail.com>
+    tmp = p.with_name(f".{uuid.uuid4().hex}.{p.name}")
     try:
-        writer(target, **opts)
-    finally:
-        if not isinstance(target, Path):
-            target.close()
+        target: Any = open_compressed(tmp)
+        try:
+            writer(target, **opts)
+        finally:
+            if not isinstance(target, Path):
+                target.close()
+        tmp.replace(p)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
     if metadata is not None:
         _write_sidecar(sidecar, metadata)
