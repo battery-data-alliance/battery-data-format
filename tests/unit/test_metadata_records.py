@@ -235,3 +235,13 @@ def test_curated_document_round_trips_with_a_uri_value_in_its_normalised_form() 
         "cell_instance": {"name": "Cell 42", "batch_id": "batch-7"},
         "provenance": {"source_url": "https://example.com/"},
     }
+
+
+def test_repr_and_str_show_only_filled_fields() -> None:
+    """repr and str leave out defaults, nested sections included."""
+    meta = Metadata()
+    cast(Test, meta.battinfo_test.test).started_at = _PLACEHOLDER_EPOCH
+
+    assert repr(meta) == f"Metadata(battinfo_test=BattinfoTest(test=Test(started_at={_PLACEHOLDER_EPOCH})))"
+    assert str(meta) == f"battinfo_test=BattinfoTest(test=Test(started_at={_PLACEHOLDER_EPOCH}))"
+    assert repr(Metadata()) == "Metadata()"
