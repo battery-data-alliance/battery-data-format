@@ -15,7 +15,7 @@ from . import cell_canonical_schema
 
 class Deviation(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     category: Annotated[
         Literal[
@@ -52,7 +52,7 @@ class Deviation(_RecordModel):
 
 class Conformance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     deviations: Annotated[
         list[Deviation] | None, Field(description="Individual deviations from the governing spec or protocol.")
@@ -65,7 +65,7 @@ class Conformance(_RecordModel):
 
 class DatasetLink(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     id: Annotated[
         str | None,
@@ -94,7 +94,7 @@ class FlexDate1(RootModel[str | None]):
 
 class Funder(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Funder name (e.g. 'European Commission').", min_length=1)] = None
     same_as: Annotated[
@@ -106,7 +106,7 @@ class Funder(_RecordModel):
 
 class Funding(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     acronym: Annotated[str | None, Field(description="Project acronym.")] = None
     funder: Annotated[Funder | None, Field(default_factory=Funder, description="Organization that awarded the grant.")]
@@ -121,7 +121,7 @@ class Funding(_RecordModel):
 
 class Organization(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
     same_as: Annotated[
@@ -133,7 +133,7 @@ class Organization(_RecordModel):
 
 class Person(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     affiliation: Annotated[
         Organization | None,
@@ -158,7 +158,7 @@ class UnixTime(RootModel[int | None]):
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     battinfo_version: Annotated[
         str | None,
@@ -212,7 +212,7 @@ class Provenance(_RecordModel):
 
 class CellInstance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     batch_id: Annotated[str | None, Field(description="Production or lab batch this cell belongs to.")] = None
     battery_status: Annotated[
@@ -313,7 +313,7 @@ class CellInstance(_RecordModel):
 
 class BattinfoCellInstance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     cell_instance: Annotated[
         CellInstance | None, Field(default_factory=CellInstance, description="The physical cell being described.")

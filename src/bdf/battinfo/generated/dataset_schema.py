@@ -68,7 +68,7 @@ class CellTypeIri(RootModel[str | None]):
 
 class Checksum(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     algorithm: Annotated[
         Literal["sha256", "sha512", "md5", "other"] | None, Field(description="Hash algorithm used.")
@@ -78,7 +78,7 @@ class Checksum(_RecordModel):
 
 class Citation(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     citation_key: Annotated[
         str | None, Field(description="Short key for pairing the citation with in-text references.")
@@ -116,7 +116,7 @@ class Titles1(RootModel[list[Titles1Item] | None]):
 
 class CsvwTableColumn(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     datatype: Annotated[str | None, Field(description="Column datatype (XSD/CSVW datatype name).", min_length=1)] = None
     description: Annotated[str | None, Field(description="What the column contains.")] = None
@@ -147,7 +147,7 @@ class PrimaryKey1(RootModel[list[PrimaryKey1Item] | None]):
 
 class CsvwTableSchema(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     columns: Annotated[
         list[CsvwTableColumn] | None, Field(description="Ordered column descriptions.", min_length=1)
@@ -163,7 +163,7 @@ class CsvwTableSchema(_RecordModel):
 
 class DataCatalog(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     description: Annotated[str | None, Field(description="What the catalog is.")] = None
     id: Annotated[AnyUrl | None, Field(description="IRI of the catalog.")] = None
@@ -175,7 +175,7 @@ class DataCatalog(_RecordModel):
 
 class DataDistribution(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     access_level: Annotated[
         Literal["open", "restricted", "embargoed", "closed", "unknown"] | None,
@@ -205,7 +205,7 @@ class DataDistribution(_RecordModel):
 
 class Funder(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Funder name (e.g. 'European Commission').", min_length=1)] = None
     same_as: Annotated[
@@ -217,7 +217,7 @@ class Funder(_RecordModel):
 
 class Funding(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     acronym: Annotated[str | None, Field(description="Project acronym.")] = None
     funder: Annotated[Funder | None, Field(default_factory=Funder, description="Organization that awarded the grant.")]
@@ -246,7 +246,7 @@ class Identifier21(RootModel[str | None]):
 
 class Organization(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
     same_as: Annotated[
@@ -258,7 +258,7 @@ class Organization(_RecordModel):
 
 class Person(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     affiliation: Annotated[
         Organization | None,
@@ -277,7 +277,7 @@ class Person(_RecordModel):
 
 class PropertyValue(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     property_id: Annotated[
         str | None, Field(description="Identifier scheme or property IRI the value belongs to.", min_length=1)
@@ -297,7 +297,7 @@ class TestIri(RootModel[str | None]):
 
 class VariableMeasured(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     description: Annotated[str | None, Field(description="What the variable is.")] = None
     name: Annotated[str | None, Field(description="Variable name.", min_length=1)] = None
@@ -307,7 +307,7 @@ class VariableMeasured(_RecordModel):
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     battinfo_version: Annotated[
         str | None,
@@ -377,7 +377,7 @@ class Provenance(_RecordModel):
 
 class CsvwTable(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     description: Annotated[str | None, Field(description="What the table contains.")] = None
     id: Annotated[AnyUrl | None, Field(description="IRI of this table description.")] = None
@@ -397,7 +397,7 @@ class CsvwTable(_RecordModel):
 
 class CsvwTableGroup(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     description: Annotated[str | None, Field(description="What the table group contains.")] = None
     id: Annotated[AnyUrl | None, Field(description="IRI of this table-group description.")] = None
@@ -429,7 +429,7 @@ class MainEntity(RootModel[list[CsvwTable | CsvwTableGroup] | None]):
 
 class Dataset(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     about: Annotated[
         list[CellTypeIri | CellIri | TestIri | AnyUrl] | None,
@@ -563,7 +563,7 @@ class Dataset(_RecordModel):
 
 class BattinfoDatasetSchemaOrgAligned(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     contributor: Annotated[
         list[Person] | None,
