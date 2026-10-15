@@ -14,7 +14,7 @@ from .modules.common import quantity_schema
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     battinfo_version: Annotated[
         str | None,
@@ -54,7 +54,7 @@ class Provenance(_RecordModel):
 
 class Quality(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     inferred_fields: Annotated[
         list[str] | None,
@@ -68,7 +68,7 @@ class Quality(_RecordModel):
 
 class RawExtraction(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     confidence: Annotated[float | None, Field(description="Extraction confidence between 0 and 1.", ge=0.0, le=1.0)] = (
         None
@@ -79,13 +79,13 @@ class RawExtraction(_RecordModel):
 
 class SpecItem1(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
 
 
 class Cell(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     chemistry: Annotated[
         str | None,
@@ -112,7 +112,7 @@ class Cell(_RecordModel):
 
 class BattinfoCanonicalCellInstance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     cell: Annotated[
         Cell | None,
@@ -144,7 +144,7 @@ class BattinfoCanonicalCellInstance(_RecordModel):
 
 class Measurement(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Name of the measured property (snake_case key).")] = None
     property: Annotated[
@@ -160,7 +160,7 @@ class Measurement(_RecordModel):
 
 class RangeSpec(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     max: Annotated[
         SpecItem3 | None,
@@ -181,7 +181,7 @@ class RangeSpec(_RecordModel):
 
 class SpecItem2(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     co_type: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
@@ -251,7 +251,7 @@ class SpecItem2(_RecordModel):
 
 class SpecSet(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     ac_internal_resistance: Annotated[
         SpecItem3 | None,
@@ -611,7 +611,7 @@ class SpecSet(_RecordModel):
 
 class SpecItem3(SpecItem1, SpecItem2):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     co_type: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,

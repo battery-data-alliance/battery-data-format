@@ -20,6 +20,7 @@ from bdf import (
     BattinfoTest,
     BattinfoTestProtocol,
     BDFMetadataError,
+    BDFMetadataWarning,
     BdfReadInfo,
     BDFValidationError,
     Metadata,
@@ -1210,50 +1211,70 @@ def test_undeclared_top_level_field_is_refused() -> None:
         Metadata(not_a_real_field="x")  # type: ignore[call-arg]
 
 
-def test_unrecognised_sidecar_key_fails_the_read(tmp_path: Path) -> None:
-    """A reserved sidecar key no field declares raises, and an invalid value also fails the read."""
-    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
-    p = tmp_path / "data.bdf.csv"
-    io.save(df, p)
-    sidecar = p.with_suffix(".metadata.json")
-
-    sidecar.write_text(json.dumps({"not_a_real_field": "x"}))
-    with pytest.raises(BDFMetadataError, match="not_a_real_field"):
-        io.read(p)
-
-    sidecar.write_text(json.dumps({"battinfo_test": {"test": {"started_at": "not-an-int"}}}))
-    with pytest.raises(BDFMetadataError):
-        io.read(p)
-
-
-def test_sidecar_from_a_newer_bdf_says_to_upgrade(tmp_path: Path) -> None:
-    """A sidecar that fails validation and claims a newer bdf_version raises with
-    an upgrade instruction instead of the raw validation error."""
+def test_unrecognised_sidecar_key_and_invalid_value_are_kept_with_a_warning(tmp_path: Path) -> None:
+    """A reserved sidecar key no field declares, and a value that does not validate,
+    both read as-is under one warning naming each path."""
     df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
     p = tmp_path / "data.bdf.csv"
     io.save(df, p)
     p.with_suffix(".metadata.json").write_text(
-        json.dumps({"field_from_the_future": "x", "bdf": {"bdf_version": "99.0.0"}}),
-        encoding="utf-8",
+        json.dumps({"not_a_real_field": "x", "battinfo_test": {"test": {"started_at": "not-an-int"}}})
     )
 
-    with pytest.raises(BDFMetadataError, match="written by bdf 99.0.0.*Upgrade"):
-        io.read(p)
+    with pytest.warns(BDFMetadataWarning, match=r"(?s)written by bdf unknown.*not_a_real_field.*test\.started_at"):
+        _, meta = io.read(p)
+
+    assert meta.model_extra == {"not_a_real_field": "x"}
+    assert meta.battinfo_test.test.started_at == "not-an-int"  # type: ignore[union-attr]
+    assert [issue["path"] for issue in meta.read_issues] == ["not_a_real_field", "battinfo_test.test.started_at"]
 
 
-def test_sidecar_with_a_malformed_claimed_version_still_wraps(tmp_path: Path) -> None:
-    """An unparseable claimed version never crashes the error path; the generic
-    BDFMetadataError wrap raises instead."""
+def test_sidecar_from_a_newer_bdf_reads_and_saves_back_unchanged(tmp_path: Path) -> None:
+    """A sidecar a newer bdf wrote, holding keys, records, and enum values this
+    version does not know, reads with a warning naming the writer and saves
+    back unchanged apart from the writer stamps."""
     df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
     p = tmp_path / "data.bdf.csv"
     io.save(df, p)
-    p.with_suffix(".metadata.json").write_text(
-        json.dumps({"field_from_the_future": "x", "bdf": {"bdf_version": "not-a-version"}}),
-        encoding="utf-8",
-    )
+    future = {
+        "battinfo_test": {"test": {"instrument_name": "Neware", "status": "paused", "future_term": {"a": [1, 2]}}},
+        "battinfo_test_protocol": {
+            "method": [{"mode": "cc", "termination": [{"quantity": "voltage"}, {"quantity": "temperature"}]}]
+        },
+        "battinfo_future_record": {"x": 1},
+        "bdf": {"bdf_version": "99.0.0", "future_stamp": "abc"},
+    }
+    p.with_suffix(".metadata.json").write_text(json.dumps(future), encoding="utf-8")
 
-    with pytest.raises(BDFMetadataError, match="does not validate"):
-        io.read(p)
+    with pytest.warns(BDFMetadataWarning, match="written by bdf 99.0.0"):
+        _, meta = io.read(p)
+    assert meta.battinfo_test.test.status == "paused"  # type: ignore[union-attr]
+    assert [t.quantity for t in meta.battinfo_test_protocol.method[0].termination] == ["voltage", "temperature"]  # type: ignore[index, union-attr]
+
+    out = tmp_path / "out.bdf.csv"
+    io.save(df, out, metadata=meta)
+    written = json.loads(out.with_suffix(".metadata.json").read_text(encoding="utf-8"))
+
+    stamps = {"bdf_version", "ontology_version", "battinfo_ref", "source"}
+    assert {k: v for k, v in written.pop("bdf").items() if k not in stamps} == {"future_stamp": "abc"}
+    future.pop("bdf")
+    assert written == future
+
+
+def test_sidecar_with_a_non_object_bdf_section_reads_and_saves(tmp_path: Path) -> None:
+    """A ``bdf`` section that is not an object restores empty, so the read can
+    record its source and a save can stamp it."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p)
+    p.with_suffix(".metadata.json").write_text(json.dumps({"bdf": "not-an-object"}), encoding="utf-8")
+
+    with pytest.warns(BDFMetadataWarning, match="bdf: model_type"):
+        _, meta = io.read(p)
+    io.save(df, p, metadata=meta)
+
+    assert isinstance(meta.bdf, BdfReadInfo)
+    assert "bdf_version" in json.loads(p.with_suffix(".metadata.json").read_text(encoding="utf-8"))["bdf"]
 
 
 # ---------------------------------------------------------------------------

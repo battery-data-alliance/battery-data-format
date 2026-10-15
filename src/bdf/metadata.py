@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr, ValidationError
 
+from bdf._errors import BDFMetadataWarning
 from bdf.battinfo._base import _RecordModel
 from bdf.battinfo.generated.cell_instance_schema import BattinfoCellInstance
 from bdf.battinfo.generated.channel_schema import BattinfoChannelInstance
@@ -106,6 +108,65 @@ class Metadata(_RecordModel):
     key no rule maps is preserved by ``raw`` instead. It never holds a failed
     value, because such a value raises. ``None`` when a read staged nothing
     here. Written by `save()` and restored on a later read."""
+
+    _read_issues: list[dict[str, Any]] = PrivateAttr(default_factory=list)
+
+    @property
+    def read_issues(self) -> list[dict[str, Any]]:
+        """What :meth:`from_dict` kept without understanding, as ``path``/``kind``/``value`` entries."""
+        return self._read_issues
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any], source: str = "metadata") -> Metadata:
+        """Restore a saved metadata document, allowing unknown and bad fields.
+
+        A metadata dict that validates restores as usual.
+
+        If the dict fails the strict validation, it falls back to lenient mode.
+        Unknown fields and fields with unknown values are kept as-is, so a later
+        dump or ``save()`` writes unknown/bad fields back unchanged. Emits a
+        ``BDFMetadataWarning`` with details.
+
+        Args:
+            data: The parsed document, as ``to_dict()`` or ``save()`` wrote it.
+            source: Name of the document for the warning, e.g. the sidecar path.
+
+        Returns:
+            The restored ``Metadata``; :attr:`read_issues` lists what was kept
+            without validation.
+        """
+        try:
+            return cls.model_validate(data)
+        except ValidationError as exc:
+            issues = [
+                {"path": ".".join(map(str, e["loc"])), "kind": e["type"], "value": e["input"]} for e in exc.errors()
+            ]
+        meta = cls.model_validate(data, context={"lenient": True})
+        meta._read_issues = issues
+        if not isinstance(meta.bdf, BdfReadInfo):
+            # read() and save() write into BDF's own section, so it must stay a model.
+            meta.bdf = BdfReadInfo()
+
+        import bdf
+
+        bdf_block = data.get("bdf")
+        writer = bdf_block.get("bdf_version") if isinstance(bdf_block, dict) else None
+        listing = "\n".join(f"  {i['path']}: {i['kind']} ({_short_repr(i['value'])})" for i in issues)
+        warnings.warn(
+            f"{source} was written by bdf {writer or 'unknown'} and holds {len(issues)} value(s) bdf "
+            f"{bdf.__version__} does not understand. The file may have been written by a newer bdf "
+            "version, try `pip install batterydf --upgrade`. "
+            f"They unknown values are kept as-is and will save back unchanged:\n{listing}",
+            BDFMetadataWarning,
+            stacklevel=2,
+        )
+        return meta
+
+
+def _short_repr(value: Any, limit: int = 80) -> str:
+    """Return ``repr(value)``, cut to ``limit`` characters."""
+    text = repr(value)
+    return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
 def _unit_text_from_label(label: str) -> Optional[str]:

@@ -12,7 +12,7 @@ from bdf.battinfo._base import _RecordModel
 
 class Quantity1(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
 
 
@@ -27,7 +27,7 @@ class Value(RootModel[str | None]):
 
 class Quantity2(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     co_type: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
@@ -87,7 +87,7 @@ class Quantity2(_RecordModel):
 
 class Quantity3(Quantity1, Quantity2):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     co_type: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,

@@ -156,7 +156,9 @@ collapse-root-models = true
 # two renders of the same bundle never compare equal and `--check` can never pass.
 disable-timestamp = true
 enum-field-as-literal = "all"
-extra-fields = "forbid"
+# Allow extra fields to leniently read newer versions of a schema.
+# `_RecordModel` still rejects unknown keys everywhere else.
+extra-fields = "allow"
 force-optional = true
 # Ruff reads the repository `ruff.toml`, discovered from the output path, so
 # the generator and the pre-commit hooks format the package identically.

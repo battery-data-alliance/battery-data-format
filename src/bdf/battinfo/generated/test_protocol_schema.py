@@ -12,7 +12,7 @@ from bdf.battinfo._base import _RecordModel
 
 class Record(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     current_mA: Annotated[
         float | None, Field(description="Record a data point on a current change of this many milliamps.", gt=0.0)
@@ -25,7 +25,7 @@ class Record(_RecordModel):
 
 class Safety(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     delay_s: Annotated[
         float | None, Field(description="Grace period in seconds before the safety limits are enforced.")
@@ -43,7 +43,7 @@ class Safety(_RecordModel):
 
 class Artifact(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     byte_size: Annotated[int | None, Field(description="File size in bytes.", ge=0)] = None
     conforms_to: Annotated[
@@ -78,7 +78,7 @@ class Artifact(_RecordModel):
 
 class Funder(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Funder name (e.g. 'European Commission').", min_length=1)] = None
     same_as: Annotated[
@@ -90,7 +90,7 @@ class Funder(_RecordModel):
 
 class Funding(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     acronym: Annotated[str | None, Field(description="Project acronym.")] = None
     funder: Annotated[Funder | None, Field(default_factory=Funder, description="Organization that awarded the grant.")]
@@ -105,7 +105,7 @@ class Funding(_RecordModel):
 
 class Organization(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
     same_as: Annotated[
@@ -117,7 +117,7 @@ class Organization(_RecordModel):
 
 class Person(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     affiliation: Annotated[
         Organization | None,
@@ -136,7 +136,7 @@ class Person(_RecordModel):
 
 class Quantity4(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     max_value: Annotated[
         float | None,
@@ -156,7 +156,7 @@ class Quantity4(_RecordModel):
 
 class Termination(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     direction: Annotated[
         Literal["below", "above", "elapsed"] | None,
@@ -174,7 +174,7 @@ class Termination(_RecordModel):
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     battinfo_version: Annotated[
         str | None,
@@ -231,7 +231,7 @@ class Provenance(_RecordModel):
 
 class TestSpec(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     description: Annotated[str | None, Field(description="Free-text description of the procedure.")] = None
     handle: Annotated[
@@ -293,7 +293,7 @@ class TestSpec(_RecordModel):
 
 class Step(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     count: Annotated[int | None, Field(description="Repeat count when this step is a repeated group.", ge=1)] = None
     description: Annotated[str | None, Field(description="Free-text description of the step.")] = None
@@ -333,7 +333,7 @@ class Step(_RecordModel):
 
 class BattinfoTestProtocol(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     artifacts: Annotated[
         list[Artifact] | None, Field(description="Actionable-layer links to runnable protocol files.")
