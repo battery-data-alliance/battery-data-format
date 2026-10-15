@@ -157,6 +157,7 @@ collapse-root-models = true
 disable-timestamp = true
 enum-field-as-literal = "all"
 # Allow extra fields to leniently read newer versions of a schema.
+# `_RecordModel` still rejects unknown keys everywhere else.
 extra-fields = "allow"
 force-optional = true
 # Ruff reads the repository `ruff.toml`, discovered from the output path, so
