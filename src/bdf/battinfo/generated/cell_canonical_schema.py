@@ -19,8 +19,8 @@ class Provenance(_RecordModel):
     battinfo_version: Annotated[
         str | None,
         Field(
-            description="Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
-            pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+            description="Version of the battinfo library that wrote this record, stamped on save: X.Y.Z with an optional PEP 440 suffix (0.8.0rc1, 0.8.0.dev1, 0.8.0.post1, 0.8.0+local) or a hyphenated one (0.8.0-rc1).",
+            pattern="^\\d+\\.\\d+\\.\\d+(((a|b|rc)\\d+)?(\\.post\\d+)?(\\.dev\\d+)?(\\+[A-Za-z0-9.]+)?|-[A-Za-z0-9.-]+)$",
         ),
     ] = None
     citation: Annotated[
@@ -107,7 +107,12 @@ class Cell(_RecordModel):
     ] = None
     manufacturer: Annotated[str | None, Field(description="Manufacturer name.")] = None
     model_name: Annotated[str | None, Field(description="Manufacturer model designation.")] = None
-    size_code: Annotated[str | None, Field(description="Standard size designation (e.g. '18650').")] = None
+    size_code: Annotated[
+        str | None,
+        Field(
+            description="Shape letter plus dimensions, the size part of an IEC 60086 or IEC 61960 designation: 'R' for cylindrical and coin cells, 'P' for prismatic and pouch cells, for example 'R18650', 'R21700', 'R2032' or 'P20/50/50'. The full designation, such as 'CR2032' or 'INR18650', goes in iec_code."
+        ),
+    ] = None
 
 
 class BattinfoCanonicalCellInstance(_RecordModel):
@@ -190,7 +195,7 @@ class SpecItem2(_RecordModel):
     conditions: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity3] | None,
         Field(
-            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself."
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions on a measured value emit as hasMeasurementParameter on a measurement node the quantity isOutputOf, and conditions on a declared value (Conventional, Rated or Nominal) become named schema:valueReference qualifiers on the quantity. The voltage_reference key emits under schema:valueReference either way, as a node typed with the reference electrode's classes."
         ),
     ] = None
     max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None
@@ -620,7 +625,7 @@ class SpecItem3(SpecItem1, SpecItem2):
     conditions: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity3] | None,
         Field(
-            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself."
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions on a measured value emit as hasMeasurementParameter on a measurement node the quantity isOutputOf, and conditions on a declared value (Conventional, Rated or Nominal) become named schema:valueReference qualifiers on the quantity. The voltage_reference key emits under schema:valueReference either way, as a node typed with the reference electrode's classes."
         ),
     ] = None
     max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None

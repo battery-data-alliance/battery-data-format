@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field, RootModel, constr
+from pydantic import ConfigDict, Field, constr
 
 from bdf.battinfo._base import _RecordModel
 
@@ -14,15 +14,6 @@ class Quantity1(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-
-
-class Value(RootModel[str | None]):
-    root: Annotated[
-        str | None,
-        Field(
-            description="Point value, numeric or as a string when the source value is not purely numeric.", min_length=1
-        ),
-    ] = None
 
 
 class Quantity2(_RecordModel):
@@ -36,7 +27,7 @@ class Quantity2(_RecordModel):
     conditions: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Quantity3] | None,
         Field(
-            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself."
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions on a measured value emit as hasMeasurementParameter on a measurement node the quantity isOutputOf, and conditions on a declared value (Conventional, Rated or Nominal) become named schema:valueReference qualifiers on the quantity. The voltage_reference key emits under schema:valueReference either way, as a node typed with the reference electrode's classes."
         ),
     ] = None
     max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None
@@ -67,12 +58,11 @@ class Quantity2(_RecordModel):
         Field(description="Human-readable unit text as written in the source (schema.org unitText).", min_length=1),
     ] = None
     value: Annotated[
-        float | Value | None,
+        float | None,
         Field(
-            default_factory=Value,
-            description="Point value, numeric or as a string when the source value is not purely numeric.",
+            description="Point numeric value. A value that is not purely numeric belongs in value_text, never as a string here."
         ),
-    ]
+    ] = None
     value_basis: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
         Field(
@@ -96,7 +86,7 @@ class Quantity3(Quantity1, Quantity2):
     conditions: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), Quantity3] | None,
         Field(
-            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself."
+            description="Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions on a measured value emit as hasMeasurementParameter on a measurement node the quantity isOutputOf, and conditions on a declared value (Conventional, Rated or Nominal) become named schema:valueReference qualifiers on the quantity. The voltage_reference key emits under schema:valueReference either way, as a node typed with the reference electrode's classes."
         ),
     ] = None
     max_value: Annotated[float | None, Field(description="Upper bound when the source specifies a range.")] = None
@@ -127,12 +117,11 @@ class Quantity3(Quantity1, Quantity2):
         Field(description="Human-readable unit text as written in the source (schema.org unitText).", min_length=1),
     ] = None
     value: Annotated[
-        float | Value | None,
+        float | None,
         Field(
-            default_factory=Value,
-            description="Point value, numeric or as a string when the source value is not purely numeric.",
+            description="Point numeric value. A value that is not purely numeric belongs in value_text, never as a string here."
         ),
-    ]
+    ] = None
     value_basis: Annotated[
         Literal["Measured", "Conventional", "Rated", "Nominal"] | None,
         Field(

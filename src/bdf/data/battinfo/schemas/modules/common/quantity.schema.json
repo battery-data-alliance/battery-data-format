@@ -97,7 +97,7 @@
     },
     "conditions": {
       "additionalProperties": false,
-      "description": "Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself.",
+      "description": "Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions on a measured value emit as hasMeasurementParameter on a measurement node the quantity isOutputOf, and conditions on a declared value (Conventional, Rated or Nominal) become named schema:valueReference qualifiers on the quantity. The voltage_reference key emits under schema:valueReference either way, as a node typed with the reference electrode's classes.",
       "patternProperties": {
         "^[a-z][a-z0-9_]*$": {
           "$ref": "#"
@@ -138,16 +138,8 @@
       "type": "string"
     },
     "value": {
-      "anyOf": [
-        {
-          "type": "number"
-        },
-        {
-          "minLength": 1,
-          "type": "string"
-        }
-      ],
-      "description": "Point value, numeric or as a string when the source value is not purely numeric."
+      "description": "Point numeric value. A value that is not purely numeric belongs in value_text, never as a string here.",
+      "type": "number"
     },
     "value_basis": {
       "description": "The basis on which the value is stated. Nominal: the design or target value as specified (default for spec records). Measured: obtained by measurement on a physical item (default for instance records). Rated: a guaranteed value established under a stated rating procedure (datasheet rated capacity). Conventional: fixed by convention or standard practice.",
