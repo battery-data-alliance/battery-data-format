@@ -16,7 +16,12 @@ class Provenance(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    battinfo_version: Annotated[str | None, Field(pattern="^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$")] = None
+    battinfo_version: Annotated[
+        str | None,
+        Field(
+            pattern="^\\d+\\.\\d+\\.\\d+(((a|b|rc)\\d+)?(\\.post\\d+)?(\\.dev\\d+)?(\\+[A-Za-z0-9.]+)?|-[A-Za-z0-9.-]+)$"
+        ),
+    ] = None
     citation: AnyUrl | None = None
     citation_doi: Annotated[str | None, Field(pattern="^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$")] = None
     retrieved_at: Annotated[int | None, Field(ge=0)] = None
