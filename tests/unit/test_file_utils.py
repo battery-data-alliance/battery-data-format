@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import gzip
+import os
+import shutil
 from pathlib import Path
 
-from bdf.file_utils import _decompress, is_url, read_head
+import pytest
+
+import bdf
+from bdf.file_utils import _decompress, _extract_mpr_cached, extract_mpr, is_url, read_head
 
 # ---------------------------------------------------------------------------
 # is_url
@@ -84,3 +89,50 @@ def test_decompress_caching(tmp_path: Path, monkeypatch) -> None:
     assert third == first
     assert second.stat().st_mtime == mtime1
     assert third.stat().st_mtime == mtime1
+
+
+# ---------------------------------------------------------------------------
+# extract_mpr
+# ---------------------------------------------------------------------------
+
+
+def _copy_mpr(data_dir: Path, tmp_path: Path) -> Path:
+    pytest.importorskip("yadg")
+    src = data_dir / "mpr" / "GCPL-0.mpr"
+    if not src.exists():
+        pytest.skip(f"missing {src}")
+    return Path(shutil.copy(src, tmp_path / "GCPL-0.mpr"))
+
+
+def test_extract_mpr_returns_the_cached_tree_for_an_unchanged_file(data_dir: Path, tmp_path: Path) -> None:
+    mpr = _copy_mpr(data_dir, tmp_path)
+    assert extract_mpr(mpr) is extract_mpr(mpr)
+
+
+def test_extract_mpr_decodes_again_after_the_file_changes(data_dir: Path, tmp_path: Path) -> None:
+    """A new mtime misses the cache, so a file rewritten in place is never served stale."""
+    mpr = _copy_mpr(data_dir, tmp_path)
+    first = extract_mpr(mpr)
+    stat = mpr.stat()
+    os.utime(mpr, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+    assert extract_mpr(mpr) is not first
+
+
+@pytest.mark.filterwarnings("ignore::UserWarning")
+def test_read_decodes_an_mpr_once(data_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The table and metadata parsers share one yadg decode per read()."""
+    import yadg
+
+    mpr = _copy_mpr(data_dir, tmp_path)
+    calls: list[str] = []
+    real_extract = yadg.extractors.extract
+
+    def counting_extract(filetype: str, path: str):
+        calls.append(path)
+        return real_extract(filetype, path)
+
+    _extract_mpr_cached.cache_clear()
+    monkeypatch.setattr(yadg.extractors, "extract", counting_extract)
+    _, meta = bdf.read(mpr)
+    assert len(calls) == 1
+    assert isinstance(meta.raw, dict)
