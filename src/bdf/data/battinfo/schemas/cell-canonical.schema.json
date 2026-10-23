@@ -37,7 +37,7 @@
           "type": "string"
         },
         "size_code": {
-          "description": "Standard size designation (e.g. '18650').",
+          "description": "Shape letter plus dimensions, the size part of an IEC 60086 or IEC 61960 designation: 'R' for cylindrical and coin cells, 'P' for prismatic and pouch cells, for example 'R18650', 'R21700', 'R2032' or 'P20/50/50'. The full designation, such as 'CR2032' or 'INR18650', goes in iec_code.",
           "type": "string"
         }
       },
@@ -82,8 +82,8 @@
       "description": "Where the information in this record came from: source type, file or URL, citation, and retrieval time.",
       "properties": {
         "battinfo_version": {
-          "description": "Version of the battinfo library that wrote this record (semantic versioning); stamped on save.",
-          "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+          "description": "Version of the battinfo library that wrote this record, stamped on save: X.Y.Z with an optional PEP 440 suffix (0.8.0rc1, 0.8.0.dev1, 0.8.0.post1, 0.8.0+local) or a hyphenated one (0.8.0-rc1).",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(((a|b|rc)\\d+)?(\\.post\\d+)?(\\.dev\\d+)?(\\+[A-Za-z0-9.]+)?|-[A-Za-z0-9.-]+)$",
           "type": "string"
         },
         "citation": {
@@ -307,7 +307,7 @@
         },
         "conditions": {
           "additionalProperties": false,
-          "description": "Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions emit as hasMeasurementParameter on a measurement node the quantity isOutputOf; the voltage_reference key instead emits as hasMetrologicalReference on the quantity itself.",
+          "description": "Measurement parameters or conditions under which this quantity holds, as a map of condition name to quantity (e.g. discharging_c_rate, lower_voltage_limit, upper_voltage_limit, temperature, cycle_number, voltage_reference). A qualitative condition may carry value_text alone, with no unit. In JSON-LD, conditions on a measured value emit as hasMeasurementParameter on a measurement node the quantity isOutputOf, and conditions on a declared value (Conventional, Rated or Nominal) become named schema:valueReference qualifiers on the quantity. The voltage_reference key emits under schema:valueReference either way, as a node typed with the reference electrode's classes.",
           "patternProperties": {
             "^[a-z][a-z0-9_]*$": {
               "$ref": "modules/common/quantity.schema.json"
