@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [0.2.0] - Unreleased
 ### Breaking
-- Dropped Python 3.9 support; now requires Python ≥3.10 (tested through 3.14).
+- Dropped Python 3.9 and 3.10 support; now requires Python ≥3.11 (tested through 3.14). Python 3.10 is end-of-life and missing important security fixes.
 - `read()` gives a `(polars.DataFrame, metadata)` tuple, replacing the old pandas `read(...) -> pandas.DataFrame`.
 - New `scan()` gives a `(polars.LazyFrame, metadata)` tuple.
 - `load()` removed, use `read()` or `scan()` for all files (BDF or non-BDF).
