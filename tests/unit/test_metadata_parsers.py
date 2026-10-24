@@ -441,3 +441,34 @@ def test_nda_parse_captures_nested_metadata_into_raw(data_dir: Path) -> None:
     head_info = meta.raw["Step"]["Head_Info"]
     assert head_info["Creator"]["Value"] == "Graham"
     assert meta.raw["TestInfo"]["TestInfo"]["Barcode"] == "commercial_cell_001"
+
+
+def test_nda_rules_take_the_first_present_candidate(tmp_path: Path) -> None:
+    """One rule reads the flat .nda key or the nested .ndax path, whichever the header has."""
+    import sys
+    import types
+
+    from bdf.metadata_targets import METADATA
+
+    headers = {
+        "flat.nda": {"remarks": "C30 Charge"},
+        "nested.ndax": {"Step": {"Head_Info": {"Remark": {"Value": "commercial_cell_001"}}}},
+    }
+    fake = types.ModuleType("fastnda")
+    fake.read_metadata = lambda path: headers[Path(path).name]  # type: ignore[attr-defined]
+    parser = NdaMetadataParser(
+        rules={
+            METADATA.battinfo_test.test.description: JsonRule(
+                candidates=(("remarks",), ("Step", "Head_Info", "Remark", "Value")),
+            ),
+        }
+    )
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setitem(sys.modules, "fastnda", fake)
+        descriptions = {}
+        for name, header in headers.items():
+            (tmp_path / name).write_bytes(b"")
+            meta = parser.parse(tmp_path / name)
+            assert meta.raw == header
+            descriptions[name] = meta.battinfo_test.test.description  # type: ignore[union-attr]
+    assert descriptions == {"flat.nda": "C30 Charge", "nested.ndax": "commercial_cell_001"}

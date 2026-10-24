@@ -340,6 +340,40 @@ def _load_json_object(sidecar: Path) -> dict:
     return data
 
 
+def _stage_json_rules(
+    data: dict,
+    rules: tuple[tuple[Any, JsonRule], ...],
+    tz: str,
+    day_month_order: DayMonthOrder | None,
+) -> Metadata:
+    """Stage each rule's first present candidate from ``data``, keeping ``data`` as ``raw``.
+
+    Args:
+        data: The decoded document the rules read.
+        rules: The parser's target -> ``JsonRule`` pairs.
+        tz: IANA timezone applied to a naive absolute-time match. At its
+            ``"UTC"`` default, a naive match warns once.
+        day_month_order: Field order applied to an ambiguous numeric date a
+            rule's normalization reads.
+
+    Returns:
+        A ``Metadata`` staged with every rule's normalized match, plus
+        ``raw`` carrying ``data`` verbatim.
+
+    Raises:
+        ValueError: A rule's normalization rejected the matched value.
+    """
+    document: dict[str, Any] = {"raw": data}
+    for target, rule in rules:
+        matched = rule.extract(data)
+        if matched is None:
+            continue
+        _maybe_warn_naive(matched, rule.normalization, tz=tz)
+        value = _normalize_or_raise(target.path, matched, rule.normalization, tz, day_month_order)
+        target.stage(document, value)
+    return Metadata.model_validate(document)
+
+
 def _version_tuple(text: object) -> tuple[int, ...] | None:
     """Parse the leading numeric part of a version string, or None.
 
@@ -586,16 +620,7 @@ class JsonSidecarParser(MetadataParser):
             return Metadata()
         data = _load_json_object(sidecar)
 
-        document: dict[str, Any] = {"raw": data}
-        for target, rule in self.rules:
-            matched = rule.extract(data)
-            if matched is None:
-                continue
-            _maybe_warn_naive(matched, rule.normalization, tz=tz)
-            value = _normalize_or_raise(target.path, matched, rule.normalization, tz, day_month_order)
-            target.stage(document, value)
-
-        return Metadata.model_validate(document)
+        return _stage_json_rules(data, self.rules, tz, day_month_order)
 
 
 class BdfSidecarParser(MetadataParser):
@@ -691,14 +716,23 @@ class BdfSidecarParser(MetadataParser):
 
 
 class NdaMetadataParser(MetadataParser):
-    """Reads Neware .nda / .ndax metadata through fastnda and captures it into ``raw``, verbatim.
+    """Reads Neware .nda / .ndax metadata through fastnda, staging each rule's match.
 
-    No rules map a value onto a BattINFO record yet.
+    ``fastnda.read_metadata`` decodes the header into a dict: a flat mapping
+    for an ``.nda`` file, and the nested XML documents (``TestInfo``,
+    ``Step``, ``VersionInfo``) for an ``.ndax`` archive. ``rules`` maps a
+    target to a :class:`JsonRule`, so one rule lists the path of each shape
+    as a candidate. The whole decoded header is captured into ``raw``,
+    verbatim.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     kind: Literal["nda"] = "nda"  # type: ignore[assignment]
+    rules: tuple[tuple[_TargetUnion, JsonRule], ...] = Field(
+        default=(),
+        description="Target -> JsonRule pairs over the decoded header; the first present candidate is staged.",
+    )
 
     def matches(self, path: str | Path) -> bool:
         """Return True when the resolved local file has an ``.nda`` or ``.ndax`` extension.
@@ -718,23 +752,32 @@ class NdaMetadataParser(MetadataParser):
         day_month_order: DayMonthOrder | None = None,
         preamble_lines: int | None = None,
     ) -> Metadata:
-        """Read the file's metadata with ``fastnda.read_metadata`` into ``raw``.
+        """Read the file's metadata with ``fastnda.read_metadata`` and stage each rule's match.
 
         Args:
             path: Local file path or URL to .nda or .ndax file.
-            tz: IANA timezone; unused, because no rule normalizes a value.
-            day_month_order: Field order for an ambiguous numeric date; unused.
+            tz: IANA timezone applied to a naive absolute-time match. At its
+                ``"UTC"`` default, a naive match warns once.
+            day_month_order: Field order applied to an ambiguous numeric date
+                a rule's normalization reads.
             preamble_lines: Number of head lines that belong to the preamble;
                 unused, because the source is a binary file.
 
         Returns:
-            A ``Metadata`` whose ``raw`` holds the nested fastnda metadata dict.
+            A ``Metadata`` staged with every rule's normalized match, plus
+            ``raw`` holding the nested fastnda metadata dict.
 
         Raises:
             RuntimeError: If fastnda is not installed.
+            ValueError: A rule's normalization rejected the matched value.
         """
         try:
             import fastnda  # type: ignore
         except ImportError as exc:
             raise RuntimeError("NdaMetadataParser requires fastnda. Install with `pip install fastnda`.") from exc
-        return Metadata(raw=fastnda.read_metadata(resolve_source(path)))
+        with warnings.catch_warnings():
+            # fastnda warns that its BTS 9 header map is incomplete; the
+            # unknown keys stay in raw and no rule reads them.
+            warnings.simplefilter("ignore", UserWarning)
+            data = fastnda.read_metadata(resolve_source(path))
+        return _stage_json_rules(data, self.rules, tz, day_month_order)
