@@ -146,6 +146,12 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             sep=" ",
             expected_metadata={
                 "battinfo_test.test.started_at": datetime(2022, 11, 30, 15, 0, 21, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.ended_at": datetime(2023, 1, 16, 15, 46, 2, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.name": "Hydra.0b_C_GITTOCV_002b",
+                "battinfo_test.test.protocol_name": "Hydra0b_C_GITT-OCV.pln",
+                "battinfo_test.test.instrument_name": "Basytec Battery Test System",
+                "battinfo_cell.cell_instance.name": "Hydra.0b_C",
+                "battinfo_channel.channel.label": "#11 1563 CH11",
             },
             expected_columns={
                 "test_time_second": ColExpect("~Time[h]", 3600.0),
@@ -171,6 +177,18 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             deciding_stage="ext",
             skip=112,
             sep="\t",
+            expected_metadata={
+                "battinfo_test.test.started_at": datetime(2025, 6, 23, 9, 17, 30, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.instrument_name": "BCS-815",
+                "battinfo_test.test.description": None,
+                "battinfo_test.provenance.source_file": "Cell_04_OCV_005C_25C_GITT_OCV_CA1.mpr",
+                "battinfo_equipment.equipment.serial_number": "0533",
+                "battinfo_channel.channel.label": "A1",
+                "battinfo_test_protocol.safety.min_voltage_V": 1.48,
+                "battinfo_test_protocol.safety.max_voltage_V": 3.98,
+                "battinfo_test_protocol.safety.max_capacity_mAh": 12000.0,
+                "battinfo_test_protocol.safety.max_temperature_degC": 60.0,
+            },
             expected_columns={
                 "test_time_second": ColExpect("time/s", 1.0),
                 "voltage_volt": ColExpect("Ecell/V", 1.0),
@@ -298,6 +316,14 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             deciding_stage="metadata",
             skip=20,
             sep=",",
+            expected_metadata={
+                "battinfo_test.test.started_at": datetime(2024, 10, 11, 18, 33, 43, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.description": "Revolve_06_DCIR_0.1C",
+                "battinfo_test.test.protocol_name": "Revolve_2024_DCIR_0.1C.pro2",
+                "battinfo_test.test.instrument_name": "Novonix UHPC",
+                "battinfo_cell.cell_instance.serial_number": None,
+                "battinfo_channel.channel.label": "09",
+            },
             expected_columns={
                 "test_time_second": ColExpect("Run Time (h)", 3600.0),
                 "voltage_volt": ColExpect("Potential (V)", 1.0),
@@ -348,6 +374,11 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             cols_id="neware_nda",
             detect_id="neware_nda",
             deciding_stage="ext",
+            expected_metadata={
+                "battinfo_test.test.started_at": datetime(2025, 12, 22, 8, 44, 24, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.ended_at": datetime(2025, 12, 24, 9, 33, 13, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.description": "C30 Charge",
+            },
             expected_columns={
                 "test_time_second": ColExpect("total_time_s", 1.0),
                 "voltage_volt": ColExpect("voltage_V", 1.0),
@@ -420,6 +451,18 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             deciding_stage="columns",
             skip=13,
             sep=",",
+            expected_metadata={
+                "battinfo_test.test.started_at": datetime(2019, 6, 2, 12, 28, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.name": "LG_M50_validation.038",
+                "battinfo_test.test.protocol_name": "LG_M50_Validation.000",
+                "battinfo_test.test.description": "LG_M50_Validation_with thermal couple",
+                "battinfo_channel.channel.label": "38",
+                "battinfo_equipment.equipment.name": "Maccor #3",
+                "battinfo_test_protocol.safety.max_voltage_V": 8.0,
+                "battinfo_test_protocol.safety.min_voltage_V": -2.0,
+                "battinfo_test_protocol.safety.max_current_mA": 10000.0,
+                "battinfo_test_protocol.safety.min_current_mA": -10000.0,
+            },
             expected_columns={
                 "test_time_second": ColExpect("Test Time [s]", 1.0),
                 "voltage_volt": ColExpect("Voltage [V]", 1.0),
@@ -740,6 +783,14 @@ ALL_CASES: list[tuple[str, SampleCase]] = [
             cols_id="neware_nda",
             detect_id="neware_nda",
             deciding_stage="ext",
+            expected_metadata={
+                # StartTime/EndTime state no zone and are read as UTC
+                "battinfo_test.test.started_at": datetime(2025, 4, 4, 16, 45, 41, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.ended_at": datetime(2025, 4, 4, 17, 2, 49, tzinfo=timezone.utc).timestamp(),
+                "battinfo_test.test.description": "commercial_cell_001",
+                "battinfo_test.test.protocol_name": "commercial_cell_001__2025-04-04_16-45-39.xml",
+                "battinfo_cell.cell_instance.name": "commercial_cell_001",
+            },
             expected_columns={
                 "record_index": ColExpect("index", 1.0),
                 "unix_time_second": ColExpect("unix_time_s", 1.0),

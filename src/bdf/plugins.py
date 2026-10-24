@@ -31,9 +31,16 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from .file_utils import is_url, read_head, resolve_source, strip_compression_suffix
-from .metadata_parsers import JsonSidecarParser, MetadataParser, NdaMetadataParser, RegexRule, TxtPreambleParser
+from .metadata_parsers import (
+    JsonRule,
+    JsonSidecarParser,
+    MetadataParser,
+    NdaMetadataParser,
+    RegexRule,
+    TxtPreambleParser,
+)
 from .metadata_targets import METADATA
-from .normalization import AbsoluteTimeNormalization
+from .normalization import AbsoluteTimeNormalization, LinearNormalization
 from .table_normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS, TableNormalizer
 from .table_parsers import (
     DelimTxtParser,
@@ -185,6 +192,15 @@ BASYTEC_TXT = Plugin(
                 pattern=re.compile(r"~Start of Test:\s*(.+)"),
                 normalization=AbsoluteTimeNormalization(formats=_BASYTEC_DT_FMTS),
             ),
+            METADATA.battinfo_test.test.ended_at: RegexRule(
+                pattern=re.compile(r"^~End of Test:\s*(.+)"),
+                normalization=AbsoluteTimeNormalization(formats=_BASYTEC_DT_FMTS),
+            ),
+            METADATA.battinfo_test.test.name: RegexRule(pattern=re.compile(r"^~Name of Test:\s*(.+)")),
+            METADATA.battinfo_test.test.protocol_name: RegexRule(pattern=re.compile(r"^~Testplan:\s*(.+)")),
+            METADATA.battinfo_test.test.instrument_name: RegexRule(pattern=re.compile(r"^~Resultfile from\s+(.+)")),
+            METADATA.battinfo_cell.cell_instance.name: RegexRule(pattern=re.compile(r"^~Battery:\s*(.+)")),
+            METADATA.battinfo_channel.channel.label: RegexRule(pattern=re.compile(r"^~Testchannel:\s*(.+)")),
         },
     ),
 )
@@ -193,6 +209,9 @@ BASYTEC_TXT = Plugin(
 # itself carries elapsed time only, so this format has no column counterpart.
 # The declared format is EC-Lab's default representation; a file written on a
 # machine following the other locale is read with day_month_order.
+# "Device" names the instrument model with its serial in brackets. The
+# "Safety Limits" block states the instrument hard limits, one indented line
+# each.
 _BIOLOGIC_DT_FMTS = ("%m/%d/%Y %H:%M:%S%.f", "%m/%d/%Y %H:%M:%S")
 
 BIOLOGIC_MPT = Plugin(
@@ -203,10 +222,36 @@ BIOLOGIC_MPT = Plugin(
     ),
     metadata_parser=TxtPreambleParser(
         magic=("bt-lab ascii file", "ec-lab ascii file"),
+        encoding="latin-1",
         rules={
             METADATA.battinfo_test.test.started_at: RegexRule(
                 pattern=re.compile(r"Acquisition started on\s*:\s*(.+)"),
                 normalization=AbsoluteTimeNormalization(formats=_BIOLOGIC_DT_FMTS),
+            ),
+            METADATA.battinfo_test.test.description: RegexRule(pattern=re.compile(r"^Comments\s*:(.*)")),
+            METADATA.battinfo_test.test.instrument_name: RegexRule(
+                pattern=re.compile(r"^Device\s*:\s*(.+?)(?:\s*\(SN[^)]*\))?\s*$")
+            ),
+            METADATA.battinfo_test.provenance.source_file: RegexRule(pattern=re.compile(r"^\s+File\s*:\s*(.+)")),
+            METADATA.battinfo_equipment.equipment.serial_number: RegexRule(
+                pattern=re.compile(r"^Device\s*:.*\(SN\s*([^)]+)\)")
+            ),
+            METADATA.battinfo_channel.channel.label: RegexRule(pattern=re.compile(r"^Run on channel\s*:\s*(\S+)")),
+            METADATA.battinfo_test_protocol.safety.min_voltage_V: RegexRule(
+                pattern=re.compile(r"^\s+Ecell min\s*=\s*([-+0-9.]+)\s*V\s*$"),
+                normalization=LinearNormalization(),
+            ),
+            METADATA.battinfo_test_protocol.safety.max_voltage_V: RegexRule(
+                pattern=re.compile(r"^\s+Ecell max\s*=\s*([-+0-9.]+)\s*V\s*$"),
+                normalization=LinearNormalization(),
+            ),
+            METADATA.battinfo_test_protocol.safety.max_capacity_mAh: RegexRule(
+                pattern=re.compile(r"^\s+\|Q-Qo\|\s*=\s*([-+0-9.]+)\s*mA\.h\s*$"),
+                normalization=LinearNormalization(),
+            ),
+            METADATA.battinfo_test_protocol.safety.max_temperature_degC: RegexRule(
+                pattern=re.compile(r"^\s+Temperature max\s*=\s*([-+0-9.]+)\s*\S*C\s*$"),
+                normalization=LinearNormalization(),
             ),
         },
     ),
@@ -242,14 +287,40 @@ _MACCOR_DT_HDR_FMTS = (
     "%Y-%m-%d",
 )
 
+# Two header shapes: the MIMS "Today's Date ,... Date of Test:,..." line, and
+# the MacCor export's one "Label,value" pair per line (Name:, Channel:,
+# Tester, Procedure, Description, Started). "Tester" names the cycler unit,
+# and the "Ch./DisCh." lines state the channel's hard limits: the discharge
+# current limit is a magnitude, so it becomes a negative lower limit.
 MACCOR_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["maccor"]),
     metadata_parser=TxtPreambleParser(
         magic=("today's date ,", "date of test:,"),
         rules={
             METADATA.battinfo_test.test.started_at: RegexRule(
-                pattern=re.compile(r"Date of Test:,(.+)"),
+                pattern=re.compile(r"(?:Date of Test:|^Started),([^,\r\n]+)"),
                 normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_HDR_FMTS),
+            ),
+            METADATA.battinfo_test.test.name: RegexRule(pattern=re.compile(r"^Name:,([^,]*)")),
+            METADATA.battinfo_test.test.protocol_name: RegexRule(pattern=re.compile(r"^Procedure,([^,]*)")),
+            METADATA.battinfo_test.test.description: RegexRule(pattern=re.compile(r"^Description,([^,]*)")),
+            METADATA.battinfo_channel.channel.label: RegexRule(pattern=re.compile(r"^Channel:,([^,]*)")),
+            METADATA.battinfo_equipment.equipment.name: RegexRule(pattern=re.compile(r"^Tester,([^,]*)")),
+            METADATA.battinfo_test_protocol.safety.max_voltage_V: RegexRule(
+                pattern=re.compile(r"^Ch\. max\. V,([-+0-9.]+)\s*V\b"),
+                normalization=LinearNormalization(),
+            ),
+            METADATA.battinfo_test_protocol.safety.min_voltage_V: RegexRule(
+                pattern=re.compile(r"^DisCh\. min\. V,([-+0-9.]+)\s*V\b"),
+                normalization=LinearNormalization(),
+            ),
+            METADATA.battinfo_test_protocol.safety.max_current_mA: RegexRule(
+                pattern=re.compile(r"^Ch\. max\. I,([-+0-9.]+)\s*A\b"),
+                normalization=LinearNormalization(scale=1000.0),
+            ),
+            METADATA.battinfo_test_protocol.safety.min_current_mA: RegexRule(
+                pattern=re.compile(r"^DisCh\. max\. I,([-+0-9.]+)\s*A\b"),
+                normalization=LinearNormalization(scale=-1000.0),
             ),
         },
     ),
@@ -270,14 +341,48 @@ ARBIN_XLSX = Plugin(
     table_parser=ExcelParser(normalizer=NORMALIZERS["arbin"], sheet_pattern=r"^Channel[_-]"),
 )
 
+# The [Summary] block states one "Label: value" pair per line.
 NOVONIX_CSV = Plugin(
     table_parser=DelimTxtParser(normalizer=NORMALIZERS["novonix"]),
-    metadata_parser=TxtPreambleParser(magic=("[summary]", "[data]", "novonix uhpc data file", "novonix")),
+    metadata_parser=TxtPreambleParser(
+        magic=("[summary]", "[data]", "novonix uhpc data file", "novonix"),
+        rules={
+            METADATA.battinfo_test.test.started_at: RegexRule(
+                pattern=re.compile(r"^Started:\s*(.+)"),
+                normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)),
+            ),
+            METADATA.battinfo_test.test.description: RegexRule(pattern=re.compile(r"^Description:\s*(.+)")),
+            METADATA.battinfo_test.test.protocol_name: RegexRule(pattern=re.compile(r"^Protocol:\s*(.+)")),
+            METADATA.battinfo_test.test.instrument_name: RegexRule(pattern=re.compile(r"^(Novonix UHPC) data file")),
+            METADATA.battinfo_cell.cell_instance.serial_number: RegexRule(
+                pattern=re.compile(r"^Serial Number:\s*(.+)")
+            ),
+            METADATA.battinfo_channel.channel.label: RegexRule(pattern=re.compile(r"^Channel:\s*(.+)")),
+        },
+    ),
 )
 
+# fastnda decodes an .nda header to flat keys and an .ndax archive to its
+# nested XML documents, so each rule lists one candidate per shape.
 NEWARE_NDA = Plugin(
     table_parser=NdaParser(normalizer=NDA_NORMALIZER),
-    metadata_parser=NdaMetadataParser(),
+    metadata_parser=NdaMetadataParser(
+        rules={
+            METADATA.battinfo_test.test.started_at: JsonRule(
+                candidates=(("start_time",), ("TestInfo", "TestInfo", "StartTime")),
+                normalization=AbsoluteTimeNormalization(),
+            ),
+            METADATA.battinfo_test.test.ended_at: JsonRule(
+                candidates=(("stop_time",), ("TestInfo", "TestInfo", "EndTime")),
+                normalization=AbsoluteTimeNormalization(),
+            ),
+            METADATA.battinfo_test.test.description: JsonRule(
+                candidates=(("remarks",), ("Step", "Head_Info", "Remark", "Value")),
+            ),
+            METADATA.battinfo_test.test.protocol_name: JsonRule(candidates=(("TestInfo", "TestInfo", "StepName"),)),
+            METADATA.battinfo_cell.cell_instance.name: JsonRule(candidates=(("TestInfo", "TestInfo", "Barcode"),)),
+        },
+    ),
 )
 
 BDF_CSV = Plugin(
