@@ -259,7 +259,7 @@ requires-dist = [
     { name = "batterydf", extras = ["nda", "mpr", "excel", "mat", "arbin-res", "yaml", "plot", "hvplot"], marker = "extra == 'all'" },
     { name = "bokeh", marker = "extra == 'hvplot'" },
     { name = "fastexcel", marker = "extra == 'excel'", specifier = ">=0.20.2" },
-    { name = "fastnda", marker = "extra == 'nda'", specifier = ">=1.2.0" },
+    { name = "fastnda", marker = "extra == 'nda'", specifier = ">=1.3.1" },
     { name = "holoviews", marker = "extra == 'hvplot'" },
     { name = "hvplot", marker = "extra == 'hvplot'" },
     { name = "matplotlib", marker = "extra == 'plot'", specifier = ">=3.8" },
@@ -1187,7 +1187,7 @@ wheels = [
 
 [[package]]
 name = "fastnda"
-version = "1.2.0"
+version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "defusedxml" },
@@ -1199,9 +1199,9 @@ dependencies = [
     { name = "typer" },
     { name = "xmltodict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d3/0c/cf744f072b2cf74589772af0ab69b82cd95b5eb2cd5290a633d45f46432a/fastnda-1.2.0.tar.gz", hash = "sha256:1e5170c4a6cc99284d62d1011dbcf632350adee7383ce5bb3eeeec592ce3f7ff", size = 18883283, upload-time = "2026-06-12T09:44:00.182Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/eb/c5b8c2ba29bcfda31d78fc4aab37c453f522be61ff361236c813687fc429/fastnda-1.3.1.tar.gz", hash = "sha256:a92a4019a9f3465ce3834eda4e5e0c490641846daa3aebca55ffa14e1f9e75a2", size = 40253, upload-time = "2026-09-09T15:32:26.031Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/a5/17ff96da574cdecdb2efcb69453684d8e4857d2d7ac92256671a8065d9cf/fastnda-1.2.0-py3-none-any.whl", hash = "sha256:ed7df47a8d60e33734dd2e8ba795fadfaf48833bf73f8341571d4f9323355861", size = 24928, upload-time = "2026-06-12T09:43:58.677Z" },
+    { url = "https://files.pythonhosted.org/packages/02/3d/1250fd69fc33d83dbd43cf4f3b0a602892b629d8d78622dbf459d9e23954/fastnda-1.3.1-py3-none-any.whl", hash = "sha256:e7fbdc7923cd9e4210ea6a85dafe931c7ba83cb1f428198ffd393ab6dd60e963", size = 45257, upload-time = "2026-09-09T15:32:25.105Z" },
 ]
 
 [[package]]

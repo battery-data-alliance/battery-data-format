@@ -26,7 +26,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from sphinx.util import logging  # noqa: E402
 
-from bdf.metadata_parsers import JsonSidecarParser, RegexRule, TxtPreambleParser  # noqa: E402
+from bdf.metadata_parsers import JsonSidecarParser, NdaMetadataParser, RegexRule, TxtPreambleParser  # noqa: E402
 from bdf.normalization import AbsoluteTimeNormalization, LinearNormalization, RelativeTimeNormalization  # noqa: E402
 from bdf.plugins import PLUGINS  # noqa: E402
 from bdf.spec import COLUMN_ONTOLOGY  # noqa: E402
@@ -87,6 +87,8 @@ def _metadata_parser_lines(metadata_parser) -> list[str]:
         return ["- " + head]
     if isinstance(metadata_parser, JsonSidecarParser):
         return [f"- **Metadata parser:** {_lit('json_sidecar')} -- adjacent ``.metadata.json`` file"]
+    if isinstance(metadata_parser, NdaMetadataParser):
+        return [f"- **Metadata parser:** {_lit('nda')} -- file header decoded by fastnda, kept verbatim in ``raw``"]
     return ["- **Metadata parser:** none"]
 
 
@@ -101,7 +103,7 @@ def _rule_detail(rule) -> str:
     if isinstance(rule, RegexRule):
         return f"regex {_lit(rule.pattern.pattern)}"
     candidates = ", ".join(_lit(".".join(candidate)) for candidate in rule.candidates)
-    return f"JSON key(s): {candidates}"
+    return f"key path(s): {candidates}"
 
 
 def _metadata_dropdown(metadata_parser) -> list[str]:
@@ -116,7 +118,7 @@ def _metadata_dropdown(metadata_parser) -> list[str]:
     if isinstance(metadata_parser, TxtPreambleParser):
         magic = ", ".join(_lit(_decode_magic(m)) for m in metadata_parser.magic)
         intro = [f"   - Identified by magic tokens: {magic}"]
-    elif not isinstance(metadata_parser, JsonSidecarParser):
+    elif not isinstance(metadata_parser, (JsonSidecarParser, NdaMetadataParser)):
         return []
     rules = [(_target_name(target), _rule_detail(rule)) for target, rule in metadata_parser.rules]
 
