@@ -17,6 +17,7 @@ to start if you want end-to-end workflows.
    registry
    metadata
    metadata_parser
+   cycler_metadata
    table_parser
    table_normalizers
    plugins

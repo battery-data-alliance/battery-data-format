@@ -68,6 +68,9 @@ NON_DATA_URLS: frozenset[str] = frozenset(
         # Metadata example: dataset DOI and landing page (not fetched).
         "https://doi.org/10.5281/zenodo.16994937#digatron-csv-li-ion-hppc",
         "https://zenodo.org/records/17295469",
+        # Cycler metadata example: creators' ORCID iDs (not fetched).
+        "https://orcid.org/0000-0002-8758-6109",
+        "https://orcid.org/0000-0003-0934-4515",
         # SPARQL / vocabulary IRIs, not network reads.
         "https://schema.org/Dataset",
         "https://schema.org/name",

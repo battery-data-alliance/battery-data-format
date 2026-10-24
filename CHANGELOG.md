@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 ### Added
 - Metadata rules for the cycler plugins: test name, protocol, description, start/end time, instrument, channel, cell name/serial, equipment name/serial and the instrument safety limits (`battinfo_test_protocol.safety`) where the vendor writes them, for `basytec_txt`, `biologic_mpt`, `maccor_csv` (its one-pair-per-line export header as well as the MIMS header), `novonix_csv` and `neware_nda` (`.nda` and `.ndax`).
 - `NdaMetadataParser` takes `JsonRule` rules over the header fastnda decodes, one candidate path per header shape.
+- `docs/examples/cycler_metadata.ipynb`: the metadata a plugin reads from a cycler file header, how its rules find each value, adding metadata after the read, and the round trip through the `.metadata.json` sidecar.
 
 ### Changed
 - The `nda` extra requires `fastnda>=1.3.1`, the first release that reads the start and stop time of a `.nda` file the way the `neware_nda` rules expect.
