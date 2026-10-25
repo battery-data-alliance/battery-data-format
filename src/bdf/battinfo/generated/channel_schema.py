@@ -14,7 +14,7 @@ from .modules.common import quantity_schema
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     battinfo_version: Annotated[
         str | None,
@@ -35,7 +35,7 @@ class Provenance(_RecordModel):
 
 class Channel(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     comment: str | None = None
     equipment_id: Annotated[
@@ -69,7 +69,7 @@ class Channel(_RecordModel):
 
 class BattinfoChannelInstance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     channel: Annotated[Channel | None, Field(default_factory=Channel)]
     notes: list[str] | None = None

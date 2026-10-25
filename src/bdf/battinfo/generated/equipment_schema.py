@@ -18,7 +18,7 @@ class UnixTime(RootModel[int | None]):
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     battinfo_version: Annotated[
         str | None,
@@ -39,7 +39,7 @@ class Provenance(_RecordModel):
 
 class Equipment(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     comment: str | None = None
     commissioned_at: Annotated[UnixTime | str | None, Field(default_factory=UnixTime)]
@@ -75,7 +75,7 @@ class Equipment(_RecordModel):
 
 class BattinfoEquipmentInstance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     equipment: Annotated[Equipment | None, Field(default_factory=Equipment)]
     notes: list[str] | None = None

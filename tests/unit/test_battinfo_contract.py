@@ -314,14 +314,14 @@ def test_no_runtime_battinfo_import() -> None:
 
 def test_read_metadata_exposes_no_importer_adapter() -> None:
     """The serialised ``Metadata`` is the handoff contract itself: the
-    only public method BDF adds is ``to_dict()`` — no ``to_battinfo`` or
-    other adapter producing importer keyword arguments."""
+    only public methods BDF adds are ``to_dict()`` and ``from_dict()``, with no
+    ``to_battinfo`` or other adapter producing importer keyword arguments."""
 
     def _public_methods(cls: type) -> set[str]:
         return {name for name in dir(cls) if not name.startswith("_") and callable(getattr(cls, name))}
 
     own = _public_methods(Metadata) - _public_methods(pydantic.BaseModel)
-    assert own == {"to_dict"}
+    assert own == {"to_dict", "from_dict"}
 
 
 # ---------------------------------------------------------------------------

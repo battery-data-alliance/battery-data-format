@@ -14,7 +14,7 @@ from .modules.common import quantity_schema
 
 class Deviation(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     category: Annotated[
         Literal[
@@ -51,7 +51,7 @@ class Deviation(_RecordModel):
 
 class Conformance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     deviations: Annotated[
         list[Deviation] | None, Field(description="Individual deviations from the governing spec or protocol.")
@@ -64,7 +64,7 @@ class Conformance(_RecordModel):
 
 class Artifact(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     byte_size: Annotated[int | None, Field(description="File size in bytes.", ge=0)] = None
     conforms_to: Annotated[
@@ -109,7 +109,7 @@ class DatasetIri(RootModel[str | None]):
 
 class Funder(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Funder name (e.g. 'European Commission').", min_length=1)] = None
     same_as: Annotated[
@@ -121,7 +121,7 @@ class Funder(_RecordModel):
 
 class Funding(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     acronym: Annotated[str | None, Field(description="Project acronym.")] = None
     funder: Annotated[Funder | None, Field(default_factory=Funder, description="Organization that awarded the grant.")]
@@ -136,7 +136,7 @@ class Funding(_RecordModel):
 
 class Organization(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
     same_as: Annotated[
@@ -148,7 +148,7 @@ class Organization(_RecordModel):
 
 class Person(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     affiliation: Annotated[
         Organization | None,
@@ -167,7 +167,7 @@ class Person(_RecordModel):
 
 class Provenance(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     battinfo_version: Annotated[
         str | None,
@@ -221,7 +221,7 @@ class Provenance(_RecordModel):
 
 class Test(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     cell_id: Annotated[
         str | None,
@@ -334,7 +334,7 @@ class Test(_RecordModel):
 
 class BattinfoTest(_RecordModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
     )
     artifacts: Annotated[
         list[Artifact] | None,
