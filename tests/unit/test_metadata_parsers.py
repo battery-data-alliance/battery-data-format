@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from bdf.metadata_parsers import (
     JsonRule,
     JsonSidecarParser,
+    NdaMetadataParser,
     RegexRule,
     TxtPreambleParser,
 )
@@ -417,3 +418,26 @@ def test_json_rule_with_empty_candidates_fails_construction() -> None:
     """A JsonRule with an empty candidates tuple fails construction."""
     with pytest.raises(ValueError):
         JsonRule(candidates=())
+
+
+@pytest.mark.parametrize("name", ["cell.nda", "cell.ndax", "CELL.NDAX"])
+def test_nda_matches_neware_extensions(tmp_path: Path, name: str) -> None:
+    assert NdaMetadataParser().matches(tmp_path / name) is True
+
+
+@pytest.mark.parametrize("name", ["cell.xlsx", "cell.csv", "cell.mpr"])
+def test_nda_rejects_other_extensions(tmp_path: Path, name: str) -> None:
+    assert NdaMetadataParser().matches(tmp_path / name) is False
+
+
+def test_nda_parse_captures_nested_metadata_into_raw(data_dir: Path) -> None:
+    """parse() puts the nested fastnda dict in raw."""
+    pytest.importorskip("fastnda")
+    ndax = data_dir / "nda" / "filetype14-0.ndax"
+    if not ndax.exists():
+        pytest.skip(f"missing {ndax}")
+    meta = NdaMetadataParser().parse(ndax)
+    assert isinstance(meta.raw, dict)
+    head_info = meta.raw["Step"]["Head_Info"]
+    assert head_info["Creator"]["Value"] == "Graham"
+    assert meta.raw["TestInfo"]["TestInfo"]["Barcode"] == "commercial_cell_001"

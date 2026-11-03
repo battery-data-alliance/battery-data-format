@@ -6,11 +6,14 @@ how to convert each matched value to its canonical form). Identification is
 :meth:`MetadataParser.matches`, extraction is :meth:`MetadataParser.parse`;
 each subclass owns all of its own file I/O.
 
-Sources are fully orthogonal to readers: a delimited-text file may carry its
-metadata in a preamble (:class:`TxtPreambleParser`) while any file may have an
-adjacent JSON sidecar (:class:`JsonSidecarParser`). To keep that orthogonality at
-the import level too, **this module MUST NOT import from** :mod:`bdf.readers`; it
-reads the bytes it needs through :func:`read_head` from :mod:`bdf.file_utils`.
+A plugin pairs a metadata parser with a table parser, and the metadata source
+may differ from the table's: a delimited-text file may carry its metadata in a
+preamble (:class:`TxtPreambleParser`), any file may have an adjacent JSON
+sidecar (:class:`JsonSidecarParser`). Binary files need individual readers e.g.
+(:class:`NdaMetadataParser`).
+
+**This module MUST NOT import from** :mod:`bdf.table_parsers`; file access
+either module shares goes through :mod:`bdf.file_utils`.
 
 A rule pairs one target (:mod:`bdf.metadata_targets`, built through the
 ``METADATA`` namespace) with its extraction (:class:`RegexRule` or
@@ -30,7 +33,7 @@ from typing import Annotated, Any, ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError as PydanticValidationError, model_validator
 
 from ._errors import BDFMetadataError
-from .file_utils import read_head
+from .file_utils import read_head, resolve_source
 from .metadata import Metadata
 from .metadata_targets import ExtrasTarget, MetadataTarget
 from .normalization import (
@@ -685,3 +688,53 @@ class BdfSidecarParser(MetadataParser):
                     f"{bdf.__version__}. Upgrade batterydf to read it."
                 ) from exc
             raise BDFMetadataError(f"metadata sidecar {sidecar} does not validate: {exc}") from exc
+
+
+class NdaMetadataParser(MetadataParser):
+    """Reads Neware .nda / .ndax metadata through fastnda and captures it into ``raw``, verbatim.
+
+    No rules map a value onto a BattINFO record yet.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["nda"] = "nda"  # type: ignore[assignment]
+
+    def matches(self, path: str | Path) -> bool:
+        """Return True when the resolved local file has an ``.nda`` or ``.ndax`` extension.
+
+        Args:
+            path: Local file path or URL to check.
+
+        Returns:
+            True if the resolved file is a Neware binary file.
+        """
+        return resolve_source(path).suffix.lower() in {".nda", ".ndax"}
+
+    def parse(
+        self,
+        path: str | Path,
+        tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
+        preamble_lines: int | None = None,
+    ) -> Metadata:
+        """Read the file's metadata with ``fastnda.read_metadata`` into ``raw``.
+
+        Args:
+            path: Local file path or URL to .nda or .ndax file.
+            tz: IANA timezone; unused, because no rule normalizes a value.
+            day_month_order: Field order for an ambiguous numeric date; unused.
+            preamble_lines: Number of head lines that belong to the preamble;
+                unused, because the source is a binary file.
+
+        Returns:
+            A ``Metadata`` whose ``raw`` holds the nested fastnda metadata dict.
+
+        Raises:
+            RuntimeError: If fastnda is not installed.
+        """
+        try:
+            import fastnda  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("NdaMetadataParser requires fastnda. Install with `pip install fastnda`.") from exc
+        return Metadata(raw=fastnda.read_metadata(resolve_source(path)))
