@@ -56,9 +56,11 @@ jobs:
     # content. A comparison against upstream reads the same files on every
     # interpreter, so this job runs once instead of across the matrix.
     #
-    # It gates the rest of the suite: a stale bundle invalidates every result
-    # the other jobs produce, so the run stops here instead of spending the
-    # matrix on content that must change.
+    # It does NOT gate the rest of the suite. The other jobs test the package
+    # against its bundled content, which is what ships, so their results stand
+    # whether or not upstream has moved since. Upstream BattINFO moves often,
+    # and a failure here is a signal to refresh the bundle, not a reason to
+    # skip the matrix (see #135).
     needs: pre-commit
     runs-on: ubuntu-latest
     steps:
@@ -73,7 +75,7 @@ jobs:
         run: uv run --all-extras pytest -q -m freshness
 
   offline-tests:
-    needs: freshness-tests
+    needs: pre-commit
     runs-on: ubuntu-latest
     strategy:
       matrix:
