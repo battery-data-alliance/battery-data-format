@@ -9,7 +9,7 @@ wrong-typed value for any declared field raises out of validation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterator
 
 from pydantic import BaseModel, ConfigDict
 
@@ -18,6 +18,13 @@ class _RecordModel(BaseModel):
     """Shared configuration and serialisation for every BattINFO record model."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    def __repr_args__(self) -> Iterator[tuple[str | None, Any]]:
+        """Yield only the fields that differ from their default, for ``repr`` and ``str``."""
+        for name, field in type(self).model_fields.items():
+            value = getattr(self, name)
+            if value != field.get_default(call_default_factory=True):
+                yield name, value
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise this record to a plain dict in BattINFO shape.
