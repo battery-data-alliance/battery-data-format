@@ -32,6 +32,8 @@ from scripts import warm_cache  # noqa: E402
 from scripts.warm_cache import emit_key, url_sources, warm  # noqa: E402
 from tests.integration.test_cases import ALL_CASES  # noqa: E402
 
+from .conftest import ontology_ttl  # noqa: E402
+
 # A couple of known files in the Zenodo reference record (18986774). Pinned here
 # so a rename in either ``ALL_CASES`` or ``REMOTE_DATA_SOURCES`` — which would
 # silently rotate the cache key and re-download — fails this test loudly.
@@ -76,7 +78,11 @@ class TestEmitKey:
 
     def test_matches_manual_sha256_of_joined_urls(self) -> None:
         urls = url_sources()
-        joined = "\n".join(urls + [f"ontology-version:{v}" for v in PINNED_ONTOLOGY_VERSIONS])
+        joined = "\n".join(
+            urls
+            + [f"ontology-version:{v}" for v in PINNED_ONTOLOGY_VERSIONS]
+            + ["ontology-layout:release-dir", f"ontology-bundle:{warm_cache.ONTOLOGY_SOURCE.bundled_version()}"]
+        )
         expected = hashlib.sha256(joined.encode("utf-8")).hexdigest()
         assert emit_key(urls) == expected
 
@@ -89,6 +95,15 @@ class TestEmitKey:
         urls = url_sources()
         shuffled = sorted(reversed(urls))
         assert emit_key(shuffled) == emit_key(urls)
+
+    def test_changes_when_the_bundled_release_changes(self, monkeypatch, tmp_path: Path) -> None:
+        urls = url_sources()
+        before = emit_key(urls)
+        bundle = tmp_path / "bundle"
+        bundle.mkdir()
+        (bundle / "VERSION").write_text("99.0.0\n", encoding="utf-8")
+        monkeypatch.setattr(warm_cache.ONTOLOGY_SOURCE, "bundled", bundle)
+        assert emit_key(urls) != before
 
     def test_changes_when_url_added(self) -> None:
         urls = url_sources()
@@ -139,3 +154,20 @@ class TestWarmSizeGuard:
         self._fake_fetch(monkeypatch, tmp_path, size_per_file=200)
         with pytest.raises(SystemExit):
             warm(["https://example.com/big.csv"], max_bytes=100)
+
+
+class TestWarmOntologyVersions:
+    """Tests for ``warm_ontology_versions`` and the cache layout it writes."""
+
+    def test_writes_a_release_directory_with_a_version_file(self, monkeypatch, tmp_path, github) -> None:
+        github.files["1.1.0"] = ontology_ttl("1.1.0")
+        monkeypatch.setenv("BDF_CACHE_DIR", str(tmp_path))
+        warm_cache.ONTOLOGY_SOURCE.forget()
+
+        total = warm_cache.warm_ontology_versions(("1.1.0",))
+        warm_cache.ONTOLOGY_SOURCE.forget()
+
+        release = tmp_path / "bdf-ontology-v1.1.0"
+        assert (release / "VERSION").read_text(encoding="utf-8").strip() == "1.1.0"
+        assert (release / "bdf-ontology.ttl").is_file()
+        assert total > 0

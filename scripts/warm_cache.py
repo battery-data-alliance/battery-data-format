@@ -31,7 +31,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from bdf import fetch  # noqa: E402
-from bdf.spec import ColumnOntology, _ontology_cache_dir  # noqa: E402
+from bdf.spec import ONTOLOGY_SOURCE  # noqa: E402
 from docs.examples.remote_sources import PINNED_ONTOLOGY_VERSIONS, REMOTE_DATA_SOURCES  # noqa: E402
 from tests.integration.test_cases import ALL_CASES  # noqa: E402
 
@@ -53,19 +53,27 @@ def url_sources() -> list[str]:
 
 
 def emit_key(urls: list[str]) -> str:
-    """Compute the content-addressed cache key for the URL set and pinned ontology versions.
+    """Compute the content-addressed cache key for the URL set, pinned ontology versions and bundled release.
 
-    Hashes the sorted, newline-joined URL list plus the pinned ontology version
-    tags with SHA-256 — the same algorithm ``fetch._safe_cache_name`` uses on
-    individual URLs. Performs no network.
+    Hashes the sorted, newline-joined URL list, the pinned ontology version
+    tags, a constant entry naming the ontology cache layout, and the bundled
+    ontology release with SHA-256 — the same algorithm ``fetch._safe_cache_name`` uses on individual URLs.
+    Performs no network.
 
     Args:
         urls: Sorted list of URL strings.
 
     Returns:
-        The hex SHA-256 digest of the joined URL list and ontology versions.
+        The hex SHA-256 digest of the joined URL list, ontology versions, layout
+        constant and bundled ontology release.
     """
-    joined = "\n".join(urls + [f"ontology-version:{v}" for v in PINNED_ONTOLOGY_VERSIONS])
+    entries = [
+        *urls,
+        *(f"ontology-version:{v}" for v in PINNED_ONTOLOGY_VERSIONS),
+        "ontology-layout:release-dir",
+        f"ontology-bundle:{ONTOLOGY_SOURCE.bundled_version()}",
+    ]
+    joined = "\n".join(entries)
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
 
@@ -99,9 +107,9 @@ def warm(urls: list[str], max_bytes: int = _MAX_CACHE_BYTES) -> None:
 def warm_ontology_versions(versions: tuple[str, ...], max_bytes: int = _MAX_CACHE_BYTES) -> int:
     """Fetch each pinned ontology release into the versioned ontology cache.
 
-    Mirrors ``ColumnOntology.load_version``'s cache layout (``bdf-ontology-v{version}.ttl``
-    under ``_ontology_cache_dir()``) so the notebook's ``load_version`` call finds the
-    file already cached and makes no network request.
+    Mirrors ``ColumnOntology.load_version``'s cache layout (a ``bdf-ontology-v{version}/``
+    release directory under ``bdf.fetch.cache_dir()``) so the notebook's ``load_version``
+    call finds the release already cached and makes no network request.
 
     Args:
         versions: Ontology release tags to fetch (e.g. ``("1.1.0",)``).
@@ -110,15 +118,13 @@ def warm_ontology_versions(versions: tuple[str, ...], max_bytes: int = _MAX_CACH
     Returns:
         Total bytes written across all fetched versions.
     """
-    cache_dir = _ontology_cache_dir()
     total = 0
     for version in versions:
-        dest = cache_dir / f"bdf-ontology-v{version}.ttl"
         try:
-            ColumnOntology.get_snapshot(dest=dest, version=version)
+            dest = ONTOLOGY_SOURCE.path(version)
         except Exception as e:  # noqa: BLE001
             sys.exit(f"ERROR: ontology fetch failed for version {version!r}: {e}")
-        total += dest.stat().st_size
+        total += sum(p.stat().st_size for p in dest.rglob("*") if p.is_file())
         print(f"  cached: ontology release {version} -> {dest}")
         if total > max_bytes:
             sys.exit(

@@ -4,8 +4,18 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Breaking
+- The bundled ontology is now a version directory, `src/bdf/data/bdf-ontology/`, holding `bdf-ontology.ttl` and a `VERSION` file, in place of `bdf-ontology-snapshot.ttl`.
+- A cached ontology release is now a `bdf-ontology-v{version}/` directory in the cache. bdf no longer reads the old `bdf-ontology-v*.ttl` cache files, so a release cached before is fetched again on its first use.
+- `ColumnOntology.load_latest()` loads the release that the ontology's `/latest` w3id URI states in `owl:versionInfo`, not the live deployment. It makes no GitHub API request.
+- `ColumnOntology.get_snapshot(version=None)` and `bdf-update-snapshot` with no version fetch that same latest release, not the live deployment.
+- Ontology releases are fetched from their w3id version IRIs (`https://w3id.org/battery-data-alliance/ontology/battery-data-format/{version}/battery-data-format`), not from raw GitHub tag URLs. A pre-release name, such as `1.4.0rc1`, has no such IRI and cannot be fetched.
+- `ColumnOntology.load_version()` and `ColumnOntology.get_snapshot()` raise `BDFDefinitionError`, chained from the cause, where they raised `requests.HTTPError`. `BDFDefinitionError` is a `RuntimeError`.
+
 ### Added
 - `BDFDefinitionError` and `BDFDefinitionWarning`, exported from `bdf`.
+- `ColumnOntology.load_latest()` falls back to the newest local release that is not a pre-release, with a `BDFDefinitionWarning`, when upstream cannot be asked for its latest release or the release cannot be fetched. It raises `BDFDefinitionError` when no such release exists.
+
 
 ## [0.2.0] - 2026-11-03
 ### Breaking

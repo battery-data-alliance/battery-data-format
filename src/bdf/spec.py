@@ -16,10 +16,10 @@ Notes:
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import importlib.resources
 import re
-import tempfile
+import shutil
+import uuid
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -28,7 +28,9 @@ from pydantic import BaseModel, field_validator, model_validator
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDF, SKOS
 
+from bdf._definitions import DefinitionSource
 from bdf._df_compat import coerce_dataframe
+from bdf._errors import BDFDefinitionError
 
 if TYPE_CHECKING:
     import pint
@@ -82,12 +84,13 @@ _UNIT_ALIAS = {
 # bare "C"/"c" to be treated as Celsius in get_unit_conversion.
 _TEMPERATURE_DST_UNITS: frozenset[str] = frozenset({"degC", "°C", "K", "degF"})
 _SLASH_RE = re.compile(r"^\s*(.+?)\s*/\s*(.+)\s*$")
-_BDF_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
 _SCHEMA_UNIT_CODE = URIRef("https://schema.org/unitCode")
-_BDF_RELEASE_URL_TMPL = (
-    "https://raw.githubusercontent.com/battery-data-alliance/"
-    "battery-data-format-ontology/{version}/battery-data-format.ttl"
-)
+# The ontology's persistent w3id URIs. A release's URI is its owl:versionIRI,
+# and serves the TTL of that release's git tag. w3id routes X.Y.Z names only.
+_BDF_W3ID = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
+_BDF_RELEASE_URL_TMPL = f"{_BDF_W3ID}/{{version}}/battery-data-format"
+# Serves the latest ontology release; its owl:versionInfo names that release.
+_BDF_LATEST_URL = f"{_BDF_W3ID}/latest"
 
 _ureg: pint.UnitRegistry | None = None
 
@@ -257,6 +260,14 @@ def unit_from_label(label: str) -> str | None:
 # --------- Ontology loading helpers ----------
 
 
+def _declared_version(g: Graph) -> str:
+    """Return the owl:versionInfo of the graph's ontology, or "" if it states none."""
+    return next(
+        (str(o) for s in g.subjects(RDF.type, OWL.Ontology) for o in g.objects(s, OWL.versionInfo)),
+        "",
+    )
+
+
 def _graph_from_bytes(data: bytes, format: str | None = None) -> Graph:
     """Parse bytes into an rdflib Graph; return None on failure.
 
@@ -269,81 +280,6 @@ def _graph_from_bytes(data: bytes, format: str | None = None) -> Graph:
     """
     g = Graph()
     return g.parse(data=data, format=format)
-
-
-def _ontology_cache_dir() -> Path:
-    """Return the cache directory for bdf ontology files.
-
-    Honours ``BDF_CACHE_DIR`` (the same env var ``bdf.fetch`` uses) so CI can
-    warm versioned ontology releases into the same actions/cache-backed
-    directory it restores for other network fixtures, instead of a
-    platformdirs path that never survives across CI jobs/runners.
-
-    Returns:
-        Path to the cache directory.
-    """
-    from .fetch import cache_dir
-
-    return cache_dir("bdf")
-
-
-def _ontology_version_slug(g: Any, raw_bytes: bytes) -> str:
-    """Extract version slug from graph owl:versionInfo, falling back to sha256.
-
-    Args:
-        g: Parsed RDFlib graph object.
-        raw_bytes: Raw bytes of the ontology file.
-
-    Returns:
-        Version slug string.
-    """
-    try:
-        from rdflib.namespace import OWL as _OWL
-
-        for lit in g.objects(None, _OWL.versionInfo):
-            text = str(lit).strip()
-            if text:
-                return _slugify(text)
-    except Exception:
-        pass
-    return hashlib.sha256(raw_bytes).hexdigest()[:16]
-
-
-def _write_ontology_cache(cache_dir: Path, slug: str, content: bytes) -> None:
-    """Atomically write ontology bytes to the cache directory.
-
-    Args:
-        cache_dir: Directory to write to.
-        slug: Version slug used as filename suffix.
-        content: Ontology bytes to write.
-    """
-    try:
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        dest = cache_dir / f"bdf-ontology-v{slug}.ttl"
-        with tempfile.NamedTemporaryFile(dir=cache_dir, delete=False, suffix=".tmp") as tmp:
-            tmp_path = Path(tmp.name)
-            tmp.write(content)
-        tmp_path.replace(dest)
-    except OSError:
-        pass
-
-
-def _read_ontology_cache_latest(cache_dir: Path) -> bytes | None:
-    """Return bytes of the newest versioned ontology file in cache, or None.
-
-    Args:
-        cache_dir: Directory to search.
-
-    Returns:
-        Bytes of the newest cached ontology, or None if none found.
-    """
-    candidates = sorted(cache_dir.glob("bdf-ontology-v*.ttl"))
-    for path in reversed(candidates):
-        try:
-            return path.read_bytes()
-        except OSError:
-            continue
-    return None
 
 
 def _english_literals(g: Any, subject: Any, predicate: Any) -> list[str]:
@@ -880,86 +816,63 @@ class ColumnOntology:
             if q is not None:
                 quantities[q.mr_name] = q
 
-        version = next(
-            (str(o) for s in g.subjects(RDF.type, OWL.Ontology) for o in g.objects(s, OWL.versionInfo)),
-            "",
-        )
-        return cls(quantities, ontology_version=version)
+        return cls(quantities, ontology_version=_declared_version(g))
 
     @classmethod
     def get_snapshot(cls, dest: Path | None = None, version: str | None = None) -> Path:
-        """Fetch the ontology and write the bundled snapshot.
+        """Fetch an ontology release and write it as a snapshot.
 
         Args:
-            dest: Path to write snapshot. Defaults to bundled package data path.
-            version: Ontology release tag to pin (e.g. '1.1.0'). When given, the
-                TTL is fetched from that release tag and the fetched
-                owl:versionInfo must match. When None, the live (latest
-                deployed) ontology is fetched.
+            dest: TTL file to write. Defaults to the bundled ontology file, and
+                then the bundled version directory is replaced.
+            version: Ontology release to fetch (e.g. '1.1.0'). The fetched
+                owl:versionInfo must match. When None, upstream's latest
+                GitHub release is fetched, not the live deployment.
 
         Returns:
-            Path to the written snapshot file.
+            Path to the written TTL file.
 
         Raises:
-            requests.HTTPError: If the URL request fails.
-            RuntimeError: If the fetched ontology cannot be parsed, or its
-                versionInfo does not match the requested release.
+            BDFDefinitionError: If the latest release cannot be named or
+                requested, or the fetch, the parse, or the versionInfo check
+                fails. ``dest`` (or the bundle) is unchanged on failure.
         """
-        import requests
-
+        if version is None:
+            try:
+                version = ONTOLOGY_SOURCE.latest()
+            except Exception as exc:
+                raise BDFDefinitionError(f"Could not find the latest {ONTOLOGY_SOURCE.name} release: {exc}") from exc
         if dest is None:
-            ref = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl")
-            dest = Path(str(ref))
-
-        url = _BDF_RELEASE_URL_TMPL.format(version=version) if version else _BDF_LIVE_URL
-        resp = requests.get(url, timeout=30)
-        resp.raise_for_status()
-        raw = resp.content
-        g = _graph_from_bytes(raw)
-        if g is None:
-            raise RuntimeError(f"Failed to parse ontology from {url}")
-        if version is not None:
-            fetched = cls.from_graph(g).ontology_version
-            if fetched != version:
-                raise RuntimeError(
-                    f"Requested ontology release {version!r} but fetched TTL declares "
-                    f"owl:versionInfo {fetched!r}; tag and content disagree."
-                )
-
-        serialized = g.serialize(format="turtle")
-        content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
-
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False, suffix=".tmp") as tmp:
-            tmp_path = Path(tmp.name)
-            tmp.write(content)
-        tmp_path.replace(dest)
+            ONTOLOGY_SOURCE.write(ONTOLOGY_SOURCE.bundled, version)
+            return ONTOLOGY_SOURCE.bundled / _ONTOLOGY_TTL
+        # Stage beside dest, so the last rename is atomic.
+        staging = dest.with_name(f".{dest.name}.{uuid.uuid4().hex}")
+        try:
+            release = ONTOLOGY_SOURCE.write(staging, version)
+            (release / _ONTOLOGY_TTL).replace(dest)
+        except OSError as exc:
+            raise BDFDefinitionError(f"Could not write {dest}: {exc}") from exc
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
         return dest
 
     @classmethod
     def build(cls) -> "ColumnOntology":
-        """Load bundled ontology snapshot and return a new ColumnOntology.
+        """Load the bundled ontology release and return a new ColumnOntology.
 
         Returns:
-            New ColumnOntology instance parsed from bundled snapshot.
+            New ColumnOntology instance holding the bundled release.
 
         Raises:
-            RuntimeError: If bundled snapshot is missing or cannot be parsed.
+            BDFDefinitionError: If the bundled release is missing or cannot be
+                parsed.
         """
         try:
-            ref = importlib.resources.files("bdf.data").joinpath("bdf-ontology-snapshot.ttl")
-            data = ref.read_bytes()
+            return ONTOLOGY_SOURCE.get(ONTOLOGY_SOURCE.bundled_version() or "", fetch=False)
         except Exception as exc:
-            raise RuntimeError(
-                f"Bundled ontology snapshot missing or unreadable: {exc}. "
-                "Run ColumnOntology.get_snapshot() to regenerate it."
+            raise BDFDefinitionError(
+                f"Bundled ontology release missing or unreadable: {exc}. Run bdf-update-snapshot to regenerate it."
             ) from exc
-        g = _graph_from_bytes(data, format="turtle")
-        if g is None:
-            raise RuntimeError(
-                "Bundled ontology snapshot could not be parsed. Run ColumnOntology.get_snapshot() to regenerate it."
-            )
-        return cls.from_graph(g)
 
     def load_ttl(self, path: Path | str) -> None:
         """Load ontology from a TTL file, updating quantities in place.
@@ -980,84 +893,92 @@ class ColumnOntology:
         self._adopt(self.__class__.from_graph(g))
 
     def load_latest(self, *, refresh: bool = False) -> None:
-        """Load the latest available ontology, using cache or fetching live.
+        """Load the latest ontology release, which the ontology's ``/latest`` w3id URI names.
+
+        Falls back to the newest local final release, with a
+        ``BDFDefinitionWarning``, when upstream cannot be asked or the release
+        cannot be fetched.
 
         Args:
-            refresh: If True, always fetch from the live URL, ignoring cache.
+            refresh: If True, ask upstream and fetch the release again.
 
         Raises:
-            requests.HTTPError: If the live URL request fails.
-            RuntimeError: If the fetched ontology cannot be parsed.
+            BDFDefinitionError: If the release cannot be loaded and no local
+                release exists. ``self`` is unchanged on failure.
         """
-        cache_dir = _ontology_cache_dir()
-
-        if not refresh:
-            cached = _read_ontology_cache_latest(cache_dir)
-            if cached is not None:
-                g = _graph_from_bytes(cached, format="turtle")
-                if g is not None:
-                    self._adopt(self.__class__.from_graph(g))
-                    return
-
-        import requests
-
-        resp = requests.get(_BDF_LIVE_URL, timeout=30)
-        resp.raise_for_status()
-        raw = resp.content
-        g = _graph_from_bytes(raw)
-        if g is None:
-            raise RuntimeError("Failed to parse ontology from live URL")
-
-        slug = _ontology_version_slug(g, raw)
-        serialized = g.serialize(format="turtle")
-        content = serialized if isinstance(serialized, bytes) else serialized.encode("utf-8")
-        _write_ontology_cache(cache_dir, slug, content)
-        self._adopt(self.__class__.from_graph(g))
+        self._adopt(ONTOLOGY_SOURCE.get_latest(refresh=refresh))
 
     def load_version(self, version: str, *, refresh: bool = False) -> None:
-        """Load a specific versioned ontology, fetching it if not cached.
+        """Load a specific ontology release, fetching it if not local.
 
         Args:
-            version: Version string to load (e.g. '1.0.0').
-            refresh: If True, ignore the cache and re-fetch the release.
+            version: Release to load (e.g. '1.0.0').
+            refresh: If True, ignore the cache and fetch the release again.
 
         Raises:
-            requests.HTTPError: If the release URL request fails.
-            RuntimeError: If the fetched ontology cannot be parsed, or its
-                versionInfo does not match the requested release.
+            BDFDefinitionError: If the release cannot be fetched or parsed, or
+                its versionInfo does not match. ``self`` is unchanged on
+                failure.
         """
-        cache_dir = _ontology_cache_dir()
-        versioned = cache_dir / f"bdf-ontology-v{version}.ttl"
+        self._adopt(ONTOLOGY_SOURCE.get(version, refresh=refresh))
 
-        if not refresh and versioned.exists():
-            data = versioned.read_bytes()
-            g = _graph_from_bytes(data, format="turtle")
-            if g is not None:
-                self._adopt(self.__class__.from_graph(g))
-                return
 
-        self.get_snapshot(dest=versioned, version=version)
-        data = versioned.read_bytes()
-        g = _graph_from_bytes(data, format="turtle")
-        if g is None:
-            raise RuntimeError(f"Failed to parse fetched ontology release {version!r}")
-        self._adopt(self.__class__.from_graph(g))
+_ONTOLOGY_TTL = "bdf-ontology.ttl"
+
+
+def _download_ontology(tag: str, dest: Path, timeout: float) -> None:
+    """Download one ontology release into the empty directory ``dest``."""
+    import requests
+
+    resp = requests.get(_BDF_RELEASE_URL_TMPL.format(version=tag), headers={"Accept": "text/turtle"}, timeout=timeout)
+    resp.raise_for_status()
+    declared = _declared_version(_graph_from_bytes(resp.content, format="turtle"))
+    if DefinitionSource.normalise(declared) != DefinitionSource.normalise(tag):
+        raise BDFDefinitionError(
+            f"Requested ontology release {tag!r} but fetched TTL declares "
+            f"owl:versionInfo {declared!r}; tag and content disagree."
+        )
+    (dest / _ONTOLOGY_TTL).write_bytes(resp.content)
+
+
+def _latest_ontology_version(timeout: float) -> str:
+    """Return the owl:versionInfo of the ontology that the latest URI serves."""
+    import requests
+
+    resp = requests.get(_BDF_LATEST_URL, headers={"Accept": "text/turtle"}, timeout=timeout)
+    resp.raise_for_status()
+    declared = _declared_version(_graph_from_bytes(resp.content, format="turtle"))
+    if not declared:
+        raise BDFDefinitionError(f"The ontology at {_BDF_LATEST_URL} states no owl:versionInfo")
+    return declared
+
+
+def _open_ontology(path: Path) -> ColumnOntology:
+    """Parse the ontology version directory ``path``."""
+    g = _graph_from_bytes((path / _ONTOLOGY_TTL).read_bytes(), format="turtle")
+    return ColumnOntology.from_graph(g)
+
+
+ONTOLOGY_SOURCE: DefinitionSource[ColumnOntology] = DefinitionSource(
+    "bdf-ontology",
+    bundled=Path(str(importlib.resources.files("bdf.data") / "bdf-ontology")),
+    tag_prefix="",
+    find_latest=_latest_ontology_version,
+    download=_download_ontology,
+    open=_open_ontology,
+)
 
 
 def _update_snapshot_cli() -> None:
-    """Entry point: fetch ontology and update bundled snapshot.
+    """Entry point: replace the bundled ontology release.
 
     Usage: bdf-update-snapshot [VERSION]
 
-    With VERSION (e.g. '1.1.0'), fetches that release tag and verifies the
-    fetched owl:versionInfo matches. Without, fetches the live ontology.
+    With VERSION (e.g. '1.1.0'), fetches that release and verifies the
+    fetched owl:versionInfo matches. Without, fetches upstream's latest
+    GitHub release.
     """
-    import sys
-
-    version = sys.argv[1] if len(sys.argv) > 1 else None
-    path = ColumnOntology.get_snapshot(version=version)
-    pinned = f" (pinned to release {version})" if version else ""
-    print(f"Snapshot updated: {path}{pinned}")
+    ONTOLOGY_SOURCE.cli("bdf-update-snapshot")
 
 
 # --------- Module-level singleton ----------

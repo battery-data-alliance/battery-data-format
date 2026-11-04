@@ -72,7 +72,8 @@ sphinx-build -b html docs docs/_build/html
 
 The [BDF ontology](https://github.com/battery-data-alliance/battery-data-format-ontology)
 is the single source of truth for the canonical quantities. The bundled
-snapshot (`src/bdf/data/bdf-ontology-snapshot.ttl`) is pinned to an ontology
+snapshot (`src/bdf/data/bdf-ontology/bdf-ontology.ttl`, with its release
+name in the `VERSION` file beside it) is pinned to an ontology
 release, and the term tables in `README.md` (between `BEGIN/END GENERATED`
 markers) are generated from it:
 

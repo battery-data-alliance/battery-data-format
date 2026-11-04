@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pandas as pd
 import polars as pl
@@ -18,6 +17,8 @@ from bdf.spec import (
     parse_label,
     unit_from_label,
 )
+
+_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
 
 _MINI_TTL = """\
 @prefix : <https://w3id.org/battery-data-alliance/ontology/battery-data-format#> .
@@ -670,116 +671,9 @@ def test_load_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) 
     assert q.formatted_label == "Step Label"
 
 
-# ---------------------------------------------------------------------------
-# ColumnOntology.load_latest()
-# ---------------------------------------------------------------------------
-
-
-def test_load_latest_no_refresh_uses_cache(tmp_path: Path) -> None:
-    """load_latest(refresh=False) loads from cache; no HTTP call made."""
-    ttl = tmp_path / "bdf-ontology-v1.0.0.ttl"
-    ttl.write_text(_MINI_TTL, encoding="utf-8")
-
-    onto = ColumnOntology.build()
-    with (
-        patch("bdf.spec._ontology_cache_dir", return_value=tmp_path),
-        patch("requests.get") as mock_get,
-    ):
-        onto.load_latest(refresh=False)
-        mock_get.assert_not_called()
-
-    assert onto.test_time_second.unit == "ms"
-
-
-def test_load_latest_refresh_fetches_and_caches(tmp_path: Path) -> None:
-    """load_latest(refresh=True) fetches from URL, caches result, updates quantities."""
-    response = Mock()
-    response.content = _MINI_TTL.encode("utf-8")
-    response.raise_for_status = Mock()
-
-    onto = ColumnOntology.build()
-    with (
-        patch("bdf.spec._ontology_cache_dir", return_value=tmp_path),
-        patch("requests.get", return_value=response) as mock_get,
-    ):
-        onto.load_latest(refresh=True)
-        mock_get.assert_called_once()
-
-    assert onto.test_time_second.unit == "ms"
-    cached = list(tmp_path.glob("bdf-ontology-v*.ttl"))
-    assert cached, "expected a cached file to be written"
-
-
-# ---------------------------------------------------------------------------
-# ColumnOntology.load_version()
-# ---------------------------------------------------------------------------
-
-
-def test_load_version_uses_cached_file(tmp_path: Path) -> None:
-    """load_version(version) loads versioned file from cache, no HTTP."""
-    ttl = tmp_path / "bdf-ontology-v1.0.0.ttl"
-    ttl.write_text(_MINI_TTL, encoding="utf-8")
-
-    onto = ColumnOntology.build()
-    with patch("bdf.spec._ontology_cache_dir", return_value=tmp_path):
-        onto.load_version("1.0.0")
-
-    assert onto.test_time_second.unit == "ms"
-
-
-def test_load_version_fetches_when_not_cached(tmp_path: Path) -> None:
-    """load_version fetches the release when no cached file exists, then caches it."""
-    versioned_ttl = _MINI_TTL.replace(
-        "@prefix schema: <https://schema.org/> .\n",
-        "@prefix schema: <https://schema.org/> .\n\n"
-        "<https://w3id.org/battery-data-alliance/ontology/battery-data-format> "
-        'rdf:type owl:Ontology ; owl:versionInfo "1.0.0" .\n',
-    )
-    response = Mock()
-    response.content = versioned_ttl.encode("utf-8")
-    response.raise_for_status = Mock()
-
-    onto = ColumnOntology.build()
-    with (
-        patch("bdf.spec._ontology_cache_dir", return_value=tmp_path),
-        patch("requests.get", return_value=response) as mock_get,
-    ):
-        onto.load_version("1.0.0")
-
-    mock_get.assert_called_once()
-    assert onto.test_time_second.unit == "ms"
-    assert (tmp_path / "bdf-ontology-v1.0.0.ttl").exists()
-
-
-# ---------------------------------------------------------------------------
-# ColumnOntology.get_snapshot()
-# ---------------------------------------------------------------------------
-
-
-def test_get_snapshot_writes_to_dest(tmp_path: Path) -> None:
-    """get_snapshot(dest=...) fetches, serializes, writes to dest path."""
-    response = Mock()
-    response.content = _MINI_TTL.encode("utf-8")
-    response.raise_for_status = Mock()
-
-    dest = tmp_path / "snapshot.ttl"
-    with patch("requests.get", return_value=response):
-        result = ColumnOntology.get_snapshot(dest=dest)
-
-    assert result == dest
-    assert dest.exists()
-    assert dest.stat().st_size > 0
-
-
 def _bundled_snapshot_version() -> str:
-    """Parse owl:versionInfo out of the bundled snapshot TTL."""
-    import re
-    from importlib.resources import files
-
-    ttl = (files("bdf.data") / "bdf-ontology-snapshot.ttl").read_text(encoding="utf-8")
-    m = re.search(r'owl:versionInfo\s+"([0-9.]+)"', ttl)
-    assert m, "bundled snapshot carries no owl:versionInfo"
-    return m.group(1)
+    """Read the bundled ontology release from its VERSION file."""
+    return spec.ONTOLOGY_SOURCE.bundled_version() or ""
 
 
 @pytest.mark.network
@@ -820,10 +714,11 @@ def test_live_ontology_is_superset_of_bundled(tmp_path: Path) -> None:
     that is expected and tolerated. What must never happen is an existing quantity
     disappearing or changing unit/label upstream without a coordinated release.
     """
-    fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl")
+    import requests
 
-    fresh = ColumnOntology({})
-    fresh.load_ttl(fresh_path)
+    response = requests.get(_LIVE_URL, timeout=30)
+    response.raise_for_status()
+    fresh = ColumnOntology.from_graph(spec._graph_from_bytes(response.content))
 
     bundled = ColumnOntology.build()
 
