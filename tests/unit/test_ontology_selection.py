@@ -83,13 +83,26 @@ def test_the_bundled_stated_release_loads_nothing(tmp_path: Path, releases: Fake
     assert releases.asked == []
 
 
-def test_a_stated_release_that_cannot_load_falls_back(tmp_path: Path, releases: FakeReleases) -> None:
+def test_a_stated_release_that_cannot_load_falls_back_and_is_kept(tmp_path: Path, releases: FakeReleases) -> None:
     path = saved(tmp_path, OLDER)
     releases.down = True
     with pytest.warns(BDFDefinitionWarning, match="1.2.9.*bundled release"):
         df, metadata = io.read(path)
-    assert metadata.bdf.ontology_version == BUNDLED
+    assert metadata.bdf.ontology_version == "1.2.9"
     assert TEMPERATURE in df.columns
+
+
+def test_a_save_needs_the_stated_release_unless_validate_is_off(tmp_path: Path, releases: FakeReleases) -> None:
+    """A save never writes a file it could not check against the release the file states."""
+    df, metadata = io.read(saved(tmp_path, OLDER))
+    releases.down = True
+    target = tmp_path / "copy.bdf.parquet"
+    with pytest.raises(BDFDefinitionError, match="validate=False"):
+        io.save(df, target, metadata=metadata)
+    assert not target.exists()
+    with pytest.warns(BDFDefinitionWarning, match="1.2.9"):
+        io.save(df, target, metadata=metadata, validate=False)
+    assert stated(target) == "1.2.9"
 
 
 @pytest.mark.usefixtures("releases")

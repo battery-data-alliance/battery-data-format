@@ -59,33 +59,52 @@ def _assemble_metadata(
 
 
 def _resolve_ontology(
-    explicit: ColumnOntology | None, stated: str | None, where: str | Path, *, stacklevel: int
-) -> ColumnOntology:
+    explicit: ColumnOntology | None,
+    stated: str | None,
+    where: str | Path,
+    *,
+    strict: bool = False,
+    stacklevel: int,
+) -> tuple[ColumnOntology, bool]:
     """Return the ontology a call uses: ``explicit``, else the ``stated`` release, else the bundle.
 
     Args:
         explicit: The caller's ``ontology=`` argument.
         stated: The ontology release that the metadata states, if any.
-        where: The file the call reads or writes, for the warning.
+        where: The file the call reads or writes, for the message.
+        strict: Raise, rather than fall back, when ``stated`` cannot be loaded.
+            A save passes its ``validate``, so that it never writes a file it
+            could not check against the release the file states.
         stacklevel: ``warnings.warn`` stack level that reaches the caller.
 
     Returns:
-        The ontology to use. A stated release that cannot be loaded gives the
-        bundled release, with a ``BDFDefinitionWarning``.
+        The ontology to use, and whether it is the bundled release in place
+        of a stated release that cannot be loaded. A fall-back warns
+        ``BDFDefinitionWarning``.
+
+    Raises:
+        BDFDefinitionError: If ``strict`` and ``stated`` cannot be loaded.
     """
     if explicit is not None:
-        return explicit
+        return explicit, False
     if not stated:
-        return COLUMN_ONTOLOGY
+        return COLUMN_ONTOLOGY, False
 
-    def fall_back(reason: object) -> ColumnOntology:
+    def fall_back(reason: BDFDefinitionError) -> tuple[ColumnOntology, bool]:
+        bundled = COLUMN_ONTOLOGY.ontology_version
+        if strict:
+            raise BDFDefinitionError(
+                f"Could not load ontology release {stated} that {where}'s metadata states: {reason}. "
+                f"Connect or cache the release, pass ontology=, or pass validate=False to check "
+                f"against the bundled release {bundled} and keep release {stated}."
+            ) from reason
         warnings.warn(
             f"Could not load ontology release {stated} that {where}'s metadata states: {reason}. "
-            f"Using the bundled release {COLUMN_ONTOLOGY.ontology_version}.",
+            f"Checking against the bundled release {bundled}; the metadata keeps release {stated}.",
             BDFDefinitionWarning,
             stacklevel=stacklevel + 2,
         )
-        return COLUMN_ONTOLOGY
+        return COLUMN_ONTOLOGY, True
 
     try:
         name = ONTOLOGY_SOURCE.normalise(stated)
@@ -93,9 +112,9 @@ def _resolve_ontology(
         return fall_back(exc)
     bundled = COLUMN_ONTOLOGY.ontology_version
     if bundled and name == ONTOLOGY_SOURCE.normalise(bundled):
-        return COLUMN_ONTOLOGY
+        return COLUMN_ONTOLOGY, False
     try:
-        return ColumnOntology.from_version(name)
+        return ColumnOntology.from_version(name), False
     except BDFDefinitionError as exc:
         return fall_back(exc)
 
@@ -138,9 +157,10 @@ def _read(
 
     metadata = _assemble_metadata(path, resolved_plugin, tz=tz, day_month_order=day_month_order)
     stated = metadata.bdf.ontology_version
-    used = _resolve_ontology(ontology, stated, path, stacklevel=stacklevel)
-    if stated or ontology is not None:
-        # The metadata describes the returned frame: name the release it was read with.
+    used, fell_back = _resolve_ontology(ontology, stated, path, stacklevel=stacklevel)
+    if (stated or ontology is not None) and not fell_back:
+        # Name the release the frame was read with. After a fall-back the
+        # metadata keeps the stated release, so a later save checks against it.
         metadata.bdf.ontology_version = used.ontology_version or None
 
     bdf_df = resolved_plugin.table_parser.read(
@@ -315,8 +335,9 @@ def read(
             Defaults to the release that the file's sidecar states, loaded from the
             bundle, the cache, or upstream; to the bundled release when there is no
             sidecar or it states none. A stated release that cannot be loaded gives
-            the bundled release with a ``BDFDefinitionWarning``. The returned
-            metadata's ``bdf.ontology_version`` names the release used.
+            the bundled release with a ``BDFDefinitionWarning``, and the returned
+            metadata keeps the stated release; otherwise its
+            ``bdf.ontology_version`` names the release used.
 
     Returns:
         Tuple of (df, metadata): the BDF table as a DataFrame, and a ``Metadata``
@@ -389,8 +410,9 @@ def scan(
             Defaults to the release that the file's sidecar states, loaded from the
             bundle, the cache, or upstream; to the bundled release when there is no
             sidecar or it states none. A stated release that cannot be loaded gives
-            the bundled release with a ``BDFDefinitionWarning``. The returned
-            metadata's ``bdf.ontology_version`` names the release used.
+            the bundled release with a ``BDFDefinitionWarning``, and the returned
+            metadata keeps the stated release; otherwise its
+            ``bdf.ontology_version`` names the release used.
 
     Returns:
         Tuple of (df, metadata): the BDF table as a LazyFrame, and a ``Metadata``
@@ -483,11 +505,11 @@ def _as_polars(df: pl.DataFrame | pl.LazyFrame | pd.DataFrame) -> pl.DataFrame |
     return pl.DataFrame(df)
 
 
-def _version_stamps(ontology: ColumnOntology) -> dict[str, str | None]:
+def _version_stamps(ontology_version: str | None) -> dict[str, str | None]:
     """Return the stamps a written sidecar carries (GH #106).
 
     Args:
-        ontology: The ontology that the save checked the table against.
+        ontology_version: The ontology release that the sidecar states.
 
     Returns:
         ``bdf_version`` (the installed package version), ``ontology_version``
@@ -499,17 +521,18 @@ def _version_stamps(ontology: ColumnOntology) -> dict[str, str | None]:
 
     return {
         "bdf_version": bdf.__version__,
-        "ontology_version": ontology.ontology_version or None,
+        "ontology_version": ontology_version,
         "battinfo_ref": bundled_ref(),
     }
 
 
-def _write_sidecar(sidecar: Path, metadata: Metadata, ontology: ColumnOntology) -> None:
+def _write_sidecar(sidecar: Path, metadata: Metadata, ontology_version: str | None) -> None:
     """Write ``metadata`` to ``sidecar``, or delete the sidecar where it carries nothing.
 
     A written sidecar is stamped with the writer's versions (GH #106):
     ``bdf.bdf_version``, ``bdf.ontology_version``, and ``bdf.battinfo_ref``.
-    ``bdf.ontology_version`` is the release that the table was checked against.
+    ``bdf.ontology_version`` is the release that the table was checked
+    against, or the stated release where ``save(validate=False)`` fell back.
     The stamps identify the file's writer, so they overwrite any stamps the
     caller's object carries, and a read-then-save records the version that
     performed the save. The caller's object is not modified. A ``Metadata``
@@ -521,12 +544,12 @@ def _write_sidecar(sidecar: Path, metadata: Metadata, ontology: ColumnOntology) 
         metadata: Metadata to write. Only the values that differ from their
             defaults reach the file, so a ``Metadata`` that carries nothing
             writes no sidecar at all, and deletes one the target already had.
-        ontology: The ontology that the save checked the table against.
+        ontology_version: The ontology release that the sidecar states.
     """
     payload = metadata.model_dump(mode="json", exclude_defaults=True)
     if payload:
         payload.setdefault("bdf", {})
-        payload["bdf"].update({k: v for k, v in _version_stamps(ontology).items() if v})
+        payload["bdf"].update({k: v for k, v in _version_stamps(ontology_version).items() if v})
         sidecar.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     else:
         sidecar.unlink(missing_ok=True)
@@ -571,12 +594,18 @@ def save(
         ontology: Ontology to check the columns against and to record in the
             sidecar. Defaults to the release that ``metadata`` states (so a read
             and then a save keeps the file's release), else the bundled release.
+            A stated release that cannot be loaded raises, unless
+            ``validate=False``: then the columns are checked against the
+            bundled release with a warning, and the sidecar keeps the stated
+            release.
         **opts: Additional keyword arguments forwarded to the polars writer
             (``write_csv``/``write_parquet``/``write_ipc``/``write_json``/``write_ndjson``/
             ``write_excel``), or to the matching ``sink_*`` writer where ``df`` is a
             streamed ``LazyFrame``.
 
     Raises:
+        BDFDefinitionError: If ``validate`` and the ontology release that
+            ``metadata`` states cannot be loaded. Nothing is written.
         ValueError: If the format is unsupported, or compression is requested for xlsx output.
         FileExistsError: If ``metadata`` is omitted and a ``.metadata.json`` sidecar
             already sits beside the target.
@@ -600,7 +629,7 @@ def save(
         raise ValueError(msg)
 
     stated = metadata.bdf.ontology_version if metadata is not None else None
-    used = _resolve_ontology(ontology, stated, p, stacklevel=2)
+    used, fell_back = _resolve_ontology(ontology, stated, p, strict=validate, stacklevel=2)
     frame = _as_polars(df)
     used.validate_df(frame, raise_on_error=validate)
     frame = used.rename_labels(frame, labels)
@@ -621,4 +650,4 @@ def save(
             target.close()
 
     if metadata is not None:
-        _write_sidecar(sidecar, metadata, used)
+        _write_sidecar(sidecar, metadata, stated if fell_back else used.ontology_version or None)
