@@ -137,12 +137,23 @@ def test_get_opens_the_version_on_each_call_and_refresh_fetches_again(fake: Fake
     assert fake.source.get("1.1.0", refresh=True) == "fetched 1.1.0"
 
 
-def test_get_tries_a_failed_fetch_again(fake: FakeSource) -> None:
+def test_a_failed_fetch_is_not_tried_again_until_refresh(fake: FakeSource) -> None:
     fake.fail = True
     with pytest.raises(BDFDefinitionError):
         fake.source.get("1.2.0")
     fake.fail = False
-    assert fake.source.get("1.2.0") == "fetched 1.2.0"
+    with pytest.raises(BDFDefinitionError, match="earlier in this process"):
+        fake.source.get("1.2.0")
+    assert fake.fetched == ["1.2.0"]
+    assert fake.source.get("1.2.0", refresh=True) == "fetched 1.2.0"
+
+
+def test_a_release_cached_after_a_failed_fetch_loads(fake: FakeSource) -> None:
+    fake.fail = True
+    with pytest.raises(BDFDefinitionError):
+        fake.source.get("1.2.0")
+    fake.cached("1.2.0")
+    assert fake.source.get("1.2.0") == "cached 1.2.0"
 
 
 def test_get_latest_loads_upstreams_latest_version(fake: FakeSource) -> None:

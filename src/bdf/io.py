@@ -58,11 +58,6 @@ def _assemble_metadata(
     )
 
 
-# Ontology releases a sidecar stated that could not be loaded in this process.
-# A later read that states one falls back at once instead of waiting again.
-_UNLOADABLE_RELEASES: set[str] = set()
-
-
 def _resolve_ontology(
     explicit: ColumnOntology | None, stated: str | None, where: str | Path, *, stacklevel: int
 ) -> ColumnOntology:
@@ -99,12 +94,9 @@ def _resolve_ontology(
     bundled = COLUMN_ONTOLOGY.ontology_version
     if bundled and name == ONTOLOGY_SOURCE.normalise(bundled):
         return COLUMN_ONTOLOGY
-    if name in _UNLOADABLE_RELEASES:
-        return fall_back("it could not be loaded earlier in this process")
     try:
         return ColumnOntology.from_version(name)
     except BDFDefinitionError as exc:
-        _UNLOADABLE_RELEASES.add(name)
         return fall_back(exc)
 
 

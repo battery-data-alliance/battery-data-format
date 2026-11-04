@@ -42,7 +42,6 @@ class FakeReleases:
 def releases(monkeypatch: pytest.MonkeyPatch) -> FakeReleases:
     fake = FakeReleases()
     monkeypatch.setattr(ColumnOntology, "from_version", fake)
-    monkeypatch.setattr(io, "_UNLOADABLE_RELEASES", set())
     return fake
 
 
@@ -84,13 +83,11 @@ def test_the_bundled_stated_release_loads_nothing(tmp_path: Path, releases: Fake
     assert releases.asked == []
 
 
-def test_a_stated_release_that_cannot_load_falls_back_once(tmp_path: Path, releases: FakeReleases) -> None:
+def test_a_stated_release_that_cannot_load_falls_back(tmp_path: Path, releases: FakeReleases) -> None:
     path = saved(tmp_path, OLDER)
     releases.down = True
-    for _ in range(2):
-        with pytest.warns(BDFDefinitionWarning, match="1.2.9.*bundled release"):
-            df, metadata = io.read(path)
-    assert releases.asked == ["1.2.9"]
+    with pytest.warns(BDFDefinitionWarning, match="1.2.9.*bundled release"):
+        df, metadata = io.read(path)
     assert metadata.bdf.ontology_version == BUNDLED
     assert TEMPERATURE in df.columns
 

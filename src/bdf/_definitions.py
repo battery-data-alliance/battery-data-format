@@ -67,6 +67,7 @@ class DefinitionSource(Generic[T]):
         self.download = download
         self.open = open
         self._latest: str | Exception | None = None
+        self._failed: set[str] = set()
 
     @staticmethod
     def normalise(name: str) -> str:
@@ -180,10 +181,14 @@ class DefinitionSource(Generic[T]):
     def path(self, version: str, *, fetch: bool = True, refresh: bool = False, timeout: float = 30.0) -> Path:
         """Return the directory of a version: bundle, cache, or a fetch.
 
+        A failed fetch is remembered for the process: a later call for that
+        version, when it is not local, raises with no request.
+
         Args:
             version: Version name.
             fetch: If False, raise instead of fetching.
-            refresh: If True, fetch into the cache entry even when it exists.
+            refresh: If True, fetch into the cache entry even when it exists,
+                or when an earlier fetch failed.
             timeout: Download timeout in seconds.
 
         Returns:
@@ -198,7 +203,15 @@ class DefinitionSource(Generic[T]):
             return local
         if not fetch:
             raise BDFDefinitionError(f"{self.name} {version} is neither bundled nor cached, and fetching is off")
-        return self._fetch_entry(version, timeout)
+        if version in self._failed and not refresh:
+            raise BDFDefinitionError(f"{self.name} {version} could not be fetched earlier in this process")
+        try:
+            entry = self._fetch_entry(version, timeout)
+        except BDFDefinitionError:
+            self._failed.add(version)
+            raise
+        self._failed.discard(version)
+        return entry
 
     def get(self, version: str, *, fetch: bool = True, refresh: bool = False, timeout: float = 30.0) -> T:
         """Open a version. Each call returns a new object.
@@ -255,8 +268,9 @@ class DefinitionSource(Generic[T]):
             return self._fall_back(f"Could not fetch {version}, the latest version of {self.name}: {exc}", exc)
 
     def forget(self) -> None:
-        """Clear the remembered latest version."""
+        """Clear the remembered latest version and failed fetches."""
         self._latest = None
+        self._failed.clear()
 
     def cli(self, prog: str, argv: Sequence[str] | None = None) -> None:
         """Run the refresh command ``prog [VERSION]`` on the bundle.
