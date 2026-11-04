@@ -55,7 +55,7 @@ def test_from_version_refuses_an_ontology_that_states_another_version(
 def test_latest_loads_the_release_that_the_latest_uri_states(bundle: Path, github: FakeGitHub) -> None:
     github.latest = "1.3.0"
     github.files["1.3.0"] = ontology_ttl("1.3.0")
-    assert ColumnOntology.latest().ontology_version == "1.3.0"
+    assert ColumnOntology.from_latest().ontology_version == "1.3.0"
 
 
 def test_get_snapshot_writes_a_named_version_to_dest(bundle: Path, github: FakeGitHub, tmp_path: Path) -> None:

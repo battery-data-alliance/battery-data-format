@@ -890,7 +890,7 @@ class ColumnOntology:
         return ONTOLOGY_SOURCE.get(version, refresh=refresh)
 
     @classmethod
-    def latest(cls, *, refresh: bool = False) -> "ColumnOntology":
+    def from_latest(cls, *, refresh: bool = False) -> "ColumnOntology":
         """Load the latest ontology release, which the ontology's ``/latest`` w3id URI names.
 
         Falls back to the newest local final release, with a

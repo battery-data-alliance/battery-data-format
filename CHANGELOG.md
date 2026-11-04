@@ -7,8 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 ### Breaking
 - The bundled ontology is now a version directory, `src/bdf/data/bdf-ontology/`, holding `bdf-ontology.ttl` and a `VERSION` file, in place of `bdf-ontology-snapshot.ttl`.
 - A cached ontology release is now a `bdf-ontology-v{version}/` directory in the cache. bdf no longer reads the old `bdf-ontology-v*.ttl` cache files, so a release cached before is fetched again on its first use.
-- `ColumnOntology.load_version()`, `load_latest()`, and `load_ttl()` are removed. They replaced an instance's ontology in place. Use the classmethods `ColumnOntology.from_version(version)`, `ColumnOntology.latest()`, and `ColumnOntology.from_ttl(path)`, which return a new instance.
-- `ColumnOntology.latest()` loads the release that the ontology's `/latest` w3id URI states in `owl:versionInfo`, where `load_latest()` loaded the live deployment. It makes no GitHub API request.
+- `ColumnOntology.load_version()`, `load_latest()`, and `load_ttl()` are removed. They replaced an instance's ontology in place. Use the classmethods `ColumnOntology.from_version(version)`, `ColumnOntology.from_latest()`, and `ColumnOntology.from_ttl(path)`, which return a new instance.
+- `ColumnOntology.from_latest()` loads the release that the ontology's `/latest` w3id URI states in `owl:versionInfo`, where `load_latest()` loaded the live deployment. It makes no GitHub API request.
 - `ColumnOntology.get_snapshot(version=None)` and `bdf-update-snapshot` with no version fetch that same latest release, not the live deployment.
 - Ontology releases are fetched from their w3id version IRIs (`https://w3id.org/battery-data-alliance/ontology/battery-data-format/{version}/battery-data-format`), not from raw GitHub tag URLs. A pre-release name, such as `1.4.0rc1`, has no such IRI and cannot be fetched.
 - A failed fetch of an ontology release is not tried again in the same process: a later `ColumnOntology.from_version()` of that release, when it is neither bundled nor cached, raises `BDFDefinitionError` with no request. Pass `refresh=True` to fetch again.
@@ -22,7 +22,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `ontology=` on `read`, `scan`, `save`, and `validate`. The call uses only that `ColumnOntology`; `COLUMN_ONTOLOGY` does not change.
 - `ontology=` on `validate_df`. The required and optional columns, synonyms, and derived-column checks come from that `ColumnOntology`.
 - `ontology=` on `normalize`, and on `TableNormalizer.normalize`, `resolve`, and `from_column_map`. The normalization uses only that `ColumnOntology` for labels, units, dtypes, and required columns. A column that a normalizer maps to a quantity the ontology does not define is handled as a column outside the spec, with a `UserWarning`.
-- `ColumnOntology.latest()` falls back to the newest local release that is not a pre-release, with a `BDFDefinitionWarning`, when upstream cannot be asked for its latest release or the release cannot be fetched. It raises `BDFDefinitionError` when no such release exists.
+- `ColumnOntology.from_latest()` falls back to the newest local release that is not a pre-release, with a `BDFDefinitionWarning`, when upstream cannot be asked for its latest release or the release cannot be fetched. It raises `BDFDefinitionError` when no such release exists.
 
 
 ## [0.2.0] - 2026-11-03
