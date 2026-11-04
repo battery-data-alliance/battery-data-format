@@ -12,9 +12,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `ColumnOntology.get_snapshot(version=None)` and `bdf-update-snapshot` with no version fetch that same latest release, not the live deployment.
 - Ontology releases are fetched from their w3id version IRIs (`https://w3id.org/battery-data-alliance/ontology/battery-data-format/{version}/battery-data-format`), not from raw GitHub tag URLs. A pre-release name, such as `1.4.0rc1`, has no such IRI and cannot be fetched.
 - `ColumnOntology.from_version()` and `ColumnOntology.get_snapshot()` raise `BDFDefinitionError`, chained from the cause, where they raised `requests.HTTPError`. `BDFDefinitionError` is a `RuntimeError`.
+- A read uses the ontology release that the file's sidecar states (`bdf.ontology_version`), not always the bundled release. bdf loads that release from the bundle, the cache, or upstream, so a read of a file saved with an older release can make one network request per machine. When the release cannot be loaded, the read uses the bundled release with a `BDFDefinitionWarning`, and later reads in the process do not try it again. The returned metadata's `bdf.ontology_version` names the release the frame was read with.
+- A save checks the columns against the release that its metadata states, and the sidecar's `bdf.ontology_version` records that release: it is now the release the file was checked against, not the writer's bundled release. A read and then a save keeps the file's release. `bdf.bdf_version` still names the writer.
 
 ### Added
 - `BDFDefinitionError` and `BDFDefinitionWarning`, exported from `bdf`.
+- `ontology=` on `read`, `scan`, `save`, and `validate`. The call uses only that `ColumnOntology`; `COLUMN_ONTOLOGY` does not change.
 - `ontology=` on `validate_df`. The required and optional columns, synonyms, and derived-column checks come from that `ColumnOntology`.
 - `ontology=` on `normalize`, and on `TableNormalizer.normalize`, `resolve`, and `from_column_map`. The normalization uses only that `ColumnOntology` for labels, units, dtypes, and required columns. A column that a normalizer maps to a quantity the ontology does not define is handled as a column outside the spec, with a `UserWarning`.
 - `ColumnOntology.latest()` falls back to the newest local release that is not a pre-release, with a `BDFDefinitionWarning`, when upstream cannot be asked for its latest release or the release cannot be fetched. It raises `BDFDefinitionError` when no such release exists.

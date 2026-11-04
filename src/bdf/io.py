@@ -10,13 +10,14 @@ if TYPE_CHECKING:
     import pandas as pd
 import polars as pl
 
+from bdf._errors import BDFDefinitionError, BDFDefinitionWarning
 from bdf._time_scale import detect_scale_mismatch
 from bdf.file_utils import open_compressed, strip_compression_suffix
 from bdf.metadata import Metadata
 from bdf.metadata_parsers import BdfSidecarParser
 from bdf.normalization import DayMonthOrder
 from bdf.plugins import PLUGINS, Plugin, detect
-from bdf.spec import COLUMN_ONTOLOGY
+from bdf.spec import COLUMN_ONTOLOGY, ONTOLOGY_SOURCE, ColumnOntology
 
 
 def _assemble_metadata(
@@ -57,6 +58,56 @@ def _assemble_metadata(
     )
 
 
+# Ontology releases a sidecar stated that could not be loaded in this process.
+# A later read that states one falls back at once instead of waiting again.
+_UNLOADABLE_RELEASES: set[str] = set()
+
+
+def _resolve_ontology(
+    explicit: ColumnOntology | None, stated: str | None, where: str | Path, *, stacklevel: int
+) -> ColumnOntology:
+    """Return the ontology a call uses: ``explicit``, else the ``stated`` release, else the bundle.
+
+    Args:
+        explicit: The caller's ``ontology=`` argument.
+        stated: The ontology release that the metadata states, if any.
+        where: The file the call reads or writes, for the warning.
+        stacklevel: ``warnings.warn`` stack level that reaches the caller.
+
+    Returns:
+        The ontology to use. A stated release that cannot be loaded gives the
+        bundled release, with a ``BDFDefinitionWarning``.
+    """
+    if explicit is not None:
+        return explicit
+    if not stated:
+        return COLUMN_ONTOLOGY
+
+    def fall_back(reason: object) -> ColumnOntology:
+        warnings.warn(
+            f"Could not load ontology release {stated} that {where}'s metadata states: {reason}. "
+            f"Using the bundled release {COLUMN_ONTOLOGY.ontology_version}.",
+            BDFDefinitionWarning,
+            stacklevel=stacklevel + 2,
+        )
+        return COLUMN_ONTOLOGY
+
+    try:
+        name = ONTOLOGY_SOURCE.normalise(stated)
+    except BDFDefinitionError as exc:
+        return fall_back(exc)
+    bundled = COLUMN_ONTOLOGY.ontology_version
+    if bundled and name == ONTOLOGY_SOURCE.normalise(bundled):
+        return COLUMN_ONTOLOGY
+    if name in _UNLOADABLE_RELEASES:
+        return fall_back("it could not be loaded earlier in this process")
+    try:
+        return ColumnOntology.from_version(name)
+    except BDFDefinitionError as exc:
+        _UNLOADABLE_RELEASES.add(name)
+        return fall_back(exc)
+
+
 def _read(
     path: str | Path,
     *,
@@ -68,10 +119,15 @@ def _read(
     tz: str = "UTC",
     day_month_order: DayMonthOrder | None = None,
     reconcile_time: bool = False,
-) -> tuple[pl.DataFrame | pl.LazyFrame, Metadata]:
-    """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
+    ontology: ColumnOntology | None = None,
+    stacklevel: int = 3,
+) -> tuple[pl.DataFrame | pl.LazyFrame, Metadata, ColumnOntology]:
+    """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata, ontology)``.
 
     Private implementation behind the public `read` and `scan` functions.
+    The metadata is assembled first, because the release that it states
+    chooses the ontology (see :func:`_resolve_ontology`) that the table is
+    normalized with. ``ontology`` in the result is the one the read used.
 
     Raises:
         ValueError: If ``plugin`` is not None, a str, or a Plugin instance.
@@ -88,6 +144,13 @@ def _read(
     else:
         raise ValueError(f"invalid plugin argument: {plugin!r}")
 
+    metadata = _assemble_metadata(path, resolved_plugin, tz=tz, day_month_order=day_month_order)
+    stated = metadata.bdf.ontology_version
+    used = _resolve_ontology(ontology, stated, path, stacklevel=stacklevel)
+    if stated or ontology is not None:
+        # The metadata describes the returned frame: name the release it was read with.
+        metadata.bdf.ontology_version = used.ontology_version or None
+
     bdf_df = resolved_plugin.table_parser.read(
         path,
         normalize=normalize,
@@ -96,18 +159,17 @@ def _read(
         lazy=lazy,
         tz=tz,
         day_month_order=day_month_order,
+        ontology=used,
     )
 
-    metadata = _assemble_metadata(path, resolved_plugin, tz=tz, day_month_order=day_month_order)
-
     if normalize:
-        bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
+        bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate, ontology=used)
         if repairs:
             metadata.bdf.time_reconciliation = repairs
 
     metadata.bdf.source = plugin_id or "custom"
 
-    return bdf_df, metadata
+    return bdf_df, metadata, used
 
 
 # Rows sampled for the elapsed-vs-wall-clock scale estimate; a uniform unit
@@ -121,6 +183,7 @@ def _reconcile_time_scale(
     *,
     reconcile_time: bool,
     strict: bool,
+    ontology: ColumnOntology,
 ) -> tuple[pl.DataFrame | pl.LazyFrame, list[dict]]:
     """Detect elapsed-time columns stored in the wrong unit; repair only on request.
 
@@ -139,6 +202,7 @@ def _reconcile_time_scale(
         df: Normalized BDF frame (eager or lazy).
         reconcile_time: Rescale columns whose mismatch matches a known unit factor.
         strict: Raise on unrepaired mismatches instead of warning.
+        ontology: Ontology that gives the time labels.
 
     Returns:
         Tuple of (possibly rescaled frame, list of repair records). The list is
@@ -147,10 +211,10 @@ def _reconcile_time_scale(
     Raises:
         BDFValidationError: On an unrepaired mismatch when ``strict`` is True.
     """
-    wall_label = COLUMN_ONTOLOGY.unix_time_second.formatted_label
+    wall_label = ontology.unix_time_second.formatted_label
     elapsed_labels = (
-        COLUMN_ONTOLOGY.test_time_second.formatted_label,
-        COLUMN_ONTOLOGY.step_time_second.formatted_label,
+        ontology.test_time_second.formatted_label,
+        ontology.step_time_second.formatted_label,
     )
 
     columns = df.collect_schema().names() if isinstance(df, pl.LazyFrame) else df.columns
@@ -229,6 +293,7 @@ def read(
     tz: str = "UTC",
     day_month_order: DayMonthOrder | None = None,
     reconcile_time: bool = False,
+    ontology: ColumnOntology | None = None,
 ) -> tuple[pl.DataFrame, Metadata]:
     """Read ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
@@ -254,6 +319,12 @@ def read(
             default (warns when ``validate=False``); pass ``reconcile_time=True`` to
             explicitly rescale known unit factors, recorded under
             ``metadata.bdf.time_reconciliation``. Only active when ``normalize=True``.
+        ontology: Ontology that gives the labels, units, dtypes and required columns.
+            Defaults to the release that the file's sidecar states, loaded from the
+            bundle, the cache, or upstream; to the bundled release when there is no
+            sidecar or it states none. A stated release that cannot be loaded gives
+            the bundled release with a ``BDFDefinitionWarning``. The returned
+            metadata's ``bdf.ontology_version`` names the release used.
 
     Returns:
         Tuple of (df, metadata): the BDF table as a DataFrame, and a ``Metadata``
@@ -264,7 +335,7 @@ def read(
     Raises:
         ValueError: If ``plugin`` is not None, a str, or a Plugin instance.
     """
-    bdf_df, metadata = _read(
+    bdf_df, metadata, _ = _read(
         path,
         plugin=plugin,
         normalize=normalize,
@@ -274,6 +345,7 @@ def read(
         tz=tz,
         day_month_order=day_month_order,
         reconcile_time=reconcile_time,
+        ontology=ontology,
     )
     return cast(pl.DataFrame, bdf_df), metadata
 
@@ -288,6 +360,7 @@ def scan(
     tz: str = "UTC",
     day_month_order: DayMonthOrder | None = None,
     reconcile_time: bool = False,
+    ontology: ColumnOntology | None = None,
 ) -> tuple[pl.LazyFrame, Metadata]:
     """Scan ``path`` (local file or URL) to BDF-canonical form, returning ``(df, metadata)``.
 
@@ -320,6 +393,12 @@ def scan(
             default (warns when ``validate=False``); pass ``reconcile_time=True`` to
             explicitly rescale known unit factors, recorded under
             ``metadata.bdf.time_reconciliation``. Only active when ``normalize=True``.
+        ontology: Ontology that gives the labels, units, dtypes and required columns.
+            Defaults to the release that the file's sidecar states, loaded from the
+            bundle, the cache, or upstream; to the bundled release when there is no
+            sidecar or it states none. A stated release that cannot be loaded gives
+            the bundled release with a ``BDFDefinitionWarning``. The returned
+            metadata's ``bdf.ontology_version`` names the release used.
 
     Returns:
         Tuple of (df, metadata): the BDF table as a LazyFrame, and a ``Metadata``
@@ -330,7 +409,7 @@ def scan(
     Raises:
         ValueError: If ``plugin`` is not None, a str, or a Plugin instance.
     """
-    bdf_df, metadata = _read(
+    bdf_df, metadata, _ = _read(
         path,
         plugin=plugin,
         normalize=normalize,
@@ -340,6 +419,7 @@ def scan(
         tz=tz,
         day_month_order=day_month_order,
         reconcile_time=reconcile_time,
+        ontology=ontology,
     )
     return cast(pl.LazyFrame, bdf_df), metadata
 
@@ -411,12 +491,15 @@ def _as_polars(df: pl.DataFrame | pl.LazyFrame | pd.DataFrame) -> pl.DataFrame |
     return pl.DataFrame(df)
 
 
-def _version_stamps() -> dict[str, str | None]:
-    """Return the writer-identity stamps a written sidecar carries (GH #106).
+def _version_stamps(ontology: ColumnOntology) -> dict[str, str | None]:
+    """Return the stamps a written sidecar carries (GH #106).
+
+    Args:
+        ontology: The ontology that the save checked the table against.
 
     Returns:
         ``bdf_version`` (the installed package version), ``ontology_version``
-        (the pinned BDF ontology release), and ``battinfo_ref`` (the upstream
+        (the release of ``ontology``), and ``battinfo_ref`` (the upstream
         commit the bundled BattINFO schemas were fetched at).
     """
     import bdf
@@ -424,16 +507,17 @@ def _version_stamps() -> dict[str, str | None]:
 
     return {
         "bdf_version": bdf.__version__,
-        "ontology_version": COLUMN_ONTOLOGY.ontology_version or None,
+        "ontology_version": ontology.ontology_version or None,
         "battinfo_ref": bundled_ref(),
     }
 
 
-def _write_sidecar(sidecar: Path, metadata: Metadata) -> None:
+def _write_sidecar(sidecar: Path, metadata: Metadata, ontology: ColumnOntology) -> None:
     """Write ``metadata`` to ``sidecar``, or delete the sidecar where it carries nothing.
 
     A written sidecar is stamped with the writer's versions (GH #106):
     ``bdf.bdf_version``, ``bdf.ontology_version``, and ``bdf.battinfo_ref``.
+    ``bdf.ontology_version`` is the release that the table was checked against.
     The stamps identify the file's writer, so they overwrite any stamps the
     caller's object carries, and a read-then-save records the version that
     performed the save. The caller's object is not modified. A ``Metadata``
@@ -445,11 +529,12 @@ def _write_sidecar(sidecar: Path, metadata: Metadata) -> None:
         metadata: Metadata to write. Only the values that differ from their
             defaults reach the file, so a ``Metadata`` that carries nothing
             writes no sidecar at all, and deletes one the target already had.
+        ontology: The ontology that the save checked the table against.
     """
     payload = metadata.model_dump(mode="json", exclude_defaults=True)
     if payload:
         payload.setdefault("bdf", {})
-        payload["bdf"].update({k: v for k, v in _version_stamps().items() if v})
+        payload["bdf"].update({k: v for k, v in _version_stamps(ontology).items() if v})
         sidecar.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     else:
         sidecar.unlink(missing_ok=True)
@@ -462,6 +547,7 @@ def save(
     metadata: Metadata | None = None,
     validate: bool = True,
     labels: Literal["preferred", "machine", "unchanged"] = "unchanged",
+    ontology: ColumnOntology | None = None,
     **opts,
 ) -> None:
     """Save a BDF table to a CSV/parquet/IPC/JSON/ndjson/xlsx artifact.
@@ -490,6 +576,9 @@ def save(
             "preferred": BDF preferred label, e.g. "Voltage / V"
             "machine": BDF machine-readable label e.g. "voltage_volt"
             "unchanged": Keep column names as-is
+        ontology: Ontology to check the columns against and to record in the
+            sidecar. Defaults to the release that ``metadata`` states (so a read
+            and then a save keeps the file's release), else the bundled release.
         **opts: Additional keyword arguments forwarded to the polars writer
             (``write_csv``/``write_parquet``/``write_ipc``/``write_json``/``write_ndjson``/
             ``write_excel``), or to the matching ``sink_*`` writer where ``df`` is a
@@ -518,9 +607,11 @@ def save(
         msg = f"Compression is not supported for {fmt} output"
         raise ValueError(msg)
 
+    stated = metadata.bdf.ontology_version if metadata is not None else None
+    used = _resolve_ontology(ontology, stated, p, stacklevel=2)
     frame = _as_polars(df)
-    COLUMN_ONTOLOGY.validate_df(frame, raise_on_error=validate)
-    frame = COLUMN_ONTOLOGY.rename_labels(frame, labels)
+    used.validate_df(frame, raise_on_error=validate)
+    frame = used.rename_labels(frame, labels)
 
     if isinstance(frame, pl.LazyFrame) and spec.sink is not None:
         writer = getattr(frame, spec.sink)
@@ -538,4 +629,4 @@ def save(
             target.close()
 
     if metadata is not None:
-        _write_sidecar(sidecar, metadata)
+        _write_sidecar(sidecar, metadata, used)
