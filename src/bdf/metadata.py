@@ -460,29 +460,29 @@ def _left_of_label(label: str) -> str:
     return label.split("/", 1)[0].strip()
 
 
-def _spec_match_by_left(left: str) -> Optional[Dict[str, Any]]:
+def _spec_match_by_left(left: str, ontology: spec.ColumnOntology) -> Optional[Dict[str, Any]]:
     """Return the spec column entry dict for a given preferred-label 'left' text."""
-    for _mr, qty in spec.COLUMN_ONTOLOGY:
+    for _mr, qty in ontology:
         if _left_of_label(qty.label_template).lower() == left.lower():
             return {"iri": qty.iri}
     return None
 
 
-def _required_pvs_from_spec() -> List[Dict[str, Any]]:
+def _required_pvs_from_spec(ontology: spec.ColumnOntology) -> List[Dict[str, Any]]:
     """
     Build default PropertyValue list for required quantities directly from spec.COLUMNS.
     Uses label_template -> left name, unit, and iri.
     If spec is unavailable, returns [] (caller has emergency fallback).
     """
     pvs: List[Dict[str, Any]] = []
-    for _mr, qty in spec.COLUMN_ONTOLOGY:
+    for _mr, qty in ontology:
         if qty.required:
             name = _left_of_label(qty.label_template) if qty.label_template else qty.mr_name
             pvs.append(PropertyValue(name=name, property_id=qty.iri, unit_text=qty.unit).to_schema_org())
     return pvs
 
 
-def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
+def _variable_measured_from_df(df: pd.DataFrame, ontology: spec.ColumnOntology) -> List[Dict[str, Any]]:
     """
     Build a list of schema.org PropertyValue from DataFrame columns:
       - Prefer df.attrs["bdf:columns"] for quantity+unit if present
@@ -505,7 +505,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
                 unit_text = str(info.get("unit")) if info.get("unit") else None
 
             iri = None
-            match = _spec_match_by_left(name)
+            match = _spec_match_by_left(name, ontology)
             if match:
                 iri = match.get("iri")
 
@@ -529,7 +529,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
         left = _left_of_label(str(col))
         unit_text = _unit_text_from_label(str(col))
         iri = None
-        m = _spec_match_by_left(left)
+        m = _spec_match_by_left(left, ontology)
         if m:
             iri = m.get("iri")
         items.append(PropertyValue(name=left, property_id=iri, unit_text=unit_text).to_schema_org())
@@ -653,6 +653,7 @@ class Dataset:
         merge_variables: bool = True,  # merge with self.variable_measured
         enforce_desc_bounds: bool = True,  # trim description to Google bounds
         max_description_len: int = 5000,
+        ontology: spec.ColumnOntology = spec.COLUMN_ONTOLOGY,  # labels for variableMeasured
     ) -> Dict[str, Any]:
         # Description with guardrails (Google recommends ≤ 5000 chars)
         desc = self.description or ""
@@ -711,7 +712,7 @@ class Dataset:
             else {"@type": "schema:PropertyValue", "schema:name": str(v)}
             for v in (self.variable_measured or [])
         ]
-        inferred_vm: List[Dict[str, Any]] = _variable_measured_from_df(df) if (df is not None) else []
+        inferred_vm: List[Dict[str, Any]] = _variable_measured_from_df(df, ontology) if (df is not None) else []
 
         if merge_variables:
             all_vm = explicit_vm + inferred_vm
@@ -728,7 +729,7 @@ class Dataset:
             vm_final = explicit_vm or inferred_vm
 
         if not vm_final:
-            vm_final = _required_pvs_from_spec()
+            vm_final = _required_pvs_from_spec(ontology)
         if not vm_final:  # last-resort emergency fallback
             vm_final = [
                 PropertyValue(name="Voltage", property_id=None, unit_text="V").to_schema_org(),
