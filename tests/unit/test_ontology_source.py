@@ -90,7 +90,7 @@ def test_update_snapshot_help_makes_no_request(
 def test_the_latest_release_can_be_fetched(tmp_path: Path) -> None:
     """GitHub's latest release has a tag that fetches an ontology stating that version."""
     ONTOLOGY_SOURCE.forget()
-    version = ONTOLOGY_SOURCE.latest()
+    version = ONTOLOGY_SOURCE.get_latest_version()
     ttl = ColumnOntology.get_snapshot(dest=tmp_path / "latest.ttl", version=version)
     onto = ColumnOntology.from_ttl(ttl)
     assert str(Version(onto.ontology_version)) == version

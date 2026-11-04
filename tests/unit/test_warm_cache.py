@@ -81,7 +81,7 @@ class TestEmitKey:
         joined = "\n".join(
             urls
             + [f"ontology-version:{v}" for v in PINNED_ONTOLOGY_VERSIONS]
-            + ["ontology-layout:release-dir", f"ontology-bundle:{warm_cache.ONTOLOGY_SOURCE.bundled_version()}"]
+            + ["ontology-layout:release-dir", f"ontology-bundle:{warm_cache.ONTOLOGY_SOURCE.get_bundled_version()}"]
         )
         expected = hashlib.sha256(joined.encode("utf-8")).hexdigest()
         assert emit_key(urls) == expected

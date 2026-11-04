@@ -669,7 +669,7 @@ def test_from_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) 
 
 def _bundled_snapshot_version() -> str:
     """Read the bundled ontology release from its VERSION file."""
-    return spec.ONTOLOGY_SOURCE.bundled_version() or ""
+    return spec.ONTOLOGY_SOURCE.get_bundled_version() or ""
 
 
 @pytest.mark.network

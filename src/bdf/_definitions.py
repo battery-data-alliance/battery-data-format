@@ -87,11 +87,11 @@ class DefinitionSource(Generic[T]):
         except (InvalidVersion, TypeError, AttributeError) as exc:
             raise BDFDefinitionError(f"{name!r} is not a version") from exc
 
-    def bundled_version(self) -> str | None:
+    def get_bundled_version(self) -> str | None:
         """Return the name in the bundle's VERSION file, or None if it has none."""
         return _version_in(self.bundled)
 
-    def latest(self, *, refresh: bool = False, timeout: float = 30.0) -> str:
+    def get_latest_version(self, *, refresh: bool = False, timeout: float = 30.0) -> str:
         """Return the name of upstream's latest version, asked one time in each process.
 
         Args:
@@ -178,7 +178,7 @@ class DefinitionSource(Generic[T]):
             shutil.rmtree(old, ignore_errors=True)
         return dest
 
-    def path(self, version: str, *, fetch: bool = True, refresh: bool = False, timeout: float = 30.0) -> Path:
+    def get_path(self, version: str, *, fetch: bool = True, refresh: bool = False, timeout: float = 30.0) -> Path:
         """Return the directory of a version: bundle, cache, or a fetch.
 
         A failed fetch is remembered for the process: a later call for that
@@ -229,7 +229,7 @@ class DefinitionSource(Generic[T]):
             BDFDefinitionError: If the version cannot be resolved or opened.
         """
         version = self.normalise(version)
-        path = self.path(version, fetch=fetch, refresh=refresh, timeout=timeout)
+        path = self.get_path(version, fetch=fetch, refresh=refresh, timeout=timeout)
         try:
             return self.open(path)
         except Exception as exc:
@@ -252,7 +252,7 @@ class DefinitionSource(Generic[T]):
             BDFDefinitionError: If it must fall back and no local version exists.
         """
         try:
-            version = self.latest(refresh=refresh, timeout=timeout)
+            version = self.get_latest_version(refresh=refresh, timeout=timeout)
         except Exception as exc:
             if isinstance(exc, requests.HTTPError):
                 status = getattr(exc.response, "status_code", None)
@@ -272,7 +272,7 @@ class DefinitionSource(Generic[T]):
         self._latest = None
         self._failed.clear()
 
-    def cli(self, prog: str, argv: Sequence[str] | None = None) -> None:
+    def run_cli(self, prog: str, argv: Sequence[str] | None = None) -> None:
         """Run the refresh command ``prog [VERSION]`` on the bundle.
 
         Args:
@@ -284,14 +284,14 @@ class DefinitionSource(Generic[T]):
         )
         parser.add_argument("version", nargs="?", metavar="VERSION", help="Version to fetch (default: latest).")
         args = parser.parse_args(argv)
-        dest = self.write(self.bundled, args.version or self.latest())
-        print(f"Bundled {self.name} updated: {dest} (version {self.bundled_version()})")
+        dest = self.write(self.bundled, args.version or self.get_latest_version())
+        print(f"Bundled {self.name} updated: {dest} (version {self.get_bundled_version()})")
 
     def _entry(self, version: str) -> Path:
         return _fetch.cache_dir() / f"{self.name}-v{version}"
 
     def _local(self, version: str) -> Path | None:
-        if self.bundled_version() == version:
+        if self.get_bundled_version() == version:
             return self.bundled
         try:
             entry = self._entry(version)

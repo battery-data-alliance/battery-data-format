@@ -68,41 +68,41 @@ def test_normalise_ignores_a_leading_v_and_spaces() -> None:
 
 def test_latest_is_asked_once_and_named_in_normal_form(fake: FakeSource) -> None:
     fake.latest = "v1.4.0"
-    assert fake.source.latest() == "1.4.0"
-    assert fake.source.latest() == "1.4.0"
+    assert fake.source.get_latest_version() == "1.4.0"
+    assert fake.source.get_latest_version() == "1.4.0"
     assert fake.asked == 1
-    fake.source.latest(refresh=True)
+    fake.source.get_latest_version(refresh=True)
     assert fake.asked == 2
 
 
 def test_path_prefers_the_bundle_then_the_cache_then_a_fetch(fake: FakeSource) -> None:
-    assert fake.source.path("1.3.0") == fake.bundle
+    assert fake.source.get_path("1.3.0") == fake.bundle
     cached = fake.cached("1.1.0")
-    assert fake.source.path("v1.1.0") == cached
+    assert fake.source.get_path("v1.1.0") == cached
     assert fake.fetched == []
 
-    fetched = fake.source.path("1.2.0")
+    fetched = fake.source.get_path("1.2.0")
     assert fake.fetched == ["1.2.0"]
     assert (fetched / "VERSION").read_text().strip() == "1.2.0"
-    assert fake.source.path("1.2.0") == fetched
+    assert fake.source.get_path("1.2.0") == fetched
     assert fake.fetched == ["1.2.0"]
 
 
 def test_path_without_fetch_fails_for_a_version_that_is_not_local(fake: FakeSource) -> None:
     with pytest.raises(BDFDefinitionError, match="1.2.0"):
-        fake.source.path("1.2.0", fetch=False)
+        fake.source.get_path("1.2.0", fetch=False)
 
 
 def test_path_refetches_a_cache_entry_with_no_version_file(fake: FakeSource) -> None:
     fake.cached("1.1.0", with_version_file=False)
-    assert (fake.source.path("1.1.0") / "data.txt").read_text() == "fetched 1.1.0"
+    assert (fake.source.get_path("1.1.0") / "data.txt").read_text() == "fetched 1.1.0"
 
 
 def test_a_failed_fetch_leaves_the_cached_version_unchanged(fake: FakeSource) -> None:
     entry = fake.cached("1.1.0")
     fake.fail = True
     with pytest.raises(BDFDefinitionError, match="1.1.0"):
-        fake.source.path("1.1.0", refresh=True)
+        fake.source.get_path("1.1.0", refresh=True)
     assert (entry / "data.txt").read_text() == "cached 1.1.0"
     assert [p.name for p in fake.cache.iterdir()] == ["demo-v1.1.0"]
 
@@ -110,7 +110,7 @@ def test_a_failed_fetch_leaves_the_cached_version_unchanged(fake: FakeSource) ->
 def test_a_failed_fetch_of_a_new_version_caches_nothing(fake: FakeSource) -> None:
     fake.fail = True
     with pytest.raises(BDFDefinitionError):
-        fake.source.path("1.2.0")
+        fake.source.get_path("1.2.0")
     assert list(fake.cache.iterdir()) == []
 
 

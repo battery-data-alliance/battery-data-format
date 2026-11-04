@@ -71,7 +71,7 @@ def emit_key(urls: list[str]) -> str:
         *urls,
         *(f"ontology-version:{v}" for v in PINNED_ONTOLOGY_VERSIONS),
         "ontology-layout:release-dir",
-        f"ontology-bundle:{ONTOLOGY_SOURCE.bundled_version()}",
+        f"ontology-bundle:{ONTOLOGY_SOURCE.get_bundled_version()}",
     ]
     joined = "\n".join(entries)
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
@@ -121,7 +121,7 @@ def warm_ontology_versions(versions: tuple[str, ...], max_bytes: int = _MAX_CACH
     total = 0
     for version in versions:
         try:
-            dest = ONTOLOGY_SOURCE.path(version)
+            dest = ONTOLOGY_SOURCE.get_path(version)
         except Exception as e:  # noqa: BLE001
             sys.exit(f"ERROR: ontology fetch failed for version {version!r}: {e}")
         total += sum(p.stat().st_size for p in dest.rglob("*") if p.is_file())

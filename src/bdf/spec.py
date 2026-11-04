@@ -837,7 +837,7 @@ class ColumnOntology:
         """
         if version is None:
             try:
-                version = ONTOLOGY_SOURCE.latest()
+                version = ONTOLOGY_SOURCE.get_latest_version()
             except Exception as exc:
                 raise BDFDefinitionError(f"Could not find the latest {ONTOLOGY_SOURCE.name} release: {exc}") from exc
         if dest is None:
@@ -866,7 +866,7 @@ class ColumnOntology:
                 parsed.
         """
         try:
-            return ONTOLOGY_SOURCE.get(ONTOLOGY_SOURCE.bundled_version() or "", fetch=False)
+            return ONTOLOGY_SOURCE.get(ONTOLOGY_SOURCE.get_bundled_version() or "", fetch=False)
         except Exception as exc:
             raise BDFDefinitionError(
                 f"Bundled ontology release missing or unreadable: {exc}. Run bdf-update-snapshot to regenerate it."
@@ -985,7 +985,7 @@ def _update_snapshot_cli() -> None:
     fetched owl:versionInfo matches. Without, fetches upstream's latest
     GitHub release.
     """
-    ONTOLOGY_SOURCE.cli("bdf-update-snapshot")
+    ONTOLOGY_SOURCE.run_cli("bdf-update-snapshot")
 
 
 # --------- Module-level singleton ----------
