@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ### Added
 - `BDFDefinitionError` and `BDFDefinitionWarning`, exported from `bdf`.
+- `ontology=` on `validate_df`. The required and optional columns, synonyms, and derived-column checks come from that `ColumnOntology`.
 - `ontology=` on `normalize`, and on `TableNormalizer.normalize`, `resolve`, and `from_column_map`. The normalization uses only that `ColumnOntology` for labels, units, dtypes, and required columns. A column that a normalizer maps to a quantity the ontology does not define is handled as a column outside the spec, with a `UserWarning`.
 - `ColumnOntology.latest()` falls back to the newest local release that is not a pre-release, with a `BDFDefinitionWarning`, when upstream cannot be asked for its latest release or the release cannot be fetched. It raises `BDFDefinitionError` when no such release exists.
 
