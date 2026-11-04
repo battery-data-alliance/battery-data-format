@@ -517,6 +517,9 @@ class ColumnOntology:
         self._quantities = quantities
         self.ontology_version = ontology_version
 
+    def __repr__(self) -> str:
+        return f"ColumnOntology({self.ontology_version!r})"
+
     def __iter__(self):
         return iter(self._quantities.items())
 

@@ -19,7 +19,7 @@ from bdf.normalization import (
     LinearNormalization,
     RelativeTimeNormalization,
 )
-from bdf.spec import COLUMN_ONTOLOGY
+from bdf.spec import COLUMN_ONTOLOGY, ColumnOntology
 from bdf.table_normalizers import (
     BDF_NORMALIZER,
     NORMALIZERS,
@@ -994,16 +994,15 @@ class TestBDFNormalizer:
         assert "Test Time / s" in out.columns
         assert out["Test Time / s"][0] == 1.0
 
-    def test_bdf_normalizer_legacy_detection_is_order_independent(self, monkeypatch):
+    def test_bdf_normalizer_legacy_detection_is_order_independent(self):
         """_build_bdf_normalizer must not depend on COLUMN_ONTOLOGY's iteration order.
 
         The normaliser appends synonyms to a list and iterates through them when matching
         columns. Legacy detection should work independent of this order.
         """
-        reversed_quantities = dict(reversed(list(COLUMN_ONTOLOGY._quantities.items())))
-        monkeypatch.setattr(COLUMN_ONTOLOGY, "_quantities", reversed_quantities)
+        reversed_ontology = ColumnOntology(dict(reversed(list(COLUMN_ONTOLOGY))), COLUMN_ONTOLOGY.ontology_version)
 
-        reversed_normalizer = _build_bdf_normalizer()
+        reversed_normalizer = _build_bdf_normalizer(reversed_ontology)
         df = pl.DataFrame({"test_time_millisecond": [1000.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
         with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
             out = reversed_normalizer.normalize(df)
