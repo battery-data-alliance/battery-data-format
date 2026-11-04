@@ -602,30 +602,28 @@ def test_build_returns_instance_with_core_quantities() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ColumnOntology.load_ttl()
+# ColumnOntology.from_ttl()
 # ---------------------------------------------------------------------------
 
 
-def test_load_ttl_updates_quantities_in_place(tmp_path: Path) -> None:
-    """load_ttl(path) parses file and updates _quantities in place."""
+def test_from_ttl_loads_the_file(tmp_path: Path) -> None:
+    """from_ttl(path) parses the file into a new ontology."""
     ttl = tmp_path / "mini.ttl"
     ttl.write_text(_MINI_TTL, encoding="utf-8")
 
-    onto = ColumnOntology.build()
-    onto.load_ttl(ttl)
+    onto = ColumnOntology.from_ttl(ttl)
 
     assert onto.test_time_second.unit == "ms"
     assert onto.test_time_second.formatted_label == "Test Time / ms"
 
 
-def test_load_ttl_invalid_file_raises(tmp_path: Path) -> None:
-    """load_ttl with unparseable content raises (not silent)."""
+def test_from_ttl_invalid_file_raises(tmp_path: Path) -> None:
+    """from_ttl with unparseable content raises (not silent)."""
     bad = tmp_path / "bad.ttl"
     bad.write_text("this is not valid turtle syntax !! @@@", encoding="utf-8")
 
-    onto = ColumnOntology.build()
     with pytest.raises(ValueError):
-        onto.load_ttl(bad)
+        ColumnOntology.from_ttl(bad)
 
 
 # ---------------------------------------------------------------------------
@@ -642,28 +640,26 @@ def test_load_ttl_invalid_file_raises(tmp_path: Path) -> None:
         ("internal_resistance_ohm", "ohm", "Internal Resistance / ohm"),
     ],
 )
-def test_load_ttl_ucum_unit_code_aliases(tmp_path: Path, attr: str, expected_unit: str, expected_label: str) -> None:
+def test_from_ttl_ucum_unit_code_aliases(tmp_path: Path, attr: str, expected_unit: str, expected_label: str) -> None:
     """schema:unitCode UCUM codes ('Cel'/'A.h'/'W.h'/'Ohm') normalize to BDF's
     canonical, pint-valid casing ('degC'/'Ah'/'Wh'/'ohm').
     """
     ttl = tmp_path / "ucum.ttl"
     ttl.write_text(_UCUM_TTL, encoding="utf-8")
 
-    onto = ColumnOntology({})
-    onto.load_ttl(ttl)
+    onto = ColumnOntology.from_ttl(ttl)
 
     q = getattr(onto, attr)
     assert q.unit == expected_unit
     assert q.formatted_label == expected_label
 
 
-def test_load_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) -> None:
+def test_from_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) -> None:
     """Terms with no schema:unitCode load with unit=None; 'string' in description infers dtype='str'."""
     ttl = tmp_path / "ucum.ttl"
     ttl.write_text(_UCUM_TTL, encoding="utf-8")
 
-    onto = ColumnOntology({})
-    onto.load_ttl(ttl)
+    onto = ColumnOntology.from_ttl(ttl)
 
     q = onto.step_label
     assert q.unit is None
@@ -691,8 +687,7 @@ def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
     version = _bundled_snapshot_version()
     fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl", version=version)
 
-    fresh = ColumnOntology({})
-    fresh.load_ttl(fresh_path)
+    fresh = ColumnOntology.from_ttl(fresh_path)
 
     bundled = ColumnOntology.build()
 

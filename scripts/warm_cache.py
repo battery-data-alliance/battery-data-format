@@ -107,8 +107,8 @@ def warm(urls: list[str], max_bytes: int = _MAX_CACHE_BYTES) -> None:
 def warm_ontology_versions(versions: tuple[str, ...], max_bytes: int = _MAX_CACHE_BYTES) -> int:
     """Fetch each pinned ontology release into the versioned ontology cache.
 
-    Mirrors ``ColumnOntology.load_version``'s cache layout (a ``bdf-ontology-v{version}/``
-    release directory under ``bdf.fetch.cache_dir()``) so the notebook's ``load_version``
+    Mirrors ``ColumnOntology.from_version``'s cache layout (a ``bdf-ontology-v{version}/``
+    release directory under ``bdf.fetch.cache_dir()``) so the notebook's ``from_version``
     call finds the release already cached and makes no network request.
 
     Args:

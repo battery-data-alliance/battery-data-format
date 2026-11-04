@@ -517,11 +517,6 @@ class ColumnOntology:
         self._quantities = quantities
         self.ontology_version = ontology_version
 
-    def _adopt(self, other: "ColumnOntology") -> None:
-        """Take over quantities and version from another instance (in-place reload)."""
-        self._quantities = other._quantities
-        self.ontology_version = other.ontology_version
-
     def __iter__(self):
         return iter(self._quantities.items())
 
@@ -874,25 +869,25 @@ class ColumnOntology:
                 f"Bundled ontology release missing or unreadable: {exc}. Run bdf-update-snapshot to regenerate it."
             ) from exc
 
-    def load_ttl(self, path: Path | str) -> None:
-        """Load ontology from a TTL file, updating quantities in place.
+    @classmethod
+    def from_version(cls, version: str, *, refresh: bool = False) -> "ColumnOntology":
+        """Load an ontology release, fetching it if it is not local.
 
         Args:
-            path: Path to TTL file.
+            version: Release to load (e.g. '1.0.0').
+            refresh: If True, ignore the cache and fetch the release again.
+
+        Returns:
+            New ColumnOntology instance holding the release.
 
         Raises:
-            Exception: If file cannot be parsed.
+            BDFDefinitionError: If the release cannot be fetched or parsed, or
+                its versionInfo does not match.
         """
-        if Graph is None:
-            raise RuntimeError("rdflib is required for load_ttl")
-        g = Graph()
-        try:
-            g.parse(str(path))
-        except Exception as exc:
-            raise ValueError(f"Failed to parse TTL file {path}: {exc}") from exc
-        self._adopt(self.__class__.from_graph(g))
+        return ONTOLOGY_SOURCE.get(version, refresh=refresh)
 
-    def load_latest(self, *, refresh: bool = False) -> None:
+    @classmethod
+    def latest(cls, *, refresh: bool = False) -> "ColumnOntology":
         """Load the latest ontology release, which the ontology's ``/latest`` w3id URI names.
 
         Falls back to the newest local final release, with a
@@ -902,25 +897,34 @@ class ColumnOntology:
         Args:
             refresh: If True, ask upstream and fetch the release again.
 
+        Returns:
+            New ColumnOntology instance holding the release.
+
         Raises:
             BDFDefinitionError: If the release cannot be loaded and no local
-                release exists. ``self`` is unchanged on failure.
+                release exists.
         """
-        self._adopt(ONTOLOGY_SOURCE.get_latest(refresh=refresh))
+        return ONTOLOGY_SOURCE.get_latest(refresh=refresh)
 
-    def load_version(self, version: str, *, refresh: bool = False) -> None:
-        """Load a specific ontology release, fetching it if not local.
+    @classmethod
+    def from_ttl(cls, path: Path | str) -> "ColumnOntology":
+        """Load an ontology from a local Turtle file.
 
         Args:
-            version: Release to load (e.g. '1.0.0').
-            refresh: If True, ignore the cache and fetch the release again.
+            path: Path to the TTL file.
+
+        Returns:
+            New ColumnOntology instance holding the file's quantities.
 
         Raises:
-            BDFDefinitionError: If the release cannot be fetched or parsed, or
-                its versionInfo does not match. ``self`` is unchanged on
-                failure.
+            ValueError: If the file cannot be parsed.
         """
-        self._adopt(ONTOLOGY_SOURCE.get(version, refresh=refresh))
+        g = Graph()
+        try:
+            g.parse(str(path))
+        except Exception as exc:
+            raise ValueError(f"Failed to parse TTL file {path}: {exc}") from exc
+        return cls.from_graph(g)
 
 
 _ONTOLOGY_TTL = "bdf-ontology.ttl"

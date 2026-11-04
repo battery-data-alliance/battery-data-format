@@ -9,7 +9,7 @@ import pytest
 from packaging.version import Version
 
 from bdf._errors import BDFDefinitionError
-from bdf.spec import ONTOLOGY_SOURCE, ColumnOntology, _update_snapshot_cli
+from bdf.spec import COLUMN_ONTOLOGY, ONTOLOGY_SOURCE, ColumnOntology, _update_snapshot_cli
 
 from .conftest import FakeGitHub, ontology_ttl
 
@@ -28,33 +28,34 @@ def bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     ONTOLOGY_SOURCE.forget()
 
 
-def loaded_version(load: str, *args: object) -> str:
-    onto = ColumnOntology({})
-    getattr(onto, load)(*args)
-    return onto.ontology_version
-
-
 def test_the_packaged_version_file_matches_the_bundled_ontology() -> None:
     packaged = files("bdf.data") / "bdf-ontology"
-    onto = ColumnOntology({})
-    onto.load_ttl(Path(str(packaged / "bdf-ontology.ttl")))
+    onto = ColumnOntology.from_ttl(Path(str(packaged / "bdf-ontology.ttl")))
     assert (packaged / "VERSION").read_text().strip() == str(Version(onto.ontology_version))
 
 
-def test_load_version_refuses_an_ontology_that_states_another_version(
+def test_each_load_is_its_own_ontology() -> None:
+    first, second = ColumnOntology.build(), ColumnOntology.build()
+    name = next(iter(first))[0]
+    first[name].synonyms.append("changed")
+    assert "changed" not in second[name].synonyms
+    assert "changed" not in COLUMN_ONTOLOGY[name].synonyms
+
+
+def test_from_version_refuses_an_ontology_that_states_another_version(
     bundle: Path, github: FakeGitHub, tmp_path: Path
 ) -> None:
     github.files["1.2.0"] = ontology_ttl("1.1.0")
     with pytest.raises(BDFDefinitionError, match="1.2.0") as info:
-        loaded_version("load_version", "1.2.0")
+        ColumnOntology.from_version("1.2.0")
     assert "1.1.0" in str(info.value.__cause__)
     assert not (tmp_path / "cache" / "bdf-ontology-v1.2.0").exists()
 
 
-def test_load_latest_loads_the_release_that_the_latest_uri_states(bundle: Path, github: FakeGitHub) -> None:
+def test_latest_loads_the_release_that_the_latest_uri_states(bundle: Path, github: FakeGitHub) -> None:
     github.latest = "1.3.0"
     github.files["1.3.0"] = ontology_ttl("1.3.0")
-    assert loaded_version("load_latest") == "1.3.0"
+    assert ColumnOntology.latest().ontology_version == "1.3.0"
 
 
 def test_get_snapshot_writes_a_named_version_to_dest(bundle: Path, github: FakeGitHub, tmp_path: Path) -> None:
@@ -91,6 +92,5 @@ def test_the_latest_release_can_be_fetched(tmp_path: Path) -> None:
     ONTOLOGY_SOURCE.forget()
     version = ONTOLOGY_SOURCE.latest()
     ttl = ColumnOntology.get_snapshot(dest=tmp_path / "latest.ttl", version=version)
-    onto = ColumnOntology({})
-    onto.load_ttl(ttl)
+    onto = ColumnOntology.from_ttl(ttl)
     assert str(Version(onto.ontology_version)) == version
