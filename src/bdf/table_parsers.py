@@ -27,7 +27,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .file_utils import read_head, resolve_source
 from .normalization import DayMonthOrder
-from .table_normalizers import TableNormalizer
+from .spec import COLUMN_ONTOLOGY, ColumnOntology
+from .table_normalizers import NormalizerField, TableNormalizer
 
 # ---------------------------------------------------------------------------
 # Polars docstring helper
@@ -88,7 +89,7 @@ class TableParser(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    normalizer: TableNormalizer = TableNormalizer()
+    normalizer: NormalizerField = TableNormalizer()
 
     base_exts: ClassVar[frozenset[str]]
     unique_exts: frozenset[str] = frozenset()
@@ -185,6 +186,7 @@ class TableParser(BaseModel):
         lazy: bool = True,
         tz: str = "UTC",
         day_month_order: DayMonthOrder | None = None,
+        ontology: ColumnOntology = COLUMN_ONTOLOGY,
     ) -> pl.LazyFrame | pl.DataFrame:
         """Read ``path`` (local or URL) and return the normalized or raw frame.
 
@@ -207,6 +209,8 @@ class TableParser(BaseModel):
             day_month_order: Field order applied to an ambiguous numeric date in a
                 datetime column's declared formats. ``None`` (default) leaves every
                 declared format unchanged.
+            ontology: Ontology that the normalization uses. Defaults to the
+                bundled release.
 
         Returns:
             Normalized or raw polars LazyFrame (``lazy=True``) or DataFrame (``lazy=False``).
@@ -223,6 +227,7 @@ class TableParser(BaseModel):
             strict=strict,
             tz=tz,
             day_month_order=day_month_order,
+            ontology=ontology,
         )
         assert isinstance(result, pl.LazyFrame)
         return result if lazy else result.collect()

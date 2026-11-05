@@ -5,9 +5,10 @@ from __future__ import annotations
 import logging
 import re
 import warnings
+import weakref
 import zoneinfo
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated, Iterator, Union
+from typing import TYPE_CHECKING, Annotated, Iterator, Literal, Self, Union
 
 import polars as pl
 from pydantic import (
@@ -37,7 +38,7 @@ from bdf.normalization import (
     RelativeTimeNormalization,
     _is_self_describing,
 )
-from bdf.spec import _UNIT_CAPTURE, COLUMN_ONTOLOGY, get_unit_conversion
+from bdf.spec import _UNIT_CAPTURE, COLUMN_ONTOLOGY, ColumnOntology, get_unit_conversion
 
 _logger = logging.getLogger(__name__)
 
@@ -156,12 +157,15 @@ class ResolvedColumn(BaseModel):
     legacy: bool = False  # Resolved from a legacy column, warn user
 
     @classmethod
-    def from_bdf_label(cls, bdf_label_key: str, src_header: str) -> tuple[str, ResolvedColumn]:
+    def from_bdf_label(
+        cls, bdf_label_key: str, src_header: str, ontology: ColumnOntology = COLUMN_ONTOLOGY
+    ) -> tuple[str, ResolvedColumn]:
         """Resolve a BDF label key (e.g. 'Voltage / mV') to (mr_name, ResolvedColumn).
 
         Args:
             bdf_label_key: BDF label in format 'Base / unit' (e.g. 'Voltage / mV').
             src_header: Source column name in the input data.
+            ontology: Ontology that defines the label. Defaults to the bundled release.
 
         Returns:
             Tuple of (mr_name, ResolvedColumn) mapping the source header.
@@ -169,7 +173,7 @@ class ResolvedColumn(BaseModel):
         Raises:
             ValueError: If label base is not found in BDF spec.
         """
-        match = COLUMN_ONTOLOGY.quantity_from_label(bdf_label_key)
+        match = ontology.quantity_from_label(bdf_label_key)
         if match is None:
             raise ValueError(f"column_map key {bdf_label_key!r}: label base not found in BDF spec")
         quantity, key_unit = match
@@ -217,7 +221,13 @@ class ResolvedColumn(BaseModel):
                 return cls(source_header=header, normalization=normalization, legacy=syn.legacy)
         return None
 
-    def get_expr(self, mr_name: str, tz: str = "UTC", day_month_order: DayMonthOrder | None = None) -> pl.Expr:
+    def get_expr(
+        self,
+        mr_name: str,
+        tz: str = "UTC",
+        day_month_order: DayMonthOrder | None = None,
+        ontology: ColumnOntology = COLUMN_ONTOLOGY,
+    ) -> pl.Expr:
         """Build polars expression for column transformation with normalization and dtype casting.
 
         Args:
@@ -230,13 +240,16 @@ class ResolvedColumn(BaseModel):
                 ``01:30``, that row becomes null.
             day_month_order: Field order applied by the normalization to an
                 ambiguous numeric date where it reads it.
+            ontology: Ontology that gives the label and dtype. Defaults to the
+                bundled release.
 
         Returns:
             Polars expression that applies the normalization and dtype conversion.
         """
         src = self.source_header
-        label = getattr(COLUMN_ONTOLOGY, mr_name).formatted_label
-        dtype = getattr(COLUMN_ONTOLOGY, mr_name).dtype
+        quantity = ontology[mr_name]
+        label = quantity.formatted_label
+        dtype = quantity.dtype
         expr = self.normalization.expr(pl.col(src), tz=tz, day_month_order=day_month_order)
         if dtype == "str":
             expr = expr.cast(pl.Utf8, strict=False)
@@ -266,6 +279,28 @@ def _validate_tz(tz: str) -> None:
         zoneinfo.ZoneInfo(tz)
     except (ValueError, zoneinfo.ZoneInfoNotFoundError) as e:
         raise ValueError(f"invalid tz {tz!r}: no such time zone") from e
+
+
+def _warn_undefined(
+    mr_name: str,
+    field_val: tuple[Syn, ...] | ResolvedColumn,
+    headers: list[str],
+    probes: dict[str, str],
+    ontology: ColumnOntology,
+) -> None:
+    """Warn for each header that maps to ``mr_name``, which ``ontology`` does not define."""
+    if isinstance(field_val, ResolvedColumn):
+        matched = [field_val.source_header] if field_val.source_header in headers else []
+    else:
+        unit = COLUMN_ONTOLOGY[mr_name].unit if mr_name in COLUMN_ONTOLOGY else None
+        matched = [h for h in headers if ResolvedColumn.from_synonyms(h, probes[h], unit, field_val) is not None]
+    for header in matched:
+        warnings.warn(
+            f"{header!r} maps to {mr_name}, which ontology release {ontology.ontology_version or 'unknown'} "
+            "does not define; it is handled as a column outside the spec.",
+            UserWarning,
+            stacklevel=4,
+        )
 
 
 class TableNormalizer(BaseModel):
@@ -349,7 +384,7 @@ class TableNormalizer(BaseModel):
             if val is not None:
                 yield mr_name, val
 
-    def extend(self, **kwargs: Syn | tuple[Syn, ...] | ResolvedColumn) -> "TableNormalizer":
+    def extend(self, **kwargs: Syn | tuple[Syn, ...] | ResolvedColumn) -> Self:
         """Return a copy with extra synonyms appended (or fields set) per kwarg.
 
         Each kwarg is a BDF field name (e.g. ``voltage_volt``). If the field
@@ -389,14 +424,28 @@ class TableNormalizer(BaseModel):
                 updates[field] = (*current, *value)
         return self.model_copy(update=updates)
 
-    def resolve(self, headers: list[str]) -> dict[str, ResolvedColumn]:
+    def for_ontology(self, ontology: ColumnOntology) -> TableNormalizer:
+        """Return the normalizer that maps headers for ``ontology``: this one.
+
+        The BDF normalizer, which holds an ontology's own labels, returns the
+        normalizer of ``ontology`` instead.
+        """
+        return self
+
+    def resolve(self, headers: list[str], ontology: ColumnOntology = COLUMN_ONTOLOGY) -> dict[str, ResolvedColumn]:
         """Return mr_name → ResolvedColumn for all headers that match a synonym field.
 
-        ResolvedColumn fields are passed through as-is. Each source header is
-        claimed at most once (first match in declaration order wins).
+        The synonyms are those of :meth:`for_ontology`. ResolvedColumn fields are
+        passed through as-is. Each source header is
+        claimed at most once (first match in declaration order wins). A field
+        whose quantity the ontology does not define is skipped with a
+        ``UserWarning`` when a header that no defined field takes would match
+        it, so that header stays a column outside the spec.
 
         Args:
             headers: List of source column names to resolve.
+            ontology: Ontology that defines the quantities. Defaults to the
+                bundled release.
 
         Returns:
             Dictionary mapping mr_name to ResolvedColumn for matched columns.
@@ -404,13 +453,17 @@ class TableNormalizer(BaseModel):
         probes = {h: h.strip().lstrip("~").strip() for h in headers}
         claimed: set[str] = set()
         result: dict[str, ResolvedColumn] = {}
-        for mr_name, field_val in self:
+        undefined: list[tuple[str, tuple[Syn, ...] | ResolvedColumn]] = []
+        for mr_name, field_val in self.for_ontology(ontology):
+            if mr_name not in ontology:
+                undefined.append((mr_name, field_val))
+                continue
             if isinstance(field_val, ResolvedColumn):
                 result[mr_name] = field_val
                 if field_val.source_header in headers:
                     claimed.add(field_val.source_header)
             else:
-                unit = getattr(COLUMN_ONTOLOGY, mr_name).unit
+                unit = ontology[mr_name].unit
                 for header in headers:
                     if header in claimed:
                         continue
@@ -419,6 +472,10 @@ class TableNormalizer(BaseModel):
                         result[mr_name] = matched
                         claimed.add(header)
                         break
+        # Only a header that no defined field took stays a column outside the spec.
+        unclaimed = [header for header in headers if header not in claimed]
+        for mr_name, field_val in undefined:
+            _warn_undefined(mr_name, field_val, unclaimed, probes, ontology)
         return result
 
     def score_columns(self, headers: list[str]) -> int:
@@ -446,7 +503,9 @@ class TableNormalizer(BaseModel):
         return names
 
     @classmethod
-    def from_column_map(cls, column_map: dict[str, str]) -> "TableNormalizer":
+    def from_column_map(
+        cls, column_map: dict[str, str], ontology: ColumnOntology = COLUMN_ONTOLOGY
+    ) -> "TableNormalizer":
         """Convert a BDF label-key dict to a TableNormalizer via ResolvedColumn.from_bdf_label.
 
         Args:
@@ -462,7 +521,7 @@ class TableNormalizer(BaseModel):
             raise ValueError("column_map must not be empty")
         kwargs: dict[str, ResolvedColumn] = {}
         for bdf_label_key, src_header in column_map.items():
-            mr_name, resolved_column = ResolvedColumn.from_bdf_label(bdf_label_key, src_header)
+            mr_name, resolved_column = ResolvedColumn.from_bdf_label(bdf_label_key, src_header, ontology)
             kwargs[mr_name] = resolved_column
         return cls(**kwargs)
 
@@ -476,6 +535,7 @@ class TableNormalizer(BaseModel):
         include_unknown: bool = False,
         tz: str = "UTC",
         day_month_order: DayMonthOrder | None = None,
+        ontology: ColumnOntology = COLUMN_ONTOLOGY,
     ) -> pl.LazyFrame:
         """Resolve headers → BDF columns, apply unit conversion, return df_out.
 
@@ -499,6 +559,8 @@ class TableNormalizer(BaseModel):
             day_month_order: Field order applied to an ambiguous numeric date in a
                 datetime column's declared formats. ``None`` (default) leaves every
                 declared format unchanged.
+            ontology: Ontology that gives labels, units, dtypes and required
+                columns. Defaults to the bundled release.
 
         Returns:
             Normalized dataframe in the same format as input.
@@ -511,12 +573,10 @@ class TableNormalizer(BaseModel):
 
         headers = list(df.collect_schema().names())
 
-        resolved = self.resolve(headers)
+        resolved = self.resolve(headers, ontology)
 
         legacy_pairs = [
-            (rc.source_header, getattr(COLUMN_ONTOLOGY, mr_name).formatted_label)
-            for mr_name, rc in resolved.items()
-            if rc.legacy
+            (rc.source_header, ontology[mr_name].formatted_label) for mr_name, rc in resolved.items() if rc.legacy
         ]
         if legacy_pairs:
             detail = ", ".join(f"{old!r} -> {new!r}" for old, new in legacy_pairs)
@@ -548,7 +608,7 @@ class TableNormalizer(BaseModel):
                     resolved_column.source_header,
                 )
                 continue
-            exprs.append(resolved_column.get_expr(mr_name, tz, day_month_order))
+            exprs.append(resolved_column.get_expr(mr_name, tz, day_month_order, ontology))
 
         if include_unknown:
             claimed_headers = {rc.source_header for rc in resolved.values()}
@@ -559,7 +619,7 @@ class TableNormalizer(BaseModel):
             df = df.select(exprs)
 
         if validate:
-            COLUMN_ONTOLOGY.validate_df(df, raise_on_error=strict)
+            ontology.validate_df(df, raise_on_error=strict)
         return df
 
 
@@ -1085,17 +1145,80 @@ NDA_NORMALIZER = TableNormalizer(
 )
 
 
-def _build_bdf_normalizer() -> TableNormalizer:
-    """Build the normalizer mapping on-disk BDF labels to current labels.
+class _OntologyLabels(TableNormalizer):
+    """The labels of one ontology release as synonyms: what the BDF normalizer maps for it.
+
+    It maps every quantity of the release. A quantity with no field, such as one
+    that an older release defines and the bundled one deprecates, or one that a
+    newer release adds, is an extra field, which iteration yields after the
+    declared ones.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    def __iter__(self) -> Iterator[tuple[str, tuple[Syn, ...] | ResolvedColumn]]:  # type: ignore[override]
+        """Iterate over the declared fields, then the extra ones, as ``(mr_name, field_value)``."""
+        yield from super().__iter__()
+        yield from (self.__pydantic_extra__ or {}).items()
+
+
+class _BdfNormalizer(TableNormalizer):
+    """The normalizer of files in BDF form: the labels of the ontology that a call uses.
+
+    It holds no labels itself. :meth:`for_ontology` gives those of the ontology,
+    then the synonyms that :meth:`extend` added here. ``kind`` keeps it a BDF
+    normalizer through a JSON round trip.
+    """
+
+    kind: Literal["bdf"]
+
+    def __iter__(self) -> Iterator[tuple[str, tuple[Syn, ...] | ResolvedColumn]]:  # type: ignore[override]
+        """Iterate over the synonyms added to this normalizer, as ``(mr_name, field_value)``."""
+        for mr_name, value in super().__iter__():
+            if mr_name != "kind":
+                yield mr_name, value
+
+    def for_ontology(self, ontology: ColumnOntology) -> TableNormalizer:
+        """Return the labels of ``ontology``, followed by the synonyms added to this normalizer."""
+        labels = _ontology_labels(ontology)
+        updates: dict[str, tuple[Syn, ...] | ResolvedColumn] = {}
+        for mr_name, value in self:
+            current = getattr(labels, mr_name)
+            # A ResolvedColumn maps one header directly, so it replaces the labels.
+            both_synonyms = isinstance(current, tuple) and isinstance(value, tuple)
+            updates[mr_name] = (*current, *value) if both_synonyms else value
+        return labels.model_copy(update=updates) if updates else labels
+
+
+NormalizerField = Annotated[Union[_BdfNormalizer, TableNormalizer], Field(union_mode="left_to_right")]
+"""A table parser's normalizer: the BDF normalizer stays one through a JSON round trip."""
+
+_ONTOLOGY_LABELS: weakref.WeakKeyDictionary[ColumnOntology, _OntologyLabels] = weakref.WeakKeyDictionary()
+"""The labels of each ontology release in use, built once for each."""
+
+
+def _ontology_labels(ontology: ColumnOntology) -> _OntologyLabels:
+    """Return the labels of ``ontology`` as synonyms, which are built on first use."""
+    labels = _ONTOLOGY_LABELS.get(ontology)
+    if labels is None:
+        labels = _ONTOLOGY_LABELS[ontology] = _build_bdf_normalizer(ontology)
+    return labels
+
+
+def _build_bdf_normalizer(ontology: ColumnOntology) -> _OntologyLabels:
+    """Build the normalizer mapping on-disk BDF labels of ``ontology`` to its labels.
+
+    Args:
+        ontology: Ontology whose labels, notations and deprecated terms to map.
 
     Returns:
-        TableNormalizer whose synonyms cover canonical BDF label templates plus
+        A normalizer whose synonyms cover canonical BDF label templates plus
         notation/deprecated aliases, used to round-trip already-BDF-formatted tables.
     """
     kwargs: dict[str, tuple[Syn, ...]] = {}
 
     base_preferred: dict[str, str] = {}
-    for mr_name, q in COLUMN_ONTOLOGY:
+    for mr_name, q in ontology:
         if q.deprecated:
             continue
         base = q.formatted_label.split(" / ", 1)[0].strip().lower()
@@ -1110,32 +1233,32 @@ def _build_bdf_normalizer() -> TableNormalizer:
     # Append the deprecated quantities first, so their concrete synonyms
     # (e.g. "Test Time / ms") take priority over generic templates (e.g.
     # "Time Time / {unit}"), and deprecation warnings get raised correctly.
-    for mr_name, q in COLUMN_ONTOLOGY:
+    for mr_name, q in ontology:
         if not q.deprecated:
             continue
         # Prefer the ontology's explicit dcterms:isReplacedBy link
-        if q.replaced_by and q.replaced_by in TableNormalizer.model_fields:
+        if q.replaced_by and q.replaced_by in ontology:
             target_mr = q.replaced_by
         else:
             base = q.formatted_label.split(" / ", 1)[0].strip().lower()
             target_mr = base_preferred.get(base, mr_name)
-        if target_mr not in TableNormalizer.model_fields:
-            continue
+        # A term with no replacement keeps its own label, which is not a legacy one.
+        legacy = target_mr != mr_name
 
         # Use formatted_label for deprecated terms, not a generic template
-        _append(target_mr, Syn(hdr=q.formatted_label, source_unit=q.unit, legacy=True))
-        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=True))
+        _append(target_mr, Syn(hdr=q.formatted_label, source_unit=q.unit, legacy=legacy))
+        _append(target_mr, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=legacy))
 
     # Then append all non-deprecated synonyms
-    for mr_name, q in COLUMN_ONTOLOGY:
-        if q.deprecated or mr_name not in TableNormalizer.model_fields:
+    for mr_name, q in ontology:
+        if q.deprecated:
             continue
         _append(mr_name, Syn(hdr=q.label_template, legacy=False))
         _append(mr_name, Syn(hdr=q.effective_notation, source_unit=q.unit, legacy=False))
-    return TableNormalizer(**kwargs)
+    return _OntologyLabels(**kwargs)
 
 
-BDF_NORMALIZER = _build_bdf_normalizer()
+BDF_NORMALIZER: TableNormalizer = _BdfNormalizer(kind="bdf")
 
 
 NORMALIZERS: dict[str, TableNormalizer] = {
@@ -1184,6 +1307,7 @@ def normalize(
     include_unknown: bool = False,
     tz: str = "UTC",
     day_month_order: DayMonthOrder | None = None,
+    ontology: ColumnOntology = COLUMN_ONTOLOGY,
 ) -> pl.DataFrame | pl.LazyFrame | pd.DataFrame:
     """Map vendor columns to BDF canonical names with unit conversion and dtype casting.
 
@@ -1225,7 +1349,11 @@ def normalize(
 
     norm: TableNormalizer
     if normalizer is not None:
-        norm = normalizer if isinstance(normalizer, TableNormalizer) else TableNormalizer.from_column_map(normalizer)
+        norm = (
+            normalizer
+            if isinstance(normalizer, TableNormalizer)
+            else TableNormalizer.from_column_map(normalizer, ontology)
+        )
     else:
         best = detect_normalizer(headers, list(NORMALIZERS.values()))
         if best is None:
@@ -1242,4 +1370,5 @@ def normalize(
         include_unknown=include_unknown,
         tz=tz,
         day_month_order=day_month_order,
+        ontology=ontology,
     )
