@@ -29,6 +29,7 @@ from bdf.io import read, scan
 from bdf.metadata_parsers import JsonRule, JsonSidecarParser, RegexRule, TxtPreambleParser
 from bdf.normalization import AbsoluteTimeNormalization
 from bdf.plugins import Plugin
+from bdf.spec import COLUMN_ONTOLOGY
 from bdf.table_normalizers import Syn, TableNormalizer
 from bdf.table_parsers import DelimTxtParser
 
@@ -475,6 +476,7 @@ def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         lazy=False,
         tz="America/New_York",
         day_month_order=None,
+        ontology=COLUMN_ONTOLOGY,
     )
 
 
@@ -498,6 +500,7 @@ def test_scan_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         lazy=True,
         tz="America/New_York",
         day_month_order=None,
+        ontology=COLUMN_ONTOLOGY,
     )
 
 

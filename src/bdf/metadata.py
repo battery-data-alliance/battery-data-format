@@ -51,7 +51,7 @@ class BdfReadInfo(_RecordModel):
     stamps identify the file's writer, so a read-then-save records the version
     that performed the save, not the one that wrote the file it read."""
     ontology_version: str | None = None
-    """The BDF ontology release the writer's column spec was pinned to."""
+    """The version of the BDF ontology that the columns follow."""
     battinfo_ref: str | None = None
     """The upstream BattINFO commit the writer's bundled schemas were fetched
     at (a release tag once upstream versions its schemas)."""
