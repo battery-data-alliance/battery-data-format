@@ -504,3 +504,54 @@ def test_nda_parse_captures_nested_metadata_into_raw(data_dir: Path) -> None:
     head_info = meta.raw["Step"]["Head_Info"]
     assert head_info["Creator"]["Value"] == "Graham"
     assert meta.raw["TestInfo"]["TestInfo"]["Barcode"] == "commercial_cell_001"
+
+
+@pytest.mark.xfail(strict=True, reason="tuple-of-names targets not implemented in _canonicalise_rules")
+@pytest.mark.parametrize(
+    "target",
+    [
+        "battinfo_test.test.started_at",
+        {"kind": "metadata", "path": ["battinfo_test", "test", "started_at"]},
+        ("battinfo_test",),
+        ("battinfo_test", "", "name"),
+        ("battinfo_tset", "test", "name"),
+    ],
+    ids=["dotted-string", "kind-path-object", "one-name", "empty-name", "misspelled-entity"],
+)
+def test_a_bad_target_fails_when_the_rule_set_is_built_and_the_message_names_it(target: object) -> None:
+    """A target that is not a tuple of valid names raises ValueError with the target's repr."""
+    with pytest.raises(ValueError) as excinfo:
+        JsonSidecarParser(rules=[(target, JsonRule(candidates=(("name",),)))])
+    assert repr(target) in str(excinfo.value)
+
+
+@pytest.mark.xfail(strict=True, reason="tuple-of-names targets not implemented in JsonSidecarParser")
+def test_an_extras_target_with_a_dot_in_its_name_stages_the_value(tmp_path: Path) -> None:
+    """The extras key ``rig.bay`` is one name, not a path."""
+    data = tmp_path / "cell.csv"
+    data.write_text("a,b\n1,2\n")
+    (tmp_path / "cell.json").write_text(json.dumps({"bay": "B7"}))
+
+    parser = JsonSidecarParser(rules={("extras", "rig.bay"): JsonRule(candidates=(("bay",),))})
+    assert parser.parse(data).extras == {"rig.bay": "B7"}  # type: ignore[attr-defined]
+
+
+@pytest.mark.xfail(strict=True, reason="tuple-of-names targets not implemented in JsonSidecarParser")
+def test_a_rule_set_dumps_each_target_as_a_list_of_names_and_loads_equal() -> None:
+    """The JSON form holds each target as a list of names, and loading it gives an equal parser."""
+    rule = JsonRule(candidates=(("start",),))
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "started_at"): rule, ("extras", "note"): rule})
+
+    dumped = json.loads(parser.model_dump_json())
+    assert sorted(target for target, _ in dumped["rules"]) == [
+        ["battinfo_test", "test", "started_at"],
+        ["extras", "note"],
+    ]
+    assert JsonSidecarParser.model_validate_json(parser.model_dump_json()) == parser
+
+
+@pytest.mark.xfail(strict=True, reason="bdf.METADATA still exported")
+def test_the_metadata_namespace_is_not_importable() -> None:
+    """``from bdf import METADATA`` raises ImportError."""
+    with pytest.raises(ImportError):
+        from bdf import METADATA  # noqa: F401
