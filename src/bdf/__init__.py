@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from ._validate import validate, validate_df
     from .io import read, save, scan
     from .metadata import BdfReadInfo, Metadata
-    from .metadata_targets import METADATA
     from .normalization import (
         AbsoluteTimeNormalization,
         DayMonthOrder,
@@ -54,8 +53,6 @@ __all__ = [
     # read metadata
     "BdfReadInfo",
     "Metadata",
-    # where a metadata rule stages its value
-    "METADATA",
     # datasets helpers
     "datasets",
     "load_registry",
@@ -104,7 +101,6 @@ _LAZY_ATTRS: dict[str, str] = {
     "ElapsedTimeNormalization": ".normalization",
     "BdfReadInfo": ".metadata",
     "Metadata": ".metadata",
-    "METADATA": ".metadata_targets",
     "detect": ".plugins",
     "load_registry": "._registry",
     "get_entry": "._registry",

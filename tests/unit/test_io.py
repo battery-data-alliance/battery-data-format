@@ -989,9 +989,8 @@ def _preamble_plugin() -> tuple[str, Plugin]:
         pattern=re.compile(r"~Start of Test:\s*(.+)"),
         normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)),
     )
-    from bdf.metadata_targets import METADATA
 
-    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    metadata_parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
     return header + rows, plugin
 
@@ -1036,7 +1035,6 @@ def test_read_raw_excludes_table_rows(tmp_path: Path) -> None:
 
 def test_read_rule_never_matches_inside_table(tmp_path: Path) -> None:
     """A rule pattern matching text only inside a data row leaves that rule's target unset."""
-    from bdf.metadata_targets import METADATA
     from bdf.normalization import IdentityNormalization
 
     p = tmp_path / "data.csv"
@@ -1045,7 +1043,7 @@ def test_read_rule_never_matches_inside_table(tmp_path: Path) -> None:
     p.write_text(header + rows)
 
     rule = RegexRule(pattern=re.compile(r"(0\.1)"), normalization=IdentityNormalization())
-    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.instrument_name: rule})
+    metadata_parser = TxtPreambleParser(rules={("battinfo_test", "test", "instrument_name"): rule})
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
 
     _, meta = io.read(p, plugin=plugin)
@@ -1063,9 +1061,8 @@ def test_read_no_preamble_leaves_raw_none(tmp_path: Path) -> None:
         pattern=re.compile(r"~Start of Test:\s*(.+)"),
         normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)),
     )
-    from bdf.metadata_targets import METADATA
 
-    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    metadata_parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
 
     _, meta = io.read(p, plugin=plugin)
@@ -1091,7 +1088,6 @@ def test_save_sidecar_raw_excludes_table_rows(tmp_path: Path) -> None:
 
 def test_read_unlocatable_boundary_keeps_the_whole_head(tmp_path: Path) -> None:
     """A read of a file whose head holds no table leaves raw carrying the whole head, and every rule reads it."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "data.csv"
     # Every line carries three fields, so a table parser that (wrongly) treats
@@ -1104,7 +1100,7 @@ def test_read_unlocatable_boundary_keeps_the_whole_head(tmp_path: Path) -> None:
         pattern=re.compile(r"~Start of Test:\s*([^,]+)"),
         normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)),
     )
-    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    metadata_parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
 
     _, meta = io.read(p, plugin=plugin, validate=False)
@@ -1184,10 +1180,8 @@ def test_malformed_vendor_sidecar_fails_the_read(tmp_path: Path) -> None:
     sidecar = p.with_suffix(".json")
     sidecar.write_text('{"cell": {"name": "CELL-A"}')
 
-    from bdf.metadata_targets import METADATA
-
     metadata_parser = JsonSidecarParser(
-        rules={METADATA.battinfo_cell.cell_instance.name: JsonRule(candidates=(("cell", "name"),))}
+        rules={("battinfo_cell", "cell_instance", "name"): JsonRule(candidates=(("cell", "name"),))}
     )
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
 
@@ -1203,10 +1197,8 @@ def test_vendor_sidecar_that_is_not_a_json_object_fails_the_read(tmp_path: Path)
     p.write_text("Test Time / s,Voltage / V,Current / A\n" + rows)
     p.with_suffix(".json").write_text(json.dumps(["cell", "CELL-A"]))
 
-    from bdf.metadata_targets import METADATA
-
     metadata_parser = JsonSidecarParser(
-        rules={METADATA.battinfo_cell.cell_instance.name: JsonRule(candidates=(("cell", "name"),))}
+        rules={("battinfo_cell", "cell_instance", "name"): JsonRule(candidates=(("cell", "name"),))}
     )
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=metadata_parser)
 
@@ -1286,7 +1278,6 @@ def _ambiguous_date_plugin() -> tuple[str, Plugin]:
         stages ``Unix Time / s`` from the ``ts`` column, both under the
         same month-first format.
     """
-    from bdf.metadata_targets import METADATA
 
     header = "~Start Time: 02/03/2024 08:00:00\nTest Time / s,Voltage / V,Current / A,ts\n"
     row = "0,3.7,0.1,02/03/2024 12:00:00\n"
@@ -1294,7 +1285,7 @@ def _ambiguous_date_plugin() -> tuple[str, Plugin]:
         pattern=re.compile(r"~Start Time:\s*(.+)"),
         normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",)),
     )
-    metadata_parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    metadata_parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     normalizer = TableNormalizer(
         unix_time_second=(Syn(hdr="ts", normalization=AbsoluteTimeNormalization(formats=("%m/%d/%Y %H:%M:%S",))),)
     )
@@ -1545,14 +1536,13 @@ def test_a_save_with_no_battinfo_data_makes_no_request_and_states_no_release(
 
 def _json_plugin_with_start_and_instrument(tmp_path: Path, content: dict) -> tuple[Path, Plugin]:
     """Return a file, and a plugin that stages ``start`` as started_at and ``instrument`` as instrument_name from its JSON ``content``."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("Test Time / s,Voltage / V,Current / A\n0,3.7,0.1\n")
     (tmp_path / "cell.json").write_text(json.dumps(content))
     rules = {
-        METADATA.battinfo_test.test.started_at: JsonRule(candidates=(("start",),)),
-        METADATA.battinfo_test.test.instrument_name: JsonRule(candidates=(("instrument",),)),
+        ("battinfo_test", "test", "started_at"): JsonRule(candidates=(("start",),)),
+        ("battinfo_test", "test", "instrument_name"): JsonRule(candidates=(("instrument",),)),
     }
     plugin = Plugin(
         table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=JsonSidecarParser(rules=rules)

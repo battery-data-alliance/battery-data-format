@@ -111,7 +111,7 @@ class Metadata(_RecordModel):
     where the read had no vendor metadata."""
     extras: dict[str, Any] | None = None
     """A free dict for any other values to keep with the data. A plugin rule
-    can put a value here with ``METADATA.extras["key"]``."""
+    can put a value here with the tuple target ``("extras", "key")``."""
 
     def check(self, schema: BattinfoSchema | None = None) -> list[str]:
         """Return one line for each value that a BattINFO schema refuses.

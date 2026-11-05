@@ -9,13 +9,12 @@ from pathlib import Path
 import polars as pl
 import pytest
 from conftest import DATA
-from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 import bdf.battinfo
 from bdf._errors import BDFMetadataWarning
-from bdf.battinfo import FIELD_SCHEMAS
 from bdf.io import read
+from bdf.metadata_parsers import _stage
 from bdf.plugins import (
     BDF_NORMALIZER,
     BIOLOGIC_MPT,
@@ -484,41 +483,21 @@ class TestArbinXlsxDetection:
         assert plugin_id == "neware_xlsx"
 
 
-def _with_context(errors):
-    """Yield each error, and each error of its ``context``, at any depth."""
-    for error in errors:
-        yield error
-        yield from _with_context(error.context or ())
-
-
 def test_every_shipped_rule_target_is_a_schema_path() -> None:
     """A value staged at a shipped target is never an unknown key, and its path never goes below a non-object."""
-    # A plain Draft 2020-12 validator over the bundled release, so "required" counts here: this test
-    # asks whether each target is a place in the schema, not whether a partial record is accepted.
-    # The schema's own registry holds its documents without "$schema", so a $ref keeps this validator.
-    schema = bdf.battinfo.BATTINFO_SCHEMA
-    registry = schema._registry
     for plugin_id, plugin in PLUGINS.items():
         for target, _rule in plugin.metadata_parser.rules:
-            if target.kind != "metadata":
+            # No BattINFO schema describes extras.
+            if target[0] == "extras":
                 continue
-            # Stage a dummy value at the target, as the plugin would, and check the entity it lands in.
+            # Nest a dummy value at the rest of the path, as the plugin would stage it.
+            entity, *below = target
             staged: dict = {}
-            target.stage(staged, "x")
-            entity, *below = target.path
-            validator = Draft202012Validator(schema.docs[FIELD_SCHEMAS[entity]], registry=registry)
-            # Errors inside an anyOf/oneOf sit in error.context, so look at every level.
-            for error in _with_context(validator.iter_errors(staged[entity])):
-                where = f"{plugin_id}: {'.'.join(target.path)}: {error.message}"
-                # The target's name is not a key the schema allows at that place.
-                assert error.validator != "additionalProperties", where
-                # A type error on a level above the target's last segment means the path goes through
-                # a value that is not an object, such as a field below a string. A "type" error at
-                # the target itself is expected: "x" is a dummy, not the right type.
-                above = list(error.absolute_path)
-                assert not (error.validator == "type" and above == below[: len(above)] and len(above) < len(below)), (
-                    where
-                )
+            _stage(staged, tuple(below), "x")
+            # A refusal at the target itself is the wrong type of the dummy; one above it is an
+            # unknown key, or a path below a value that is not an object.
+            for line in bdf.battinfo.BATTINFO_SCHEMA.check(entity, staged):
+                assert f"refuses {'.'.join(target)}:" in line, f"{plugin_id}: {line}"
 
 
 @pytest.mark.parametrize("fixture", CYCLER_FIXTURES, ids=lambda path: path.name)

@@ -31,27 +31,25 @@ _PLACEHOLDER_EPOCH = 1700000000
 
 def test_nested_source_path_extracts(tmp_path: Path) -> None:
     """A sidecar rule mapping a target to a nested source path stages the value there."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
     (tmp_path / "cell.json").write_text(json.dumps({"test": {"started_at": _PLACEHOLDER_EPOCH}}))
 
     rule = JsonRule(candidates=(("test", "started_at"),))
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(data)
     assert meta.battinfo_test["test"]["started_at"] == _PLACEHOLDER_EPOCH
 
 
 def test_preamble_rule_owns_its_interpretation(tmp_path: Path) -> None:
     """A preamble rule's own datetime normalization converts the matched text, not the parser."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     p.write_text("~Start of Test: 30-Apr-24 08:00:00 AM\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p)
     expected = datetime(2024, 4, 30, 8, 0, 0, tzinfo=timezone.utc).timestamp()
     assert meta.battinfo_test["test"]["started_at"] == pytest.approx(expected, abs=1e-6)
@@ -60,28 +58,26 @@ def test_preamble_rule_owns_its_interpretation(tmp_path: Path) -> None:
 
 def test_direct_parse_keeps_the_whole_head(tmp_path: Path) -> None:
     """A parse() call that states no boundary keeps the whole decoded head in raw."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     text = "~Start of Test: 30-Apr-24 08:00:00 AM\nsome other line\n"
     p.write_text(text, newline="\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p)
     assert meta.raw == text  # type: ignore[attr-defined]
 
 
 def test_parse_boundary_keeps_crlf_terminators_in_raw(tmp_path: Path) -> None:
     """A parse() call that states a boundary over a CRLF head keeps its preamble's \\r\\n terminators in raw."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     preamble = "~Start of Test: 30-Apr-24 08:00:00 AM\r\nsome other line\r\n"
     p.write_bytes((preamble + "time,voltage\r\n0,3.7\r\n").encode("utf-8"))
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p, preamble_lines=2)
     assert meta.raw == preamble  # type: ignore[attr-defined]
 
@@ -93,7 +89,6 @@ def test_parse_boundary_counts_lines_like_splitlines(tmp_path: Path) -> None:
     U+0085. A cut that counts line terminators alone reads that count as one
     line too many, and keeps the header row in raw.
     """
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     preamble = "~Start of Test: 30-Apr-24 08:00:00 AM\r\n~Comment: measured \x85 fine\r\n"
@@ -101,7 +96,7 @@ def test_parse_boundary_counts_lines_like_splitlines(tmp_path: Path) -> None:
     assert len(preamble.splitlines()) == 3
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_FMTS))
-    parser = TxtPreambleParser(encoding="latin-1", rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(encoding="latin-1", rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p, preamble_lines=3)
     assert meta.raw == preamble  # type: ignore[attr-defined]
 
@@ -118,7 +113,6 @@ def test_matches_reads_the_whole_head_below_the_preamble(tmp_path: Path) -> None
 
 def test_json_sidecar_ignores_the_boundary(tmp_path: Path) -> None:
     """A JsonSidecarParser given a boundary still reads its whole document, unaffected."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
@@ -126,14 +120,13 @@ def test_json_sidecar_ignores_the_boundary(tmp_path: Path) -> None:
     (tmp_path / "cell.json").write_text(json.dumps(document))
 
     rule = JsonRule(candidates=(("start_time",),), normalization=AbsoluteTimeNormalization())
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(data, preamble_lines=1)
     assert meta.raw == document  # type: ignore[attr-defined]
 
 
 def test_json_sidecar_raw_captures_the_whole_document(tmp_path: Path) -> None:
     """A JSON sidecar parser's raw carries the whole loaded document, unmapped keys included."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
@@ -141,7 +134,7 @@ def test_json_sidecar_raw_captures_the_whole_document(tmp_path: Path) -> None:
     (tmp_path / "cell.json").write_text(json.dumps(document))
 
     rule = JsonRule(candidates=(("start_time",),), normalization=AbsoluteTimeNormalization())
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(data)
     assert meta.raw == document  # type: ignore[attr-defined]
 
@@ -156,15 +149,6 @@ def test_old_name_is_gone() -> None:
     assert not hasattr(JsonSidecarParser, "datetime_formats")
 
 
-def test_a_misspelled_entity_fails_when_the_target_is_spelled() -> None:
-    """A misspelled entity name raises before any parser is built."""
-    from bdf.metadata_targets import METADATA
-
-    # The six entity names are fixed, so a typo in one fails here, where the rule is written.
-    with pytest.raises(AttributeError):
-        _ = METADATA.battinfo_tset.test.name
-
-
 @pytest.mark.parametrize(
     ("paths", "message"),
     [
@@ -177,47 +161,24 @@ def test_a_rule_set_whose_targets_cannot_all_be_staged_fails_when_it_is_built(
     paths: tuple[tuple[str, ...], ...], message: str
 ) -> None:
     """A target inside another, or a whole record, fails where the rule set is built, not at parse time."""
-    from bdf.metadata_targets import METADATA
 
-    rules = {}
-    for path in paths:
-        target = getattr(METADATA, path[0])
-        for segment in path[1:]:
-            target = getattr(target, segment)
-        rules[target] = JsonRule(candidates=((path[-1],),))
+    rules = {path: JsonRule(candidates=((path[-1],),)) for path in paths}
     with pytest.raises(ValueError, match=message):
         JsonSidecarParser(rules=rules)
 
 
 def test_a_field_named_like_a_model_attribute_extends_the_path() -> None:
-    """A field named ``kind`` is a path segment like any other name."""
-    from bdf.metadata_targets import METADATA
+    """A field named ``kind`` is a path name like any other name."""
 
-    # A target has its own attribute "kind"; below an entity, ".kind" must still mean the field "kind".
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.kind: JsonRule(candidates=(("kind",),))})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "kind"): JsonRule(candidates=(("kind",),))})
 
     ((target, _),) = parser.rules
-    assert target.path == ("battinfo_test", "test", "kind")
-
-
-def test_rules_built_with_metadata_targets_survive_their_json_form() -> None:
-    """The targets of a rule set are ``MetadataTarget`` values, and the JSON form restores the same rule set."""
-    from bdf.metadata_targets import METADATA, MetadataTarget
-
-    # One target below an entity, and one subscripted target in extras.
-    rule = JsonRule(candidates=(("start",),))
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule, METADATA.extras["note"]: rule})
-
-    # The attribute chain builds the same value as spelling the path out...
-    assert MetadataTarget(path=("battinfo_test", "test", "started_at")) in [target for target, _ in parser.rules]
-    # ...and a plugin's rules can be saved as JSON and loaded again with nothing changed.
-    assert JsonSidecarParser.model_validate_json(parser.model_dump_json()) == parser
+    assert target == ("battinfo_test", "test", "kind")
 
 
 def test_a_misspelled_field_below_an_entity_fails_the_read(tmp_path: Path) -> None:
     """The target spells any field; the read's check names the path and the unknown key."""
     from bdf.io import read
-    from bdf.metadata_targets import METADATA
     from bdf.plugins import Plugin
     from bdf.table_normalizers import TableNormalizer
     from bdf.table_parsers import DelimTxtParser
@@ -227,7 +188,7 @@ def test_a_misspelled_field_below_an_entity_fails_the_read(tmp_path: Path) -> No
     (tmp_path / "cell.json").write_text(json.dumps({"name": "cell-1"}))
     # Below an entity, a target accepts any name, because the fields come from the BattINFO release
     # at run time. So the misspelled "nmae" builds a parser with no error...
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.nmae: JsonRule(candidates=(("name",),))})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "nmae"): JsonRule(candidates=(("name",),))})
     plugin = Plugin(table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=parser)
 
     # ...and the read's BattINFO check is where it is caught, naming the object and the unknown key.
@@ -240,7 +201,6 @@ def test_a_misspelled_field_below_an_entity_fails_the_read(tmp_path: Path) -> No
 
 def test_cell_naming_and_conditions_targets_construct(tmp_path: Path) -> None:
     """A cell-naming target and a subscripted open-map target both construct a parser."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
@@ -250,8 +210,8 @@ def test_cell_naming_and_conditions_targets_construct(tmp_path: Path) -> None:
 
     parser = JsonSidecarParser(
         rules={
-            METADATA.battinfo_cell.cell_instance.name: JsonRule(candidates=(("cell_name",),)),
-            METADATA.battinfo_test.test.conditions["temperature_c"]: JsonRule(candidates=(("temp_c",),)),
+            ("battinfo_cell", "cell_instance", "name"): JsonRule(candidates=(("cell_name",),)),
+            ("battinfo_test", "test", "conditions", "temperature_c"): JsonRule(candidates=(("temp_c",),)),
         }
     )
     meta = parser.parse(data)
@@ -260,14 +220,13 @@ def test_cell_naming_and_conditions_targets_construct(tmp_path: Path) -> None:
 
 def test_a_wrong_typed_sidecar_value_is_kept_and_the_check_names_it(tmp_path: Path) -> None:
     """A parser stages the value as it is; ``check()`` refuses it by its path."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
     (tmp_path / "cell.json").write_text(json.dumps({"instrument": 400}))
 
     rule = JsonRule(candidates=(("instrument",),))
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.instrument_name: rule})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "instrument_name"): rule})
     meta = parser.parse(data)
 
     # A number where the schema wants a string: the parser neither converts nor drops it...
@@ -278,7 +237,6 @@ def test_a_wrong_typed_sidecar_value_is_kept_and_the_check_names_it(tmp_path: Pa
 
 def test_unmapped_and_losing_synonym_keys_survive_in_raw(tmp_path: Path) -> None:
     """An unmapped key and a losing synonym key both survive in raw, and extras stays unset."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
@@ -287,7 +245,7 @@ def test_unmapped_and_losing_synonym_keys_survive_in_raw(tmp_path: Path) -> None
     )
 
     rule = JsonRule(candidates=(("start_time",), ("date",)), normalization=AbsoluteTimeNormalization())
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(data)
     assert meta.battinfo_test["test"]["started_at"] is not None
     assert meta.raw == {  # type: ignore[attr-defined]
@@ -300,7 +258,6 @@ def test_unmapped_and_losing_synonym_keys_survive_in_raw(tmp_path: Path) -> None
 
 def test_explicit_extras_rule_stages_and_raw_still_carries_everything(tmp_path: Path) -> None:
     """An explicit extras rule stages where asked, without duplicating a canonical value; raw stays whole."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
@@ -308,7 +265,7 @@ def test_explicit_extras_rule_stages_and_raw_still_carries_everything(tmp_path: 
         json.dumps({"fw_version": "1.2.3", "start_time": "2024-01-15T00:00:00Z", "rig_bay": "B7"})
     )
 
-    parser = JsonSidecarParser(rules={METADATA.extras["vendor_version"]: JsonRule(candidates=(("fw_version",),)), METADATA.battinfo_test.test.started_at: JsonRule(candidates=(("start_time",),), normalization=AbsoluteTimeNormalization())})  # fmt: skip
+    parser = JsonSidecarParser(rules={("extras", "vendor_version"): JsonRule(candidates=(("fw_version",),)), ("battinfo_test", "test", "started_at"): JsonRule(candidates=(("start_time",),), normalization=AbsoluteTimeNormalization())})  # fmt: skip
     meta = parser.parse(data)
     assert meta.extras == {"vendor_version": "1.2.3"}  # type: ignore[attr-defined]
     assert meta.raw == {  # type: ignore[attr-defined]
@@ -320,13 +277,12 @@ def test_explicit_extras_rule_stages_and_raw_still_carries_everything(tmp_path: 
 
 def test_naive_preamble_timestamp_is_localised(tmp_path: Path) -> None:
     """A naive preamble timestamp localises to the timezone parse() is called with."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     p.write_text("~Start of Test: 2024-04-30 08:00:00\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p, tz="Europe/Oslo")  # type: ignore[call-arg]
     expected = datetime(2024, 4, 30, 8, 0, 0, tzinfo=ZoneInfo("Europe/Oslo")).timestamp()
     assert meta.battinfo_test["test"]["started_at"] == pytest.approx(expected, abs=1e-6)
@@ -334,13 +290,12 @@ def test_naive_preamble_timestamp_is_localised(tmp_path: Path) -> None:
 
 def test_offset_bearing_preamble_timestamp_is_left_alone(tmp_path: Path) -> None:
     """A preamble timestamp carrying an explicit offset honours that offset over tz."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     p.write_text("~Start of Test: 2024-04-30 08:00:00+02:00\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S%:z",)))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p, tz="America/New_York")  # type: ignore[call-arg]
     expected = datetime(2024, 4, 30, 8, 0, 0, tzinfo=timezone(timedelta(hours=2))).timestamp()
     assert meta.battinfo_test["test"]["started_at"] == pytest.approx(expected, abs=1e-6)
@@ -348,13 +303,12 @@ def test_offset_bearing_preamble_timestamp_is_left_alone(tmp_path: Path) -> None
 
 def test_localised_month_name_parses(tmp_path: Path) -> None:
     """A preamble stating a localised month name stages under the declared format."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     p.write_text("~Start of Test: 13-Mai-24\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=("%d-%b-%y",)))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p)
     expected = datetime(2024, 5, 13, 0, 0, 0, tzinfo=timezone.utc).timestamp()
     assert meta.battinfo_test["test"]["started_at"] == pytest.approx(expected, abs=1e-6)
@@ -362,13 +316,12 @@ def test_localised_month_name_parses(tmp_path: Path) -> None:
 
 def test_naive_timestamp_without_explicit_timezone_warns(tmp_path: Path) -> None:
     """A naive preamble match with no tz supplied warns once and reads as UTC."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     p.write_text("~Start of Test: 2024-04-30 08:00:00\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d %H:%M:%S",)))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         meta = parser.parse(p)
@@ -380,21 +333,20 @@ def test_naive_timestamp_without_explicit_timezone_warns(tmp_path: Path) -> None
 
 def test_epoch_number_is_not_exempt_and_empty_declaration_stages(tmp_path: Path) -> None:
     """An integer datetime value fails naming the value, and an empty tuple reads ISO text."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
     (tmp_path / "cell.json").write_text(json.dumps({"started": 1714456800}))
 
     rule = JsonRule(candidates=(("started",),), normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d",)))
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "started_at"): rule})
     with pytest.raises(ValueError, match=re.escape(repr(1714456800))):
         parser.parse(data)
 
     p = tmp_path / "f.txt"
     p.write_text("~Start of Test: 2024-05-06T07:08:09.123Z\n")
     rule2 = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization())
-    parser2 = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule2})
+    parser2 = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule2})
     meta2 = parser2.parse(p)
     expected = int(datetime(2024, 5, 6, 7, 8, 9, 123000, tzinfo=timezone.utc).timestamp())
     assert meta2.battinfo_test["test"]["started_at"] == expected
@@ -403,14 +355,13 @@ def test_epoch_number_is_not_exempt_and_empty_declaration_stages(tmp_path: Path)
 @pytest.mark.parametrize("started", [20221130150021, "20221130150021"], ids=["int", "digit-string"])
 def test_naive_digit_value_warns_regardless_of_type(tmp_path: Path, started) -> None:
     """An integer and the identical digit string each warn once parsing under a naive digit format."""
-    from bdf.metadata_targets import METADATA
 
     data = tmp_path / "cell.csv"
     data.write_text("a,b\n1,2\n")
     (tmp_path / "cell.json").write_text(json.dumps({"started": started}))
 
     rule = JsonRule(candidates=(("started",),), normalization=AbsoluteTimeNormalization(formats=("%Y%m%d%H%M%S",)))
-    parser = JsonSidecarParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = JsonSidecarParser(rules={("battinfo_test", "test", "started_at"): rule})
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         parser.parse(data)
@@ -420,20 +371,18 @@ def test_naive_digit_value_warns_regardless_of_type(tmp_path: Path, started) -> 
 
 def test_declared_vendor_tuple_gets_no_tail(tmp_path: Path) -> None:
     """A one-format vendor rule fails the read on ISO text, naming that format as the set tried."""
-    from bdf.metadata_targets import METADATA
 
     p = tmp_path / "f.txt"
     p.write_text("~Start of Test: 2024-05-06T07:08:09.123Z\n")
 
     rule = RegexRule(pattern=START_TIME_RX, normalization=AbsoluteTimeNormalization(formats=_LANDT_DT_FMTS))
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     with pytest.raises(ValueError, match=re.escape(_LANDT_DT_FMTS[0])):
         parser.parse(p)
 
 
 def test_unparseable_timestamp_omits_or_fails(tmp_path: Path) -> None:
     """A blank preamble value omits the field; a date-shaped unparseable one fails the read."""
-    from bdf.metadata_targets import METADATA
 
     rule = RegexRule(
         pattern=re.compile(r"~Start of Test:\s*(\S*)"), normalization=AbsoluteTimeNormalization(formats=("%Y-%m-%d",))
@@ -441,7 +390,7 @@ def test_unparseable_timestamp_omits_or_fails(tmp_path: Path) -> None:
 
     blank = tmp_path / "blank.txt"
     blank.write_text("~Start of Test: \nmore\n")
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(blank)
     assert meta.battinfo_test == {}
 
@@ -457,7 +406,6 @@ def test_unparseable_timestamp_omits_or_fails(tmp_path: Path) -> None:
 
 def test_one_text_two_paths_one_epoch(tmp_path: Path) -> None:
     """The same timestamp text stages the same epoch through a table column and a metadata rule."""
-    from bdf.metadata_targets import METADATA
 
     text = "04/30/2024 08:00:00.000"
     normalization = AbsoluteTimeNormalization(formats=_ARBIN_DT_FMTS)
@@ -466,7 +414,7 @@ def test_one_text_two_paths_one_epoch(tmp_path: Path) -> None:
     p = tmp_path / "f.txt"
     p.write_text(f"~Start of Test: {text}\n")
     rule = RegexRule(pattern=START_TIME_RX, normalization=normalization)
-    parser = TxtPreambleParser(rules={METADATA.battinfo_test.test.started_at: rule})
+    parser = TxtPreambleParser(rules={("battinfo_test", "test", "started_at"): rule})
     meta = parser.parse(p)
     assert meta.battinfo_test["test"]["started_at"] == pytest.approx(table_epoch, abs=1e-6)
 
@@ -506,7 +454,6 @@ def test_nda_parse_captures_nested_metadata_into_raw(data_dir: Path) -> None:
     assert meta.raw["TestInfo"]["TestInfo"]["Barcode"] == "commercial_cell_001"
 
 
-@pytest.mark.xfail(strict=True, reason="tuple-of-names targets not implemented in _canonicalise_rules")
 @pytest.mark.parametrize(
     "target",
     [
@@ -525,7 +472,6 @@ def test_a_bad_target_fails_when_the_rule_set_is_built_and_the_message_names_it(
     assert repr(target) in str(excinfo.value)
 
 
-@pytest.mark.xfail(strict=True, reason="tuple-of-names targets not implemented in JsonSidecarParser")
 def test_an_extras_target_with_a_dot_in_its_name_stages_the_value(tmp_path: Path) -> None:
     """The extras key ``rig.bay`` is one name, not a path."""
     data = tmp_path / "cell.csv"
@@ -536,7 +482,6 @@ def test_an_extras_target_with_a_dot_in_its_name_stages_the_value(tmp_path: Path
     assert parser.parse(data).extras == {"rig.bay": "B7"}  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail(strict=True, reason="tuple-of-names targets not implemented in JsonSidecarParser")
 def test_a_rule_set_dumps_each_target_as_a_list_of_names_and_loads_equal() -> None:
     """The JSON form holds each target as a list of names, and loading it gives an equal parser."""
     rule = JsonRule(candidates=(("start",),))
@@ -548,10 +493,3 @@ def test_a_rule_set_dumps_each_target_as_a_list_of_names_and_loads_equal() -> No
         ["extras", "note"],
     ]
     assert JsonSidecarParser.model_validate_json(parser.model_dump_json()) == parser
-
-
-@pytest.mark.xfail(strict=True, reason="bdf.METADATA still exported")
-def test_the_metadata_namespace_is_not_importable() -> None:
-    """``from bdf import METADATA`` raises ImportError."""
-    with pytest.raises(ImportError):
-        from bdf import METADATA  # noqa: F401

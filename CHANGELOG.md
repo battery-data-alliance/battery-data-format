@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ## [Unreleased]
 ### Breaking
+- `bdf.METADATA` and the module `bdf.metadata_targets` (with `MetadataTarget` and `ExtrasTarget`) are removed. A rule target is a tuple of names, and a rule set refuses a bad target when it is built. Migrate: `METADATA.battinfo_test.test.started_at` becomes `("battinfo_test", "test", "started_at")`; `METADATA.battinfo_test.test.conditions["k"]` becomes `("battinfo_test", "test", "conditions", "k")`; `METADATA.extras["k"]` becomes `("extras", "k")`. In a plugin file, a target object becomes the list in its `path`; for an `extras` object, `"extras"` comes first in the list. A bdf 0.2.0 plugin file is refused.
 - The bundled ontology is now a version directory, `src/bdf/data/bdf-ontology/`, holding `bdf-ontology.ttl` and a `VERSION` file, in place of `bdf-ontology-snapshot.ttl`.
 - A cached ontology is now a `bdf-ontology-v{version}/` directory in the cache. bdf no longer reads the old `bdf-ontology-v*.ttl` cache files, so an ontology cached before is fetched again on its first use.
 - `ColumnOntology.load_version()`, `load_latest()`, and `load_ttl()` are removed. They replaced an instance's ontology in place. Use the classmethods `ColumnOntology.from_version(version)`, `ColumnOntology.from_latest()`, and `ColumnOntology.from_ttl(path)`, which return a new instance.

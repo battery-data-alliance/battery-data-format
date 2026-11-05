@@ -15,9 +15,15 @@ sidecar (:class:`JsonSidecarParser`). Binary files need individual readers e.g.
 **This module MUST NOT import from** :mod:`bdf.table_parsers`; file access
 either module shares goes through :mod:`bdf.file_utils`.
 
-A rule pairs one target (:mod:`bdf.metadata_targets`, built through the
-``METADATA`` namespace) with its extraction (:class:`RegexRule` or
-:class:`JsonRule`) and a normalization (:mod:`bdf.normalization`). The author-facing ``rules`` value is a dict;
+A rule pairs one target with its extraction (:class:`RegexRule` or
+:class:`JsonRule`) and a normalization (:mod:`bdf.normalization`). A target is a
+tuple of names, the path of the staged value in the document a read returns:
+``("battinfo_test", "test", "started_at")`` is a field, and
+``("battinfo_test", "test", "conditions", "temperature_c")`` a key of an open
+map. ``("extras", "rig_bay")`` is a key of ``extras``. The first name is a
+``battinfo_*`` field of ``Metadata`` or ``extras``, and at least one name
+follows it. A rule set that holds a bad target raises when it is built. The
+author-facing ``rules`` value is a dict;
 construction canonicalises it to a sorted tuple, so parser instances stay
 frozen and hashable and ``PLUGINS.metadata_parsers`` can be a ``frozenset``.
 """
@@ -33,9 +39,9 @@ from typing import Annotated, Any, ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError as PydanticValidationError, model_validator
 
 from ._errors import BDFMetadataError
+from .battinfo import FIELD_SCHEMAS
 from .file_utils import read_head, resolve_source
 from .metadata import Metadata
-from .metadata_targets import ExtrasTarget, MetadataTarget, _TargetPath
 from .normalization import (
     AbsoluteTimeNormalization,
     DayMonthOrder,
@@ -87,12 +93,6 @@ _NormalizationField = Annotated[
     | ElapsedTimeNormalization,
     Field(discriminator="kind"),
 ]
-
-
-# A rule's target: either a canonical path or an extras key, discriminated
-# by `kind` so a JSON round trip reconstructs the right one even though both
-# models otherwise share the same `path` shape.
-_TargetUnion = Annotated[MetadataTarget | ExtrasTarget, Field(discriminator="kind")]
 
 
 class RegexRule(BaseModel):
@@ -179,56 +179,60 @@ class JsonRule(BaseModel):
         return None
 
 
-def _canonicalise_rules(value: Any) -> tuple[tuple[Any, Any], ...]:
+def _canonicalise_rules(value: Any) -> tuple[tuple[tuple[str, ...], Any], ...]:
     """Canonicalise a ``rules`` value (author dict or already-built pairs) into a sorted tuple.
 
     Args:
-        value: Either the author-facing ``{target: rule}`` dict, or a
-            sequence of ``(target, rule)`` pairs (e.g. from a JSON round
-            trip).
+        value: Either the author-facing ``{path: rule}`` dict, or a
+            sequence of ``(path, rule)`` pairs (e.g. from a JSON round
+            trip, where a path is a list).
 
     Returns:
-        A tuple of ``(target, rule)`` pairs sorted by target kind and path,
-        so two equal declarations built in different orders compare equal.
-        A ``METADATA`` path becomes a :class:`MetadataTarget`.
+        A tuple of ``(path, rule)`` pairs sorted by path, so two equal
+        declarations built in different orders compare equal.
 
     Raises:
-        ValueError: Two pairs share the same target kind and path; a target is inside
-            another, so one value would overwrite part of the other; or a target names
-            a whole ``battinfo_*`` record, not a key below it.
+        ValueError: A target is not a tuple of names; has fewer than two names;
+            has an empty name; starts with a name that is neither a
+            ``battinfo_*`` field nor ``extras``; repeats another target; or is
+            inside another target, so one value would overwrite part of the other.
     """
     items = list(value.items()) if isinstance(value, dict) else [tuple(item) for item in value]
-    items = [(MetadataTarget(path=t._path) if isinstance(t, _TargetPath) else t, rule) for t, rule in items]
-    seen: set[tuple[str, tuple[str, ...]]] = set()
+    items = [(tuple(t) if isinstance(t, list) else t, rule) for t, rule in items]
     for target, _rule in items:
-        key = _target_key(target)
-        if key in seen:
+        if not (isinstance(target, tuple) and all(isinstance(n, str) for n in target)):
+            raise ValueError(
+                f"metadata target {target!r} is not a tuple of names, "
+                'for example ("battinfo_test", "test", "started_at")'
+            )
+    for target, _rule in items:
+        if len(target) < 2:
+            raise ValueError(f"metadata target {target!r} names a whole record: name a key below it")
+        if "" in target:
+            raise ValueError(f"metadata target {target!r} has an empty name")
+        if target[0] != "extras" and target[0] not in FIELD_SCHEMAS:
+            known = ", ".join(sorted([*FIELD_SCHEMAS, "extras"]))
+            raise ValueError(f"metadata target {target!r} starts with an unknown name; it is one of: {known}")
+    targets = [t for t, _rule in items]
+    seen: set[tuple[str, ...]] = set()
+    for target in targets:
+        if target in seen:
             raise ValueError(f"duplicate metadata target: {target!r}")
-        seen.add(key)
-    for kind, path in seen:
-        if kind == "metadata" and len(path) < 2:
-            raise ValueError(f"metadata target METADATA.{path[0]} names a whole record: name a key below it")
-        for outer in (path[:n] for n in range(1, len(path))):
-            if (kind, outer) in seen:
-                raise ValueError(f"metadata target {'.'.join(path)} is inside another target, {'.'.join(outer)}")
-    items.sort(key=lambda pair: _target_key(pair[0]))
+        seen.add(target)
+    for target in targets:
+        for n in range(2, len(target)):
+            if target[:n] in seen:
+                raise ValueError(f"metadata target {target!r} is inside another target, {target[:n]!r}")
+    items.sort(key=lambda pair: pair[0])
     return tuple(items)
 
 
-def _target_key(target: Any) -> tuple[str, tuple[str, ...]]:
-    """Return ``(kind, path)`` for a target, whether it is a model instance or its raw dict form.
-
-    Args:
-        target: A ``MetadataTarget``/``ExtrasTarget`` instance, or the raw
-            dict a JSON round trip hands the "before" validator ahead of
-            pydantic's own field coercion.
-
-    Returns:
-        A hashable, orderable key identifying the target.
-    """
-    if isinstance(target, dict):
-        return (target.get("kind", "metadata"), tuple(target.get("path", ())))
-    return (target.kind, tuple(target.path))
+def _stage(document: dict, path: tuple[str, ...], value: Any) -> None:
+    """Set ``value`` at ``path`` in ``document``, making each missing dict on the way."""
+    node = document
+    for name in path[:-1]:
+        node = node.setdefault(name, {})
+    node[path[-1]] = value
 
 
 def _maybe_warn_naive(value: Any, normalization: Normalization, *, tz: str) -> None:
@@ -376,9 +380,9 @@ class MetadataParser(BaseModel):
     uses_preamble_boundary: ClassVar[bool] = False
 
     kind: Literal["base"] = "base"
-    rules: tuple[tuple[_TargetUnion, RegexRule | JsonRule], ...] = Field(
+    rules: tuple[tuple[tuple[str, ...], RegexRule | JsonRule], ...] = Field(
         default=(),
-        description="Target -> rule pairs. Empty for the base and BDF sidecar parsers.",
+        description="Target (tuple of names) -> rule pairs. Empty for the base and BDF sidecar parsers.",
     )
 
     @model_validator(mode="before")
@@ -454,9 +458,9 @@ class TxtPreambleParser(MetadataParser):
         ),
     )
     encoding: str = Field(default="utf-8", description="Codec used to decode head bytes before regex matching.")
-    rules: tuple[tuple[_TargetUnion, RegexRule], ...] = Field(
+    rules: tuple[tuple[tuple[str, ...], RegexRule], ...] = Field(
         default=(),
-        description="Target -> RegexRule pairs; each pattern's group(1) is normalized and staged at its target.",
+        description="Target (tuple of names) -> RegexRule pairs; each pattern's group(1) is normalized and staged at its target.",
     )
 
     def matches(self, path: str | Path) -> bool:
@@ -516,8 +520,8 @@ class TxtPreambleParser(MetadataParser):
             if matched is None:
                 continue
             _maybe_warn_naive(matched, rule.normalization, tz=tz)
-            value = _normalize_or_raise(target.path, matched, rule.normalization, tz, day_month_order)
-            target.stage(document, value)
+            value = _normalize_or_raise(target, matched, rule.normalization, tz, day_month_order)
+            _stage(document, target, value)
         return Metadata.model_validate(document)
 
 
@@ -528,16 +532,16 @@ class JsonSidecarParser(MetadataParser):
     the first present candidate per rule, converts it with the rule's own
     normalization, and stages it at the rule's target. The whole loaded
     document is captured into ``raw``, verbatim; only an explicit
-    ``ExtrasTarget`` rule can stage a value into ``extras``. A sidecar that
+    rule with an ``extras`` target can stage a value into ``extras``. A sidecar that
     exists and cannot be restored raises :class:`BDFMetadataError`.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     kind: Literal["json_sidecar"] = "json_sidecar"  # type: ignore[assignment]
-    rules: tuple[tuple[_TargetUnion, JsonRule], ...] = Field(
+    rules: tuple[tuple[tuple[str, ...], JsonRule], ...] = Field(
         default=(),
-        description="Target -> JsonRule pairs; each rule's first present candidate is normalized and staged.",
+        description="Target (tuple of names) -> JsonRule pairs; each rule's first present candidate is normalized and staged.",
     )
 
     def sidecar_path(self, path: str | Path) -> Path:
@@ -602,8 +606,8 @@ class JsonSidecarParser(MetadataParser):
             if matched is None:
                 continue
             _maybe_warn_naive(matched, rule.normalization, tz=tz)
-            value = _normalize_or_raise(target.path, matched, rule.normalization, tz, day_month_order)
-            target.stage(document, value)
+            value = _normalize_or_raise(target, matched, rule.normalization, tz, day_month_order)
+            _stage(document, target, value)
 
         return Metadata.model_validate(document)
 
