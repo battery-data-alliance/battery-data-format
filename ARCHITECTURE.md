@@ -51,7 +51,7 @@ sidecar always describes the last save.
 ## Design rules that shape everything
 
 - **The ontology is the single source of truth.** Column meaning lives in the
-  ontology release, not in Python. The package syncs; it does not define.
+  ontology, not in Python. The package syncs; it does not define.
 - **The table carries measurements only.** Everything else (cell, test,
   dataset, provenance) is metadata in companion structures.
 - **Detect loudly, repair only on explicit request.** Data that contradicts
