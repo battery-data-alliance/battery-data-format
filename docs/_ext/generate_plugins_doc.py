@@ -93,9 +93,8 @@ def _metadata_parser_lines(metadata_parser) -> list[str]:
 
 
 def _target_name(target) -> str:
-    """Dotted display name for a rule's target, prefixed for an extras key."""
-    dotted = ".".join(target.path)
-    return dotted if target.kind == "metadata" else f"extras.{dotted}"
+    """Dotted display name for a rule's target, a tuple of names."""
+    return ".".join(target)
 
 
 def _rule_detail(rule) -> str:
