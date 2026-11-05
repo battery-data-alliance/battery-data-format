@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1835,7 +1836,7 @@ def test_a_stated_schema_with_a_broken_reference_cannot_be_loaded(tmp_path: Path
 
 
 # ---------------------------------------------------------------------------
-# Sidecar origin: where the data came from
+# Sidecar origin: where the data came from, and the 0.2.0rc3 sidecar
 # ---------------------------------------------------------------------------
 
 
@@ -1867,6 +1868,34 @@ def test_metadata_built_by_hand_states_the_writer_and_no_source(tmp_path: Path) 
     stated = json.loads(p.with_suffix(".metadata.json").read_text())["bdf"]
     assert stated["created_with"] == bdf.__version__
     assert "source" not in stated
+
+
+def test_a_0_2_0rc3_sidecar_reads_saves_and_reads_again_unchanged(tmp_path: Path, data_dir: Path) -> None:
+    # A real sidecar written by bdf 0.2.0rc3, copied so the test does not change the fixture.
+    folder = tmp_path / "old"
+    shutil.copytree(data_dir / "sidecars" / "0.2.0rc3", folder)
+
+    # Its battinfo_ref, eda4629, matches no BattINFO release, so the bundled schema stands in, with a warning...
+    with pytest.warns(BDFDefinitionWarning, match="eda4629.*matches no BattINFO release") as record:
+        _, first = read(folder / "data.bdf.csv")
+    assert record[0].filename == __file__
+    assert first.bdf.battinfo_version == bdf.battinfo.BATTINFO_SCHEMA.version
+    # ...and the save states that version, so nothing warns again.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", BDFDefinitionWarning)
+        io.save(_FRAME, tmp_path / "new.bdf.csv", metadata=first)
+        _, again = read(tmp_path / "new.bdf.csv")
+
+    # The old file reads with its values as written. It has no created_with, and nothing invents one.
+    assert first.battinfo_test == {"test": {"instrument_name": "BaSyTec CTS", "name": "cell-1 formation"}}
+    assert first.extras == {"rig_bay": "B3"}
+    assert (first.bdf.source, first.bdf.created_with) == ("bdf_csv", None)
+    # A save and a second read change none of it...
+    for name in ("battinfo_test", "extras"):
+        assert getattr(again, name) == getattr(first, name)
+    assert (again.bdf.source, again.bdf.created_with) == ("bdf_csv", None)
+    # ...except that the new sidecar no longer writes the old battinfo_ref field.
+    assert "battinfo_ref" not in json.loads((tmp_path / "new.bdf.metadata.json").read_text())["bdf"]
 
 
 # validate=False checks nothing: no release is loaded, nothing is refused, and both files are written.

@@ -13,7 +13,7 @@ import polars as pl
 
 from bdf._errors import BDFDefinitionError, BDFDefinitionWarning, BDFMetadataError, BDFMetadataWarning
 from bdf._time_scale import detect_scale_mismatch
-from bdf.battinfo import BATTINFO_SOURCE, BattinfoSchema, _battinfo_version
+from bdf.battinfo import BATTINFO_SOURCE, BattinfoSchema, _battinfo_version, _unknown_ref
 from bdf.file_utils import open_compressed, strip_compression_suffix
 from bdf.metadata import Metadata
 from bdf.metadata_parsers import BdfSidecarParser
@@ -99,7 +99,9 @@ def _check_battinfo(
     Returns:
         The BattINFO schema version the fields are checked against, which the
         metadata states (see :func:`bdf.battinfo._battinfo_version`); None where
-        every ``battinfo_*`` field is empty.
+        every ``battinfo_*`` field is empty. Where a ``battinfo_ref`` names a
+        commit that matches no release, it is the bundled version, with a
+        ``BDFDefinitionWarning``.
 
     Raises:
         BDFMetadataError: With ``validate`` and ``strict``, the BattINFO schema
@@ -108,7 +110,18 @@ def _check_battinfo(
             schema cannot be loaded, or cannot check a value.
     """
     version = _battinfo_version(metadata, battinfo)
-    if version is None or not validate:
+    if version is None:
+        return None
+    ref = None if battinfo is not None else _unknown_ref(metadata)
+    if ref is not None:
+        warnings.warn(
+            f"{where}'s metadata names BattINFO commit {ref} (battinfo_ref, from bdf 0.2.0), which matches "
+            f"no BattINFO release, so the bundled BattINFO schema {version} stands in for it. "
+            "Pass battinfo= to name another.",
+            BDFDefinitionWarning,
+            stacklevel=stacklevel + 1,
+        )
+    if not validate:
         return version
     schema = battinfo or _load_stated("battinfo", version, where, strict=strict, stacklevel=stacklevel + 1)
     if schema is None:

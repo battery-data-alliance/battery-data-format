@@ -46,7 +46,8 @@ FIELD_SCHEMAS: dict[str, str] = {
 # bdf 0.2.0 and its release candidates stamped the BattINFO commit of their bundled schema
 # as ``battinfo_ref``. Of those commits only 2ea8929 holds the documents of a release:
 # 0.8.0rc2, the first BattINFO release with schemas. b9b49bb, eda4629 (bdf 0.2.0rc3),
-# 2feabb7 and 0b4dfd3 match no release, so the bundled schema stands in for them.
+# 2feabb7 and 0b4dfd3 match no release, so the bundled schema stands in for them, with a
+# warning (see _unknown_ref).
 _REF_RELEASES: dict[str, str] = {"2ea8929074a7430b6e437065686cda881cfc23e7": "0.8.0rc2"}
 
 _RAW_URL = "https://raw.githubusercontent.com/BIG-MAP/BattINFO/{tag}/assets/schemas/{path}"
@@ -314,6 +315,17 @@ def _battinfo_version(metadata: Metadata, battinfo: BattinfoSchema | None = None
         return battinfo.version
     ref = metadata.bdf.__dict__["battinfo_ref"]  # not the attribute, which warns that it is deprecated
     return metadata.bdf.battinfo_version or _REF_RELEASES.get(ref or "") or _bundled_version()
+
+
+def _unknown_ref(metadata: Metadata) -> str | None:
+    """Return the ``battinfo_ref`` that names the version of ``metadata``, where it matches no BattINFO release.
+
+    The bundled version then stands in for it (see :func:`_battinfo_version`).
+    """
+    ref = metadata.bdf.__dict__["battinfo_ref"]
+    if not ref or metadata.bdf.battinfo_version or ref in _REF_RELEASES:
+        return None
+    return ref
 
 
 def _update_snapshot_cli() -> None:
