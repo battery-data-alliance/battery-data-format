@@ -75,6 +75,7 @@ def _read(
     plugin: Plugin | str | None = None,
     normalize: bool = True,
     validate: bool = True,
+    strict: bool = True,
     include_unknown: bool = False,
     lazy: bool = True,
     tz: str = "UTC",
@@ -104,6 +105,7 @@ def _read(
         path,
         normalize=normalize,
         validate=validate,
+        strict=strict,
         include_unknown=include_unknown,
         lazy=lazy,
         tz=tz,
@@ -114,8 +116,8 @@ def _read(
         path, resolved_plugin, source=plugin_id or "custom", tz=tz, day_month_order=day_month_order
     )
 
-    if normalize:
-        bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
+    if normalize and (validate or reconcile_time):
+        bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate and strict)
         if repairs:
             metadata.bdf.time_reconciliation = repairs
 
@@ -222,7 +224,7 @@ def _reconcile_time_scale(
 
             raise BDFValidationError(
                 f"Elapsed-time/wall-clock mismatch: {detail}. Pass reconcile_time=True to "
-                f"rescale known unit factors, or validate=False to load the data as-is."
+                f"rescale known unit factors, strict=False to warn instead, or validate=False to skip the check."
             )
         warnings.warn(f"Elapsed-time/wall-clock mismatch: {detail}.", UserWarning, stacklevel=4)
 
@@ -237,6 +239,7 @@ def read(
     plugin: Plugin | str | None = None,
     normalize: bool = True,
     validate: bool = True,
+    strict: bool = True,
     include_unknown: bool = False,
     tz: str = "UTC",
     day_month_order: DayMonthOrder | None = None,
@@ -251,8 +254,11 @@ def read(
         plugin: Plugin instance or registry id. Auto-detects if not set (default).
         normalize: Map vendor columns to BDF canonical names (default True); False returns
             raw source columns unchanged.
-        validate: Check columns against the BDF ontology, error if missing required columns
-            (default True); set to False to only warn.
+        validate: Check the columns against the ontology, and the time columns against
+            the wall clock (default True). False checks nothing.
+        strict: With ``validate``, raise when a check fails (default True): missing
+            required columns or a time-scale mismatch raise ``BDFValidationError``.
+            False warns instead and returns the data.
         include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
@@ -263,7 +269,7 @@ def read(
         reconcile_time: Elapsed-time columns are cross-checked against wall-clock
             increments when both are present (e.g. a vendor export storing milliseconds
             under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
-            default (warns when ``validate=False``); pass ``reconcile_time=True`` to
+            default (warns when ``strict=False``, skipped when ``validate=False``); pass ``reconcile_time=True`` to
             explicitly rescale known unit factors, recorded under
             ``metadata.bdf.time_reconciliation``. Only active when ``normalize=True``.
 
@@ -282,6 +288,7 @@ def read(
         plugin=plugin,
         normalize=normalize,
         validate=validate,
+        strict=strict,
         include_unknown=include_unknown,
         lazy=False,
         tz=tz,
@@ -297,6 +304,7 @@ def scan(
     plugin: Plugin | str | None = None,
     normalize: bool = True,
     validate: bool = True,
+    strict: bool = True,
     include_unknown: bool = False,
     tz: str = "UTC",
     day_month_order: DayMonthOrder | None = None,
@@ -316,8 +324,11 @@ def scan(
             None (default).
         normalize: Map vendor columns to BDF canonical names (default True); False returns
             raw source columns unchanged.
-        validate: Check columns against the BDF ontology, raising on missing required ones
-            (default True); False only warns.
+        validate: Check the columns against the ontology, and the time columns against
+            the wall clock (default True). False checks nothing.
+        strict: With ``validate``, raise when a check fails (default True): missing
+            required columns or a time-scale mismatch raise ``BDFValidationError``.
+            False warns instead and returns the data.
         include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
         tz: IANA timezone used to compute ``Unix Time / s`` if the source has naive datetime.
             Default is``"UTC"``, and will warn if source contains naive datetimes.
@@ -330,7 +341,7 @@ def scan(
         reconcile_time: Elapsed-time columns are cross-checked against wall-clock
             increments when both are present (e.g. a vendor export storing milliseconds
             under a seconds header, GH #65). A mismatch raises ``BDFValidationError`` by
-            default (warns when ``validate=False``); pass ``reconcile_time=True`` to
+            default (warns when ``strict=False``, skipped when ``validate=False``); pass ``reconcile_time=True`` to
             explicitly rescale known unit factors, recorded under
             ``metadata.bdf.time_reconciliation``. Only active when ``normalize=True``.
 
@@ -349,6 +360,7 @@ def scan(
         plugin=plugin,
         normalize=normalize,
         validate=validate,
+        strict=strict,
         include_unknown=include_unknown,
         lazy=True,
         tz=tz,
@@ -481,6 +493,7 @@ def save(
     *,
     metadata: Metadata | None = None,
     validate: bool = True,
+    strict: bool = True,
     labels: Literal["preferred", "machine", "unchanged"] = "unchanged",
     **opts,
 ) -> None:
@@ -504,8 +517,10 @@ def save(
             sidecar: a save that omits it beside an existing sidecar raises,
             because the sidecar describes the data the previous save wrote. The
             message states each out, one of which is a save to a different path.
-        validate: Check columns against the BDF ontology, raising on missing required ones
-            (default True); False only warns.
+        validate: Check the columns against the ontology (default True). False
+            checks nothing.
+        strict: With ``validate``, raise when a check fails and write nothing
+            (default True). False warns instead, and writes the file.
         labels: Style of column names to use (default: "unchanged"):
             "preferred": BDF preferred label, e.g. "Voltage / V"
             "machine": BDF machine-readable label e.g. "voltage_volt"
@@ -539,7 +554,8 @@ def save(
         raise ValueError(msg)
 
     frame = _as_polars(df)
-    COLUMN_ONTOLOGY.validate_df(frame, raise_on_error=validate)
+    if validate:
+        COLUMN_ONTOLOGY.validate_df(frame, raise_on_error=strict)
     frame = COLUMN_ONTOLOGY.rename_labels(frame, labels)
 
     if isinstance(frame, pl.LazyFrame) and spec.sink is not None:

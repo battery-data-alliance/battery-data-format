@@ -262,7 +262,7 @@ def test_save_legacy_warns(tmp_path: Path):
     with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
         io.save(df, path)
     with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
-        io.save(df, path, validate=False)
+        io.save(df, path, strict=False)
 
 
 def test_save_missing_col_warns(tmp_path: Path):
@@ -276,7 +276,7 @@ def test_save_missing_col_warns(tmp_path: Path):
     with pytest.raises(BDFValidationError):
         io.save(df, path)
     with pytest.warns(UserWarning, match="Missing required BDF columns: \['Test Time / s'\]"):
-        io.save(df, path, validate=False)
+        io.save(df, path, strict=False)
 
 
 def test_save_extra_col_warns(tmp_path: Path):
@@ -292,7 +292,7 @@ def test_save_extra_col_warns(tmp_path: Path):
     with pytest.warns(UserWarning, match="Non-BDF columns present"):
         io.save(df, path)
     with pytest.warns(UserWarning, match="Non-BDF columns present"):
-        io.save(df, path, validate=False)
+        io.save(df, path, strict=False)
 
 
 def test_save_non_canonical_units_warns(tmp_path: Path):
@@ -455,12 +455,13 @@ def test_read_plugin_invalid_type_raises(tmp_path: Path) -> None:
 
 
 def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespace, tmp_path: Path) -> None:
-    """read() forwards path + the five read-shaping kwargs verbatim, plus lazy=False."""
+    """read() forwards path + the six read-shaping kwargs verbatim, plus lazy=False."""
     p = tmp_path / "f.csv"
     read(
         p,
         plugin=read_mocks.plugin,
         validate=False,
+        strict=False,
         normalize=False,
         include_unknown=True,
         tz="America/New_York",
@@ -468,6 +469,7 @@ def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
     read_mocks.table_read.assert_called_once_with(
         p,
         validate=False,
+        strict=False,
         normalize=False,
         include_unknown=True,
         lazy=False,
@@ -491,6 +493,7 @@ def test_scan_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         p,
         normalize=False,
         validate=False,
+        strict=True,
         include_unknown=False,
         lazy=True,
         tz="America/New_York",
@@ -747,7 +750,7 @@ def test_read_mismatch_raises_by_default(tmp_path: Path) -> None:
 def test_read_mismatch_warns_when_validate_false(tmp_path: Path) -> None:
     path = _write_bdf_csv_with_ms_test_time(tmp_path)
     with pytest.warns(UserWarning, match="appear to be milliseconds"):
-        df, meta = read(path, validate=False)
+        df, meta = read(path, strict=False)
     # values loaded as-is, nothing repaired or recorded
     assert df["Test Time / s"].to_list()[1] == 10_000.0
     assert meta.bdf.time_reconciliation is None  # type: ignore[attr-defined]
@@ -806,7 +809,7 @@ def test_read_unexplained_ratio_stays_loud_even_with_reconcile_time(tmp_path: Pa
     with pytest.raises(BDFValidationError, match="matches no known unit"):
         read(path, reconcile_time=True)
     with pytest.warns(UserWarning, match="matches no known unit"):
-        out, meta = read(path, validate=False)
+        out, meta = read(path, strict=False)
     assert out["Test Time / s"].to_list()[1] == 370.0
     assert meta.bdf.time_reconciliation is None  # type: ignore[attr-defined]
 
