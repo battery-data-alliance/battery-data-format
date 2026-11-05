@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pandas as pd
 import polars as pl
@@ -18,6 +17,8 @@ from bdf.spec import (
     parse_label,
     unit_from_label,
 )
+
+_LIVE_URL = "https://w3id.org/battery-data-alliance/ontology/battery-data-format"
 
 _MINI_TTL = """\
 @prefix : <https://w3id.org/battery-data-alliance/ontology/battery-data-format#> .
@@ -601,30 +602,28 @@ def test_build_returns_instance_with_core_quantities() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ColumnOntology.load_ttl()
+# ColumnOntology.from_ttl()
 # ---------------------------------------------------------------------------
 
 
-def test_load_ttl_updates_quantities_in_place(tmp_path: Path) -> None:
-    """load_ttl(path) parses file and updates _quantities in place."""
+def test_from_ttl_loads_the_file(tmp_path: Path) -> None:
+    """from_ttl(path) parses the file into a new ontology."""
     ttl = tmp_path / "mini.ttl"
     ttl.write_text(_MINI_TTL, encoding="utf-8")
 
-    onto = ColumnOntology.build()
-    onto.load_ttl(ttl)
+    onto = ColumnOntology.from_ttl(ttl)
 
     assert onto.test_time_second.unit == "ms"
     assert onto.test_time_second.formatted_label == "Test Time / ms"
 
 
-def test_load_ttl_invalid_file_raises(tmp_path: Path) -> None:
-    """load_ttl with unparseable content raises (not silent)."""
+def test_from_ttl_invalid_file_raises(tmp_path: Path) -> None:
+    """from_ttl with unparseable content raises (not silent)."""
     bad = tmp_path / "bad.ttl"
     bad.write_text("this is not valid turtle syntax !! @@@", encoding="utf-8")
 
-    onto = ColumnOntology.build()
     with pytest.raises(ValueError):
-        onto.load_ttl(bad)
+        ColumnOntology.from_ttl(bad)
 
 
 # ---------------------------------------------------------------------------
@@ -641,28 +640,26 @@ def test_load_ttl_invalid_file_raises(tmp_path: Path) -> None:
         ("internal_resistance_ohm", "ohm", "Internal Resistance / ohm"),
     ],
 )
-def test_load_ttl_ucum_unit_code_aliases(tmp_path: Path, attr: str, expected_unit: str, expected_label: str) -> None:
+def test_from_ttl_ucum_unit_code_aliases(tmp_path: Path, attr: str, expected_unit: str, expected_label: str) -> None:
     """schema:unitCode UCUM codes ('Cel'/'A.h'/'W.h'/'Ohm') normalize to BDF's
     canonical, pint-valid casing ('degC'/'Ah'/'Wh'/'ohm').
     """
     ttl = tmp_path / "ucum.ttl"
     ttl.write_text(_UCUM_TTL, encoding="utf-8")
 
-    onto = ColumnOntology({})
-    onto.load_ttl(ttl)
+    onto = ColumnOntology.from_ttl(ttl)
 
     q = getattr(onto, attr)
     assert q.unit == expected_unit
     assert q.formatted_label == expected_label
 
 
-def test_load_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) -> None:
+def test_from_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) -> None:
     """Terms with no schema:unitCode load with unit=None; 'string' in description infers dtype='str'."""
     ttl = tmp_path / "ucum.ttl"
     ttl.write_text(_UCUM_TTL, encoding="utf-8")
 
-    onto = ColumnOntology({})
-    onto.load_ttl(ttl)
+    onto = ColumnOntology.from_ttl(ttl)
 
     q = onto.step_label
     assert q.unit is None
@@ -670,116 +667,9 @@ def test_load_ttl_no_unit_code_term_has_none_unit_and_str_dtype(tmp_path: Path) 
     assert q.formatted_label == "Step Label"
 
 
-# ---------------------------------------------------------------------------
-# ColumnOntology.load_latest()
-# ---------------------------------------------------------------------------
-
-
-def test_load_latest_no_refresh_uses_cache(tmp_path: Path) -> None:
-    """load_latest(refresh=False) loads from cache; no HTTP call made."""
-    ttl = tmp_path / "bdf-ontology-v1.0.0.ttl"
-    ttl.write_text(_MINI_TTL, encoding="utf-8")
-
-    onto = ColumnOntology.build()
-    with (
-        patch("bdf.spec._ontology_cache_dir", return_value=tmp_path),
-        patch("requests.get") as mock_get,
-    ):
-        onto.load_latest(refresh=False)
-        mock_get.assert_not_called()
-
-    assert onto.test_time_second.unit == "ms"
-
-
-def test_load_latest_refresh_fetches_and_caches(tmp_path: Path) -> None:
-    """load_latest(refresh=True) fetches from URL, caches result, updates quantities."""
-    response = Mock()
-    response.content = _MINI_TTL.encode("utf-8")
-    response.raise_for_status = Mock()
-
-    onto = ColumnOntology.build()
-    with (
-        patch("bdf.spec._ontology_cache_dir", return_value=tmp_path),
-        patch("requests.get", return_value=response) as mock_get,
-    ):
-        onto.load_latest(refresh=True)
-        mock_get.assert_called_once()
-
-    assert onto.test_time_second.unit == "ms"
-    cached = list(tmp_path.glob("bdf-ontology-v*.ttl"))
-    assert cached, "expected a cached file to be written"
-
-
-# ---------------------------------------------------------------------------
-# ColumnOntology.load_version()
-# ---------------------------------------------------------------------------
-
-
-def test_load_version_uses_cached_file(tmp_path: Path) -> None:
-    """load_version(version) loads versioned file from cache, no HTTP."""
-    ttl = tmp_path / "bdf-ontology-v1.0.0.ttl"
-    ttl.write_text(_MINI_TTL, encoding="utf-8")
-
-    onto = ColumnOntology.build()
-    with patch("bdf.spec._ontology_cache_dir", return_value=tmp_path):
-        onto.load_version("1.0.0")
-
-    assert onto.test_time_second.unit == "ms"
-
-
-def test_load_version_fetches_when_not_cached(tmp_path: Path) -> None:
-    """load_version fetches the release when no cached file exists, then caches it."""
-    versioned_ttl = _MINI_TTL.replace(
-        "@prefix schema: <https://schema.org/> .\n",
-        "@prefix schema: <https://schema.org/> .\n\n"
-        "<https://w3id.org/battery-data-alliance/ontology/battery-data-format> "
-        'rdf:type owl:Ontology ; owl:versionInfo "1.0.0" .\n',
-    )
-    response = Mock()
-    response.content = versioned_ttl.encode("utf-8")
-    response.raise_for_status = Mock()
-
-    onto = ColumnOntology.build()
-    with (
-        patch("bdf.spec._ontology_cache_dir", return_value=tmp_path),
-        patch("requests.get", return_value=response) as mock_get,
-    ):
-        onto.load_version("1.0.0")
-
-    mock_get.assert_called_once()
-    assert onto.test_time_second.unit == "ms"
-    assert (tmp_path / "bdf-ontology-v1.0.0.ttl").exists()
-
-
-# ---------------------------------------------------------------------------
-# ColumnOntology.get_snapshot()
-# ---------------------------------------------------------------------------
-
-
-def test_get_snapshot_writes_to_dest(tmp_path: Path) -> None:
-    """get_snapshot(dest=...) fetches, serializes, writes to dest path."""
-    response = Mock()
-    response.content = _MINI_TTL.encode("utf-8")
-    response.raise_for_status = Mock()
-
-    dest = tmp_path / "snapshot.ttl"
-    with patch("requests.get", return_value=response):
-        result = ColumnOntology.get_snapshot(dest=dest)
-
-    assert result == dest
-    assert dest.exists()
-    assert dest.stat().st_size > 0
-
-
 def _bundled_snapshot_version() -> str:
-    """Parse owl:versionInfo out of the bundled snapshot TTL."""
-    import re
-    from importlib.resources import files
-
-    ttl = (files("bdf.data") / "bdf-ontology-snapshot.ttl").read_text(encoding="utf-8")
-    m = re.search(r'owl:versionInfo\s+"([0-9.]+)"', ttl)
-    assert m, "bundled snapshot carries no owl:versionInfo"
-    return m.group(1)
+    """Read the bundled ontology release from its VERSION file."""
+    return spec.ONTOLOGY_SOURCE.get_bundled_version() or ""
 
 
 @pytest.mark.network
@@ -797,8 +687,7 @@ def test_bundled_snapshot_matches_its_declared_release(tmp_path: Path) -> None:
     version = _bundled_snapshot_version()
     fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl", version=version)
 
-    fresh = ColumnOntology({})
-    fresh.load_ttl(fresh_path)
+    fresh = ColumnOntology.from_ttl(fresh_path)
 
     bundled = ColumnOntology.build()
 
@@ -820,10 +709,11 @@ def test_live_ontology_is_superset_of_bundled(tmp_path: Path) -> None:
     that is expected and tolerated. What must never happen is an existing quantity
     disappearing or changing unit/label upstream without a coordinated release.
     """
-    fresh_path = ColumnOntology.get_snapshot(dest=tmp_path / "fresh.ttl")
+    import requests
 
-    fresh = ColumnOntology({})
-    fresh.load_ttl(fresh_path)
+    response = requests.get(_LIVE_URL, timeout=30)
+    response.raise_for_status()
+    fresh = ColumnOntology.from_graph(spec._graph_from_bytes(response.content))
 
     bundled = ColumnOntology.build()
 

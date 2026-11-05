@@ -4,17 +4,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
-from pydantic import Field
-
-from bdf.battinfo._base import _RecordModel
-from bdf.battinfo.generated.cell_instance_schema import BattinfoCellInstance
-from bdf.battinfo.generated.channel_schema import BattinfoChannelInstance
-from bdf.battinfo.generated.dataset_schema import BattinfoDatasetSchemaOrgAligned
-from bdf.battinfo.generated.equipment_schema import BattinfoEquipmentInstance
-from bdf.battinfo.generated.test_protocol_schema import BattinfoTestProtocol
-from bdf.battinfo.generated.test_schema import BattinfoTest
+from pydantic import BaseModel, ConfigDict, Field
 
 # Optional pandas (only required if you pass a DataFrame)
 try:
@@ -24,88 +16,127 @@ except Exception:  # pragma: no cover
 
 from bdf import spec
 
-# The generated root class carries the schema title verbatim; the short name
-# is the public one, matching the record field it types.
-BattinfoDataset = BattinfoDatasetSchemaOrgAligned
+if TYPE_CHECKING:
+    from bdf.battinfo import BattinfoSchema
+
+
+class _RecordModel(BaseModel):
+    """Shared configuration and serialisation for the read metadata models."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    def __repr_args__(self) -> Iterator[tuple[str | None, Any]]:
+        """Yield only the fields that differ from their default, for ``repr`` and ``str``."""
+        for name, info in type(self).model_fields.items():
+            value = self.__dict__[name]  # not getattr: a deprecated field would warn
+            if value != info.get_default(call_default_factory=True):
+                yield name, value
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise this record to a plain dict.
+
+        Returns:
+            The fields that differ from their default, as JSON values. An empty
+            field (``None``, or an empty ``battinfo_*`` dict) is left out.
+        """
+        return self.model_dump(mode="json", exclude_defaults=True)
 
 
 class BdfReadInfo(_RecordModel):
-    """BDF-owned read audit facts, kept out of the BattINFO records."""
+    """bdf's own record of where the data came from and which versions wrote and checked it.
+
+    ``source``, ``created_with`` and ``time_reconciliation`` describe the
+    original read, and later reads and saves keep them. ``save()`` sets
+    ``bdf_version``, ``ontology_version`` and ``battinfo_version`` on each
+    sidecar it writes.
+    """
 
     source: str | None = None
+    """The plugin that read the data, or ``"custom"``."""
+    created_with: str | None = None
+    """The batterydf version that first read the data from its source, or that
+    saved metadata built in code. None in a sidecar from bdf before 0.3."""
     time_reconciliation: list[dict] | None = None
+    """Each rescale of the time columns that the read applied."""
     bdf_version: str | None = None
-    """The batterydf package version that wrote this sidecar. Stamped by
-    ``save()`` on every sidecar it writes, overwriting any earlier stamp: the
-    stamps identify the file's writer, so a read-then-save records the version
-    that performed the save, not the one that wrote the file it read."""
+    """The batterydf version that wrote this sidecar."""
     ontology_version: str | None = None
-    """The BDF ontology release the writer's column spec was pinned to."""
-    battinfo_ref: str | None = None
-    """The upstream BattINFO commit the writer's bundled schemas were fetched
-    at (a release tag once upstream versions its schemas)."""
+    """The version of the BDF ontology that the columns follow."""
+    battinfo_ref: str | None = Field(
+        default=None,
+        deprecated="bdf.battinfo_ref is the BattINFO commit that bdf 0.2.0 wrote; use bdf.battinfo_version",
+        exclude=True,
+    )
+    """Deprecated: the BattINFO commit that bdf 0.2.0 wrote. A read still
+    accepts it; a save writes ``battinfo_version`` in its place."""
+    battinfo_version: str | None = None
+    """The version of the BattINFO schema that the ``battinfo_*`` fields follow.
+    Set it to check against another version."""
 
 
 class Metadata(_RecordModel):
-    """The metadata a BDF read returns: the BattINFO entity records, BDF's own
-    read audit section, the verbatim source a parser read, and the values a
-    rule staged deliberately.
+    """The metadata that a read returns and a save writes to the sidecar.
 
-    Each record is the generated root model of one BattINFO entity
-    (:mod:`bdf.battinfo.generated`), and the nesting and property names are
-    BattINFO's own (``meta.battinfo_test.test.instrument_name``, not a
-    flattened facade), so a caller who already speaks BattINFO finds nothing
-    to translate. A plugin fills only the fields it can derive, and every
-    other declared leaf field keeps its default. The saved sidecar serialises
-    this same shape.
-
-    Every record field auto-constructs, so a caller assigns a leaf on a fresh
-    instance with no ``None`` guard. A leaf of a plain scalar type reads as
-    ``None`` while unfilled. A field whose type is a model does not: it
-    defaults to an empty instance of that model, which covers each nested
-    section and the wrapper-typed leaves ``expires_at``, ``manufactured_at``,
-    ``commissioned_at``, and ``Quantity.value``. Read ``.root`` on a wrapper
-    to reach the value it holds.
+    The six ``battinfo_*`` fields (``battinfo_test``, ``battinfo_cell``,
+    ``battinfo_channel``, ``battinfo_equipment``, ``battinfo_test_protocol``,
+    ``battinfo_dataset``) each hold a plain dict in the shape of one BattINFO
+    schema, for example ``meta.battinfo_test["test"]["instrument_name"]``.
+    Values are stored as given. :meth:`check` lists the values that the
+    BattINFO schema in ``bdf.battinfo_version`` refuses; a read and a save run the same check.
     """
 
-    # An upstream schema sets `additionalProperties: false` at its root, so
-    # `bdf`, `raw`, and `extras` cannot live inside a record. Each wrapper key
-    # joins `battinfo_` to the upstream entity type, which also keeps a
-    # sidecar document distinct from a record document.
-    battinfo_test: BattinfoTest = Field(default_factory=BattinfoTest)
+    # A BattINFO schema allows no extra keys at its root, so `bdf`, `raw` and
+    # `extras` sit beside the `battinfo_*` fields, not inside them.
+    battinfo_test: dict[str, Any] = Field(default_factory=dict)
     """The test activity that produced this data: who ran it, when it started, and which datasets it links."""
-    battinfo_cell: BattinfoCellInstance = Field(default_factory=BattinfoCellInstance)
+    battinfo_cell: dict[str, Any] = Field(default_factory=dict)
     """The physical cell the test ran on, and the cell type it derives from."""
-    battinfo_channel: BattinfoChannelInstance = Field(default_factory=BattinfoChannelInstance)
+    battinfo_channel: dict[str, Any] = Field(default_factory=dict)
     """The one channel of the equipment unit that ran the test."""
-    battinfo_equipment: BattinfoEquipmentInstance = Field(default_factory=BattinfoEquipmentInstance)
+    battinfo_equipment: dict[str, Any] = Field(default_factory=dict)
     """The physical equipment unit that ran the test, a named cycler for example."""
-    battinfo_test_protocol: BattinfoTestProtocol = Field(default_factory=BattinfoTestProtocol)
+    battinfo_test_protocol: dict[str, Any] = Field(default_factory=dict)
     """The reusable protocol the test followed: its typed steps, and links to the files that state them."""
-    battinfo_dataset: BattinfoDataset = Field(default_factory=BattinfoDataset)
+    battinfo_dataset: dict[str, Any] = Field(default_factory=dict)
     """The dataset this file belongs to: its distributions (raw and processed files,
     checksums, formats), identifiers, and links to the cell and test that produced it.
     Mirrors a pre-1.0 upstream schema and may evolve with it. Nothing fills this
     record automatically yet: it is the documented place for a user or a downstream
     tool (e.g. the battinfo package) to record file-level provenance (#92)."""
     bdf: BdfReadInfo = Field(default_factory=BdfReadInfo)
-    """BDF's own audit of this read: the source it read, and every rescale that the time reconciliation applied."""
+    """bdf's own record: where the data came from, and the versions that wrote and checked it."""
 
     raw: dict[str, Any] | str | None = None
-    """The source a parser read, verbatim: the decoded JSON document for a
-    JSON-backed parser, the preamble text a text parser matched against, or
-    ``None`` when a read captured no source. Holds every key a rule did not
-    map, nested keys and array elements included, with no traversal required
-    to keep it lossless. A parser reading BDF's own sidecar restores this
-    field rather than recapturing the document, so a repeated save and read
-    never nests a copy of the sidecar inside itself. Written by `save()` and
-    restored on a later read."""
+    """The vendor metadata as the parser read it: the JSON document, or the
+    preamble text. Keeps every value, also those that no rule maps. None
+    where the read had no vendor metadata."""
     extras: dict[str, Any] | None = None
-    """Keys a rule staged under an explicit extras target, verbatim (JSON
-    ``null`` values included). Nothing reaches this field automatically: a
-    key no rule maps is preserved by ``raw`` instead. It never holds a failed
-    value, because such a value raises. ``None`` when a read staged nothing
-    here. Written by `save()` and restored on a later read."""
+    """A free dict for any other values to keep with the data. A plugin rule
+    can put a value here with the tuple target ``("extras", "key")``."""
+
+    def check(self, schema: BattinfoSchema | None = None) -> list[str]:
+        """Return one line for each value that a BattINFO schema refuses.
+
+        Args:
+            schema: The BattINFO schema to check against. Default: the version in
+                ``bdf.battinfo_version``, else the bundled one.
+
+        Returns:
+            The lines, or ``[]`` where every value is accepted.
+
+        Raises:
+            BDFDefinitionError: Without ``schema``, if the version in
+                ``bdf.battinfo_version`` cannot be loaded; or if the schema cannot
+                check a value (see :meth:`bdf.battinfo.BattinfoSchema.check`).
+        """
+        from bdf.battinfo import BATTINFO_SOURCE, FIELD_SCHEMAS, _battinfo_version
+
+        version = _battinfo_version(self)
+        if version is None:
+            return []
+        if schema is None:
+            schema = BATTINFO_SOURCE.get_opened(version)
+        return [line for field in FIELD_SCHEMAS for line in schema.check(field, getattr(self, field))]
 
 
 def _unit_text_from_label(label: str) -> Optional[str]:
@@ -460,29 +491,29 @@ def _left_of_label(label: str) -> str:
     return label.split("/", 1)[0].strip()
 
 
-def _spec_match_by_left(left: str) -> Optional[Dict[str, Any]]:
+def _spec_match_by_left(left: str, ontology: spec.ColumnOntology) -> Optional[Dict[str, Any]]:
     """Return the spec column entry dict for a given preferred-label 'left' text."""
-    for _mr, qty in spec.COLUMN_ONTOLOGY:
+    for _mr, qty in ontology:
         if _left_of_label(qty.label_template).lower() == left.lower():
             return {"iri": qty.iri}
     return None
 
 
-def _required_pvs_from_spec() -> List[Dict[str, Any]]:
+def _required_pvs_from_spec(ontology: spec.ColumnOntology) -> List[Dict[str, Any]]:
     """
     Build default PropertyValue list for required quantities directly from spec.COLUMNS.
     Uses label_template -> left name, unit, and iri.
     If spec is unavailable, returns [] (caller has emergency fallback).
     """
     pvs: List[Dict[str, Any]] = []
-    for _mr, qty in spec.COLUMN_ONTOLOGY:
+    for _mr, qty in ontology:
         if qty.required:
             name = _left_of_label(qty.label_template) if qty.label_template else qty.mr_name
             pvs.append(PropertyValue(name=name, property_id=qty.iri, unit_text=qty.unit).to_schema_org())
     return pvs
 
 
-def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
+def _variable_measured_from_df(df: pd.DataFrame, ontology: spec.ColumnOntology) -> List[Dict[str, Any]]:
     """
     Build a list of schema.org PropertyValue from DataFrame columns:
       - Prefer df.attrs["bdf:columns"] for quantity+unit if present
@@ -505,7 +536,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
                 unit_text = str(info.get("unit")) if info.get("unit") else None
 
             iri = None
-            match = _spec_match_by_left(name)
+            match = _spec_match_by_left(name, ontology)
             if match:
                 iri = match.get("iri")
 
@@ -529,7 +560,7 @@ def _variable_measured_from_df(df: pd.DataFrame) -> List[Dict[str, Any]]:
         left = _left_of_label(str(col))
         unit_text = _unit_text_from_label(str(col))
         iri = None
-        m = _spec_match_by_left(left)
+        m = _spec_match_by_left(left, ontology)
         if m:
             iri = m.get("iri")
         items.append(PropertyValue(name=left, property_id=iri, unit_text=unit_text).to_schema_org())
@@ -653,6 +684,7 @@ class Dataset:
         merge_variables: bool = True,  # merge with self.variable_measured
         enforce_desc_bounds: bool = True,  # trim description to Google bounds
         max_description_len: int = 5000,
+        ontology: spec.ColumnOntology = spec.COLUMN_ONTOLOGY,  # labels for variableMeasured
     ) -> Dict[str, Any]:
         # Description with guardrails (Google recommends ≤ 5000 chars)
         desc = self.description or ""
@@ -711,7 +743,7 @@ class Dataset:
             else {"@type": "schema:PropertyValue", "schema:name": str(v)}
             for v in (self.variable_measured or [])
         ]
-        inferred_vm: List[Dict[str, Any]] = _variable_measured_from_df(df) if (df is not None) else []
+        inferred_vm: List[Dict[str, Any]] = _variable_measured_from_df(df, ontology) if (df is not None) else []
 
         if merge_variables:
             all_vm = explicit_vm + inferred_vm
@@ -728,7 +760,7 @@ class Dataset:
             vm_final = explicit_vm or inferred_vm
 
         if not vm_final:
-            vm_final = _required_pvs_from_spec()
+            vm_final = _required_pvs_from_spec(ontology)
         if not vm_final:  # last-resort emergency fallback
             vm_final = [
                 PropertyValue(name="Voltage", property_id=None, unit_text="V").to_schema_org(),

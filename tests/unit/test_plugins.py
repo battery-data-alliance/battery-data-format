@@ -8,8 +8,13 @@ from pathlib import Path
 
 import polars as pl
 import pytest
+from conftest import DATA
 from pydantic import ValidationError
 
+import bdf.battinfo
+from bdf._errors import BDFMetadataWarning
+from bdf.io import read
+from bdf.metadata_parsers import _stage
 from bdf.plugins import (
     BDF_NORMALIZER,
     BIOLOGIC_MPT,
@@ -29,6 +34,9 @@ from bdf.plugins import (
 from bdf.spec import COLUMN_ONTOLOGY
 from bdf.table_normalizers import NORMALIZERS, Syn, TableNormalizer
 from bdf.table_parsers import DelimTxtParser
+
+# The real cycler files in tests/data whose plugins make BattINFO metadata.
+CYCLER_FIXTURES = [path for folder in ("mpr", "nda", "res") for path in sorted((DATA / folder).iterdir())]
 
 
 class TestPluginDict:
@@ -224,7 +232,7 @@ class TestMaccorPreamble:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             meta = MACCOR_CSV.metadata_parser.parse(p)
-        assert meta.battinfo_test.test.started_at == expected  # type: ignore[union-attr]
+        assert meta.battinfo_test["test"]["started_at"] == expected
 
 
 class TestDetectFromColumns:
@@ -327,7 +335,7 @@ class TestNdaNormalizer:
 class TestBDFNormalizer:
     def test_all_non_deprecated_mr_names_present(self):
         """BDF_NORMALIZER covers all non-deprecated mr_names in the ontology."""
-        bdf_fields = {mr_name for mr_name, _ in BDF_NORMALIZER}
+        bdf_fields = {mr_name for mr_name, _ in BDF_NORMALIZER.for_ontology(COLUMN_ONTOLOGY)}
         known_fields = set(TableNormalizer.model_fields)
         ontology_non_deprecated = {mr_name for mr_name, q in COLUMN_ONTOLOGY if not q.deprecated}
         expected = ontology_non_deprecated & known_fields
@@ -473,3 +481,35 @@ class TestArbinXlsxDetection:
         )
         plugin_id, _ = detect(path)
         assert plugin_id == "neware_xlsx"
+
+
+def test_every_shipped_rule_target_is_a_schema_path() -> None:
+    """A value staged at a shipped target is never an unknown key, and its path never goes below a non-object."""
+    for plugin_id, plugin in PLUGINS.items():
+        for target, _rule in plugin.metadata_parser.rules:
+            # No BattINFO schema describes extras.
+            if target[0] == "extras":
+                continue
+            # Nest a dummy value at the rest of the path, as the plugin would stage it.
+            entity, *below = target
+            staged: dict = {}
+            _stage(staged, tuple(below), "x")
+            # A refusal at the target itself is the wrong type of the dummy; one above it is an
+            # unknown key, or a path below a value that is not an object.
+            for line in bdf.battinfo.BATTINFO_SCHEMA.check(entity, staged):
+                assert f"refuses {'.'.join(target)}:" in line, f"{plugin_id}: {line}"
+
+
+@pytest.mark.parametrize("fixture", CYCLER_FIXTURES, ids=lambda path: path.name)
+def test_each_cycler_fixture_reads_with_no_metadata_warning(fixture: Path) -> None:
+    """The metadata a shipped plugin makes from a real file is accepted by the bundled release."""
+    # The read checks the plugin's metadata against the bundled release: a refused value raises
+    # BDFMetadataError (validate is on), and the test also fails on any BDFMetadataWarning.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            read(fixture)
+        except RuntimeError as exc:  # an optional reader is not installed
+            pytest.skip(str(exc))
+
+    assert not [w for w in caught if issubclass(w.category, BDFMetadataWarning)]
