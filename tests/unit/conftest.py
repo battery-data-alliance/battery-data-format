@@ -8,10 +8,10 @@ import pytest
 import requests
 
 from bdf._definitions import DefinitionSource
+from bdf.battinfo import BATTINFO_SOURCE
 from bdf.spec import _BDF_LATEST_URL, _BDF_RELEASE_URL_TMPL, ONTOLOGY_SOURCE
 
-CACHE_DIR = "cache"
-"""The cache directory under ``tmp_path`` that the cache fixtures use."""
+from ._battinfo import CACHE_DIR
 
 
 class FakeGitHub:
@@ -59,6 +59,12 @@ def _empty_cache(source: DefinitionSource, tmp_path: Path, monkeypatch: pytest.M
     source.forget()
     yield tmp_path / CACHE_DIR
     source.forget()
+
+
+@pytest.fixture
+def battinfo_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """An empty cache for BattINFO schemas; see ``_empty_cache``."""
+    yield from _empty_cache(BATTINFO_SOURCE, tmp_path, monkeypatch)
 
 
 @pytest.fixture

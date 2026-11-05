@@ -35,7 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError as PydanticVa
 from ._errors import BDFMetadataError
 from .file_utils import read_head, resolve_source
 from .metadata import Metadata
-from .metadata_targets import ExtrasTarget, MetadataTarget
+from .metadata_targets import ExtrasTarget, MetadataTarget, _TargetPath
 from .normalization import (
     AbsoluteTimeNormalization,
     DayMonthOrder,
@@ -190,11 +190,13 @@ def _canonicalise_rules(value: Any) -> tuple[tuple[Any, Any], ...]:
     Returns:
         A tuple of ``(target, rule)`` pairs sorted by target kind and path,
         so two equal declarations built in different orders compare equal.
+        A ``METADATA`` path becomes a :class:`MetadataTarget`.
 
     Raises:
         ValueError: Two pairs share the same target kind and path.
     """
     items = list(value.items()) if isinstance(value, dict) else [tuple(item) for item in value]
+    items = [(MetadataTarget(path=t._path) if isinstance(t, _TargetPath) else t, rule) for t, rule in items]
     seen: set[tuple[str, tuple[str, ...]]] = set()
     for target, _rule in items:
         key = _target_key(target)
@@ -607,9 +609,10 @@ class BdfSidecarParser(MetadataParser):
     restores as an ordinary declared field, which keeps a repeated save and
     read from nesting a copy of the sidecar inside itself. A top-level key
     that ``Metadata`` does not declare raises ``BDFMetadataError`` naming
-    that key, and a declared field with an invalid value raises the same
-    way; a document claiming a newer ``bdf_version`` raises with an
-    upgrade instruction (GH #106). A sidecar that exists and cannot be read at all raises
+    that key, and a declared field with a value of the wrong kind (a
+    ``battinfo_*`` field that is not an object) raises the same way. The
+    read, not this parser, checks the ``battinfo_*`` values against BattINFO. A document claiming
+    a newer ``bdf_version`` raises with an upgrade instruction (GH #106). A sidecar that exists and cannot be read at all raises
     :class:`BDFMetadataError`, so an empty ``Metadata`` always means that no
     sidecar exists.
     """
@@ -665,8 +668,8 @@ class BdfSidecarParser(MetadataParser):
                 UTF-8, does not parse as JSON, or holds a JSON value that is
                 not an object.
             BDFMetadataError: The sidecar states a top-level key no
-                ``Metadata`` field declares, or a recognised field an invalid
-                value. Where the document also claims a newer ``bdf_version``
+                ``Metadata`` field declares, or a recognised field a value of
+                the wrong kind. Where the document also claims a newer ``bdf_version``
                 than the installed package, the message says to upgrade.
         """
         sidecar = self.sidecar_path(path)

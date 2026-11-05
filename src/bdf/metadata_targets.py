@@ -1,38 +1,33 @@
 """Where a metadata rule stages its value: the target types and the ``METADATA`` namespace.
 
 A target is a frozen reference to one path in the document a read returns
-(:class:`bdf.metadata.Metadata`). :data:`METADATA` mirrors that document as an
-attribute path: ``METADATA.battinfo_test.test.started_at`` is a reference to
-that field, and ``METADATA.extras["rig_bay"]`` is a reference to an ``extras``
-key. Attribute access reads ``model_fields`` on the generated BattINFO models
-themselves, so the models stay the single source of truth and no second
-representation of the same tree can go stale.
+(:class:`bdf.metadata.Metadata`). :data:`METADATA` spells that path as
+attributes: ``METADATA.battinfo_test.test.started_at`` is a reference to that
+field, ``METADATA.battinfo_test.test.conditions["temperature_c"]`` reaches a
+map key, and ``METADATA.extras["rig_bay"]`` is a reference to an ``extras``
+key.
 
-An open map (e.g. ``test.conditions``) accepts a subscript instead of a
-further attribute. A misspelled attribute raises ``AttributeError`` before any
-parser is built. There is no target for an array-typed field, nor for ``bdf``,
-which a read stamps itself.
+The first segment must name a ``battinfo_*`` field of ``Metadata`` (or
+``extras``); a wrong name raises ``AttributeError``. Any name extends the path
+below that, so a misspelled key there is found when the read checks the staged
+value against BattINFO: it raises ``BDFMetadataError``, or warns with
+``strict=False``.
+There is no target for ``bdf``, which a read stamps itself.
 """
 
 from __future__ import annotations
 
-import typing
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, RootModel
+from pydantic import BaseModel, ConfigDict
 
-from .battinfo.generated.cell_instance_schema import BattinfoCellInstance
-from .battinfo.generated.channel_schema import BattinfoChannelInstance
-from .battinfo.generated.dataset_schema import BattinfoDatasetSchemaOrgAligned
-from .battinfo.generated.equipment_schema import BattinfoEquipmentInstance
-from .battinfo.generated.test_protocol_schema import BattinfoTestProtocol
-from .battinfo.generated.test_schema import BattinfoTest
+from .battinfo import FIELD_SCHEMAS
 
 
 class MetadataTarget(BaseModel):
     """A frozen reference to one canonical path in the read metadata document.
 
-    Constructed by the ``METADATA`` namespace, never directly; a rule
+    Built from a ``METADATA`` path when a rule set is built, never directly; a rule
     pairs one target with its extraction and normalization, and the staging
     engine calls :meth:`stage` to place the rule's normalized value.
     """
@@ -81,55 +76,53 @@ class ExtrasTarget(BaseModel):
         node[self.path[-1]] = value
 
 
-# The wrapper key each entity's root model answers to, matching the record
-# fields of the read metadata. `bdf`, `raw`, and `extras` are not entity
-# records and hold no target: only an explicit `extras` subscript reaches
-# outside an entity.
-_ROOTS: dict[str, type[BaseModel]] = {
-    "battinfo_test": BattinfoTest,
-    "battinfo_cell": BattinfoCellInstance,
-    "battinfo_channel": BattinfoChannelInstance,
-    "battinfo_equipment": BattinfoEquipmentInstance,
-    "battinfo_test_protocol": BattinfoTestProtocol,
-    "battinfo_dataset": BattinfoDatasetSchemaOrgAligned,
-}
+class _TargetPath:
+    """A path below a ``battinfo_*`` field, spelled with attributes and subscripts.
 
-_ARRAY_ORIGINS = (list, tuple, set, frozenset)
-
-
-def _sole_type(annotation: Any) -> Any:
-    """Return the one type ``annotation`` states, or ``annotation`` itself.
-
-    Args:
-        annotation: A generated model field's type annotation.
-
-    Returns:
-        The single non-``None`` member of an optional or union annotation,
-        or ``annotation`` unchanged where it states no union or states more
-        than one member.
+    It holds only its path in a private slot, so any field name (``kind``,
+    ``path``, ``copy`` among them) extends the path. A rule set turns it into a
+    :class:`MetadataTarget` when it is built.
     """
-    members = [member for member in typing.get_args(annotation) if member is not type(None)]
-    return members[0] if len(members) == 1 else annotation
-
-
-class _OpenMapTarget:
-    """A generated attribute node that accepts a subscript, not a further attribute."""
 
     __slots__ = ("_path",)
 
     def __init__(self, path: tuple[str, ...]) -> None:
         self._path = path
 
-    def __getitem__(self, key: str) -> MetadataTarget:
-        """Return the target for ``key`` under this open map.
+    def __getattr__(self, name: str) -> _TargetPath:
+        """Return the path extended by ``name``.
 
-        Args:
-            key: The map key to target.
-
-        Returns:
-            A frozen :class:`MetadataTarget` for ``self._path + (key,)``.
+        Raises:
+            AttributeError: ``name`` starts with ``_``, so copy, pickle and
+                dunder lookups behave as for a plain object.
         """
-        return MetadataTarget(path=(*self._path, key))
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return _TargetPath((*self._path, name))
+
+    def __getitem__(self, key: str) -> _TargetPath:
+        """Return the path extended by the map key ``key``.
+
+        Raises:
+            TypeError: ``key`` is not a str.
+        """
+        if not isinstance(key, str):
+            raise TypeError(f"a metadata target key must be a str, not {type(key).__name__}")
+        return _TargetPath((*self._path, key))
+
+    # With __getitem__ alone, iter() and `in` would count up from 0 forever.
+    __iter__ = None
+
+    def __repr__(self) -> str:
+        return f"METADATA.{'.'.join(self._path)}"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _TargetPath):
+            return NotImplemented
+        return self._path == other._path
+
+    def __hash__(self) -> int:
+        return hash(self._path)
 
 
 class _ExtrasNamespace:
@@ -149,71 +142,29 @@ class _ExtrasNamespace:
         return ExtrasTarget(path=(key,))
 
 
-class _MetadataNode:
-    """One node of the metadata target namespace, backed by a generated model."""
-
-    __slots__ = ("_path", "_model")
-
-    def __init__(self, path: tuple[str, ...], model: type[BaseModel]) -> None:
-        self._path = path
-        self._model = model
-
-    def __getattr__(self, name: str) -> Any:
-        """Resolve ``name`` against this node's model fields.
-
-        Args:
-            name: The attribute segment to resolve.
-
-        Returns:
-            A :class:`MetadataTarget`, an :class:`_OpenMapTarget`, or a
-            nested :class:`_MetadataNode`.
-
-        Raises:
-            AttributeError: ``name`` names no field of this node's model, or
-                names an array-typed field, which is never a rule target.
-        """
-        field = self._model.model_fields.get(name)
-        path = (*self._path, name)
-        if field is None:
-            raise AttributeError(f"{'.'.join(path)!r} is not a declared BattINFO metadata path")
-
-        # One segment per access, so a self-referencing schema costs nothing
-        # until a caller walks into it.
-        annotation = _sole_type(field.annotation)
-        origin = typing.get_origin(annotation)
-        if origin is dict:
-            return _OpenMapTarget(path)
-        if origin in _ARRAY_ORIGINS:
-            raise AttributeError(f"{'.'.join(path)!r} is an array field, which states no metadata target")
-        if isinstance(annotation, type) and issubclass(annotation, BaseModel) and not issubclass(annotation, RootModel):
-            return _MetadataNode(path, annotation)
-        return MetadataTarget(path=path)
-
-
 class _MetadataRoot:
-    """The top-level ``METADATA`` namespace: the five entity records, plus ``extras``."""
+    """The top-level ``METADATA`` namespace: the six ``battinfo_*`` fields, plus ``extras``."""
 
     __slots__ = ()
 
     def __getattr__(self, name: str) -> Any:
-        """Resolve ``name`` against the entity records and ``extras``.
+        """Resolve ``name`` against the ``battinfo_*`` fields and ``extras``.
 
         Args:
             name: The attribute segment to resolve.
 
         Returns:
             An :class:`_ExtrasNamespace` for ``"extras"``, otherwise the
-            :class:`_MetadataNode` for that entity record.
+            :class:`_TargetPath` of that ``battinfo_*`` field.
 
         Raises:
-            AttributeError: ``name`` names no entity record.
+            AttributeError: ``name`` is not a ``battinfo_*`` field or ``extras``.
         """
         if name == "extras":
             return _ExtrasNamespace()
-        model = _ROOTS.get(name)
-        if model is None:
-            raise AttributeError(f"{name!r} is not a declared BattINFO metadata record")
-        return _MetadataNode((name,), model)
+        if name in FIELD_SCHEMAS:
+            return _TargetPath((name,))
+        raise AttributeError(f"{name!r} is not a declared BattINFO metadata record")
 
 
 METADATA = _MetadataRoot()

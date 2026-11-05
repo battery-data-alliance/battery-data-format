@@ -6,7 +6,7 @@ class BDFValidationError(Exception):
 
 
 class BDFMetadataError(Exception):
-    """Raised when a metadata sidecar exists and cannot be restored."""
+    """Raised when a metadata sidecar exists and cannot be restored, or when the BattINFO check refuses a read or a save."""
 
 
 class BDFDefinitionError(RuntimeError):
@@ -15,3 +15,7 @@ class BDFDefinitionError(RuntimeError):
 
 class BDFDefinitionWarning(UserWarning):
     """Warned when bdf cannot load definition data and uses a local version or skips a check instead."""
+
+
+class BDFMetadataWarning(UserWarning):
+    """Warned when a read or a save with strict=False keeps BattINFO metadata that the schema refuses."""

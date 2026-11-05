@@ -21,7 +21,9 @@ def test_parse_metadata_from_source(case: SampleCase, data_dir: Path) -> None:
     metadata = parser.parse(resolved)
     assert case.expected_metadata is not None
     for dotted_path, expected in case.expected_metadata.items():
-        node = metadata
-        for segment in dotted_path.split("."):
-            node = getattr(node, segment)
+        # Entities are plain dicts, so follow the dotted path by key below the entity.
+        entity, *keys = dotted_path.split(".")
+        node = getattr(metadata, entity)
+        for key in keys:
+            node = node[key]
         assert node == pytest.approx(expected)
