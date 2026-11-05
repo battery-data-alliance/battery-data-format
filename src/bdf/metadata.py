@@ -28,7 +28,7 @@ class _RecordModel(BaseModel):
     def __repr_args__(self) -> Iterator[tuple[str | None, Any]]:
         """Yield only the fields that differ from their default, for ``repr`` and ``str``."""
         for name, info in type(self).model_fields.items():
-            value = getattr(self, name)
+            value = self.__dict__[name]  # not getattr: a deprecated field would warn
             if value != info.get_default(call_default_factory=True):
                 yield name, value
 
@@ -62,9 +62,13 @@ class BdfReadInfo(_RecordModel):
     """The batterydf version that wrote this sidecar."""
     ontology_version: str | None = None
     """The version of the BDF ontology that the columns follow."""
-    battinfo_ref: str | None = None
-    """The BattINFO commit that bdf 0.2.0 wrote. A read still accepts it; a
-    save writes ``battinfo_version`` in its place."""
+    battinfo_ref: str | None = Field(
+        default=None,
+        deprecated="bdf.battinfo_ref is the BattINFO commit that bdf 0.2.0 wrote; use bdf.battinfo_version",
+        exclude=True,
+    )
+    """Deprecated: the BattINFO commit that bdf 0.2.0 wrote. A read still
+    accepts it; a save writes ``battinfo_version`` in its place."""
     battinfo_version: str | None = None
     """The version of the BattINFO schema that the ``battinfo_*`` fields follow."""
 

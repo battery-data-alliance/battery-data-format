@@ -633,11 +633,13 @@ def _sidecar_text(metadata: Metadata, ontology_version: str | None, battinfo_ver
     import bdf
 
     payload = metadata.model_dump(mode="json", exclude_defaults=True)
+    # A bdf that differs from its default only in a field that is not written, the deprecated
+    # battinfo_ref, dumps as {}, and carries nothing.
+    if payload.get("bdf") == {}:
+        del payload["bdf"]
     if not payload:
         return None
     stamps = payload.setdefault("bdf", {})
-    # bdf 0.2.0 stamped the BattINFO commit, battinfo_ref, which battinfo_version replaces.
-    stamps.pop("battinfo_ref", None)
     writer = {
         "bdf_version": bdf.__version__,
         "ontology_version": ontology_version,

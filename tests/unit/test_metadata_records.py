@@ -87,3 +87,12 @@ def test_repr_and_str_show_only_filled_fields() -> None:
     assert repr(meta) == f"Metadata(battinfo_test={{'test': {{'started_at': {_PLACEHOLDER_EPOCH}}}}})"
     assert str(meta) == f"battinfo_test={{'test': {{'started_at': {_PLACEHOLDER_EPOCH}}}}}"
     assert repr(Metadata()) == "Metadata()"
+
+
+def test_battinfo_ref_is_deprecated_and_not_saved() -> None:
+    """A 0.2.0 sidecar's battinfo_ref still loads; reading it warns, and to_dict() leaves it out."""
+    info = BdfReadInfo(battinfo_ref="2ea8929074a7430b6e437065686cda881cfc23e7")
+
+    with pytest.deprecated_call():
+        assert info.battinfo_ref == "2ea8929074a7430b6e437065686cda881cfc23e7"
+    assert info.to_dict() == {}

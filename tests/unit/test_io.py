@@ -896,6 +896,10 @@ def test_metadata_carrying_nothing_writes_no_sidecar(tmp_path: Path) -> None:
     io.save(df, p, metadata=Metadata())
     assert not p.with_suffix(".metadata.json").exists()
 
+    # Nor does one whose only value is a battinfo_ref, which a save does not write.
+    io.save(df, p, metadata=Metadata.model_validate({"bdf": {"battinfo_ref": "abc"}}))
+    assert not p.with_suffix(".metadata.json").exists()
+
 
 def test_save_without_metadata_refuses_an_existing_sidecar(tmp_path: Path) -> None:
     """A save that states no metadata beside an existing sidecar raises, and writes nothing."""
