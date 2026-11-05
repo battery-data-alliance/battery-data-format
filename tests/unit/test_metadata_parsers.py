@@ -165,6 +165,30 @@ def test_a_misspelled_entity_fails_when_the_target_is_spelled() -> None:
         _ = METADATA.battinfo_tset.test.name
 
 
+@pytest.mark.parametrize(
+    ("paths", "message"),
+    [
+        ((("battinfo_test", "test"), ("battinfo_test", "test", "name")), "inside another target"),
+        ((("battinfo_test",),), "names a whole record"),
+    ],
+    ids=["nested", "whole-record"],
+)
+def test_a_rule_set_whose_targets_cannot_all_be_staged_fails_when_it_is_built(
+    paths: tuple[tuple[str, ...], ...], message: str
+) -> None:
+    """A target inside another, or a whole record, fails where the rule set is built, not at parse time."""
+    from bdf.metadata_targets import METADATA
+
+    rules = {}
+    for path in paths:
+        target = getattr(METADATA, path[0])
+        for segment in path[1:]:
+            target = getattr(target, segment)
+        rules[target] = JsonRule(candidates=((path[-1],),))
+    with pytest.raises(ValueError, match=message):
+        JsonSidecarParser(rules=rules)
+
+
 def test_a_field_named_like_a_model_attribute_extends_the_path() -> None:
     """A field named ``kind`` is a path segment like any other name."""
     from bdf.metadata_targets import METADATA

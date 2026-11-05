@@ -193,7 +193,9 @@ def _canonicalise_rules(value: Any) -> tuple[tuple[Any, Any], ...]:
         A ``METADATA`` path becomes a :class:`MetadataTarget`.
 
     Raises:
-        ValueError: Two pairs share the same target kind and path.
+        ValueError: Two pairs share the same target kind and path; a target is inside
+            another, so one value would overwrite part of the other; or a target names
+            a whole ``battinfo_*`` record, not a key below it.
     """
     items = list(value.items()) if isinstance(value, dict) else [tuple(item) for item in value]
     items = [(MetadataTarget(path=t._path) if isinstance(t, _TargetPath) else t, rule) for t, rule in items]
@@ -203,6 +205,12 @@ def _canonicalise_rules(value: Any) -> tuple[tuple[Any, Any], ...]:
         if key in seen:
             raise ValueError(f"duplicate metadata target: {target!r}")
         seen.add(key)
+    for kind, path in seen:
+        if kind == "metadata" and len(path) < 2:
+            raise ValueError(f"metadata target METADATA.{path[0]} names a whole record: name a key below it")
+        for outer in (path[:n] for n in range(1, len(path))):
+            if (kind, outer) in seen:
+                raise ValueError(f"metadata target {'.'.join(path)} is inside another target, {'.'.join(outer)}")
     items.sort(key=lambda pair: _target_key(pair[0]))
     return tuple(items)
 
