@@ -29,6 +29,7 @@ from bdf.io import read, scan
 from bdf.metadata_parsers import JsonRule, JsonSidecarParser, RegexRule, TxtPreambleParser
 from bdf.normalization import AbsoluteTimeNormalization
 from bdf.plugins import Plugin
+from bdf.spec import COLUMN_ONTOLOGY
 from bdf.table_normalizers import Syn, TableNormalizer
 from bdf.table_parsers import DelimTxtParser
 
@@ -262,7 +263,7 @@ def test_save_legacy_warns(tmp_path: Path):
     with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
         io.save(df, path)
     with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
-        io.save(df, path, validate=False)
+        io.save(df, path, strict=False)
 
 
 def test_save_missing_col_warns(tmp_path: Path):
@@ -276,7 +277,7 @@ def test_save_missing_col_warns(tmp_path: Path):
     with pytest.raises(BDFValidationError):
         io.save(df, path)
     with pytest.warns(UserWarning, match="Missing required BDF columns: \['Test Time / s'\]"):
-        io.save(df, path, validate=False)
+        io.save(df, path, strict=False)
 
 
 def test_save_extra_col_warns(tmp_path: Path):
@@ -292,7 +293,7 @@ def test_save_extra_col_warns(tmp_path: Path):
     with pytest.warns(UserWarning, match="Non-BDF columns present"):
         io.save(df, path)
     with pytest.warns(UserWarning, match="Non-BDF columns present"):
-        io.save(df, path, validate=False)
+        io.save(df, path, strict=False)
 
 
 def test_save_non_canonical_units_warns(tmp_path: Path):
@@ -455,12 +456,13 @@ def test_read_plugin_invalid_type_raises(tmp_path: Path) -> None:
 
 
 def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespace, tmp_path: Path) -> None:
-    """read() forwards path + the five read-shaping kwargs verbatim, plus lazy=False."""
+    """read() forwards path + the six read-shaping kwargs verbatim, plus lazy=False."""
     p = tmp_path / "f.csv"
     read(
         p,
         plugin=read_mocks.plugin,
         validate=False,
+        strict=False,
         normalize=False,
         include_unknown=True,
         tz="America/New_York",
@@ -468,11 +470,13 @@ def test_read_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
     read_mocks.table_read.assert_called_once_with(
         p,
         validate=False,
+        strict=False,
         normalize=False,
         include_unknown=True,
         lazy=False,
         tz="America/New_York",
         day_month_order=None,
+        ontology=COLUMN_ONTOLOGY,
     )
 
 
@@ -491,10 +495,12 @@ def test_scan_forwards_all_read_kwargs_to_table_parser(read_mocks: SimpleNamespa
         p,
         normalize=False,
         validate=False,
+        strict=True,
         include_unknown=False,
         lazy=True,
         tz="America/New_York",
         day_month_order=None,
+        ontology=COLUMN_ONTOLOGY,
     )
 
 
@@ -747,7 +753,7 @@ def test_read_mismatch_raises_by_default(tmp_path: Path) -> None:
 def test_read_mismatch_warns_when_validate_false(tmp_path: Path) -> None:
     path = _write_bdf_csv_with_ms_test_time(tmp_path)
     with pytest.warns(UserWarning, match="appear to be milliseconds"):
-        df, meta = read(path, validate=False)
+        df, meta = read(path, strict=False)
     # values loaded as-is, nothing repaired or recorded
     assert df["Test Time / s"].to_list()[1] == 10_000.0
     assert meta.bdf.time_reconciliation is None  # type: ignore[attr-defined]
@@ -806,7 +812,7 @@ def test_read_unexplained_ratio_stays_loud_even_with_reconcile_time(tmp_path: Pa
     with pytest.raises(BDFValidationError, match="matches no known unit"):
         read(path, reconcile_time=True)
     with pytest.warns(UserWarning, match="matches no known unit"):
-        out, meta = read(path, validate=False)
+        out, meta = read(path, strict=False)
     assert out["Test Time / s"].to_list()[1] == 370.0
     assert meta.bdf.time_reconciliation is None  # type: ignore[attr-defined]
 
@@ -870,9 +876,9 @@ def test_metadata_roundtrips_through_save_and_read(tmp_path: Path) -> None:
     p = tmp_path / "data.bdf.csv"
     io.save(df, p, metadata=original)
     _, restored = io.read(p)
-    # bdf.source is the plugin id this read resolved, assigned unconditionally,
-    # so it cannot round-trip against an instance that never set it.
-    assert restored.bdf.source is not None
+    # Hand-built metadata states the writer in created_with and no source.
+    assert restored.bdf.created_with is not None
+    assert restored.bdf.source is None
     restored_without_bdf = restored.model_copy(update={"bdf": original.bdf})
     assert restored_without_bdf == original
 
@@ -1421,3 +1427,59 @@ def test_empty_metadata_is_not_stamped_into_existence(tmp_path: Path) -> None:
     io.save(df, p, metadata=Metadata())
 
     assert not p.with_suffix(".metadata.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# Sidecar origin: where the data came from
+# ---------------------------------------------------------------------------
+
+_FRAME = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+
+
+def _json_plugin_with_start_and_instrument(tmp_path: Path, content: dict) -> tuple[Path, Plugin]:
+    """Return a file, and a plugin that stages ``start`` as started_at and ``instrument`` as instrument_name from its JSON ``content``."""
+    from bdf.metadata_targets import METADATA
+
+    data = tmp_path / "cell.csv"
+    data.write_text("Test Time / s,Voltage / V,Current / A\n0,3.7,0.1\n")
+    (tmp_path / "cell.json").write_text(json.dumps(content))
+    rules = {
+        METADATA.battinfo_test.test.started_at: JsonRule(candidates=(("start",),)),
+        METADATA.battinfo_test.test.instrument_name: JsonRule(candidates=(("instrument",),)),
+    }
+    plugin = Plugin(
+        table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=JsonSidecarParser(rules=rules)
+    )
+    return data, plugin
+
+
+def test_a_vendor_file_keeps_its_origin_through_save_and_read(tmp_path: Path) -> None:
+    data, plugin = _json_plugin_with_start_and_instrument(tmp_path, {"start": 1700000000, "instrument": "BaSyTec CTS"})
+
+    # Read the vendor file, save it as a bdf file, and read that file back.
+    _, first = read(data, plugin=plugin)
+    io.save(_FRAME, tmp_path / "out.bdf.csv", metadata=first)
+    _, again = read(tmp_path / "out.bdf.csv")
+
+    import bdf
+
+    # The first read records which bdf converted the vendor file.
+    assert first.bdf.created_with == bdf.__version__
+    # The second read is of a bdf file, but the metadata still gives the first read's source and
+    # the converting bdf, not "bdf_csv" and nothing: the origin is not lost on the way.
+    assert (again.bdf.source, again.bdf.created_with) == (first.bdf.source, first.bdf.created_with)
+
+
+def test_metadata_built_by_hand_states_the_writer_and_no_source(tmp_path: Path) -> None:
+    # Metadata made in code, not read from any file.
+    p = tmp_path / "data.bdf.csv"
+    meta = Metadata()
+    meta.battinfo_test.test.name = "cell-1"  # type: ignore[union-attr]
+    io.save(_FRAME, p, metadata=meta)
+
+    import bdf
+
+    # The save fills created_with with the bdf that wrote it, and states no source, as there was none.
+    stated = json.loads(p.with_suffix(".metadata.json").read_text())["bdf"]
+    assert stated["created_with"] == bdf.__version__
+    assert "source" not in stated

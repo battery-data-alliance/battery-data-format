@@ -14,6 +14,7 @@ from ._errors import BDFValidationError
 from ._validate import validate
 from .file_utils import ensure_dir as _ensure_dir, is_url as _is_url
 from .io import read, save
+from .spec import COLUMN_ONTOLOGY, ColumnOntology
 
 
 def _default_ingest_cache_dir() -> Path:
@@ -122,18 +123,15 @@ def _is_csv(path: Path) -> bool:
     return s.endswith(".csv") or s.endswith(".bdf.csv")
 
 
-def _csv_header_has_bdf_required(path: Path) -> bool:
-    """Quickly check if first row contains required BDF columns."""
+def _csv_header_has_bdf_required(path: Path, ontology: ColumnOntology) -> bool:
+    """Quickly check if first row contains required BDF columns of ``ontology``."""
     try:
         with open(path, encoding="utf-8", errors="ignore") as f:
             header = f.readline().strip()
     except Exception:
         return False
     cols_l = {c.strip().lower() for c in header.split(",")}
-    # import lazily to avoid cycles
-    from . import spec
-
-    for _, quantity_spec in spec.COLUMN_ONTOLOGY:
+    for _, quantity_spec in ontology:
         if not quantity_spec.required or quantity_spec.deprecated:
             continue
         pref = quantity_spec.formatted_label.lower()
@@ -143,7 +141,7 @@ def _csv_header_has_bdf_required(path: Path) -> bool:
     return True
 
 
-def _looks_like_bdf_artifact(path: Path) -> bool:
+def _looks_like_bdf_artifact(path: Path, ontology: ColumnOntology) -> bool:
     """Return True if filename + header suggest this is a BDF file we should try to load."""
     sfx = "".join(path.suffixes).lower()
     # Parquet/Feather/JSON: accept outright if extension matches
@@ -157,7 +155,7 @@ def _looks_like_bdf_artifact(path: Path) -> bool:
     if _is_csv(path):
         if ".bdf.csv" in sfx:
             return True
-        return _csv_header_has_bdf_required(path)
+        return _csv_header_has_bdf_required(path, ontology)
     return False
 
 
@@ -172,6 +170,7 @@ def ingest(
     validate_existing: bool = True,
     validate_converted: bool = True,
     include_unknown: bool = False,
+    ontology: ColumnOntology | None = None,
     plugin: str | None = None,
     incremental: bool = True,
     force: bool = False,
@@ -202,6 +201,9 @@ def ingest(
     - cell_metadata_dir: base dir for per-cell metadata folders (relative to out_dir)
     - validate_existing: validate files that already look like BDF
     - validate_converted: validate after conversion
+    - ontology: ontology for every read, save and validation; by default each
+      existing BDF file uses the ontology in its sidecar's
+      bdf.ontology_version, and a converted file uses the bundled ontology
     - plugin: force a specific plugin id for raw files
     - incremental: skip previously processed files when unchanged
     - force: reprocess even if a file looks unchanged
@@ -219,6 +221,9 @@ def ingest(
     is True, the summary includes "roots".
     Metadata generation uses contribution.json/person.json, and nested layout requires battery.json.
     """
+    # Each read, save and validation resolves a None ontology from its own file. The
+    # CSV header check and the collection metadata have no file to ask: the bundle.
+    fixed_ontology = COLUMN_ONTOLOGY if ontology is None else ontology
     if isinstance(source, (list, tuple, set)):
         results: list[dict[str, Any]] = []
         errors: list[dict[str, str]] = []
@@ -234,6 +239,7 @@ def ingest(
                     validate_existing=validate_existing,
                     validate_converted=validate_converted,
                     include_unknown=include_unknown,
+                    ontology=ontology,
                     plugin=plugin,
                     incremental=incremental,
                     force=force,
@@ -290,6 +296,7 @@ def ingest(
                     validate_existing=validate_existing,
                     validate_converted=validate_converted,
                     include_unknown=include_unknown,
+                    ontology=ontology,
                     plugin=plugin,
                     incremental=incremental,
                     force=force,
@@ -1306,6 +1313,7 @@ def ingest(
                 distributions=[dist],
                 context=[],
                 extra_fields=extra_fields or None,
+                ontology=fixed_ontology,
             )
             child_obj.pop("@context", None)
             child_nodes.append(child_obj)
@@ -1321,6 +1329,7 @@ def ingest(
             dataset_obj = meta.to_schemaorg_dataset(
                 extra_fields=extra_fields or None,
                 context=[],
+                ontology=fixed_ontology,
             )
             dataset_obj.pop("@context", None)
 
@@ -1462,7 +1471,7 @@ def ingest(
                 summary["skipped"].append({"path": str(f), "reason": "metadata_file"})
                 continue
 
-            if _looks_like_bdf_artifact(f):
+            if _looks_like_bdf_artifact(f, fixed_ontology):
                 output_used = f
                 out_path = _output_path(f)
 
@@ -1487,14 +1496,14 @@ def ingest(
                     output_used = _place_existing(f, out_path)
 
                 if validate_existing:
-                    rep = validate(output_used, report=False, raise_on_error=False)
+                    rep = validate(output_used, report=False, raise_on_error=False, ontology=ontology)
                     summary["validated"].append({"path": str(output_used), "ok": rep.get("ok"), "report": rep})
 
                 existing_entry = {"path": str(f), "output": str(output_used), "existing_bdf": True}
                 if layout_mode == "flat" and not collection_metadata:
                     df_for_meta = None
                     try:
-                        df_for_meta, _metadata = read(output_used)
+                        df_for_meta, _metadata = read(output_used, ontology=ontology)
                         df_for_meta = df_for_meta.to_pandas()
                     except Exception:
                         df_for_meta = None
@@ -1532,11 +1541,12 @@ def ingest(
                 plugin=plugin,
                 validate=validate_converted,
                 include_unknown=include_unknown,
+                ontology=ontology,
             )
             df = df_pl.to_pandas()
             out_path = _output_path(f)
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            save(df, out_path, labels=labels)
+            save(df, out_path, labels=labels, ontology=ontology)
             converted_entry = {"path": str(f), "output": str(out_path)}
             if incremental:
                 key = _state_key(f)

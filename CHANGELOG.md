@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Breaking
+- The bundled ontology is now a version directory, `src/bdf/data/bdf-ontology/`, holding `bdf-ontology.ttl` and a `VERSION` file, in place of `bdf-ontology-snapshot.ttl`.
+- A cached ontology is now a `bdf-ontology-v{version}/` directory in the cache. bdf no longer reads the old `bdf-ontology-v*.ttl` cache files, so an ontology cached before is fetched again on its first use.
+- `ColumnOntology.load_version()`, `load_latest()`, and `load_ttl()` are removed. They replaced an instance's ontology in place. Use the classmethods `ColumnOntology.from_version(version)`, `ColumnOntology.from_latest()`, and `ColumnOntology.from_ttl(path)`, which return a new instance.
+- `ColumnOntology.from_latest()` loads the ontology that the ontology's `/latest` w3id URI states in `owl:versionInfo`, where `load_latest()` loaded the live deployment. It makes no GitHub API request.
+- `ColumnOntology.get_snapshot(version=None)` and `bdf-update-snapshot` with no version fetch that same latest ontology, not the live deployment.
+- Ontology versions are fetched from their w3id version IRIs (`https://w3id.org/battery-data-alliance/ontology/battery-data-format/{version}/battery-data-format`), not from raw GitHub tag URLs. A pre-release name, such as `1.4.0rc1`, has no such IRI and cannot be fetched.
+- A failed fetch of an ontology is not tried again in the same process: a later `ColumnOntology.from_version()` of that ontology, when it is neither bundled nor cached, raises `BDFDefinitionError` with no request. Pass `refresh=True` to fetch again.
+- `ColumnOntology.from_version()` and `ColumnOntology.get_snapshot()` raise `BDFDefinitionError`, chained from the cause, where they raised `requests.HTTPError`. `BDFDefinitionError` is a `RuntimeError`.
+- A read uses the ontology in the file's sidecar (`bdf.ontology_version`), not always the bundled ontology. bdf loads that ontology from the bundle, the cache, or upstream, so a read of a file saved with an older ontology can make one network request per machine. When that ontology cannot be loaded, the read raises `BDFDefinitionError`; with `strict=False` or `validate=False` it warns `BDFDefinitionWarning`, uses the bundled ontology for the column labels, and does not check the columns. Later reads in the process do not try that ontology again. The returned `bdf.ontology_version` keeps the ontology the sidecar states.
+- A save checks the columns against the ontology in the metadata's `bdf.ontology_version`, and the sidecar's `bdf.ontology_version` records it: it is now the ontology the file was checked against, not the writer's bundled ontology. A read and then a save keeps the file's ontology. When that ontology cannot be loaded, `save()` raises `BDFDefinitionError` and writes nothing; with `strict=False` it warns `BDFDefinitionWarning`, does not check the columns, and writes the file. The sidecar states the ontology that the metadata states either way. `bdf.bdf_version` still names the writer.
+- `validate=False` on `read`, `scan`, `save`, `normalize`, `TableNormalizer.normalize` and `TableParser.read` checks nothing, where it used to warn: no column check and no time-scale check. Pass `strict=False` for the old behaviour: check, and warn instead of raising.
+- `BDF_NORMALIZER` holds no labels itself: it maps the labels of the ontology that each call uses, then the synonyms that `extend` adds, and it stays the BDF normalizer through a JSON round trip. So a file that states an older release keeps a column that the bundled release has no field for. Iterate `BDF_NORMALIZER.for_ontology(ontology)` for the labels.
+
+### Added
+- `bdf.created_with` names the batterydf version that first read the data from its source. A read from a source that is not a sidecar sets it and `bdf.source`; every later read and save passes `source`, `created_with` and `time_reconciliation` through unchanged. Metadata built by hand states `created_with` when saved. A sidecar that bdf 0.2.0rc3 wrote keeps its `source` and states no `created_with`.
+- `BDFDefinitionError` and `BDFDefinitionWarning`, exported from `bdf`.
+- `ontology=` on `ingest` and `Dataset.to_schemaorg_dataset`. `ingest` passes it to each read, save, and validation.
+- `ontology=` on `read`, `scan`, `save`, and `validate`. The call uses only that `ColumnOntology`; `COLUMN_ONTOLOGY` does not change.
+- `ontology=` on `validate_df`. The required and optional columns, synonyms, and derived-column checks come from that `ColumnOntology`.
+- `ontology=` on `normalize`, and on `TableNormalizer.normalize`, `resolve`, and `from_column_map`. The normalization uses only that `ColumnOntology` for labels, units, dtypes, and required columns. A column that a normalizer maps to a quantity the ontology does not define is handled as a column outside the spec, with a `UserWarning`.
+- `ColumnOntology.from_latest()` falls back to the newest local ontology that is not a pre-release, with a `BDFDefinitionWarning`, when upstream cannot be asked for its latest ontology or that ontology cannot be fetched. It raises `BDFDefinitionError` when no such ontology exists.
+- `strict=` on `read`, `scan`, `save`, `normalize`, `TableNormalizer.normalize` and `TableParser.read`. With `validate=True`, `strict=True` (the default) raises when a check fails, and `strict=False` warns and goes on.
 
 ## [0.2.0] - 2026-11-03
 ### Breaking

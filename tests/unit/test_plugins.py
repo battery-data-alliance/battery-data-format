@@ -327,7 +327,7 @@ class TestNdaNormalizer:
 class TestBDFNormalizer:
     def test_all_non_deprecated_mr_names_present(self):
         """BDF_NORMALIZER covers all non-deprecated mr_names in the ontology."""
-        bdf_fields = {mr_name for mr_name, _ in BDF_NORMALIZER}
+        bdf_fields = {mr_name for mr_name, _ in BDF_NORMALIZER.for_ontology(COLUMN_ONTOLOGY)}
         known_fields = set(TableNormalizer.model_fields)
         ontology_non_deprecated = {mr_name for mr_name, q in COLUMN_ONTOLOGY if not q.deprecated}
         expected = ontology_non_deprecated & known_fields

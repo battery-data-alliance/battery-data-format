@@ -1,6 +1,6 @@
 """Generate ontology-derived documentation tables.
 
-The bundled ontology snapshot (src/bdf/data/bdf-ontology-snapshot.ttl) is the
+The bundled ontology snapshot (src/bdf/data/bdf-ontology/bdf-ontology.ttl) is the
 single source of truth for BDF quantities. This script renders the
 Required/Recommended/Optional quantity tables and injects them into the
 regions of README.md bounded by marker comments:
