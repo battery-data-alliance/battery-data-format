@@ -35,6 +35,7 @@ dependencies = [
   "platformdirs>=4.10.0",
   "polars>=1.41.2",
   "babel>=2.15",
+  "packaging>=22",
 ]
 
 [project.urls]
@@ -178,14 +179,14 @@ packages = [
 ]
 include = [
   "src/bdf/schemas/*.json",
-  "src/bdf/data/bdf-ontology-snapshot.ttl",
+  "src/bdf/data/bdf-ontology/*",
 ]
 
 [tool.hatch.build.targets.sdist]
 include = [
   "src/bdf/**",
   "src/bdf/schemas/*.json",
-  "src/bdf/data/bdf-ontology-snapshot.ttl",
+  "src/bdf/data/bdf-ontology/*",
   "README.md",
   "pyproject.toml",
 ]
