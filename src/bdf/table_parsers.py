@@ -180,6 +180,7 @@ class TableParser(BaseModel):
         *,
         normalize: bool = True,
         validate: bool = True,
+        strict: bool = True,
         include_unknown: bool = False,
         lazy: bool = True,
         tz: str = "UTC",
@@ -196,7 +197,9 @@ class TableParser(BaseModel):
         Args:
             path: Local file path or http(s) URL.
             normalize: Apply column normalization when True.
-            validate: Validate column names against BDF ontology when True (default).
+            validate: Check column names against the ontology (default True).
+            strict: With ``validate``, raise on missing required columns (default True);
+                False warns instead.
             include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
             lazy: Return a LazyFrame when True (default); collect to a DataFrame when False.
             tz: IANA timezone applied to naive ``unix_time_second`` datetime formats.
@@ -217,6 +220,7 @@ class TableParser(BaseModel):
             lf,
             include_unknown=include_unknown,
             validate=validate,
+            strict=strict,
             tz=tz,
             day_month_order=day_month_order,
         )

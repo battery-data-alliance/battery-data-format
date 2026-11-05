@@ -605,11 +605,20 @@ class TestNormalizerNormalize:
         assert out.equals(df)
 
     def test_normalize_missing_required_warns(self):
-        """normalize(validate=False) warns when required BDF columns are missing."""
+        """normalize(strict=False) warns when required BDF columns are missing."""
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
         with pytest.warns(UserWarning, match="Missing required BDF columns"):
-            n.normalize(df, validate=False)
+            n.normalize(df, strict=False)
+
+    def test_normalize_without_validation_does_not_check_required_columns(self):
+        """normalize(validate=False) does not check the columns, so missing required columns give no warning."""
+        n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
+        df = pl.DataFrame({"v": [3.5]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            out = n.normalize(df, validate=False)
+        assert out.columns == ["Voltage / V"]
 
     def test_normalize_missing_required_validate_true_raises(self):
         """normalize(validate=True) raises BDFValidationError when required BDF columns are missing."""
