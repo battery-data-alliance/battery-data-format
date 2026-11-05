@@ -14,7 +14,6 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-import bdf.battinfo
 from bdf.battinfo import BATTINFO_SOURCE
 from bdf.data import BATTINFO_BUNDLE
 
@@ -57,9 +56,8 @@ def cache_release(tmp_path: Path, version: str, docs: dict[str, dict[str, Any]])
 
 
 def point_bundle_at(monkeypatch: pytest.MonkeyPatch, root: Path, version: str, docs: dict[str, dict[str, Any]]) -> None:
-    """Make ``docs`` the bundled release: the source's bundle and ``BATTINFO_SCHEMA``."""
+    """Make ``docs`` the bundled release: the source's bundle, which ``BATTINFO_SCHEMA`` opens."""
     monkeypatch.setattr(BATTINFO_SOURCE, "bundled", write_release(root, version, docs))
-    monkeypatch.setattr(bdf.battinfo, "BATTINFO_SCHEMA", BATTINFO_SOURCE.get_opened(version, fetch=False))
 
 
 def serve_raw_github(monkeypatch: pytest.MonkeyPatch, get: Callable[..., Any]) -> None:

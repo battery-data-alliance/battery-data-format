@@ -41,7 +41,7 @@ UNIT_TEXT = {"value": 25, "unit_text": "degC"}
 
 
 def test_the_bundled_set_is_the_release_the_version_file_names() -> None:
-    # The set bdf loads at import is the packaged one, named by its VERSION file...
+    # The bundled set is the packaged one, named by its VERSION file...
     schema = bdf.battinfo.BATTINFO_SCHEMA
     assert schema.version == (BUNDLED / "VERSION").read_text().strip()
     # ...and it holds a document for each of the six entities that Metadata carries.

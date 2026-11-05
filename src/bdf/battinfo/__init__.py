@@ -6,29 +6,31 @@ Schema documents under ``schemas/``. bdf bundles one version
 :data:`BATTINFO_SOURCE`, from the cache or from the BattINFO repository. A
 ``BattinfoSchema`` never changes after it is built, and each way to load one
 returns a new object.
+
+jsonschema is imported, and the bundled schema opened, only when a check or a
+download needs them, so that importing this module (as every plugin does) costs
+little.
 """
 
 from __future__ import annotations
 
+import functools
 import json
 import posixpath
-import re
 import time
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-import jsonschema
-from referencing import Registry
-from referencing.exceptions import Unresolvable
-from referencing.jsonschema import DRAFT202012
-
 from bdf._definitions import DefinitionSource
 from bdf._errors import BDFDefinitionError
 from bdf.data import BATTINFO_BUNDLE
 
 if TYPE_CHECKING:
+    import jsonschema
+    from referencing import Registry
+
     from bdf.metadata import Metadata
 
 FIELD_SCHEMAS: dict[str, str] = {
@@ -48,12 +50,19 @@ def _required(
     validator: Any, required: Any, instance: Any, schema: Mapping[str, Any]
 ) -> Iterator[jsonschema.ValidationError]:
     """Check ``required`` except where it lists the fields of a record, so a partial record is valid."""
+    import jsonschema
+
     if "properties" in schema:
         return
     yield from jsonschema.Draft202012Validator.VALIDATORS["required"](validator, required, instance, schema)
 
 
-_Validator = jsonschema.validators.extend(jsonschema.Draft202012Validator, {"required": _required})
+@functools.cache
+def _validator_class() -> Any:
+    """Return bdf's validator class: Draft 2020-12, which lets a record leave out its fields."""
+    import jsonschema
+
+    return jsonschema.validators.extend(jsonschema.Draft202012Validator, {"required": _required})
 
 
 class BattinfoSchema:
@@ -74,6 +83,9 @@ class BattinfoSchema:
         Raises:
             ValueError: If a document has no string ``$id``.
         """
+        from referencing import Registry
+        from referencing.jsonschema import DRAFT202012
+
         self.version = version
         self.docs = {path: {k: v for k, v in doc.items() if k != "$schema"} for path, doc in docs.items()}
         for path, doc in self.docs.items():
@@ -124,6 +136,11 @@ class BattinfoSchema:
                 of these faults; one built in code, or put in the cache by hand, can.
             RecursionError: If references loop.
         """
+        import re
+
+        import jsonschema
+        from referencing.exceptions import Unresolvable
+
         path = FIELD_SCHEMAS[field]
         if not data:
             return []
@@ -131,7 +148,7 @@ class BattinfoSchema:
         if validator is None:
             if path not in self.docs:
                 raise BDFDefinitionError(f"BattINFO {self.version} has no document {path} for {field}")
-            validator = self._validators[field] = _Validator(self.docs[path], registry=self._registry)
+            validator = self._validators[field] = _validator_class()(self.docs[path], registry=self._registry)
         try:
             # Sorted by path; a key is put with its type, as a mapping built in code can mix int and str keys.
             errors = sorted(
@@ -207,7 +224,7 @@ def _download_battinfo(tag: str, dest: Path, timeout: float) -> None:
             response = session.get(_RAW_URL.format(tag=tag, path=rel), timeout=left)
             response.raise_for_status()
             doc = json.loads(response.content)
-            _Validator.check_schema(doc)
+            _validator_class().check_schema(doc)
             out = dest / "schemas" / rel
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
@@ -240,16 +257,43 @@ def _bundled_schema(get: Callable[..., BattinfoSchema]) -> BattinfoSchema:
         BDFDefinitionError: If the bundled BattINFO schema is missing or unreadable.
     """
     try:
-        return get(BATTINFO_SOURCE.get_bundled_version() or "", fetch=False)
+        return get(_bundled_version(), fetch=False)
     except BDFDefinitionError as exc:
-        raise BDFDefinitionError(
-            f"The bundled BattINFO schema at {BATTINFO_SOURCE.bundled} is missing or unreadable: {exc}. "
-            "Restore it from git or reinstall bdf; bdf-update-battinfo VERSION writes a BattINFO schema there."
-        ) from exc
+        raise _bundle_broken(exc) from exc
 
 
-BATTINFO_SCHEMA: BattinfoSchema = _bundled_schema(BATTINFO_SOURCE.get_opened)
-"""The bundled BattINFO schema: the source's opened bundle. Nothing in bdf rebinds or changes it after import."""
+def _bundled_version() -> str:
+    """Return the version of the bundled BattINFO schema, from its VERSION file: nothing is opened.
+
+    Raises:
+        BDFDefinitionError: If the bundle has no VERSION file.
+    """
+    version = BATTINFO_SOURCE.get_bundled_version()
+    if version is None:
+        raise _bundle_broken("it has no VERSION file")
+    return version
+
+
+def _bundle_broken(reason: object) -> BDFDefinitionError:
+    return BDFDefinitionError(
+        f"The bundled BattINFO schema at {BATTINFO_SOURCE.bundled} is missing or unreadable: {reason}. "
+        "Restore it from git or reinstall bdf; bdf-update-battinfo VERSION writes a BattINFO schema there."
+    )
+
+
+if TYPE_CHECKING:
+    BATTINFO_SCHEMA: BattinfoSchema
+    """The bundled BattINFO schema: the source's opened bundle, opened on first use."""
+
+
+def __getattr__(name: str) -> Any:
+    """Open the bundled BattINFO schema when ``BATTINFO_SCHEMA`` is first used.
+
+    It is the source's opened bundle, so each use gives the same object.
+    """
+    if name == "BATTINFO_SCHEMA":
+        return _bundled_schema(BATTINFO_SOURCE.get_opened)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _battinfo_version(metadata: Metadata) -> str | None:
@@ -259,7 +303,7 @@ def _battinfo_version(metadata: Metadata) -> str | None:
     """
     if not any(getattr(metadata, field) for field in FIELD_SCHEMAS):
         return None
-    return BATTINFO_SCHEMA.version
+    return _bundled_version()
 
 
 def _update_snapshot_cli() -> None:
