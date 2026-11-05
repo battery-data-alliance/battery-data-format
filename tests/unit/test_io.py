@@ -870,9 +870,8 @@ def test_metadata_roundtrips_through_save_and_read(tmp_path: Path) -> None:
     p = tmp_path / "data.bdf.csv"
     io.save(df, p, metadata=original)
     _, restored = io.read(p)
-    # bdf.source is the plugin id this read resolved, assigned unconditionally,
-    # so it cannot round-trip against an instance that never set it.
-    assert restored.bdf.source is not None
+    # Hand-built metadata states no source.
+    assert restored.bdf.source is None
     restored_without_bdf = restored.model_copy(update={"bdf": original.bdf})
     assert restored_without_bdf == original
 
@@ -1421,3 +1420,40 @@ def test_empty_metadata_is_not_stamped_into_existence(tmp_path: Path) -> None:
     io.save(df, p, metadata=Metadata())
 
     assert not p.with_suffix(".metadata.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# Sidecar origin: where the data came from
+# ---------------------------------------------------------------------------
+
+_FRAME = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+
+
+def _json_plugin_with_start_and_instrument(tmp_path: Path, content: dict) -> tuple[Path, Plugin]:
+    """Return a file, and a plugin that stages ``start`` as started_at and ``instrument`` as instrument_name from its JSON ``content``."""
+    from bdf.metadata_targets import METADATA
+
+    data = tmp_path / "cell.csv"
+    data.write_text("Test Time / s,Voltage / V,Current / A\n0,3.7,0.1\n")
+    (tmp_path / "cell.json").write_text(json.dumps(content))
+    rules = {
+        METADATA.battinfo_test.test.started_at: JsonRule(candidates=(("start",),)),
+        METADATA.battinfo_test.test.instrument_name: JsonRule(candidates=(("instrument",),)),
+    }
+    plugin = Plugin(
+        table_parser=DelimTxtParser(normalizer=TableNormalizer()), metadata_parser=JsonSidecarParser(rules=rules)
+    )
+    return data, plugin
+
+
+def test_a_vendor_file_keeps_its_origin_through_save_and_read(tmp_path: Path) -> None:
+    data, plugin = _json_plugin_with_start_and_instrument(tmp_path, {"start": 1700000000, "instrument": "BaSyTec CTS"})
+
+    # Read the vendor file, save it as a bdf file, and read that file back.
+    _, first = read(data, plugin=plugin)
+    io.save(_FRAME, tmp_path / "out.bdf.csv", metadata=first)
+    _, again = read(tmp_path / "out.bdf.csv")
+
+    # The second read is of a bdf file, but the metadata still gives the first read's source,
+    # not "bdf_csv": the origin is not lost on the way.
+    assert again.bdf.source == first.bdf.source == "custom"

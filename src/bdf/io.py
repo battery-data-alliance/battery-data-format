@@ -20,7 +20,12 @@ from bdf.spec import COLUMN_ONTOLOGY
 
 
 def _assemble_metadata(
-    path: str | Path, resolved_plugin: Plugin, *, tz: str, day_month_order: DayMonthOrder | None = None
+    path: str | Path,
+    resolved_plugin: Plugin,
+    *,
+    source: str,
+    tz: str,
+    day_month_order: DayMonthOrder | None = None,
 ) -> Metadata:
     """Take this read's metadata from exactly one source, never combined.
 
@@ -28,14 +33,16 @@ def _assemble_metadata(
         path: Local file path or URL being read.
         resolved_plugin: The plugin whose ``metadata_parser`` runs when no
             reserved sidecar sits beside ``path``.
+        source: Origin recorded as ``bdf.source`` for metadata that the plugin
+            parser made; a sidecar keeps the source it states.
         tz: IANA timezone forwarded to the plugin's metadata parser.
         day_month_order: Field order forwarded to the plugin's metadata parser.
 
     Returns:
         The reserved sidecar's ``Metadata`` where ``<stem>.metadata.json``
         exists beside ``path``, restored repair records included; the
-        plugin parser's ``Metadata`` otherwise. The caller still assigns
-        ``bdf.source`` and applies this read's own repairs.
+        plugin parser's ``Metadata`` otherwise, with ``bdf.source`` set. The
+        caller still applies this read's own repairs.
 
     Raises:
         BDFMetadataError: A sidecar exists and cannot be restored. An empty
@@ -46,15 +53,17 @@ def _assemble_metadata(
     """
     reserved = BdfSidecarParser()
     if reserved.matches(path):
-        return reserved.parse(path)
-
-    preamble_lines = None
-    if resolved_plugin.metadata_parser.uses_preamble_boundary:
-        preamble = resolved_plugin.table_parser.preamble(path)
-        preamble_lines = None if preamble is None else len(preamble)
-    return resolved_plugin.metadata_parser.parse(
-        path, tz=tz, day_month_order=day_month_order, preamble_lines=preamble_lines
-    )
+        metadata = reserved.parse(path)
+    else:
+        preamble_lines = None
+        if resolved_plugin.metadata_parser.uses_preamble_boundary:
+            preamble = resolved_plugin.table_parser.preamble(path)
+            preamble_lines = None if preamble is None else len(preamble)
+        metadata = resolved_plugin.metadata_parser.parse(
+            path, tz=tz, day_month_order=day_month_order, preamble_lines=preamble_lines
+        )
+        metadata.bdf.source = source
+    return metadata
 
 
 def _read(
@@ -98,14 +107,14 @@ def _read(
         day_month_order=day_month_order,
     )
 
-    metadata = _assemble_metadata(path, resolved_plugin, tz=tz, day_month_order=day_month_order)
+    metadata = _assemble_metadata(
+        path, resolved_plugin, source=plugin_id or "custom", tz=tz, day_month_order=day_month_order
+    )
 
     if normalize:
         bdf_df, repairs = _reconcile_time_scale(bdf_df, reconcile_time=reconcile_time, strict=validate)
         if repairs:
             metadata.bdf.time_reconciliation = repairs
-
-    metadata.bdf.source = plugin_id or "custom"
 
     return bdf_df, metadata
 
@@ -257,9 +266,10 @@ def read(
 
     Returns:
         Tuple of (df, metadata): the BDF table as a DataFrame, and a ``Metadata``
-        carrying the five entity records, ``bdf`` (with at least ``source`` naming the
-        resolved plugin id, ``"custom"`` for a directly-supplied ``Plugin``), ``raw``,
-        and ``extras``.
+        carrying the five entity records, ``bdf``, ``raw``, and ``extras``. Where
+        the plugin's parser made the metadata, ``bdf.source`` names the resolved plugin
+        id (``"custom"`` for a directly-supplied ``Plugin``); a sidecar's ``bdf`` is as
+        the sidecar states it, so its ``source`` names where its data came from, if anywhere.
 
     Raises:
         ValueError: If ``plugin`` is not None, a str, or a Plugin instance.
@@ -323,9 +333,10 @@ def scan(
 
     Returns:
         Tuple of (df, metadata): the BDF table as a LazyFrame, and a ``Metadata``
-        carrying the five entity records, ``bdf`` (with at least ``source`` naming the
-        resolved plugin id, ``"custom"`` for a directly-supplied ``Plugin``), ``raw``,
-        and ``extras``.
+        carrying the five entity records, ``bdf``, ``raw``, and ``extras``. Where
+        the plugin's parser made the metadata, ``bdf.source`` names the resolved plugin
+        id (``"custom"`` for a directly-supplied ``Plugin``); a sidecar's ``bdf`` is as
+        the sidecar states it, so its ``source`` names where its data came from, if anywhere.
 
     Raises:
         ValueError: If ``plugin`` is not None, a str, or a Plugin instance.
