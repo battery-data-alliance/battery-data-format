@@ -4,7 +4,7 @@ import warnings
 
 # mypy: ignore-errors
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import numpy as np
 import polars as pl
@@ -18,6 +18,9 @@ from .file_utils import is_url
 from .plugins import detect  # spec-driven detection -> (plugin_id, Plugin)
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
 from .spec import ColumnOntology, _slugify
+
+if TYPE_CHECKING:
+    from .battinfo import BattinfoSchema
 
 # Algebraic identities the ontology defines via prov:wasDerivedFrom:
 #   cumulative_* = charging_* + discharging_*   (monotonically non-decreasing)
@@ -411,6 +414,8 @@ def validate(
     raise_on_error: bool = False,  # <- default False so notebooks don’t crash
     registry_path: str | Path | None = None,
     ontology: ColumnOntology | None = None,
+    strict: bool = True,
+    battinfo: BattinfoSchema | None = None,
 ):
     """
     Validate a BDF DataFrame, a local file path, an HTTP/HTTPS URL, or a dataset id.
@@ -422,6 +427,12 @@ def validate(
 
     ``ontology`` defaults to the bundled release for a DataFrame, and to the
     release that a file's sidecar states for a path.
+
+    ``strict`` and ``battinfo`` apply to the read of a path, as for
+    :func:`bdf.read`. A sidecar that states an ontology or BattINFO schema that
+    cannot be loaded gives an ``io_error`` report; with ``strict=False`` it gives
+    a ``BDFDefinitionWarning``, and the columns are reported against the bundled
+    ontology.
 
     Returns:
       dict report with at least:
@@ -472,7 +483,7 @@ def validate(
         try:
             from .io import _read
 
-            df, _metadata, used = _read(p, lazy=False, ontology=ontology)
+            df, _metadata, used = _read(p, lazy=False, ontology=ontology, strict=strict, battinfo=battinfo)
         except Exception as e:
             return _bad_report(
                 kind="io_error",

@@ -30,7 +30,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 ### Added
 - `bdf.created_with` names the batterydf version that first read the data from its source. A read from a source that is not a sidecar sets it and `bdf.source`; every later read and save passes `source`, `created_with` and `time_reconciliation` through unchanged. Metadata built by hand states `created_with` when saved. A sidecar that bdf 0.2.0rc3 wrote keeps its `source` and states no `created_with`.
 - `bdf.battinfo_ref` is deprecated: reading it gives a `DeprecationWarning`. A 0.2.0rc3 or 0.2.0 sidecar that states it still reads, and a save does not write it.
-- A sidecar is checked against the BattINFO schema in its `bdf.battinfo_version`, fetched once in each process when needed, within 10 s. A bdf 0.2.0 sidecar is checked against BattINFO `0.8.0rc2` by its `battinfo_ref`. The `battinfo_ref` of a 0.2.0 release candidate, such as 0.2.0rc3, names a BattINFO commit that matches no release, so the bundled BattINFO schema stands in for it, with a `BDFDefinitionWarning`. `battinfo=` on `read`, `scan` and `save` gives the BattINFO schema to use instead. A BattINFO schema that cannot be loaded raises `BDFDefinitionError`, or with `strict=False` warns and is not checked, as the ontology does (#130).
+- A sidecar is checked against the BattINFO schema in its `bdf.battinfo_version`, fetched once in each process when needed, within 10 s. A bdf 0.2.0 sidecar is checked against BattINFO `0.8.0rc2` by its `battinfo_ref`. The `battinfo_ref` of a 0.2.0 release candidate, such as 0.2.0rc3, names a BattINFO commit that matches no release, so the bundled BattINFO schema stands in for it, with a `BDFDefinitionWarning`. `battinfo=` on `read`, `scan`, `save`, `validate` and `ingest` gives the BattINFO schema to use instead. A BattINFO schema that cannot be loaded raises `BDFDefinitionError`, or with `strict=False` warns and is not checked, as the ontology does (#130).
 - `BDFDefinitionError` and `BDFDefinitionWarning`, exported from `bdf`.
 - `ontology=` on `ingest` and `Dataset.to_schemaorg_dataset`. `ingest` passes it to each read, save, and validation.
 - `ontology=` on `read`, `scan`, `save`, and `validate`. The call uses only that `ColumnOntology`; `COLUMN_ONTOLOGY` does not change.
@@ -41,7 +41,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `battinfo=` on `save`: the call checks against that `BattinfoSchema`, and the sidecar states its BattINFO schema version.
 - The `bdf-update-battinfo VERSION` command, which writes a BattINFO schema into the bundle.
 - `BDFMetadataWarning`, exported from `bdf`.
-- `strict=` on `read`, `scan`, `save`, `normalize`, `TableNormalizer.normalize` and `TableParser.read`. With `validate=True`, `strict=True` (the default) raises when a check fails, and `strict=False` warns and goes on.
+- `strict=` on `read`, `scan`, `save`, `validate`, `normalize`, `TableNormalizer.normalize` and `TableParser.read`. With `validate=True`, `strict=True` (the default) raises when a check fails, and `strict=False` warns and goes on.
 - The bundled BattINFO schema is version `0.8.0rc2`: `src/bdf/data/battinfo/VERSION` names it, in place of the BattINFO commit.
 
 ## [0.2.0] - 2026-11-03

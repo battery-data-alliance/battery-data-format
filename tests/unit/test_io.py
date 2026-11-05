@@ -1898,6 +1898,26 @@ def test_a_0_2_0rc3_sidecar_reads_saves_and_reads_again_unchanged(tmp_path: Path
     assert "battinfo_ref" not in json.loads((tmp_path / "new.bdf.metadata.json").read_text())["bdf"]
 
 
+@uses_cache
+def test_validate_reads_with_strict_and_battinfo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The sidecar states BattINFO 0.7.0, which is not bundled or cached, and the fetch fails.
+    p = tmp_path / "a.bdf.csv"
+    io.save(_FRAME, p, metadata=_meta({"test": {"name": "cell-1"}}, battinfo_version="0.7.0"), validate=False)
+    fake = _unreachable_github(monkeypatch)
+
+    # With strict on, the read cannot check the metadata, so the report is a read error...
+    assert bdf.validate(p)["kind"] == "io_error"
+    # ...with strict off, it warns and reports on the columns...
+    with pytest.warns(BDFDefinitionWarning, match="0.7.0"):
+        assert bdf.validate(p, strict=False)["ok"]
+    # ...and with battinfo= it loads no other BattINFO schema.
+    tried = len(fake.urls)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", BDFDefinitionWarning)
+        assert bdf.validate(p, battinfo=bdf.battinfo.BATTINFO_SCHEMA)["ok"]
+    assert len(fake.urls) == tried
+
+
 # validate=False checks nothing: no release is loaded, nothing is refused, and both files are written.
 
 
