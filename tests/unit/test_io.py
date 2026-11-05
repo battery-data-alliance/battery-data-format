@@ -870,7 +870,8 @@ def test_metadata_roundtrips_through_save_and_read(tmp_path: Path) -> None:
     p = tmp_path / "data.bdf.csv"
     io.save(df, p, metadata=original)
     _, restored = io.read(p)
-    # Hand-built metadata states no source.
+    # Hand-built metadata states the writer in created_with and no source.
+    assert restored.bdf.created_with is not None
     assert restored.bdf.source is None
     restored_without_bdf = restored.model_copy(update={"bdf": original.bdf})
     assert restored_without_bdf == original
@@ -1454,6 +1455,25 @@ def test_a_vendor_file_keeps_its_origin_through_save_and_read(tmp_path: Path) ->
     io.save(_FRAME, tmp_path / "out.bdf.csv", metadata=first)
     _, again = read(tmp_path / "out.bdf.csv")
 
-    # The second read is of a bdf file, but the metadata still gives the first read's source,
-    # not "bdf_csv": the origin is not lost on the way.
-    assert again.bdf.source == first.bdf.source == "custom"
+    import bdf
+
+    # The first read records which bdf converted the vendor file.
+    assert first.bdf.created_with == bdf.__version__
+    # The second read is of a bdf file, but the metadata still gives the first read's source and
+    # the converting bdf, not "bdf_csv" and nothing: the origin is not lost on the way.
+    assert (again.bdf.source, again.bdf.created_with) == (first.bdf.source, first.bdf.created_with)
+
+
+def test_metadata_built_by_hand_states_the_writer_and_no_source(tmp_path: Path) -> None:
+    # Metadata made in code, not read from any file.
+    p = tmp_path / "data.bdf.csv"
+    meta = Metadata()
+    meta.battinfo_test.test.name = "cell-1"  # type: ignore[union-attr]
+    io.save(_FRAME, p, metadata=meta)
+
+    import bdf
+
+    # The save fills created_with with the bdf that wrote it, and states no source, as there was none.
+    stated = json.loads(p.with_suffix(".metadata.json").read_text())["bdf"]
+    assert stated["created_with"] == bdf.__version__
+    assert "source" not in stated

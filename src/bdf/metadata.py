@@ -32,13 +32,17 @@ BattinfoDataset = BattinfoDatasetSchemaOrgAligned
 class BdfReadInfo(_RecordModel):
     """bdf's own record of where the data came from and which versions wrote it.
 
-    ``source`` and ``time_reconciliation`` describe the original read, and
-    later reads and saves keep them. ``save()`` sets ``bdf_version``,
-    ``ontology_version`` and ``battinfo_ref`` on each sidecar it writes.
+    ``source``, ``created_with`` and ``time_reconciliation`` describe the
+    original read, and later reads and saves keep them. ``save()`` sets
+    ``bdf_version``, ``ontology_version`` and ``battinfo_ref`` on each
+    sidecar it writes.
     """
 
     source: str | None = None
     """The plugin that read the data, or ``"custom"``."""
+    created_with: str | None = None
+    """The batterydf version that first read the data from its source, or that
+    saved metadata built in code. None in a sidecar from bdf before 0.3."""
     time_reconciliation: list[dict] | None = None
     """Each rescale of the time columns that the read applied."""
     bdf_version: str | None = None

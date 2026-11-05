@@ -41,8 +41,8 @@ def _assemble_metadata(
     Returns:
         The reserved sidecar's ``Metadata`` where ``<stem>.metadata.json``
         exists beside ``path``, restored repair records included; the
-        plugin parser's ``Metadata`` otherwise, with ``bdf.source`` set. The
-        caller still applies this read's own repairs.
+        plugin parser's ``Metadata`` otherwise, with ``bdf.source`` and
+        ``bdf.created_with`` set. The caller still applies this read's own repairs.
 
     Raises:
         BDFMetadataError: A sidecar exists and cannot be restored. An empty
@@ -51,6 +51,8 @@ def _assemble_metadata(
             metadata would otherwise write over the file the read could not
             read.
     """
+    import bdf
+
     reserved = BdfSidecarParser()
     if reserved.matches(path):
         metadata = reserved.parse(path)
@@ -63,6 +65,7 @@ def _assemble_metadata(
             path, tz=tz, day_month_order=day_month_order, preamble_lines=preamble_lines
         )
         metadata.bdf.source = source
+        metadata.bdf.created_with = bdf.__version__
     return metadata
 
 
@@ -447,7 +450,9 @@ def _write_sidecar(sidecar: Path, metadata: Metadata) -> None:
     ``bdf.bdf_version``, ``bdf.ontology_version``, and ``bdf.battinfo_ref``.
     The stamps identify the file's writer, so they overwrite any stamps the
     caller's object carries, and a read-then-save records the version that
-    performed the save. The caller's object is not modified. A ``Metadata``
+    performed the save. Metadata that states neither ``bdf.source`` nor
+    ``bdf.created_with``, such as metadata built in code, is stamped
+    ``bdf.created_with`` too. The caller's object is not modified. A ``Metadata``
     that carries nothing still writes no sidecar: the stamps describe a
     sidecar, so they never create one.
 
@@ -457,10 +462,14 @@ def _write_sidecar(sidecar: Path, metadata: Metadata) -> None:
             defaults reach the file, so a ``Metadata`` that carries nothing
             writes no sidecar at all, and deletes one the target already had.
     """
+    import bdf
+
     payload = metadata.model_dump(mode="json", exclude_defaults=True)
     if payload:
-        payload.setdefault("bdf", {})
-        payload["bdf"].update({k: v for k, v in _version_stamps().items() if v})
+        stamps = payload.setdefault("bdf", {})
+        if "source" not in stamps and "created_with" not in stamps:
+            stamps["created_with"] = bdf.__version__
+        stamps.update({k: v for k, v in _version_stamps().items() if v})
         sidecar.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     else:
         sidecar.unlink(missing_ok=True)
