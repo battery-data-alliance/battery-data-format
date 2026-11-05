@@ -24,6 +24,8 @@ from ._battinfo import (
     RAW_URL,
     FakeRawGitHub,
     bundled_docs,
+    cache_release,
+    point_bundle_at,
     release_docs,
     serve_raw_github,
     write_release,
@@ -350,6 +352,34 @@ def test_check_lists_refused_values_under_int_and_str_keys() -> None:
         "BattINFO 0.1.0 refuses battinfo_test.test.1",
         "BattINFO 0.1.0 refuses battinfo_test.test.x",
     ]
+
+
+def test_check_without_a_set_uses_the_release_the_metadata_states(tmp_path: Path) -> None:
+    # Release 0.7.0, in the cache, allows "legacy_field"; the bundled release does not.
+    cache_release(tmp_path, "0.7.0", release_docs("legacy_field"))
+    meta = Metadata(bdf={"battinfo_version": "0.7.0"})  # type: ignore[arg-type]
+    meta.battinfo_test = {"test": {"legacy_field": 1}}  # type: ignore[assignment]
+
+    # With no set given, check() uses the release the metadata states, so the value is accepted...
+    assert meta.check() == []
+    # ...and a set given by the caller overrides that: the bundled release refuses the field.
+    assert any("'legacy_field' was unexpected" in line for line in meta.check(bdf.battinfo.BATTINFO_SCHEMA))
+
+
+def test_check_reads_a_0_2_0_sidecars_ref_as_release_0_8_0rc2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Cache the real documents as 0.8.0rc2, and make a stand-in 0.9.0 the bundle, so the two
+    # releases disagree about "new_field" and the test can tell which one checked.
+    cache_release(tmp_path, "0.8.0rc2", bundled_docs())
+    point_bundle_at(monkeypatch, tmp_path / "bundle", "0.9.0", release_docs("new_field"))
+    # bdf 0.2.0 stated the BattINFO commit it used, not a release.
+    meta = Metadata(bdf={"battinfo_ref": "2ea8929074a7430b6e437065686cda881cfc23e7"})  # type: ignore[arg-type]
+    meta.battinfo_test = {"test": {"new_field": 1}}  # type: ignore[assignment]
+
+    lines = meta.check()
+
+    # That commit is release 0.8.0rc2, which refuses "new_field"; the 0.9.0 bundle would accept it.
+    assert lines
+    assert all(line.startswith("BattINFO 0.8.0rc2 refuses ") for line in lines)
 
 
 # Reaches GitHub, so it runs only when network tests are selected.

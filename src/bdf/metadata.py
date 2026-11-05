@@ -70,7 +70,8 @@ class BdfReadInfo(_RecordModel):
     """Deprecated: the BattINFO commit that bdf 0.2.0 wrote. A read still
     accepts it; a save writes ``battinfo_version`` in its place."""
     battinfo_version: str | None = None
-    """The version of the BattINFO schema that the ``battinfo_*`` fields follow."""
+    """The version of the BattINFO schema that the ``battinfo_*`` fields follow.
+    Set it to check against another version."""
 
 
 class Metadata(_RecordModel):
@@ -81,7 +82,7 @@ class Metadata(_RecordModel):
     ``battinfo_dataset``) each hold a plain dict in the shape of one BattINFO
     schema, for example ``meta.battinfo_test["test"]["instrument_name"]``.
     Values are stored as given. :meth:`check` lists the values that the
-    bundled BattINFO schema refuses; a read and a save run the same check.
+    BattINFO schema in ``bdf.battinfo_version`` refuses; a read and a save run the same check.
     """
 
     # A BattINFO schema allows no extra keys at its root, so `bdf`, `raw` and
@@ -117,14 +118,16 @@ class Metadata(_RecordModel):
         """Return one line for each value that a BattINFO schema refuses.
 
         Args:
-            schema: The BattINFO schema to check against. Default: the bundled one.
+            schema: The BattINFO schema to check against. Default: the version in
+                ``bdf.battinfo_version``, else the bundled one.
 
         Returns:
             The lines, or ``[]`` where every value is accepted.
 
         Raises:
-            BDFDefinitionError: If the schema cannot check a value (see
-                :meth:`bdf.battinfo.BattinfoSchema.check`).
+            BDFDefinitionError: Without ``schema``, if the version in
+                ``bdf.battinfo_version`` cannot be loaded; or if the schema cannot
+                check a value (see :meth:`bdf.battinfo.BattinfoSchema.check`).
         """
         from bdf.battinfo import BATTINFO_SOURCE, FIELD_SCHEMAS, _battinfo_version
 

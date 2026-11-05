@@ -43,6 +43,12 @@ FIELD_SCHEMAS: dict[str, str] = {
 }
 """Each ``battinfo_*`` field of ``Metadata``, and the path under ``schemas/`` of the schema that checks it."""
 
+# bdf 0.2.0 and its release candidates stamped the BattINFO commit of their bundled schema
+# as ``battinfo_ref``. Of those commits only 2ea8929 holds the documents of a release:
+# 0.8.0rc2, the first BattINFO release with schemas. b9b49bb, eda4629 (bdf 0.2.0rc3),
+# 2feabb7 and 0b4dfd3 match no release, so the bundled schema stands in for them.
+_REF_RELEASES: dict[str, str] = {"2ea8929074a7430b6e437065686cda881cfc23e7": "0.8.0rc2"}
+
 _RAW_URL = "https://raw.githubusercontent.com/BIG-MAP/BattINFO/{tag}/assets/schemas/{path}"
 
 
@@ -296,14 +302,18 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def _battinfo_version(metadata: Metadata) -> str | None:
+def _battinfo_version(metadata: Metadata, battinfo: BattinfoSchema | None = None) -> str | None:
     """Return the BattINFO schema version that ``metadata``'s ``battinfo_*`` fields are checked against.
 
-    That is the bundled one; None where every ``battinfo_*`` field is empty.
+    That is the version of ``battinfo``, else the one in ``bdf.battinfo_version``, else the one a
+    bdf 0.2.0 ``battinfo_ref`` names, else the bundled one; None where every ``battinfo_*`` field is empty.
     """
     if not any(getattr(metadata, field) for field in FIELD_SCHEMAS):
         return None
-    return _bundled_version()
+    if battinfo is not None:
+        return battinfo.version
+    ref = metadata.bdf.__dict__["battinfo_ref"]  # not the attribute, which warns that it is deprecated
+    return metadata.bdf.battinfo_version or _REF_RELEASES.get(ref or "") or _bundled_version()
 
 
 def _update_snapshot_cli() -> None:
