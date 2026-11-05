@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ### Added
 - `bdf.created_with` names the batterydf version that first read the data from its source. A read from a source that is not a sidecar sets it and `bdf.source`; every later read and save passes `source`, `created_with` and `time_reconciliation` through unchanged. Metadata built by hand states `created_with` when saved. A sidecar that bdf 0.2.0rc3 wrote keeps its `source` and states no `created_with`.
+- `BDFDefinitionError` and `BDFDefinitionWarning`, exported from `bdf`.
 - `strict=` on `read`, `scan`, `save`, `normalize`, `TableNormalizer.normalize` and `TableParser.read`. With `validate=True`, `strict=True` (the default) raises when a check fails, and `strict=False` warns and goes on.
 
 ## [0.2.0] - 2026-11-03

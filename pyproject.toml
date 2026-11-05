@@ -35,6 +35,7 @@ dependencies = [
   "platformdirs>=4.10.0",
   "polars>=1.41.2",
   "babel>=2.15",
+  "packaging>=22",
 ]
 
 [project.urls]
