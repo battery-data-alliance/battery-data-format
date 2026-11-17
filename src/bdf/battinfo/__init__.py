@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 FIELD_SCHEMAS: dict[str, str] = {
     "battinfo_test": "test.schema.json",
     "battinfo_cell": "cell-instance.schema.json",
+    "battinfo_cell_spec": "cell-canonical.schema.json",
     "battinfo_channel": "channel.schema.json",
     "battinfo_equipment": "equipment.schema.json",
     "battinfo_test_protocol": "test-protocol.schema.json",
@@ -209,7 +210,7 @@ def _refs(node: Any) -> Iterator[str]:
 
 
 def _download_battinfo(tag: str, dest: Path, timeout: float) -> None:
-    """Fetch the six schemas in ``FIELD_SCHEMAS`` at ``tag``, and every document that their ``$ref`` reach.
+    """Fetch the seven schemas in ``FIELD_SCHEMAS`` at ``tag``, and every document that their ``$ref`` reach.
 
     Raises:
         jsonschema.exceptions.SchemaError: If a document breaks the Draft 2020-12 metaschema.

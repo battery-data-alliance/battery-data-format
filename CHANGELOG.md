@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `BDF_NORMALIZER` holds no labels itself: it maps the labels of the ontology that each call uses, then the synonyms that `extend` adds, and it stays the BDF normalizer through a JSON round trip. So a file that states an older release keeps a column that the bundled release has no field for. Iterate `BDF_NORMALIZER.for_ontology(ontology)` for the labels.
 
 ### Added
+- `Metadata.battinfo_cell_spec`, a seventh `battinfo_*` field, holds the cell type that the tested cell is one of, as its datasheet states it: identity under `cell` (manufacturer, model, format, chemistry) and declared properties under `properties`. It follows BattINFO's `cell-canonical` schema and is checked like the other fields. `battinfo_cell`'s `cell_instance.cell_spec_id` names it by IRI. Nothing fills it automatically yet.
 - The example notebook `battinfo_schema.ipynb` shows how to check metadata against a named BattINFO schema version.
 - `bdf.created_with` names the batterydf version that first read the data from its source. A read from a source that is not a sidecar sets it and `bdf.source`; every later read and save passes `source`, `created_with` and `time_reconciliation` through unchanged. Metadata built by hand states `created_with` when saved. A sidecar that bdf 0.2.0rc3 wrote keeps its `source` and states no `created_with`.
 - `bdf.battinfo_ref` is deprecated: reading it gives a `DeprecationWarning`. A 0.2.0rc3 or 0.2.0 sidecar that states it still reads, and a save does not write it.

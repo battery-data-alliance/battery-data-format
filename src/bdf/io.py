@@ -481,7 +481,7 @@ def read(
 
     Returns:
         Tuple of (df, metadata): the BDF table as a DataFrame, and a ``Metadata``
-        carrying the six ``battinfo_*`` fields, ``bdf``, ``raw``, and ``extras``. Where
+        carrying the seven ``battinfo_*`` fields, ``bdf``, ``raw``, and ``extras``. Where
         the plugin's parser made the metadata, ``bdf.source`` names the resolved plugin
         id (``"custom"`` for a directly-supplied ``Plugin``); a sidecar's ``bdf`` is as
         the sidecar states it, so its ``source`` names where its data came from, if anywhere.
@@ -580,7 +580,7 @@ def scan(
 
     Returns:
         Tuple of (df, metadata): the BDF table as a LazyFrame, and a ``Metadata``
-        carrying the six ``battinfo_*`` fields, ``bdf``, ``raw``, and ``extras``. Where
+        carrying the seven ``battinfo_*`` fields, ``bdf``, ``raw``, and ``extras``. Where
         the plugin's parser made the metadata, ``bdf.source`` names the resolved plugin
         id (``"custom"`` for a directly-supplied ``Plugin``); a sidecar's ``bdf`` is as
         the sidecar states it, so its ``source`` names where its data came from, if anywhere.

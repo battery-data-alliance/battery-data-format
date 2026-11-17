@@ -46,7 +46,7 @@ def test_the_bundled_set_is_the_release_the_version_file_names() -> None:
     # The bundled set is the packaged one, named by its VERSION file...
     schema = bdf.battinfo.BATTINFO_SCHEMA
     assert schema.version == (BUNDLED / "VERSION").read_text().strip()
-    # ...and it holds a document for each of the six entities that Metadata carries.
+    # ...and it holds a document for each of the seven entities that Metadata carries.
     assert set(FIELD_SCHEMAS.values()) <= set(schema.docs)
 
 
@@ -127,7 +127,7 @@ def test_the_update_command_needs_a_version(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def _fetchable_docs() -> dict[str, dict[str, Any]]:
-    """Six entity documents; two of them refer to one document, which refers up to another."""
+    """Seven entity documents; two of them refer to one document, which refers up to another."""
     docs: dict[str, dict[str, Any]] = {path: {"$id": f"https://example.test/{path}"} for path in FIELD_SCHEMAS.values()}
     docs["test.schema.json"]["description"] = "µ"
     docs["test.schema.json"]["properties"] = {
@@ -151,7 +151,7 @@ def test_a_download_fetches_each_document_that_a_ref_reaches_once(
 
     _download_battinfo("v0.9.0", dest, 30.0)
 
-    # The download starts at the six entity documents and follows each $ref, so it also gets the
+    # The download starts at the seven entity documents and follows each $ref, so it also gets the
     # two documents that only a $ref names. quantity.schema.json is named twice but fetched once,
     # and the "#/$defs/B" ref stays inside its own document, so it fetches nothing.
     assert sorted(fake.urls) == sorted(RAW_URL.format(tag="v0.9.0", path=path) for path in docs)
@@ -286,6 +286,20 @@ def test_a_choice_between_schemas_is_decided_as_a_whole() -> None:
     (line,) = schema.check("battinfo_dataset", {"dataset": {"main_entity": {"url": "data.csv", "bogus": 1}}})
     assert "battinfo_dataset.dataset.main_entity" in line
     assert "'bogus' was unexpected" in line
+
+
+def test_a_cell_spec_is_checked_against_the_cell_canonical_schema() -> None:
+    schema = bdf.battinfo.BATTINFO_SCHEMA
+
+    # A datasheet's identity and a declared property are accepted...
+    spec = {
+        "cell": {"manufacturer": "Panasonic", "model_name": "NCR18650PF", "format": "cylindrical"},
+        "properties": {"nominal_capacity": {"value": 2.9, "unit_text": "Ah"}},
+    }
+    assert schema.check("battinfo_cell_spec", spec) == []
+    # ...and a format outside the schema's list gives one line that names the field.
+    (line,) = schema.check("battinfo_cell_spec", {"cell": {"format": "button"}})
+    assert "battinfo_cell_spec.cell.format" in line
 
 
 def test_an_unknown_key_is_refused_where_the_schema_closes_the_object() -> None:

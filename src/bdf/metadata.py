@@ -77,9 +77,9 @@ class BdfReadInfo(_RecordModel):
 class Metadata(_RecordModel):
     """The metadata that a read returns and a save writes to the sidecar.
 
-    The six ``battinfo_*`` fields (``battinfo_test``, ``battinfo_cell``,
-    ``battinfo_channel``, ``battinfo_equipment``, ``battinfo_test_protocol``,
-    ``battinfo_dataset``) each hold a plain dict in the shape of one BattINFO
+    The seven ``battinfo_*`` fields (``battinfo_test``, ``battinfo_cell``,
+    ``battinfo_cell_spec``, ``battinfo_channel``, ``battinfo_equipment``,
+    ``battinfo_test_protocol``, ``battinfo_dataset``) each hold a plain dict in the shape of one BattINFO
     schema, for example ``meta.battinfo_test["test"]["instrument_name"]``.
     Values are stored as given. :meth:`check` lists the values that the
     BattINFO schema in ``bdf.battinfo_version`` refuses; a read and a save run the same check.
@@ -91,6 +91,12 @@ class Metadata(_RecordModel):
     """The test activity that produced this data: who ran it, when it started, and which datasets it links."""
     battinfo_cell: dict[str, Any] = Field(default_factory=dict)
     """The physical cell the test ran on, and the cell type it derives from."""
+    battinfo_cell_spec: dict[str, Any] = Field(default_factory=dict)
+    """The cell type that the tested cell is one of, as its datasheet states it: manufacturer,
+    model, format and chemistry under ``cell``, and declared properties (nominal capacity,
+    voltage limits, mass and others) under ``properties``. It follows BattINFO's
+    ``cell-canonical`` schema. The physical cell in ``battinfo_cell`` names this spec by IRI
+    in ``cell_instance.cell_spec_id``, which matches ``cell.id`` here when both are set."""
     battinfo_channel: dict[str, Any] = Field(default_factory=dict)
     """The one channel of the equipment unit that ran the test."""
     battinfo_equipment: dict[str, Any] = Field(default_factory=dict)

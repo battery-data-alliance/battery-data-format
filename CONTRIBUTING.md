@@ -102,7 +102,7 @@ build the docs.
 [BattINFO](https://github.com/BIG-MAP/BattINFO) is the source of truth for the
 JSON schema documents under `src/bdf/data/battinfo/`. The bundle is one
 BattINFO schema: `VERSION` names its version (for example `0.8.0rc2`), and
-`schemas/` holds the six entity documents and every document that their
+`schemas/` holds the seven entity documents and every document that their
 `$ref`s reach (nine for `0.8.0rc2`).
 
 - To change a schema, open a PR on the **BattINFO repo**, not here.

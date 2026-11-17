@@ -839,8 +839,8 @@ def test_read_returns_metadata_with_six_entity_dicts(tmp_path: Path) -> None:
     _, meta = io.read(p)
     assert isinstance(meta, Metadata)
     assert meta.bdf.source == "bdf_csv"
-    # The file was saved with no metadata, so each of the six BattINFO entities is an empty dict.
-    assert [getattr(meta, entity) for entity in FIELD_SCHEMAS] == [{}] * 6
+    # The file was saved with no metadata, so each of the seven BattINFO entities is an empty dict.
+    assert [getattr(meta, entity) for entity in FIELD_SCHEMAS] == [{}] * 7
     assert meta.raw is None
     assert meta.extras is None
 
@@ -892,6 +892,27 @@ def test_metadata_roundtrips_through_save_and_read(tmp_path: Path) -> None:
     assert restored.bdf.source is None
     restored_without_bdf = restored.model_copy(update={"bdf": original.bdf})
     assert restored_without_bdf == original
+
+
+def test_a_cell_spec_roundtrips_through_save_and_read(tmp_path: Path) -> None:
+    """A cell spec saves to the sidecar beside the cell that names it, and reads back unchanged."""
+    df = pl.DataFrame({"Test Time / s": [0.0], "Voltage / V": [3.7], "Current / A": [0.1]})
+    spec_iri = "https://w3id.org/battinfo/spec/0000-0000-0000-0000"
+    original = Metadata()
+    original.battinfo_cell_spec = {  # type: ignore[assignment]
+        "cell": {"id": spec_iri, "manufacturer": "Panasonic", "model_name": "NCR18650PF", "format": "cylindrical"},
+        "properties": {"nominal_capacity": {"value": 2.9, "unit_text": "Ah"}},
+    }
+    original.battinfo_cell = {"cell_instance": {"cell_spec_id": spec_iri}}  # type: ignore[assignment]
+
+    p = tmp_path / "data.bdf.csv"
+    io.save(df, p, metadata=original)
+    sidecar = json.loads((tmp_path / "data.bdf.metadata.json").read_text())
+    _, restored = io.read(p)
+
+    assert sidecar["battinfo_cell_spec"] == original.battinfo_cell_spec
+    assert restored.battinfo_cell_spec == original.battinfo_cell_spec
+    assert restored.battinfo_cell == original.battinfo_cell
 
 
 def test_metadata_carrying_nothing_writes_no_sidecar(tmp_path: Path) -> None:

@@ -17,7 +17,7 @@ _PLACEHOLDER_EPOCH = 1700000000
 
 
 def test_read_metadata_declares_the_six_entity_records_bdf_raw_and_extras_only() -> None:
-    """Metadata's field set is the six BattINFO entity records, bdf, raw, and extras."""
+    """Metadata's field set is the seven BattINFO entity records, bdf, raw, and extras."""
     assert set(Metadata.model_fields) == {*FIELD_SCHEMAS, "bdf", "raw", "extras"}
 
 
