@@ -45,7 +45,9 @@ class Equipment(_RecordModel):
     commissioned_at: Annotated[UnixTime | str | None, Field(default_factory=UnixTime)]
     equipment_spec_id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/spec/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?spec/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+        ),
     ] = None
     handle: Annotated[
         str | None,
@@ -57,7 +59,9 @@ class Equipment(_RecordModel):
     ] = None
     id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+        ),
     ] = None
     location: str | None = None
     name: str | None = None

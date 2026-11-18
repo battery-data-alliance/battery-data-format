@@ -101,8 +101,8 @@ class DatasetIri(RootModel[str | None]):
     root: Annotated[
         str | None,
         Field(
-            description="Canonical BattINFO IRI in the dataset/ namespace (https://w3id.org/battinfo/dataset/xxxx-xxxx-xxxx-xxxx).",
-            pattern="^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+            description="Canonical BattINFO IRI in the dataset/ namespace (https://w3id.org/battinfo/dataset/xxxx-xxxx-xxxx-xxxx, or the same under https://w3id.org/battinfo/id/{prefix}/).",
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
         ),
     ] = None
 
@@ -132,37 +132,6 @@ class Funding(_RecordModel):
     name: Annotated[str | None, Field(description="Project title.")] = None
     program: Annotated[str | None, Field(description="Funding programme or call (e.g. 'Horizon Europe').")] = None
     type: Annotated[Literal["Grant"] | None, Field(description="JSON-LD type discriminator.")] = None
-
-
-class Organization(_RecordModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
-    same_as: Annotated[
-        AnyUrl | None, Field(description="External identifier IRI for this organization (e.g. ROR or Wikidata).")
-    ] = None
-    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
-    url: Annotated[AnyUrl | None, Field(description="Homepage URL.")] = None
-
-
-class Person(_RecordModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    affiliation: Annotated[
-        Organization | None,
-        Field(default_factory=Organization, description="Organization the person is affiliated with."),
-    ]
-    email: Annotated[str | None, Field(description="Contact e-mail address.")] = None
-    family_name: Annotated[str | None, Field(description="Family (last) name.", min_length=1)] = None
-    given_name: Annotated[str | None, Field(description="Given (first) name.", min_length=1)] = None
-    name: Annotated[str | None, Field(description="Full name.", min_length=1)] = None
-    same_as: Annotated[
-        AnyUrl | None, Field(description="External identifier IRI, typically an ORCID (https://orcid.org/...).")
-    ] = None
-    type: Annotated[Literal["Person"] | None, Field(description="JSON-LD type discriminator.")] = None
-    url: Annotated[AnyUrl | None, Field(description="Personal or institutional web page.")] = None
 
 
 class Provenance(_RecordModel):
@@ -219,6 +188,53 @@ class Provenance(_RecordModel):
     ] = None
 
 
+class Organization(_RecordModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[
+        str | None,
+        Field(
+            description="Canonical BattINFO organization IRI linking this party to its organization record.",
+            pattern="^https://w3id\\.org/battinfo/(?:(?:id/[1-9][0-9]{3,}/)?organization/|id/)[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+        ),
+    ] = None
+    name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI for this organization (e.g. ROR or Wikidata).")
+    ] = None
+    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Homepage URL.")] = None
+
+
+class Affiliation(RootModel[list[Organization] | None]):
+    root: Annotated[
+        list[Organization] | None,
+        Field(description="Organization(s) the person is affiliated with: one, or a list.", min_length=1),
+    ] = None
+
+
+class Person(_RecordModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    affiliation: Annotated[
+        Organization | Affiliation | None,
+        Field(
+            default_factory=Organization, description="Organization(s) the person is affiliated with: one, or a list."
+        ),
+    ]
+    email: Annotated[str | None, Field(description="Contact e-mail address.")] = None
+    family_name: Annotated[str | None, Field(description="Family (last) name.", min_length=1)] = None
+    given_name: Annotated[str | None, Field(description="Given (first) name.", min_length=1)] = None
+    name: Annotated[str | None, Field(description="Full name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI, typically an ORCID (https://orcid.org/...).")
+    ] = None
+    type: Annotated[Literal["Person"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Personal or institutional web page.")] = None
+
+
 class Test(_RecordModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -227,12 +243,14 @@ class Test(_RecordModel):
         str | None,
         Field(
             description="IRI of the cell instance the test was run on.",
-            pattern="^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
         ),
     ] = None
     channel_id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+        ),
     ] = None
     conditions: Annotated[
         dict[constr(pattern=r"^[a-z][a-z0-9_]*$"), quantity_schema.Quantity3] | None,
@@ -257,7 +275,9 @@ class Test(_RecordModel):
     ended_at: Annotated[int | None, Field(description="Unix timestamp when the test ended.", ge=0)] = None
     equipment_id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+        ),
     ] = None
     handle: Annotated[
         str | None,
@@ -271,7 +291,7 @@ class Test(_RecordModel):
         str | None,
         Field(
             description="Canonical IRI of this test record.",
-            pattern="^https://w3id\\.org/battinfo/test/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?test/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
         ),
     ] = None
     identifier: Annotated[
@@ -311,7 +331,7 @@ class Test(_RecordModel):
         str | None,
         Field(
             description="IRI of the test-protocol (test spec) this test executed.",
-            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
         ),
     ] = None
     protocol_name: Annotated[

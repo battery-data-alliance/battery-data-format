@@ -1,13 +1,18 @@
 {
   "$defs": {
     "CellIri": {
-      "description": "Canonical BattINFO IRI in the cell/ namespace (https://w3id.org/battinfo/cell/xxxx-xxxx-xxxx-xxxx).",
-      "pattern": "^https://w3id\\.org/battinfo/cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "description": "Canonical BattINFO IRI in the cell/ namespace (https://w3id.org/battinfo/cell/xxxx-xxxx-xxxx-xxxx, or the same under https://w3id.org/battinfo/id/{prefix}/).",
+      "pattern": "^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?cell/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
+    "CellSpecRefIri": {
+      "description": "IRI of a cell spec record (https://w3id.org/battinfo/spec/xxxx-xxxx-xxxx-xxxx, or the same under https://w3id.org/battinfo/id/{prefix}/), or of a product model as a shared thing (https://w3id.org/battinfo/id/xxxx-xxxx-xxxx-xxxx).",
+      "pattern": "^https://w3id\\.org/battinfo/(?:(?:id/[1-9][0-9]{3,}/)?(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/|id/)[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
     "DatasetIri": {
-      "description": "Canonical BattINFO IRI in the dataset/ namespace (https://w3id.org/battinfo/dataset/xxxx-xxxx-xxxx-xxxx).",
-      "pattern": "^https://w3id\\.org/battinfo/dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "description": "Canonical BattINFO IRI in the dataset/ namespace (https://w3id.org/battinfo/dataset/xxxx-xxxx-xxxx-xxxx, or the same under https://w3id.org/battinfo/id/{prefix}/).",
+      "pattern": "^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?dataset/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
     "DatasetLink": {
@@ -36,7 +41,7 @@
       "type": "object"
     },
     "ElectrodeIri": {
-      "pattern": "^https://w3id\\.org/battinfo/electrode/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "pattern": "^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?electrode/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
       "type": "string"
     },
     "FlexDate": {
@@ -127,6 +132,10 @@
       "additionalProperties": false,
       "description": "An organization referenced by name, with an optional canonical BattINFO organization IRI.",
       "properties": {
+        "id": {
+          "$ref": "#/$defs/OrganizationRefIri",
+          "description": "Canonical BattINFO organization IRI linking this party to its organization record."
+        },
         "name": {
           "description": "Organization name.",
           "minLength": 1,
@@ -152,13 +161,29 @@
       ],
       "type": "object"
     },
+    "OrganizationRefIri": {
+      "description": "IRI of an organization record (https://w3id.org/battinfo/organization/xxxx-xxxx-xxxx-xxxx, or the same under https://w3id.org/battinfo/id/{prefix}/), or of a maker as a shared thing (https://w3id.org/battinfo/id/xxxx-xxxx-xxxx-xxxx).",
+      "pattern": "^https://w3id\\.org/battinfo/(?:(?:id/[1-9][0-9]{3,}/)?organization/|id/)[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+      "type": "string"
+    },
     "Person": {
       "additionalProperties": false,
       "description": "A person, in schema.org Person terms; an ORCID may be given in same_as.",
       "properties": {
         "affiliation": {
-          "$ref": "#/$defs/Organization",
-          "description": "Organization the person is affiliated with."
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Organization"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Organization"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ],
+          "description": "Organization(s) the person is affiliated with: one, or a list."
         },
         "email": {
           "description": "Contact e-mail address.",
@@ -205,10 +230,6 @@
       "pattern": "^[0-9a-hjkmnp-tv-z]{6,16}$",
       "type": "string"
     },
-    "SpecIri": {
-      "pattern": "^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
-      "type": "string"
-    },
     "UnixTime": {
       "description": "Unix timestamp in whole seconds since 1970-01-01T00:00:00Z.",
       "minimum": 0,
@@ -241,7 +262,7 @@
           "type": "string"
         },
         "cell_spec_id": {
-          "$ref": "#/$defs/SpecIri",
+          "$ref": "#/$defs/CellSpecRefIri",
           "description": "IRI of the cell spec this physical cell realizes."
         },
         "conformance": {

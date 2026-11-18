@@ -40,7 +40,9 @@ class Channel(_RecordModel):
     comment: str | None = None
     equipment_id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?equipment/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+        ),
     ] = None
     handle: Annotated[
         str | None,
@@ -52,7 +54,9 @@ class Channel(_RecordModel):
     ] = None
     id: Annotated[
         str | None,
-        Field(pattern="^https://w3id\\.org/battinfo/channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"),
+        Field(
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?channel/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+        ),
     ] = None
     index: Annotated[int | None, Field(ge=1)] = None
     label: str | None = None
