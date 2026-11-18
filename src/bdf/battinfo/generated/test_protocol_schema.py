@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import AnyUrl, ConfigDict, Field
+from pydantic import AnyUrl, ConfigDict, Field, RootModel
 
 from bdf.battinfo._base import _RecordModel
 
@@ -101,37 +101,6 @@ class Funding(_RecordModel):
     name: Annotated[str | None, Field(description="Project title.")] = None
     program: Annotated[str | None, Field(description="Funding programme or call (e.g. 'Horizon Europe').")] = None
     type: Annotated[Literal["Grant"] | None, Field(description="JSON-LD type discriminator.")] = None
-
-
-class Organization(_RecordModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
-    same_as: Annotated[
-        AnyUrl | None, Field(description="External identifier IRI for this organization (e.g. ROR or Wikidata).")
-    ] = None
-    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
-    url: Annotated[AnyUrl | None, Field(description="Homepage URL.")] = None
-
-
-class Person(_RecordModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    affiliation: Annotated[
-        Organization | None,
-        Field(default_factory=Organization, description="Organization the person is affiliated with."),
-    ]
-    email: Annotated[str | None, Field(description="Contact e-mail address.")] = None
-    family_name: Annotated[str | None, Field(description="Family (last) name.", min_length=1)] = None
-    given_name: Annotated[str | None, Field(description="Given (first) name.", min_length=1)] = None
-    name: Annotated[str | None, Field(description="Full name.", min_length=1)] = None
-    same_as: Annotated[
-        AnyUrl | None, Field(description="External identifier IRI, typically an ORCID (https://orcid.org/...).")
-    ] = None
-    type: Annotated[Literal["Person"] | None, Field(description="JSON-LD type discriminator.")] = None
-    url: Annotated[AnyUrl | None, Field(description="Personal or institutional web page.")] = None
 
 
 class Quantity4(_RecordModel):
@@ -245,7 +214,7 @@ class TestSpec(_RecordModel):
     id: Annotated[
         str | None,
         Field(
-            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$"
         ),
     ] = None
     identifier: Annotated[
@@ -289,6 +258,53 @@ class TestSpec(_RecordModel):
         ),
     ] = None
     version: Annotated[str | None, Field(description="Protocol version label.")] = None
+
+
+class Organization(_RecordModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[
+        str | None,
+        Field(
+            description="Canonical BattINFO organization IRI linking this party to its organization record.",
+            pattern="^https://w3id\\.org/battinfo/(?:(?:id/[1-9][0-9]{3,}/)?organization/|id/)[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+        ),
+    ] = None
+    name: Annotated[str | None, Field(description="Organization name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI for this organization (e.g. ROR or Wikidata).")
+    ] = None
+    type: Annotated[Literal["Organization"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Homepage URL.")] = None
+
+
+class Affiliation(RootModel[list[Organization] | None]):
+    root: Annotated[
+        list[Organization] | None,
+        Field(description="Organization(s) the person is affiliated with: one, or a list.", min_length=1),
+    ] = None
+
+
+class Person(_RecordModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    affiliation: Annotated[
+        Organization | Affiliation | None,
+        Field(
+            default_factory=Organization, description="Organization(s) the person is affiliated with: one, or a list."
+        ),
+    ]
+    email: Annotated[str | None, Field(description="Contact e-mail address.")] = None
+    family_name: Annotated[str | None, Field(description="Family (last) name.", min_length=1)] = None
+    given_name: Annotated[str | None, Field(description="Given (first) name.", min_length=1)] = None
+    name: Annotated[str | None, Field(description="Full name.", min_length=1)] = None
+    same_as: Annotated[
+        AnyUrl | None, Field(description="External identifier IRI, typically an ORCID (https://orcid.org/...).")
+    ] = None
+    type: Annotated[Literal["Person"] | None, Field(description="JSON-LD type discriminator.")] = None
+    url: Annotated[AnyUrl | None, Field(description="Personal or institutional web page.")] = None
 
 
 class Step(_RecordModel):

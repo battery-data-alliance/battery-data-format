@@ -102,7 +102,7 @@ class Cell(_RecordModel):
         str | None,
         Field(
             description="Canonical IRI of the cell spec.",
-            pattern="^https://w3id\\.org/battinfo/(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
+            pattern="^https://w3id\\.org/battinfo/(?:id/[1-9][0-9]{3,}/)?(?:spec|material-spec|electrode-spec|separator-spec|electrolyte-spec|current-collector-spec|housing-spec)/[0-9a-hjkmnp-tv-z]{4}(?:-[0-9a-hjkmnp-tv-z]{4}){3}$",
         ),
     ] = None
     manufacturer: Annotated[str | None, Field(description="Manufacturer name.")] = None
