@@ -4,15 +4,14 @@ Current committers on battery-data-format, in alphabetical order.
 
 | Name | GitHub | Affiliation | Role |
 |---|---|---|---|
-| Simon Clark | [@jsimonclark](https://github.com/jsimonclark) | SINTEF | Committer, TSC member; stewards the column spec, the reference data, and BattINFO and ontology alignment |
-| Gabe Hege | [@pghege](https://github.com/pghege) | AmpLabs | Committer, BDA TSC chair; stewards the column spec and release tooling |
-| Thomas Holland | [@tomjholland](https://github.com/tomjholland) | Imperial College London | Committer, TSC member; maintains the metadata models and the BattINFO integration in the package, with Simon |
-| Graham Kimbell | [@g-kimbell](https://github.com/g-kimbell) | Empa | Committer, TSC member; maintains the vendor plugins: table parsers, normalizers and the plugin registry |
+| Simon Clark | [@jsimonclark](https://github.com/jsimonclark) | SINTEF | Committer, TSC member |
+| Gabe Hege | [@pghege](https://github.com/pghege) | AmpLabs | Committer, BDA TSC chair |
+| Thomas Holland | [@tomjholland](https://github.com/tomjholland) | Imperial College London | Committer, TSC member |
+| Graham Kimbell | [@g-kimbell](https://github.com/g-kimbell) | Empa | Committer, TSC member |
 
-The committers are also the project's Technical Steering Committee; see
-[GOVERNANCE.md](GOVERNANCE.md). Stewardship marks who reviews an area first,
-not who may merge in it: any committer can merge anywhere. The areas match
-[.github/CODEOWNERS](.github/CODEOWNERS).
+The committers are also the project's Technical Steering Committee, and they
+maintain BDF and its affiliated integrations equally. No one owns an area and
+no one needs permission to work in one; see [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Emeritus committers
 

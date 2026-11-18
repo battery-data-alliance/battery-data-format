@@ -32,7 +32,9 @@ authority rests with the Battery Data Alliance Technical Steering Committee
 
 Today the TSC is the committers. The four people listed in
 [COMMITTERS.md](COMMITTERS.md) are its whole membership; there is no separate
-body and no separate roster.
+body and no separate roster. They maintain BDF and its affiliated integrations
+equally: the ontology, the datastore and the BattINFO integration are the
+project's work, not any one member's, and no area carries a standing owner.
 
 Gabe Hege is **chair** of the TSC and BDA's representative to the LF Energy
 Technical Advisory Council.
