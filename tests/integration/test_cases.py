@@ -80,7 +80,7 @@ class SampleCase:
     skip: int | None = None
     # Field separator for delimited text (e.g., ",", "\t", " ").
     sep: str | None = None
-    # Dotted METADATA path -> expected converted value from the plugin.
+    # Dotted metadata path -> expected converted value from the plugin.
     expected_metadata: dict[str, object] | None = None
     # BDF column names → ColExpect (source header, scale, datetime flag).
     expected_columns: dict[str, ColExpect] | None = None

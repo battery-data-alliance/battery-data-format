@@ -27,7 +27,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .file_utils import read_head, resolve_source
 from .normalization import DayMonthOrder
-from .table_normalizers import TableNormalizer
+from .spec import COLUMN_ONTOLOGY, ColumnOntology
+from .table_normalizers import NormalizerField, TableNormalizer
 
 # ---------------------------------------------------------------------------
 # Polars docstring helper
@@ -88,7 +89,7 @@ class TableParser(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    normalizer: TableNormalizer = TableNormalizer()
+    normalizer: NormalizerField = TableNormalizer()
 
     base_exts: ClassVar[frozenset[str]]
     unique_exts: frozenset[str] = frozenset()
@@ -180,10 +181,12 @@ class TableParser(BaseModel):
         *,
         normalize: bool = True,
         validate: bool = True,
+        strict: bool = True,
         include_unknown: bool = False,
         lazy: bool = True,
         tz: str = "UTC",
         day_month_order: DayMonthOrder | None = None,
+        ontology: ColumnOntology = COLUMN_ONTOLOGY,
     ) -> pl.LazyFrame | pl.DataFrame:
         """Read ``path`` (local or URL) and return the normalized or raw frame.
 
@@ -196,7 +199,9 @@ class TableParser(BaseModel):
         Args:
             path: Local file path or http(s) URL.
             normalize: Apply column normalization when True.
-            validate: Validate column names against BDF ontology when True (default).
+            validate: Check column names against the ontology (default True).
+            strict: With ``validate``, raise on missing required columns (default True);
+                False warns instead.
             include_unknown: Keep columns outside of the BDF spec in the dataframe (default False).
             lazy: Return a LazyFrame when True (default); collect to a DataFrame when False.
             tz: IANA timezone applied to naive ``unix_time_second`` datetime formats.
@@ -204,6 +209,8 @@ class TableParser(BaseModel):
             day_month_order: Field order applied to an ambiguous numeric date in a
                 datetime column's declared formats. ``None`` (default) leaves every
                 declared format unchanged.
+            ontology: Ontology that the normalization uses. Defaults to the
+                bundled release.
 
         Returns:
             Normalized or raw polars LazyFrame (``lazy=True``) or DataFrame (``lazy=False``).
@@ -217,8 +224,10 @@ class TableParser(BaseModel):
             lf,
             include_unknown=include_unknown,
             validate=validate,
+            strict=strict,
             tz=tz,
             day_month_order=day_month_order,
+            ontology=ontology,
         )
         assert isinstance(result, pl.LazyFrame)
         return result if lazy else result.collect()

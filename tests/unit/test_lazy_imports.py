@@ -43,3 +43,12 @@ def test_import_bdf_does_not_load_heavy_dependencies() -> None:
         check=True,
     )
     assert result.stdout.strip() == "[]"
+
+
+def test_import_io_and_plugins_does_not_load_jsonschema() -> None:
+    """jsonschema is imported by a BattINFO check or download, not by the modules every read imports."""
+    import_code = (
+        "import sys, bdf.io, bdf.plugins\nprint([n for n in ('jsonschema', 'referencing') if n in sys.modules])\n"
+    )
+    result = subprocess.run([sys.executable, "-c", import_code], capture_output=True, text=True, check=True)
+    assert result.stdout.strip() == "[]"

@@ -48,11 +48,11 @@ jobs:
       - name: Update snapshot and regenerate docs
         if: steps.versions.outputs.latest != steps.versions.outputs.current
         run: |
-          cp src/bdf/data/bdf-ontology-snapshot.ttl /tmp/old-snapshot.ttl
+          cp src/bdf/data/bdf-ontology/bdf-ontology.ttl /tmp/old-snapshot.ttl
           bdf-update-snapshot "${{ steps.versions.outputs.latest }}"
           python scripts/generate_docs.py
           python scripts/ontology_sync_summary.py /tmp/old-snapshot.ttl \
-            src/bdf/data/bdf-ontology-snapshot.ttl > /tmp/pr-body.md
+            src/bdf/data/bdf-ontology/bdf-ontology.ttl > /tmp/pr-body.md
           cat /tmp/pr-body.md
 
       - name: Open or update sync PR

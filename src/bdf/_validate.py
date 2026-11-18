@@ -4,7 +4,7 @@ import warnings
 
 # mypy: ignore-errors
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import numpy as np
 import polars as pl
@@ -17,11 +17,10 @@ from ._time_scale import detect_scale_mismatch
 from .file_utils import is_url
 from .plugins import detect  # spec-driven detection -> (plugin_id, Plugin)
 from .repair import _compute_eps_from_diffs  # reuse your epsilon heuristic
-from .spec import _slugify
+from .spec import ColumnOntology, _slugify
 
-REQUIRED = spec.COLUMN_ONTOLOGY.required_labels()
-OPTIONAL = spec.COLUMN_ONTOLOGY.optional_labels()
-
+if TYPE_CHECKING:
+    from .battinfo import BattinfoSchema
 
 # Algebraic identities the ontology defines via prov:wasDerivedFrom:
 #   cumulative_* = charging_* + discharging_*   (monotonically non-decreasing)
@@ -45,7 +44,7 @@ _MONOTONIC_NONDECREASING: tuple[str, ...] = (
 )
 
 
-def _canonical_series(df: pl.DataFrame) -> Dict[str, np.ndarray]:
+def _canonical_series(df: pl.DataFrame, ontology: ColumnOntology) -> Dict[str, np.ndarray]:
     """Map canonical mr_name -> float64 numpy array for every recognised column.
 
     Resolves preferred labels ("Cumulative Capacity / Ah"), machine-readable
@@ -54,12 +53,13 @@ def _canonical_series(df: pl.DataFrame) -> Dict[str, np.ndarray]:
 
     Args:
         df: Table whose columns may use any accepted BDF header style.
+        ontology: Ontology that defines the labels.
 
     Returns:
         Mapping from canonical mr_name to a numeric-coerced float64 array
         (non-numeric values become NaN).
     """
-    onto = spec.COLUMN_ONTOLOGY
+    onto = ontology
     label_to_mr: Dict[str, str] = {}
     for q, s in onto:
         label_to_mr.setdefault(s.formatted_label, q)
@@ -115,7 +115,7 @@ def _resolve_source(
     return path, plugin_hint
 
 
-def _check_derived(df: pl.DataFrame) -> Dict[str, Any]:
+def _check_derived(df: pl.DataFrame, ontology: ColumnOntology) -> Dict[str, Any]:
     """Check ontology-defined derived-column identities and monotonicity.
 
     All findings are warning-level: derived columns are optional, but when
@@ -124,12 +124,13 @@ def _check_derived(df: pl.DataFrame) -> Dict[str, Any]:
 
     Args:
         df: DataFrame to check.
+        ontology: Ontology that defines the labels.
 
     Returns:
         Dict with ``issues`` (list of human-readable strings) and ``details``
         (list of structured findings).
     """
-    cols = _canonical_series(df)
+    cols = _canonical_series(df, ontology)
     issues: List[str] = []
     details: List[Dict[str, Any]] = []
 
@@ -238,9 +239,11 @@ def _check_derived(df: pl.DataFrame) -> Dict[str, Any]:
     return {"issues": issues, "details": details}
 
 
-def _collect_report(df: pl.DataFrame) -> Dict[str, Any]:
-    allowed = set(REQUIRED + OPTIONAL)
-    synonym_idx = spec.COLUMN_ONTOLOGY.base_synonym_index()
+def _collect_report(df: pl.DataFrame, ontology: ColumnOntology) -> Dict[str, Any]:
+    required = list(ontology.required_labels())
+    optional = list(ontology.optional_labels())
+    allowed = set(required + optional)
+    synonym_idx = ontology.base_synonym_index()
     legacy_cols: List[str] = []
     notation_cols: List[str] = []
     deprecated_pref_cols: List[str] = []
@@ -248,19 +251,19 @@ def _collect_report(df: pl.DataFrame) -> Dict[str, Any]:
     notation_to_canonical: dict[str, str] = {}
     deprecated_pref_to_canonical: dict[str, str] = {}
     base_preferred: dict[str, str] = {}
-    for q, s in spec.COLUMN_ONTOLOGY:
+    for q, s in ontology:
         if s.deprecated:
             continue
         base = s.formatted_label.split(" / ", 1)[0].strip().lower()
         base_preferred.setdefault(base, q)
-    for q, s in spec.COLUMN_ONTOLOGY:
+    for q, s in ontology:
         pref = s.formatted_label
         target_q = q
         if s.deprecated:
             base = pref.split(" / ", 1)[0].strip().lower()
             target_q = base_preferred.get(base, q)
-            deprecated_pref_to_canonical[pref] = spec.COLUMN_ONTOLOGY[target_q].formatted_label
-        notation_to_canonical[s.effective_notation] = spec.COLUMN_ONTOLOGY[target_q].formatted_label
+            deprecated_pref_to_canonical[pref] = ontology[target_q].formatted_label
+        notation_to_canonical[s.effective_notation] = ontology[target_q].formatted_label
 
     for col in df.columns:
         if col in allowed:
@@ -280,17 +283,17 @@ def _collect_report(df: pl.DataFrame) -> Dict[str, Any]:
         mr = synonym_idx.get(col_slug)
         if mr:
             legacy_cols.append(col)
-            canonical_present.add(spec.COLUMN_ONTOLOGY[mr].formatted_label)
+            canonical_present.add(ontology[mr].formatted_label)
 
     extras: List[str] = [
         c
         for c in df.columns
         if c not in allowed and c not in legacy_cols and c not in notation_cols and c not in deprecated_pref_cols
     ]
-    missing: List[str] = [c for c in REQUIRED if c not in canonical_present]
+    missing: List[str] = [c for c in required if c not in canonical_present]
 
     # --- time monotonicity (warning-level) ---
-    time_label = spec.COLUMN_ONTOLOGY.test_time_second.formatted_label
+    time_label = ontology.test_time_second.formatted_label
     time_stats: Dict[str, Any] = {"present": False, "monotonic": True, "violations": 0, "min_drop": 0.0}
     if time_label in df.columns:
         series = df[time_label]
@@ -315,17 +318,17 @@ def _collect_report(df: pl.DataFrame) -> Dict[str, Any]:
         "ok": ok,
         "missing": missing,
         "extras": extras,
-        "required": REQUIRED,
-        "optional": OPTIONAL,
+        "required": required,
+        "optional": optional,
         "legacy_labels": legacy_cols,
         "n_rows": len(df),
         "n_cols": len(df.columns),
         "time_stats": time_stats,
-        "derived": _check_derived(df),
+        "derived": _check_derived(df, ontology),
     }
 
 
-def _print_report(rep: Dict[str, Any]) -> None:
+def _print_report(rep: Dict[str, Any], ontology: ColumnOntology) -> None:
     check = "✅" if rep["ok"] else "❌"
     print(f"{check} BDF validation {'passed' if rep['ok'] else 'failed'}")
     print(f"   rows: {rep['n_rows']:,}   cols: {rep['n_cols']}")
@@ -341,7 +344,7 @@ def _print_report(rep: Dict[str, Any]) -> None:
     ts = rep.get("time_stats", {})
     if ts.get("present") and not ts.get("monotonic", True):
         print(
-            f"   ⚠️ Non-monotonic '{spec.COLUMN_ONTOLOGY.test_time_second.formatted_label}': "
+            f"   ⚠️ Non-monotonic '{ontology.test_time_second.formatted_label}': "
             f"{ts['violations']} drops (min Δ = {ts['min_drop']:.6g} s, eps≈{ts['epsilon']:.6g})."
         )
         print("      Suggestion: bdf.clean(df, time_fix='segment') or bdf.repair.fix_time(df, method='auto').")
@@ -356,16 +359,21 @@ def validate_df(
     *,
     report: bool = False,
     raise_on_error: bool = True,
+    ontology: ColumnOntology = spec.COLUMN_ONTOLOGY,
 ) -> Dict[str, Any]:
-    """Validate a BDF table; accepts polars (eager or lazy) or pandas frames."""
+    """Validate a BDF table; accepts polars (eager or lazy) or pandas frames.
+
+    ``ontology`` gives the required and optional columns; it defaults to the
+    bundled release.
+    """
     _classify_df(df)  # raise early on unsupported types
-    rep = _collect_report(_to_polars_lazy(df).collect())
+    rep = _collect_report(_to_polars_lazy(df).collect(), ontology)
 
     # Warning, not an error
     ts = rep.get("time_stats", {})
     if ts.get("present") and not ts.get("monotonic", True):
         warnings.warn(
-            f"Non-monotonic '{spec.COLUMN_ONTOLOGY.test_time_second.formatted_label}' detected: "
+            f"Non-monotonic '{ontology.test_time_second.formatted_label}' detected: "
             f"{ts['violations']} drops "
             f"(min Δ = {ts['min_drop']:.6g} s). Consider bdf.repair.fix_time(...).",
             RuntimeWarning,
@@ -391,7 +399,7 @@ def validate_df(
         )
 
     if report:
-        _print_report(rep)
+        _print_report(rep, ontology)
 
     if raise_on_error and not rep["ok"]:
         raise BDFValidationError(f"Missing required columns: {rep['missing']}")
@@ -405,6 +413,9 @@ def validate(
     report: bool = False,
     raise_on_error: bool = False,  # <- default False so notebooks don’t crash
     registry_path: str | Path | None = None,
+    ontology: ColumnOntology | None = None,
+    strict: bool = True,
+    battinfo: BattinfoSchema | None = None,
 ):
     """
     Validate a BDF DataFrame, a local file path, an HTTP/HTTPS URL, or a dataset id.
@@ -413,6 +424,15 @@ def validate(
       - DataFrame: validate as-is (no transformations).
       - Path/URL/id: only treated as a *BDF artifact* (strict). We do NOT vendor-parse
         or normalize here. If it doesn’t look like BDF, you’ll get an 'ok=False' report.
+
+    ``ontology`` defaults to the bundled release for a DataFrame, and to the
+    release that a file's sidecar states for a path.
+
+    ``strict`` and ``battinfo`` apply to the read of a path, as for
+    :func:`bdf.read`. A sidecar that states an ontology or BattINFO schema that
+    cannot be loaded gives an ``io_error`` report; with ``strict=False`` it gives
+    a ``BDFDefinitionWarning``, and the columns are reported against the bundled
+    ontology.
 
     Returns:
       dict report with at least:
@@ -434,7 +454,9 @@ def validate(
     import pandas as pd
 
     if isinstance(obj, pd.DataFrame):
-        return validate_df(obj, report=report, raise_on_error=raise_on_error)
+        # A frame has no sidecar, so no argument means the bundled release.
+        onto = spec.COLUMN_ONTOLOGY if ontology is None else ontology
+        return validate_df(obj, report=report, raise_on_error=raise_on_error, ontology=onto)
 
     # Resolve path/URL/registry id to a local path
     if isinstance(obj, (str, Path)):
@@ -459,9 +481,9 @@ def validate(
 
         # Try to read the file
         try:
-            from .io import read
+            from .io import _read
 
-            df, _metadata = read(p)
+            df, _metadata, used = _read(p, lazy=False, ontology=ontology, strict=strict, battinfo=battinfo)
         except Exception as e:
             return _bad_report(
                 kind="io_error",
@@ -470,7 +492,7 @@ def validate(
             )
 
         # Validate columns/units only; do NOT normalize or modify
-        return validate_df(df, report=report, raise_on_error=raise_on_error)
+        return validate_df(df, report=report, raise_on_error=raise_on_error, ontology=used)
 
     # Anything else: wrong type
     return _bad_report(

@@ -19,7 +19,7 @@ from bdf.normalization import (
     LinearNormalization,
     RelativeTimeNormalization,
 )
-from bdf.spec import COLUMN_ONTOLOGY
+from bdf.spec import COLUMN_ONTOLOGY, ColumnOntology
 from bdf.table_normalizers import (
     BDF_NORMALIZER,
     NORMALIZERS,
@@ -605,11 +605,20 @@ class TestNormalizerNormalize:
         assert out.equals(df)
 
     def test_normalize_missing_required_warns(self):
-        """normalize(validate=False) warns when required BDF columns are missing."""
+        """normalize(strict=False) warns when required BDF columns are missing."""
         n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
         df = pl.DataFrame({"v": [3.5]})
         with pytest.warns(UserWarning, match="Missing required BDF columns"):
-            n.normalize(df, validate=False)
+            n.normalize(df, strict=False)
+
+    def test_normalize_without_validation_does_not_check_required_columns(self):
+        """normalize(validate=False) does not check the columns, so missing required columns give no warning."""
+        n = TableNormalizer(voltage_volt=(Syn(hdr="v"),))
+        df = pl.DataFrame({"v": [3.5]})
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            out = n.normalize(df, validate=False)
+        assert out.columns == ["Voltage / V"]
 
     def test_normalize_missing_required_validate_true_raises(self):
         """normalize(validate=True) raises BDFValidationError when required BDF columns are missing."""
@@ -919,7 +928,7 @@ class TestTableNormalizerFieldSync:
 
 class TestBDFNormalizer:
     def test_all_non_deprecated_mr_names_present(self):
-        bdf_fields = {mr_name for mr_name, _ in BDF_NORMALIZER}
+        bdf_fields = {mr_name for mr_name, _ in BDF_NORMALIZER.for_ontology(COLUMN_ONTOLOGY)}
         known_fields = set(TableNormalizer.model_fields)
         ontology_non_deprecated = {mr_name for mr_name, q in COLUMN_ONTOLOGY if not q.deprecated}
         expected = ontology_non_deprecated & known_fields
@@ -994,16 +1003,15 @@ class TestBDFNormalizer:
         assert "Test Time / s" in out.columns
         assert out["Test Time / s"][0] == 1.0
 
-    def test_bdf_normalizer_legacy_detection_is_order_independent(self, monkeypatch):
+    def test_bdf_normalizer_legacy_detection_is_order_independent(self):
         """_build_bdf_normalizer must not depend on COLUMN_ONTOLOGY's iteration order.
 
         The normaliser appends synonyms to a list and iterates through them when matching
         columns. Legacy detection should work independent of this order.
         """
-        reversed_quantities = dict(reversed(list(COLUMN_ONTOLOGY._quantities.items())))
-        monkeypatch.setattr(COLUMN_ONTOLOGY, "_quantities", reversed_quantities)
+        reversed_ontology = ColumnOntology(dict(reversed(list(COLUMN_ONTOLOGY))), COLUMN_ONTOLOGY.ontology_version)
 
-        reversed_normalizer = _build_bdf_normalizer()
+        reversed_normalizer = _build_bdf_normalizer(reversed_ontology)
         df = pl.DataFrame({"test_time_millisecond": [1000.0], "voltage_volt": [3.7], "current_ampere": [0.1]})
         with pytest.warns(UserWarning, match="Legacy BDF column labels detected"):
             out = reversed_normalizer.normalize(df)

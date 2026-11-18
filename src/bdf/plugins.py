@@ -32,7 +32,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .file_utils import is_url, read_head, resolve_source, strip_compression_suffix
 from .metadata_parsers import JsonSidecarParser, MetadataParser, NdaMetadataParser, RegexRule, TxtPreambleParser
-from .metadata_targets import METADATA
 from .normalization import AbsoluteTimeNormalization
 from .table_normalizers import BDF_NORMALIZER, NDA_NORMALIZER, NORMALIZERS, TableNormalizer
 from .table_parsers import (
@@ -181,7 +180,7 @@ BASYTEC_TXT = Plugin(
         ),
         encoding="latin-1",
         rules={
-            METADATA.battinfo_test.test.started_at: RegexRule(
+            ("battinfo_test", "test", "started_at"): RegexRule(
                 pattern=re.compile(r"~Start of Test:\s*(.+)"),
                 normalization=AbsoluteTimeNormalization(formats=_BASYTEC_DT_FMTS),
             ),
@@ -204,7 +203,7 @@ BIOLOGIC_MPT = Plugin(
     metadata_parser=TxtPreambleParser(
         magic=("bt-lab ascii file", "ec-lab ascii file"),
         rules={
-            METADATA.battinfo_test.test.started_at: RegexRule(
+            ("battinfo_test", "test", "started_at"): RegexRule(
                 pattern=re.compile(r"Acquisition started on\s*:\s*(.+)"),
                 normalization=AbsoluteTimeNormalization(formats=_BIOLOGIC_DT_FMTS),
             ),
@@ -247,7 +246,7 @@ MACCOR_CSV = Plugin(
     metadata_parser=TxtPreambleParser(
         magic=("today's date ,", "date of test:,"),
         rules={
-            METADATA.battinfo_test.test.started_at: RegexRule(
+            ("battinfo_test", "test", "started_at"): RegexRule(
                 pattern=re.compile(r"Date of Test:,(.+)"),
                 normalization=AbsoluteTimeNormalization(formats=_MACCOR_DT_HDR_FMTS),
             ),
