@@ -6,6 +6,8 @@ around BDF. Companion to [ROADMAP.md](ROADMAP.md) and
 
 ## Where we are
 
+- LF Energy lifecycle stage: **Incubation**, advanced from Sandbox by TAC
+  vote on 22 September 2026.
 - 5 code contributors across 4 organizations (SINTEF, Imperial College
   London, Empa, AmpLabs), with sustained commit flow through the 0.2.0
   release train (LFX Insights / repo history).
