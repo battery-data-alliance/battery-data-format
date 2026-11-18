@@ -5,8 +5,12 @@
 * @jsimonclark @pghege @tomjholland @g-kimbell
 
 # Subsystem stewards (first-line reviewers; anyone above can merge).
-/src/bdf/battinfo/        @tomjholland
-/src/bdf/metadata*.py     @tomjholland
-/src/bdf/spec.py          @jsimonclark @pghege
-/docs/examples/reference/ @jsimonclark
-/scripts/                 @jsimonclark @pghege
+/src/bdf/battinfo/           @tomjholland @jsimonclark
+/src/bdf/metadata*.py        @tomjholland @jsimonclark
+/src/bdf/data/battinfo/      @tomjholland @jsimonclark
+/src/bdf/table_parsers.py    @g-kimbell
+/src/bdf/table_normalizers.py @g-kimbell
+/src/bdf/plugins.py          @g-kimbell
+/src/bdf/spec.py             @jsimonclark @pghege
+/docs/examples/reference/    @jsimonclark
+/scripts/                    @jsimonclark @pghege
